@@ -1,9 +1,9 @@
 /**
  * @author		Nareg Sinenian
  * @file		iSCSIPDUKernel.h
- * @date		December 28, 2013
+ * @date		April 20, 2013
  * @version		1.0
- * @copyright	(c) 2013 Nareg Sinenian. All rights reserved.
+ * @copyright	(c) 2013-2014 Nareg Sinenian. All rights reserved.
  * @brief		Kernel-space iSCSI PDU functions.  These functions cannot be
  *              used within user-space.
  */
@@ -68,6 +68,11 @@ namespace iSCSIPDU {
     static const UInt8 kiSCSIPDUTaskMgmtFuncTargetColdReset = 0x07;
     
     static const UInt8 kiSCSIPDUTaskMgmtFuncTaskReassign = 0x08;
+    
+    
+    ////////////////////// For for use with data out PDUs //////////////////////
+
+    static const UInt8 kiSCSIPDUDataOutFinalFlag = 0x80;
 
     
     /** Basic header segment for a data in PDU. */
@@ -137,11 +142,12 @@ namespace iSCSIPDU {
         UInt32 expCmdSN;
         UInt32 maxCmdSN;
         UInt32 expDataSN;
+        UInt32 biReadResidualCount;
         UInt32 residualCount;
     } __attribute__((packed)) iSCSIPDUSCSIRspBHS;
     
     /** Basic header segment for a target management request PDU. */
-    typedef struct __iSCSIPDUTargetMgmtReqBHS {
+    typedef struct __iSCSIPDUTaskMgmtReqBHS {
         const UInt8 opCode;
         UInt8 function;
         UInt16 reserved;
@@ -152,14 +158,13 @@ namespace iSCSIPDU {
         UInt32 referencedTaskTag;
         UInt32 cmdSN;
         UInt32 expStatSN;
-        UInt32 maxCmdSN;
         UInt32 refCmdSN;
         UInt32 expDataSN;
         UInt64 reserved2;
     } __attribute__((packed)) iSCSIPDUTargetMgmtReqBHS;
     
     /** Basic header segment for a target management response PDU. */
-    typedef struct __iSCSIPDUTargetMgmtRspBHS {
+    typedef struct __iSCSIPDUTaskMgmtRspBHS {
         const UInt8 opCode;
         UInt8 flags;
         UInt8 response;
@@ -277,6 +282,15 @@ namespace iSCSIPDU {
         kiSCSIPDUAHSBiRead = 0x02,
     };
     
+    /** SCSI response PDU valid values for the response field. */
+    enum iSCSIPDUSCSIRspBHSResponse {
+        
+        /** Command was completed at the target. */
+        kiSCSIPDUSCSICmdCompleted = 0x00,
+        
+        /** Target failure. */
+        kiSCSIPDUSCSICmdTargetFailure = 0x01
+    };
     
     extern const iSCSIPDUDataOutBHS iSCSIPDUDataOutBHSInit;
     extern const iSCSIPDUSCSICmdBHS iSCSIPDUSCSICmdBHSInit;

@@ -89,6 +89,7 @@ errno_t iSCSILoginDetailToErrno(enum iSCSIPDULoginRspStatusDetail statusDetail)
             error = EOPNOTSUPP; break;
         case kiSCSIPDULDTooManyConnections:
             error = ETOOMANYREFS; break;
+
             //        case kiSCSIPDULDOutOfResources:
             
             
@@ -259,7 +260,7 @@ errno_t iSCSISessionCreateInKernel(iSCSISessionInfo * sessionInfo,
     
     // Reset qualifier and connection ID by default
     sessionInfo->sessionId = kiSCSIInvalidConnectionId;
-    connInfo->connectionId        = kiSCSIInvalidConnectionId;
+    connInfo->connectionId = kiSCSIInvalidConnectionId;
 
     // Resolve IP address (IPv4 or IPv6) or hostname, first get C pointers
     // to the CF string objects
@@ -269,43 +270,43 @@ errno_t iSCSISessionCreateInKernel(iSCSISessionInfo * sessionInfo,
     targetAddr = CFStringGetCStringPtr(connInfo->targetAddress,kCFStringEncodingUTF8);
     targetPort = CFStringGetCStringPtr(connInfo->targetPort,kCFStringEncodingUTF8);
     
-    struct addrinfo * aiTarget;
-    struct addrinfo * aiHost;
+    struct addrinfo * aiTarget = NULL;
+    struct addrinfo * aiHost = NULL;
     
-    errno_t aiTargetErr, aiHostErr;
+    errno_t error = 0;
     
-    if((aiHostErr = getaddrinfo(hostAddr,NULL,NULL,&aiHost)))
-        return aiHostErr;
+    if((error = getaddrinfo(hostAddr,NULL,NULL,&aiHost)))
+        return error;
 
-    if((aiTargetErr = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget)))
-    {
+    if((error = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget))) {
         freeaddrinfo(aiHost);
-        return aiTargetErr;
+        return error;
     }
     
     // If both target and host were resolved, grab a session
-    if(!aiTargetErr && !aiHostErr)
-    {
+    if(aiTarget && aiHost) {
         sessionInfo->sessionId = iSCSIKernelCreateSession();
         
         // If session was allocated, create a connection
         if(sessionInfo->sessionId != kiSCSIInvalidSessionId)
         {
-            connInfo->connectionId = iSCSIKernelCreateConnection(
-                                                sessionInfo->sessionId,
-                                                aiTarget->ai_family,
-                                                aiTarget->ai_addr,
-                                                aiHost->ai_addr);
-            
-            // If connection is invalid, release the session
-            if(connInfo->connectionId == kiSCSIInvalidConnectionId)
+            if((error = iSCSIKernelCreateConnection(sessionInfo->sessionId,
+                                                    aiTarget->ai_family,
+                                                    aiTarget->ai_addr,
+                                                    aiHost->ai_addr,
+                                                    &connInfo->connectionId)))
+            {
                 iSCSIKernelReleaseSession(sessionInfo->sessionId);
+            }
+        }
+        // Invalid session Id (we're maxed out)
+        else {
+            error = EAGAIN;
         }
     }
     freeaddrinfo(aiTarget);
     freeaddrinfo(aiHost);
-    
-    return 0;
+    return error;
 }
 
 /** Helper function used by iSCSISessionNegotiateSW to build a dictionary
@@ -318,7 +319,7 @@ void iSCSISessionNegotiateSWBuildDictNormal(iSCSISessionInfo * sessionInfo,
 {
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxConnections,CFSTR("1"));
     CFDictionaryAddValue(sessCmd,kiSCSILKInitialR2T,kiSCSILVYes);
-    CFDictionaryAddValue(sessCmd,kiSCSILKImmediateData,kiSCSILVYes);
+    CFDictionaryAddValue(sessCmd,kiSCSILKImmediateData,kiSCSILVNo);
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxBurstLength,CFSTR("262144"));
     CFDictionaryAddValue(sessCmd,kiSCSILKFirstBurstLength,CFSTR("65535"));
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxOutstandingR2T,CFSTR("1"));
@@ -517,7 +518,6 @@ errno_t iSCSISessionNegotiateSW(iSCSISessionInfo * sessionInfo,
     return error;
 }
 
-
 /** Helper function used by iSCSISessionNegotiateCW to build a dictionary
  *  of connection options (key-value pairs) that will be sent to the target.
  *  @param connInfo a connection information object.
@@ -646,7 +646,6 @@ errno_t iSCSISessionNegotiateCW(UInt16 sessionId,
     return error;
 }
 
-
 /** Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionRelease to close this session and free resources.
  *  @param sessionInfo parameters associated with the normal session. A new
@@ -698,15 +697,22 @@ errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
     if(!error)
         error = iSCSISessionNegotiateSW(sessionInfo,connInfo,&sessOptions);
     
-    if(error)
+    if(error) {
         iSCSIKernelReleaseSession(sessionInfo->sessionId);
+    }
+    else {
     
-    // At this point session & connection options have been modified/parsed by
-    // the helper functions called above; set these options in the kernel
-    iSCSIKernelSetSessionOptions(sessionInfo->sessionId,&sessOptions);
+        // At this point session & connection options have been modified/parsed by
+        // the helper functions called above; set these options in the kernel
+        iSCSIKernelSetSessionOptions(sessionInfo->sessionId,&sessOptions);
     
-    iSCSIKernelSetConnectionOptions(sessionInfo->sessionId,
-                                    connInfo->connectionId,&connOptions);
+        iSCSIKernelSetConnectionOptions(sessionInfo->sessionId,
+                                        connInfo->connectionId,&connOptions);
+        
+        // Activate connection first then the session
+        iSCSIKernelActivateConnection(sessionInfo->sessionId,connInfo->connectionId);
+        iSCSIKernelActivateSession(sessionInfo->sessionId);
+    }
     
     return error;
 }
@@ -767,11 +773,12 @@ errno_t iSCSISessionRelease(UInt16 sessionId)
 // TODO: Deactivate session in kernel
     
     
+    
     // Grab a connection ID for this session so that we can logout session
     UInt32 connectionId = iSCSIKernelGetActiveConnection(sessionId);
-    if(connectionId == kiSCSIInvalidConnectionId)
-        return EINVAL;
-    
+//    if(connectionId == kiSCSIInvalidConnectionId)
+//        return EINVAL;
+    connectionId = 0;
     // Logout the session, including all connections
     error = iSCSISessionLogoutCommon(sessionId,connectionId,kiSCSIPDULogoutCloseSession);
     

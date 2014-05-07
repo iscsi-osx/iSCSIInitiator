@@ -57,7 +57,7 @@ public:
     static IOReturn ReleaseSession(iSCSIInitiatorClient * target,
                                    void * reference,
                                    IOExternalMethodArguments * args);
-    
+        
     static IOReturn SetSessionOptions(iSCSIInitiatorClient * target,
                                       void * reference,
                                       IOExternalMethodArguments * args);
@@ -75,6 +75,15 @@ public:
     static IOReturn ReleaseConnection(iSCSIInitiatorClient * target,
                                       void * reference,
                                       IOExternalMethodArguments * args);
+    
+    static IOReturn ActivateConnection(iSCSIInitiatorClient * target,
+                                       void * reference,
+                                       IOExternalMethodArguments * args);
+    
+    static IOReturn DeactivateConnection(iSCSIInitiatorClient * target,
+                                         void * reference,
+                                         IOExternalMethodArguments * args);
+
 
     /** Dispatched function invoked from user-space to send data
      *  over an existing, active connection. */

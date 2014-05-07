@@ -440,8 +440,9 @@ errno_t iSCSIAuthNegotiate(UInt16 sessionId,
         &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     
     // Setup dictionary to receive authentication response
-    CFMutableDictionaryRef authRsp = CFDictionaryCreateMutableCopy(
-        kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,authCmd);
+    CFMutableDictionaryRef authRsp = CFDictionaryCreateMutable(
+        kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,
+        &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     
     iSCSIAuthNegotiateBuildDict(connInfo,authCmd);
     
@@ -473,6 +474,7 @@ errno_t iSCSIAuthNegotiate(UInt16 sessionId,
     
     // If we wanted to use a particular method and the target doesn't support it
     if(result != kCFCompareEqualTo) {
+        CFRelease(authCmd);
         CFRelease(authRsp);
         return EAUTH;
     }
@@ -486,8 +488,10 @@ errno_t iSCSIAuthNegotiate(UInt16 sessionId,
     }
     
     // Call the appropriate authentication function to proceed
-    if((enum iSCSIAuthMethods)connInfo->authMethod->authMethod == kiSCSIAuthCHAP)
-        error = iSCSIAuthNegotiateCHAP(sessionId,sessOptions->targetSessionId,connInfo);
+    if(connInfo->authMethod != NULL) {
+        if((enum iSCSIAuthMethods)connInfo->authMethod->authMethod == kiSCSIAuthCHAP)
+            error = iSCSIAuthNegotiateCHAP(sessionId,sessOptions->targetSessionId,connInfo);
+    }
 
 
     CFRelease(authCmd);

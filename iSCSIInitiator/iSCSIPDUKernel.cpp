@@ -1,9 +1,9 @@
 /**
  * @author		Nareg Sinenian
  * @file		iSCSIPDUKernel.cpp
- * @date		December 28, 2013
+ * @date		April 20, 2014
  * @version		1.0
- * @copyright	(c) 2013 Nareg Sinenian. All rights reserved.
+ * @copyright	(c) 2013-2014 Nareg Sinenian. All rights reserved.
  * @brief		Kernel-space iSCSI PDU functions.  These functions cannot be
  *              used within user-space.
  */
@@ -13,11 +13,22 @@
 
 namespace iSCSIPDU {
     
+    // final
     const iSCSIPDUDataOutBHS iSCSIPDUDataOutBHSInit = {
         .opCode             = kiSCSIPDUOpCodeDataOut,
         .flags              = 0,
-        .totalAHSLength     = 0 };
+        .reserved           = 0,
+        .totalAHSLength     = 0,
+        .LUN                = 0,
+        .initiatorTaskTag   = 0,
+        .targetTransferTag  = 0,
+        .reserved2          = 0,
+        .reserved3          = 0,
+        .dataSN             = 0,
+        .bufferOffset       = 0,
+        .reserved4          = 0 };
     
+    // final
     const iSCSIPDUSCSICmdBHS iSCSIPDUSCSICmdBHSInit = {
         .opCode             = kiSCSIPDUOpCodeSCSICmd,
         .flags              = 0,
@@ -27,6 +38,7 @@ namespace iSCSIPDU {
         .initiatorTaskTag   = 0,
         .dataTransferLength = 0 };
     
+    // final
     const iSCSIPDUTargetMgmtReqBHS iSCSIPDUTargetMgmtReqBHSInit = {
         .opCode = kiSCSIPDUOpCodeTaskMgmtReq,
         .function           = 0,

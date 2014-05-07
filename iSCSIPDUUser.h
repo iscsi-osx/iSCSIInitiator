@@ -198,7 +198,7 @@ enum iSCSIPDULoginRspStatusClass {
  *  general responses defined by iSCSIPDULoginRspStatusClass. */
 enum iSCSIPDULoginRspStatusDetail {
     
-    kiSCSIPDULDSuccess = 0x00,
+    kiSCSIPDULDSuccess = 0x0000,
     kiSCSIPDULDTargetMovedTemp = 0x0101,
     kiSCSIPDULDTargetMovedPerm = 0x0102,
     kiSCSIPDULDInitiatorError = 0x0200,
@@ -282,44 +282,5 @@ void iSCSIPDUDataRelease(void * * data);
  *  @param length the length of the data segment.
  *  @param textDict a dictionary of key-value pairs. */
 void iSCSIPDUDataParseToDict(void * data,size_t length,CFMutableDictionaryRef textDict);
-
-
-static inline size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUCommonBHS * bhs)
-{
-    UInt32 length = 0;
-    memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
-    if((length = CFSwapInt16BigToHost(length>>8)) == 0)
-        return 0;
-    
-    return length;
-}
-
-static inline size_t iSCSIPDUGetPaddedDataSegmentLength(iSCSIPDUCommonBHS * bhs)
-{
-    UInt32 length = 0;
-    memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
-    length = CFSwapInt16BigToHost(length>>8);
-    
-    if(length == 0)
-        return 0;
-    
-    return length + (4 - (length % 4));
-}
-
-
-/*
-void iSCSIPDULoginReqSetNextStage(iSCSIPDULoginReqBHS bhs,
-                                  enum iSCSIPDULoginStages stage)
-{
-    bhs.loginStage  |= (stage << kiSCSIPDULoginNSGBitOffset);
-}
-
-void iSCSIPDULoginReqSetCurrentStage(iSCSIPDULoginReqBHS bhs,
-                                     enum iSCSIPDULoginStages stage)
-{
-    bhs.loginStage |= (stage << kiSCSIPDULoginCSGBitOffset);
-}
-*/
-
 
 #endif

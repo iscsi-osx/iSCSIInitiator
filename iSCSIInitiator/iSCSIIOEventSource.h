@@ -37,6 +37,10 @@ class iSCSIIOEventSource : public IOEventSource
     OSDeclareDefaultStructors(iSCSIIOEventSource);
     
 public:
+    
+	/** Pointer to the method that is called (within the driver's workloop)
+	 *	when data becomes available at a network socket. */
+    typedef void (*Action) (iSCSISession * session,iSCSIConnection * connection);
 	
 	/** Initializes the event source with an owner and an action.
 	 *	@param owner the owner that this event source will be attached to.
@@ -47,11 +51,11 @@ public:
      *  @param connection the connection object.
 	 *	@return true if the event source was successfully initialized. */
 	virtual bool init(iSCSIVirtualHBA * owner,
-                      IOEventSource::Action action,
+                      iSCSIIOEventSource::Action action,
                       iSCSISession * session,
                       iSCSIConnection * connection);
-	
-	/** Callback function for BSD sockets. Assign this function as the 
+
+	/** Callback function for BSD sockets. Assign this function as the
 	 *	call back when opening a socket using sock_socket(). Note that the
 	 *	cookie (see sock_socket() documentation) must be an instance of
 	 *	an event source. */
@@ -59,6 +63,7 @@ public:
 							   iSCSIIOEventSource * eventSource,
 							   int waitf);
 	
+    
 protected:
 	
 	/** Called by the attached work loop to check if there is any processing
@@ -66,20 +71,9 @@ protected:
 	 *	to by this object.
 	 *	@return true if there was work, false otherwise. */
 	virtual bool checkForWork();
-	
-	/** Restrict access to superclass init function, since we require a
-	 *	mandatory socket parameter we'll force the user to use our init */
-	using IOEventSource::init;
-	
+		
 private:
 					  	
-	/** Pointer to the method that is called (within the driver's workloop)
-	 *	when data becomes available at a network socket. */
-	typedef void (*Action) (UInt16 sessionQualifier,UInt32 connectionID);
-	
-	/** The socket associated with this event source. */
-//	socket_t so;
-    
     iSCSISession * session;
     
     iSCSIConnection * connection;

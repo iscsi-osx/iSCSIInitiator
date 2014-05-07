@@ -56,11 +56,14 @@ errno_t iSCSIKernelGetSessionOptions(UInt16 sessionId,
  *  @param targetAddress the BSD socket structure used to identify the target. 
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
- *  @return a connection ID, or 0 if a connection could not be created. */
-UInt32 iSCSIKernelCreateConnection(UInt16 sessionId,
-                                   int domain,
-                                   const struct sockaddr * targetAddress,
-                                   const struct sockaddr * hostAddress);
+ *  @param connectionId the identifier of the new connection.
+ *  @return a connection identifier using the last parameter, or an error code
+ *  if a valid connection could not be created. */
+errno_t iSCSIKernelCreateConnection(UInt16 sessionId,
+                                    int domain,
+                                    const struct sockaddr * targetAddress,
+                                    const struct sockaddr * hostAddress,
+                                    UInt32 * connectionId);
 
 /** Frees a given iSCSI connection associated with a given session.
  *  The session should be logged out using the appropriate PDUs. */
@@ -124,29 +127,16 @@ errno_t iSCSIKernelGetConnectionOptions(UInt16 sessionId,
  *  @return an active connection Id for the specified session. */
 UInt32 iSCSIKernelGetActiveConnection(UInt16 sessionId);
 
-
-/** Activates an iSCSI session.  Scans for LUNs and mounts them as appropriate.
- *  @param sessionId the session qualifier to use.
- *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelActivateSession(UInt16 sesssionId);
-
-
-/** Dectivates an iSCSI session.  Scans for LUNs and mounts them as appropriate.
- *  @param sessionId the session qualifier to use.
- *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelDeactivateSession(UInt16 sesssionId);
-
-
-/** Activates an iSCSI connection.
+/** Activates an iSCSI connection.  Lets the
  *  @param sessionId session associated with connection to activate.
  *  @param connectionId  connection to activate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelActivateConnection(UInt16 sesssionId,UInt32 connectionId);
+errno_t iSCSIKernelActivateConnection(UInt16 sessionId,UInt32 connectionId);
 
 /** Dectivates an iSCSI session.
  *  @param sessionId session associated with connection to activate.
  *  @param connectionId  connection to activate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelActivateConnection(UInt16 sesssionId,UInt32 connectionId);
+errno_t iSCSIKernelDeactivateConnection(UInt16 sessionId,UInt32 connectionId);
 
 #endif /* defined(__ISCSI_KERNEL_INTERFACE_H__) */

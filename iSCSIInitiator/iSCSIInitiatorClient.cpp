@@ -64,7 +64,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateConnection,
 		2,                          // Session, domain
 		2*sizeof(struct sockaddr),  // Address structures
-		1,                          // Return value for ConnectionCreate
+		2,                          // Return value for CreateConnection
 		0
 	},
 	{
@@ -72,6 +72,20 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 		2, // Session Id, connection Id
 		0,
 		0,
+		0
+	},
+    {
+		(IOExternalMethodAction) &iSCSIInitiatorClient::ActivateConnection,
+		2, // Session Id, connection Id
+		0,
+		1,
+		0
+	},
+	{
+		(IOExternalMethodAction) &iSCSIInitiatorClient::DeactivateConnection,
+		2, // Session Id, connection Id
+		0,
+		1,
 		0
 	},
 	{
@@ -186,6 +200,7 @@ IOReturn iSCSIInitiatorClient::clientClose()
 	// Ensure that the connection has been closed (in case the user calls
 	// IOServiceClose() before calling our close() method
 	close();
+    
 	
 	// Terminate ourselves
 	terminate();
@@ -312,15 +327,18 @@ IOReturn iSCSIInitiatorClient::CreateConnection(iSCSIInitiatorClient * target,
                                                 void * reference,
                                                 IOExternalMethodArguments * args)
 {
+    UInt32 connectionId;
+    
     // Create a connection
-    *args->scalarOutput = target->provider->CreateConnection(
+    args->scalarOutput[0] = target->provider->CreateConnection(
             (UInt16)args->scalarInput[0],       // Session qualifier
             (int)args->scalarInput[1],          // Socket domain
             (const sockaddr *)args->structureInput,
-            (const sockaddr *)args->structureInput+args->structureInputSize);
+            (const sockaddr *)args->structureInput+args->structureInputSize,
+            &connectionId);
     
-    // We'll return the connection ID, so there's a single scalar output
-    args->scalarOutputCount = 1;
+    args->scalarOutput[1] = connectionId;
+    args->scalarOutputCount = 2;
 
     return kIOReturnSuccess;
 }
@@ -334,6 +352,28 @@ IOReturn iSCSIInitiatorClient::ReleaseConnection(iSCSIInitiatorClient * target,
                                         (UInt32)args->scalarInput[1]);
     return kIOReturnSuccess;
 }
+
+IOReturn iSCSIInitiatorClient::ActivateConnection(iSCSIInitiatorClient * target,
+                                                  void * reference,
+                                                  IOExternalMethodArguments * args)
+{
+    *args->scalarOutput =
+        target->provider->ActivateConnection((UInt16)args->scalarInput[0],
+                                             (UInt32)args->scalarInput[1]);
+    return kIOReturnSuccess;
+}
+
+IOReturn iSCSIInitiatorClient::DeactivateConnection(iSCSIInitiatorClient * target,
+                                                    void * reference,
+                                                    IOExternalMethodArguments * args)
+{
+    *args->scalarOutput =
+    target->provider->DeactivateConnection((UInt16)args->scalarInput[0],
+                                           (UInt32)args->scalarInput[1]);
+
+    return kIOReturnSuccess;
+}
+
 
 /** Dispatched function invoked from user-space to send data
  *  over an existing, active connection. */

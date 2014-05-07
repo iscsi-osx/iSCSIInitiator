@@ -34,6 +34,8 @@ enum functionNames {
     kiSCSIGetSessionOptions,
     kiSCSICreateConnection,
     kiSCSIReleaseConnection,
+    kiSCSIActivateConnection,
+    kiSCSIDeactivateConnection,
     kiSCSISendBHS,
     kiSCSISendData,
     kiSCSIRecvBHS,
@@ -115,7 +117,10 @@ typedef struct iSCSIConnectionOptions
     /** Interval for IF marker. */
     UInt16 IFMarkerInt;
     
-    /** Maximum data segment length allowed. */
+    /** Maximum data segment length allowed by the target. */
+    UInt32 maxSendDataSegmentLength;
+    
+    /** Maximum data segment length we can received. */
     UInt32 maxRecvDataSegmentLength;
     
 } iSCSIConnectionOptions;

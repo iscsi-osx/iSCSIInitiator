@@ -85,7 +85,7 @@ UInt16 iSCSIKernelCreateSession()
     {
         // We require at least one output integer
         if(outputCnt == expOutputCnt)
-            return output;
+            return (UInt16)output;
     }
     
     // Else we couldnt allocate a session; quit
@@ -160,11 +160,14 @@ errno_t iSCSIKernelGetSessionOptions(UInt16 sessionId,
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
- *  @return a connection ID, or 0 if a connection could not be created. */
-UInt32 iSCSIKernelCreateConnection(UInt16 sessionId,
-                                   int domain,
-                                   const struct sockaddr * targetAddress,
-                                   const struct sockaddr * hostAddress)
+ *  @param connectionId the identifier of the new connection.
+ *  @return a connection identifier using the last parameter, or an error code
+ *  if a valid connection could not be created. */
+errno_t iSCSIKernelCreateConnection(UInt16 sessionId,
+                                    int domain,
+                                    const struct sockaddr * targetAddress,
+                                    const struct sockaddr * hostAddress,
+                                    UInt32 * connectionId)
 {
     // Check parameters
     if(!targetAddress || !hostAddress || sessionId == kiSCSIInvalidSessionId)
@@ -177,18 +180,23 @@ UInt32 iSCSIKernelCreateConnection(UInt16 sessionId,
     const UInt32 inputStructCnt = 2;
     const struct sockaddr addresses[] = {*targetAddress,*hostAddress};
     
-    UInt64 output;
-    UInt32 outputCnt = 1;
+    const UInt32 expOutputCnt = 2;
+    UInt64 output[expOutputCnt];
+    UInt32 outputCnt = expOutputCnt;
     
     if(IOConnectCallMethod(connection,kiSCSICreateConnection,inputs,inputCnt,
                            addresses,inputStructCnt*sizeof(struct sockaddr),
-                           &output,&outputCnt,0,0) == kIOReturnSuccess)
+                           output,&outputCnt,0,0) == kIOReturnSuccess)
     {
-        return (UInt32)output;
+        if(outputCnt == expOutputCnt)
+        {
+            *connectionId = (UInt32)output[1];
+            return (UInt32)output[0];
+        }
     }
 
     // Else we couldn't allocate a connection; quit
-    return kiSCSIInvalidConnectionId;
+    return EINVAL;
 }
 
 /** Frees a given
@@ -222,7 +230,7 @@ errno_t iSCSIKernelSend(UInt16 sessionId,
                         size_t length)
 {
     // Check parameters
-    if(sessionId    == kiSCSIInvalidSessionId || !bhs || !data ||
+    if(sessionId    == kiSCSIInvalidSessionId || !bhs || (!data && length > 0) ||
        connectionId == kiSCSIInvalidConnectionId)
         return EINVAL;
     
@@ -291,7 +299,7 @@ errno_t iSCSIKernelRecv(UInt16 sessionId,
         return EIO;
     
     // Determine how much data to allocate for the data buffer
-    *length = iSCSIPDUGetPaddedDataSegmentLength((iSCSIPDUCommonBHS *)bhs);
+    *length = iSCSIPDUGetDataSegmentLength((iSCSIPDUCommonBHS *)bhs);
     
     // If no data, were done at this point
     if(*length == 0)
@@ -395,6 +403,60 @@ UInt32 iSCSIKernelGetActiveConnection(UInt16 sessionId)
     }
     
     return kiSCSIInvalidConnectionId;
+}
+
+/** Activates an iSCSI connection.  Lets the
+ *  @param sessionId session associated with connection to activate.
+ *  @param connectionId  connection to activate.
+ *  @return error code inidicating result of operation. */
+errno_t iSCSIKernelActivateConnection(UInt16 sessionId,UInt32 connectionId)
+{
+    // Check parameters
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+        return EINVAL;
+    
+    // Tell kernel to drop this connection
+    const UInt32 inputCnt = 2;
+    UInt64 inputs[] = {sessionId,connectionId};
+    
+    UInt64 output;
+    UInt32 outputCnt = 1;
+    const UInt32 expOutputCnt = 1;
+    
+    if(IOConnectCallScalarMethod(connection,kiSCSIActivateConnection,
+                                 inputs,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
+    {
+        if(outputCnt == expOutputCnt)
+            return (errno_t)output;
+    }
+    return EINVAL;
+}
+
+/** Dectivates an iSCSI session.
+ *  @param sessionId session associated with connection to activate.
+ *  @param connectionId  connection to activate.
+ *  @return error code inidicating result of operation. */
+errno_t iSCSIKernelDeactivateConnection(UInt16 sessionId,UInt32 connectionId)
+{
+    // Check parameters
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+        return EINVAL;
+    
+    // Tell kernel to drop this connection
+    const UInt32 inputCnt = 2;
+    UInt64 inputs[] = {sessionId,connectionId};
+    
+    UInt64 output;
+    UInt32 outputCnt = 1;
+    const UInt32 expOutputCnt = 1;
+    
+    if(IOConnectCallScalarMethod(connection,kiSCSIDeactivateConnection,
+                                 inputs,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
+    {
+        if(outputCnt == expOutputCnt)
+            return (errno_t)output;
+    }
+    return EINVAL;
 }
 
 

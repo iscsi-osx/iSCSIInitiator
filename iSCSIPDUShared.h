@@ -25,6 +25,7 @@
 #else
 #include <stdlib.h>
 #include <MacTypes.h>
+#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 ///////////////////// BYTE SIZE OF VARIOUS PDU FIELDS //////////////////////
@@ -162,71 +163,16 @@ enum iSCSIPDUTargetOpCodes {
     kiSCSIPDUMaxTargetOpCode
 };
 
-/*
-
-size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUCommonBHS bhs)
+static inline size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUCommonBHS * bhs)
 {
     UInt32 length = 0;
-    memcpy(&length,bhs.dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
+    memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
 #ifdef KERNEL
-    return OSSwapBigToHostInt32(length>>8);
+    length = OSSwapBigToHostInt32(length<<8);
 #else
-    return CFSwapInt16BigToHost(length>>8);
+    length = CFSwapInt32BigToHost(length<<8);
 #endif
+    return length;
 }
-
-/*
-
-inline iSCSIPDUInitiatorBHS * iSCSIPDUCreateInitiatorBHS(enum iSCSIPDUInitiatorOpCodes opCode,
-                                                         bool immediateDelivery)
-{
-    iSCSIPDUInitiatorBHS * bhs;
-    
-#ifdef KERNEL
-    bhs = (iSCSIPDUInitiatorBHS *)IOMalloc(sizeof(iSCSIPDUInitiatorBHS));
-#else
-    bhs = (iSCSIPDUInitiatorBHS *)malloc(sizeof(iSCSIPDUInitiatorBHS));
-#endif
-    
-    if(!bhs)
-        return NULL;
-    
-    *(UInt8 *)&bhs->opCodeAndDeliveryMarker = opCode;
-    
-    if(immediateDelivery)
-        *(UInt8 *)&bhs->opCodeAndDeliveryMarker |= kiSCSIPDUImmediateDeliveryFlag;
-    
-    return bhs;
-}
-
-inline iSCSIPDUTargetBHS * iSCSIPDUCreateTargetBHS()
-{
-    iSCSIPDUTargetBHS * bhs;
-    
-#ifdef KERNEL
-    bhs = (iSCSIPDUTargetBHS *)IOMalloc(sizeof(iSCSIPDUTargetBHS));
-#else
-    bhs = (iSCSIPDUTargetBHS *)malloc(sizeof(iSCSIPDUTargetBHS));
-#endif
-    
-    if(!bhs)
-        return NULL;
-    
-    return bhs;
-}
-
-inline void iSCSIPDUFreeBHS(iSCSIPDUCommonBHS * * bhs)
-{
-    if(bhs && *bhs)
-    {
-#ifdef KERNEL
-        IOFree(*bhs);
-#else
-        free(*bhs);
-#endif
-        *bhs = NULL;
-    }
-}
-*/
 
 #endif
