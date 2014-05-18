@@ -311,10 +311,19 @@ errno_t iSCSIAuthNegotiateCHAP(UInt16 sessionId,
         kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,
         &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     
+    if(!authCmd)
+        return EINVAL;
+    
     // Setup dictionary to receive authentication response
-    CFMutableDictionaryRef authRsp = CFDictionaryCreateMutableCopy(
-        kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,authCmd);
-
+    CFMutableDictionaryRef authRsp = CFDictionaryCreateMutable(
+        kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,
+        &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
+    
+    if(!authRsp) {
+        CFRelease(authCmd);
+        return EINVAL;
+    }
+    
     // Target must first offer the authentication method (5 = MD5)
     // This key starts authentication process - target authenticates us
     CFDictionaryAddValue(authCmd,kiSCSILKAuthCHAPDigest,kiSCSILVAuthCHAPDigestMD5);
@@ -472,12 +481,12 @@ errno_t iSCSIAuthNegotiate(UInt16 sessionId,
                              CFDictionaryGetValue(authCmd,kiSCSILKAuthMethod),
                              kCFCompareCaseInsensitive);
     
+    CFRelease(authCmd);
+    CFRelease(authRsp);
+    
     // If we wanted to use a particular method and the target doesn't support it
-    if(result != kCFCompareEqualTo) {
-        CFRelease(authCmd);
-        CFRelease(authRsp);
+    if(result != kCFCompareEqualTo)
         return EAUTH;
-    }
     
     // If this is leading login, store TPGT
     if(sessOptions->targetSessionId != 0)
@@ -493,9 +502,6 @@ errno_t iSCSIAuthNegotiate(UInt16 sessionId,
             error = iSCSIAuthNegotiateCHAP(sessionId,sessOptions->targetSessionId,connInfo);
     }
 
-
-    CFRelease(authCmd);
-    CFRelease(authRsp);
     return error;
 }
 

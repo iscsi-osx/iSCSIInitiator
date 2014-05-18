@@ -40,7 +40,8 @@ public:
     
 	/** Pointer to the method that is called (within the driver's workloop)
 	 *	when data becomes available at a network socket. */
-    typedef void (*Action) (iSCSISession * session,iSCSIConnection * connection);
+    typedef void (*Action) (iSCSIVirtualHBA::iSCSISession * session,
+                            iSCSIVirtualHBA::iSCSIConnection * connection);
 	
 	/** Initializes the event source with an owner and an action.
 	 *	@param owner the owner that this event source will be attached to.
@@ -52,8 +53,8 @@ public:
 	 *	@return true if the event source was successfully initialized. */
 	virtual bool init(iSCSIVirtualHBA * owner,
                       iSCSIIOEventSource::Action action,
-                      iSCSISession * session,
-                      iSCSIConnection * connection);
+                      iSCSIVirtualHBA::iSCSISession * session,
+                      iSCSIVirtualHBA::iSCSIConnection * connection);
 
 	/** Callback function for BSD sockets. Assign this function as the
 	 *	call back when opening a socket using sock_socket(). Note that the
@@ -74,9 +75,9 @@ protected:
 		
 private:
 					  	
-    iSCSISession * session;
+    iSCSIVirtualHBA::iSCSISession * session;
     
-    iSCSIConnection * connection;
+    iSCSIVirtualHBA::iSCSIConnection * connection;
 };
 
 #endif /* defined(__ISCSI_EVENT_SOURCE_H__) */

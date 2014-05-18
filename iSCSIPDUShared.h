@@ -163,16 +163,5 @@ enum iSCSIPDUTargetOpCodes {
     kiSCSIPDUMaxTargetOpCode
 };
 
-static inline size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUCommonBHS * bhs)
-{
-    UInt32 length = 0;
-    memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
-#ifdef KERNEL
-    length = OSSwapBigToHostInt32(length<<8);
-#else
-    length = CFSwapInt32BigToHost(length<<8);
-#endif
-    return length;
-}
 
 #endif

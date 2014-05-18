@@ -24,10 +24,6 @@
 
 #define iSCSIVirtualHBA		com_NSinenian_iSCSIVirtualHBA
 
-/** Forward declaration of session object used by HBA. */
-struct iSCSISession;
-struct iSCSIConnection;
-
 /** This class implements the iSCSI virtual host bus adapter (HBA).  The HBA
  *	creates and removes targets and processes SCSI requested by the operating
  *	system. The class maintains state information, including targets and
@@ -40,6 +36,12 @@ class iSCSIVirtualHBA : public IOSCSIParallelInterfaceController
 	OSDeclareDefaultStructors(iSCSIVirtualHBA);
 
 public:
+    
+    /** Forward delcaration of an iSCSI session. */
+    struct iSCSISession;
+    
+    /** Forward delcaration of an iSCSI connection. */
+    struct iSCSIConnection;
 	
 	/////////  FUNCTIONS REQUIRED BY IOSCSIPARALLELINTERFACECONTROLLER  ////////
 
@@ -76,6 +78,7 @@ public:
                                                         SCSILogicalUnitNumber LUN);
 
     virtual SCSIServiceResponse TargetResetRequest(SCSITargetIdentifier targetId);
+
 
     /** Gets the SCSI initiator ID.  This is a random number that is 
      *  generated each time this controller is initialized. */
@@ -146,17 +149,7 @@ public:
      *  session.
      *  @param sessionId the session qualifier part of the ISID. */
     void ReleaseSession(UInt16 sessionId);
-    
-    /** Activates an iSCSI session that has been properly configured.
-     *  @param sessionId the session to activate.
-     *  @return error code indicating result of operation. */
-    errno_t ActivateSession(UInt16 sessionId);
-    
-    /** Deactivates an iSCSI session that has been properly configured.
-     *  @param sessionId the session to activate.
-     *  @return error code indicating result of operation. */
-    errno_t DeactivateSession(UInt16 sessionId);
-    
+        
     /** Sets options associated with a particular session.
      *  @param sessionId the qualifier part of the ISID (see RFC3720).
      *  @param options the options to set.
@@ -204,7 +197,14 @@ public:
      *  @return error code indicating result of operation. */
     errno_t DeactivateConnection(UInt16 sessionId,UInt32 connectionId);
     
-    /** Sends data over a kernel socket associated with iSCSI.
+    /** Sends data over a kernel socket associated with iSCSI.  If the specified
+     *  data segment length is not a multiple of 4-bytes, padding bytes will be
+     *  added to the data segment of the PDU per RF3720 specification.
+     *  This function will automatically calculate the data segment length
+     *  field of the PDU and place it in the header using the correct byte order.
+     *  It will also assign a command sequence number and expected status sequence
+     *  number using values from the session and connection objects to the PDU
+     *  header in the correct (network) byte order.
      *  @param sessionId the qualifier part of the ISID (see RFC3720).
      *  @param connectionId the connection associated with the session.
      *  @param bhs the basic header segment to send.
@@ -218,15 +218,23 @@ public:
                     iSCSIPDU::iSCSIPDUCommonAHS * ahs,
                     void * data,
                     size_t length);
+
+    /** Gets whether a PDU is available for receiption on a particular
+     *  connection.
+     *  @param the connection to check.
+     *  @return true if a PDU is available, false otherwise. */
+    static bool isPDUAvailable(iSCSIConnection * connection);
     
     /** Receives a basic header segment over a kernel socket.
      *  @param sessionId the qualifier part of the ISID (see RFC3720).
      *  @param connectionId the connection associated with the session.
      *  @param bhs the basic header segment received.
+     *  @param flags optional flags to be passed onto sock_recv.
      *  @return error code indicating result of operation. */
     errno_t RecvPDUHeader(iSCSISession * session,
                           iSCSIConnection * connection,
-                          iSCSIPDUTargetBHS * bhs);
+                          iSCSIPDUTargetBHS * bhs,
+                          int flags);
     
     /** Receives a data segment over a kernel socket.  If the specified length is
      *  not a multiple of 4-bytes, the padding bytes will be discarded per
@@ -236,11 +244,13 @@ public:
      *  @param connectionId the connection associated with the session.
      *  @param data the data received.
      *  @param length the length of the data buffer.
+     *  @param flags optional flags to be passed onto sock_recv.
      *  @return error code indicating result of operation. */
     errno_t RecvPDUData(iSCSISession * session,
                         iSCSIConnection * connection,
                         void * data,
-                        size_t length);
+                        size_t length,
+                        int flags);
     
     /** Wrapper around SendPDU for user-space calls.
      *  Sends data over a kernel socket associated with iSCSI.
@@ -331,9 +341,6 @@ private:
     void ProcessR2T(iSCSISession * session,
                     iSCSIConnection * connection,
                     iSCSIPDU::iSCSIPDUR2TBHS * bhs);
-
-    
-    
 	
     /** Maximum allowable sessions. */
     static const UInt16 kMaxSessions;
@@ -350,6 +357,11 @@ private:
     /** Maximum number of SCSI tasks the HBA can handle. */
     static const UInt32 kMaxTaskCount;
     
+
+
+    
+
+    
     /** Amount of memory (in bytes) required for a single SCSI task. */
 //    static const UInt32 kTaskDataSize;
     
@@ -360,10 +372,6 @@ private:
      *  initialization of the initiator and the 24 least significant bits
      *  are used to form part of the iSCSI ISID. */
     SCSIInitiatorIdentifier kInitiatorId;
-    
-    /** An array of tasks that are currently being processed.  These
-     *  tasks are indexed by their tagged task identifier. */
-    OSArray * taskArray;
 	
 	/** Lookup table that maps SCSI sessions to ISID qualifiers 
      *  (session qualifier IDs). */

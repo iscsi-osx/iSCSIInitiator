@@ -27,7 +27,7 @@ namespace iSCSIPDU {
         .dataSN             = 0,
         .bufferOffset       = 0,
         .reserved4          = 0 };
-    
+
     // final
     const iSCSIPDUSCSICmdBHS iSCSIPDUSCSICmdBHSInit = {
         .opCode             = kiSCSIPDUOpCodeSCSICmd,
@@ -40,7 +40,7 @@ namespace iSCSIPDU {
     
     // final
     const iSCSIPDUTargetMgmtReqBHS iSCSIPDUTargetMgmtReqBHSInit = {
-        .opCode = kiSCSIPDUOpCodeTaskMgmtReq,
+        .opCode             = kiSCSIPDUOpCodeTaskMgmtReq,
         .function           = 0,
         .reserved           = 0,
         .totalAHSLength     = 0,

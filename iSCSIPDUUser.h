@@ -263,6 +263,17 @@ extern const unsigned short kiSCSIPDUTextReqFinalFlag;
  *  follow for this text request. */
 extern const unsigned short kiSCSIPDUTextReqContinueFlag;
 
+/** Get the value of the data segment length field of a PDU.
+ *  @param bhs the basic header segment of a PDU.
+ *  @return the value of the data segment length. */
+static inline size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUCommonBHS * bhs)
+{
+    UInt32 length = 0;
+    memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
+    length = CFSwapInt32BigToHost(length<<8);
+    return length;
+}
+
 /** Creates a PDU data segment consisting of key-value pairs from a dictionary.
  *  @param textDict the user-specified dictionary to use.
  *  @param data a pointer to a pointer the data, returned by this function.

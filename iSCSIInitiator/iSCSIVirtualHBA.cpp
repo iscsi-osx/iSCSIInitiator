@@ -9,6 +9,10 @@
 #include "iSCSIVirtualHBA.h"
 #include "iSCSIIOEventSource.h"
 
+#include <sys/ioctl.h>
+#include <sys/unistd.h>
+
+
 using namespace iSCSIPDU;
 
 /** Maximum number of connections allowed per session. */
@@ -36,10 +40,10 @@ const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
 
 /** Definition of a single connection that is associated with a particular
  *  iSCSI session. */
-typedef struct iSCSIConnection {
+struct iSCSIVirtualHBA::iSCSIConnection {
     
     /** Status sequence number last received from the target. */
-    UInt32 statSN;
+    //    UInt32 statSN;
     
     /** Status sequence number expected by the initiator. */
     UInt32 expStatSN;
@@ -47,22 +51,18 @@ typedef struct iSCSIConnection {
     /** Connection ID. */
     UInt32 CID;
     
-    /** Initiator tag for current task. */
-    UInt32 initiatorTaskTag;
-    
     /** Target tag for current transfer. */
     UInt32 targetTransferTag;
     
     /** Socket used for communication. */
     socket_t socket;
     
-    /** Used to keep track of data PDUs. */
-//    UInt32 dataSN;
-    
     /** Used to keep track of R2T PDUs. */
     UInt32 R2TSN;
     
-    /** Event source used to signal the Virtual HBA that data has been 
+    IOLock * sendLock;
+    
+    /** Event source used to signal the Virtual HBA that data has been
      *  received and needs to be processed. */
     iSCSIIOEventSource * eventSource;
     
@@ -73,15 +73,15 @@ typedef struct iSCSIConnection {
      *  connection is one where the user-space code has performed login
      *  and negotiation and placed that connection into full-feature phase. */
     bool active;
-
     
-} iSCSIConnection;
+    
+};
 
 /** Definition of a single iSCSI session.  Each session is comprised of one
  *  or more connections as defined by the struct iSCSIConnection.  Each session
  *  is further associated with an initiator session ID (ISID), a target session
  *  ID (TSIH), a target IP address, a target name, and a target alias. */
-typedef struct iSCSISession {
+struct iSCSIVirtualHBA::iSCSISession {
     
     /** The initiator session ID, which is also used as the target ID within
      *  this kernel extension since there is a 1-1 mapping. */
@@ -95,7 +95,10 @@ typedef struct iSCSISession {
     
     /** Command seqeuence number expected by the target. */
     UInt32 expCmdSN;
-
+    
+    /** Maximum command seqeuence number allowed. */
+    UInt32 maxCmdSN;
+    
     /** Connections associated with this session. */
     iSCSIConnection * * connections;
     
@@ -105,12 +108,14 @@ typedef struct iSCSISession {
     /** Number of active connections. */
     UInt32 activeConnections;
     
+    /** Initiator tag for the newest task. */
+    UInt32 initiatorTaskTag;
+    
     /** Indicates whether session is active, which means that a SCSI target
      *  exists and is backing the the iSCSI session. */
     bool active;
     
-} iSCSISession;
-
+};
 
 OSDefineMetaClassAndStructors(iSCSIVirtualHBA,IOSCSIParallelInterfaceController);
 
@@ -129,6 +134,8 @@ bool iSCSIVirtualHBA::InitializeTargetForID(SCSITargetIdentifier targetId)
 {
 	return true;
 }
+
+
 
 SCSIServiceResponse iSCSIVirtualHBA::AbortTaskRequest(SCSITargetIdentifier targetId,
 													  SCSILogicalUnitNumber LUN,
@@ -171,9 +178,9 @@ SCSIServiceResponse iSCSIVirtualHBA::AbortTaskSetRequest(SCSITargetIdentifier ta
     if(session == NULL)
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
     
-//    SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
+    SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
     
-        IOLog("abort task set request");
+    IOLog("abort task set request");
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -196,7 +203,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ClearACARequest(SCSITargetIdentifier target
     
         IOLog("clear ACA request");
     
-//    SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
+    SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -218,7 +225,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ClearTaskSetRequest(SCSITargetIdentifier ta
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
     
         IOLog("clear task set request");
-//    SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
+    SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -241,7 +248,7 @@ SCSIServiceResponse iSCSIVirtualHBA::LogicalUnitResetRequest(SCSITargetIdentifie
     
     IOLog("LUN reset request");
     
- //   SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
+    SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -284,11 +291,15 @@ UInt32 iSCSIVirtualHBA::ReportMaximumTaskCount()
 
 UInt32 iSCSIVirtualHBA::ReportHBASpecificTaskDataSize()
 {
+    // Due to a bug (feature?) in the SCSI family driver, this value cannot
+    // be zero, even if task data is not required.
 	return 1;
 }
 
 UInt32 iSCSIVirtualHBA::ReportHBASpecificDeviceDataSize()
 {
+    // Due to a bug (feature?) in the SCSI family driver, this value cannot
+    // be zero, even if device data is not required.
 	return 1;
 }
 
@@ -301,22 +312,14 @@ bool iSCSIVirtualHBA::DoesHBAPerformDeviceManagement()
 
 bool iSCSIVirtualHBA::InitializeController()
 {
-    IOLog("Begin init");
     // Setup session list
-    
     sessionList = (iSCSISession **)IOMalloc(kMaxSessions*sizeof(iSCSISession*));//[kMaxSessions];
     
     if(!sessionList)
         return false;
     
-    IOLog("End init");
-    
     memset(sessionList,0,kMaxSessions*sizeof(iSCSISession *));
 
-    // Setup a task to accept and hold parallel tasks received from
-    // the SCSI subsystem
-    taskArray = OSArray::withCapacity(kMaxTaskCount);
-	
     // Make ourselves discoverable to user clients (we do this last after
     // everything is initialized).
     registerService();
@@ -330,32 +333,16 @@ bool iSCSIVirtualHBA::InitializeController()
 
 void iSCSIVirtualHBA::TerminateController()
 {
-    // Stop all tasks and free task array
-    for(UInt16  index = 0; index< kMaxTaskCount; index++) {
-        
-        // Grab task from our task list
-        SCSIParallelTaskIdentifier parallelTask = ((SCSIParallelTaskIdentifier)taskArray->getObject(index));
-        
-        if(!parallelTask)
-            continue;
-        
-        // Let SAM know that we couldn't finish this task
-        CompleteParallelTask(parallelTask,kSCSITaskStatus_DeviceNotPresent,
-                             kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE);
-    }
-    
-    // Free up our list of parallel tasks */
-    taskArray->free();
-
     // Go through every connection for each session, and close sockets,
     // remove event sources, etc
     for(UInt16 index = 0; index < kMaxSessions; index++)
     {
         if(!sessionList[index])
             continue;
-        
+
         ReleaseSession(index);
     }
+    // Free up our list of parallel tasks
     IOFree(sessionList,kMaxSessions*sizeof(iSCSISession*));
 }
 
@@ -386,12 +373,37 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     UInt8   transferDirection       = GetDataTransferDirection(parallelTask);
     UInt32  transferSize            = (UInt32)GetRequestedDataTransferCount(parallelTask);
     UInt8   cdbSize                 = GetCommandDescriptorBlockSize(parallelTask);
+    
+    // Target id and session identifier are one and the same
+    iSCSISession * session = sessionList[(UInt16)targetId];
+    
+    if(!session)
+        return kSCSIServiceResponse_FUNCTION_REJECTED;
+    
+    iSCSIConnection * conn = session->connections[0];
+    
+    if(!conn)
+        return kSCSIServiceResponse_FUNCTION_REJECTED;
 
+
+    IOLog("iSCSI: Processing Task: %d\n",taskId);
+    
     // Create a SCSI request PDU
     iSCSIPDUSCSICmdBHS bhs  = iSCSIPDUSCSICmdBHSInit;
     bhs.dataTransferLength  = OSSwapHostToBigInt32(transferSize);
     bhs.LUN                 = OSSwapHostToBigInt64(LUN);
-    bhs.initiatorTaskTag    = OSSwapHostToBigInt32((UInt32)taskId);
+    
+    bhs.initiatorTaskTag = (LUN << sizeof(UInt16) | taskId);
+    SetControllerTaskIdentifier(parallelTask, bhs.initiatorTaskTag);
+    bhs.initiatorTaskTag    = OSSwapHostToBigInt32(bhs.initiatorTaskTag);
+    
+    // Store the parallel task in our task array (indexed by its task id or
+    // equivalently the initiator task tag).
+//    OSIncrementAtomic(&session->initiatorTaskTag);
+    
+    // Reset task tag if we've exceeded
+//    if(session->initiatorTaskTag > kMaxTaskCount)
+//        OSWriteLittleInt32(&, byteOffset, data);
     
     if(transferDirection == kSCSIDataTransfer_FromInitiatorToTarget)
         bhs.flags |= kiSCSIPDUSCSICmdFlagWrite;
@@ -422,23 +434,13 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
             bhs.flags |= kiSCSIPDUSCSICmdTaskAttrSimple; break;
     };
     
-    // Target id and session identifier are one and the same
-    iSCSISession * session = sessionList[(UInt16)targetId];
-    
-    if(!session)
-        return kSCSIServiceResponse_FUNCTION_REJECTED;
-    
-    iSCSIConnection * conn = session->connections[0];
-    
-    if(!conn)
-        return kSCSIServiceResponse_FUNCTION_REJECTED;
-    
-    // Store the parallel task in our task array (indexed by its task id or
-    // equivalently the initiator task tag).
-    taskArray->setObject((UInt32)taskId,parallelTask);
-    
     // Sets the timeout in milliseconds for processing the current task
-//    SetTimeoutForTask(parallelTask,100);
+    
+    ///// Needs to be dynamic - want lower timeout for startup but indefinite(?)
+    ///// timeout for tasks where veyr large file transfers occur....
+    ///// during startup, if something fails, (e.g., target doesn't respond)
+    ///// perhaps set timeout basd on transfer length and adjust it dynamically
+    SetTimeoutForTask(parallelTask,600000);
     
     // For non-WRITE commands, send off SCSI command PDU immediately.
     if(transferDirection != kSCSIDataTransfer_FromInitiatorToTarget)
@@ -457,15 +459,18 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     // Prefer to use immediate data for writes if possible
     if(session->opts.immediateData)
         SendPDU(session,conn,(iSCSIPDUInitiatorBHS *)&bhs,NULL,data,session->opts.firstBurstLength);
-    // If immediate data can't be used, follow up with a data out PDU
-    else if(session->opts.initialR2T)
+    // If immediate data can't be used, follow up with a data out PDU if R2T=No
+    else if(session->opts.initialR2T) {
+        bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
         SendPDU(session,conn,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
-    // Else just send off the write command
+    }
+    // Else just send off the write command, wait for initial R2T...
     else {
         bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
         SendPDU(session,conn,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
     }
     
+    dataMap->release();
 	return kSCSIServiceResponse_Request_In_Process;
 }
 
@@ -476,13 +481,74 @@ void iSCSIVirtualHBA::CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     // Quit if the connection isn't active (if it is not in full feature phase)
     if(!owner || !session || !connection || !connection->active)
         return;
+ 
+ /*   int bytesAtSocket;
+    sock_ioctl(connection->socket,FIONREAD,&bytesAtSocket);
     
-    // Grab incoming bhs (we are guaranteed to have a basic header at this
-    // point (iSCSIIOEventSource ensures that this is the case)
+    // Guarantee that the data equal to a basic header segment is available
+    if(bytesAtSocket < kiSCSIPDUBasicHeaderSegmentSize)
+        return;
+*/
+    
+
+    
+//  do {
+        // Grab incoming bhs (we are guaranteed to have a basic header at this
+        // point (iSCSIIOEventSource ensures that this is the case)
     iSCSIPDUTargetBHS bhs;
-    if(owner->RecvPDUHeader(session,connection,&bhs) != 0)
+        if(owner->RecvPDUHeader(session,connection,&bhs,0))
+        {
+            IOLog("iSCSI: Couldn't retrieve header from workloop thread\n");
+            return;
+        }
+        else {
+            IOLog("iSCSI: Received PDU\n");
+        }
+
+/*
+    iSCSIPDUTargetBHS * bhs = connection->bhs;
+ 
+    // Verify that the entire PDU is available at the socket; first compute
+    // the size of the PDU we expect
+    size_t expPDUSize = kiSCSIPDUBasicHeaderSegmentSize + bhs->totalAHSLength;
+
+ //   if(connection->opts.useHeaderDigest)
+   //     expPDUSize+=kiSCSIPDUDigestSize;
+
+    //////
+    
+    UInt32 length = 0;
+    memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
+    length = OSSwapBigToHostInt32(length<<8);
+    UInt32 padding = (UInt32)(length - length % 4);
+    
+    if(padding != 4)
+         length+=padding;
+
+    
+    //////
+    expPDUSize += length;
+    
+//    if(length > 0 && connection->opts.useDataDigest)
+  //      expPDUSize+=kiSCSIPDUDigestSize;
+    
+    // Quit if the entire PDU is not yet available...
+    if(bytesAtSocket < expPDUSize)
         return;
     
+*/
+    // Validate command sequence number and handle error recovery if necessary
+//    if(bhs.expCmdSN != session->cmdSN)
+//        IOLog("iSCSI: Error occured, re-send command\n");
+
+    // Validate status sequence number and handle error recovery if necessary
+//    if(connection->expStatSN >= bhs.statSN)
+//        OSIncrementAtomic(&connection->expStatSN);
+    
+    // Actually remove the header from the stream (it's guaranteed to be there
+    // at this point in time).
+//    owner->RecvPDUHeader(session,connection,&bhs,0);
+
     // Determine the kind of PDU that was received and process accordingly
     enum iSCSIPDUTargetOpCodes opCode = (iSCSIPDUTargetOpCodes)bhs.opCode;
     switch(opCode)
@@ -492,7 +558,7 @@ void iSCSIVirtualHBA::CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
             owner->ProcessSCSIResponse(session,connection,(iSCSIPDUSCSIRspBHS*)&bhs);
         break;
         case kiSCSIPDUOpCodeDataIn:
- //           owner->ProcessDataIn(session,connection,(iSCSIPDUDataInBHS*)&bhs);
+            owner->ProcessDataIn(session,connection,(iSCSIPDUDataInBHS*)&bhs);
         break;
         case kiSCSIPDUOpCodeAsyncMsg:
             break;
@@ -500,7 +566,7 @@ void iSCSIVirtualHBA::CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
             break;
             
         case kiSCSIPDUOpCodeR2T:
-   //         owner->ProcessR2T(session,connection,(iSCSIPDUR2TBHS*)&bhs);
+            owner->ProcessR2T(session,connection,(iSCSIPDUR2TBHS*)&bhs);
             break;
         case kiSCSIPDUOpCodeReject:
             break;
@@ -513,6 +579,12 @@ void iSCSIVirtualHBA::CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         // Catch-all for anything else...
         default: break;
     };
+/*                   sock_ioctl(connection->socket,FIONREAD,&bytesAtSocket);
+        if(bytesAtSocket >= kiSCSIPDUBasicHeaderSegmentSize)
+            IOLog("Looping...");
+    
+    }while(bytesAtSocket >= kiSCSIPDUBasicHeaderSegmentSize);*/
+    
 }
 
 
@@ -556,51 +628,62 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     const UInt8 senseDataHeaderSize = 2;
     
     // Padded length of the data segment of the PDU
-    size_t length = iSCSIPDUGetDataSegmentLength((iSCSIPDUCommonBHS*)&bhs);
-    
-    // Receive PDU data into a sense buffer
-    if(length < senseDataHeaderSize) {
-        IOLog("Recv SCSI rsp length 0");
-        return;
-    }
+    //    size_t length = iSCSIPDUGetDataSegmentLength((iSCSIPDUCommonBHS*)&bhs);
+    UInt32 length = 0;
+    memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
+    length = OSSwapBigToHostInt32(length<<8);
     
     UInt8 data[length];
 
-    RecvPDUData(session,connection,data,length);
-    
-    IOLog("iSCSI: Received Sense Data");
+    if(length > 0) {
+        if(RecvPDUData(session,connection,data,length,MSG_WAITALL))
+            IOLog("iSCSI: Error in retrieving data segment length.\n");
+        else
+            IOLog("iSCSI: Received Sense Data\n");
+    }
 
     // Grab parallel task associated with this PDU, indexed by task tag
     UInt32 taskTag = OSSwapBigToHostInt32(bhs->initiatorTaskTag);
     
-    if(taskTag >= kMaxTaskCount)
-        return;
-    
     SCSIParallelTaskIdentifier parallelTask =
-        (SCSIParallelTaskIdentifier)taskArray->getObject(taskTag);
+        FindTaskForControllerIdentifier(session->sessionId, taskTag);
     
     if(!parallelTask)
-        return;
+    {
+        IOLog("Task could not be found.");
+        
+        // Flush stream
+        UInt8 buffer[length];
+        RecvPDUData(session,connection,buffer,length,MSG_WAITALL);
+        
 
-    // First two bytes of the data segment are the size of the sense data
-    UInt16 senseDataLength = *((UInt16*)&data[0]);
-    senseDataLength = OSSwapBigToHostInt16(senseDataLength);
-    
-    if(length < senseDataLength + senseDataHeaderSize) {
-        IOLog("iSCSI: Received sense data invalid");
+
+        return;
     }
     
-    // Remaining data is sense data, advance pointer by two bytes to get this
-    SCSI_Sense_Data * newSenseData = (SCSI_Sense_Data *)(data + senseDataHeaderSize);
-    
-    
-    IOLog("iSCSI: Processed sesne data");
+    SetRealizedDataTransferCount(parallelTask,(UInt32)GetRequestedDataTransferCount(parallelTask));
 
- 
-/// something above caused crash
-    // Incorporate sense data into the task
-    SetAutoSenseData(parallelTask,newSenseData,senseDataLength);
 
+    // Process sense data if the PDU came with any...
+    if(length >= senseDataHeaderSize)
+    {
+        // First two bytes of the data segment are the size of the sense data
+        UInt16 senseDataLength = *((UInt16*)&data[0]);
+        senseDataLength = OSSwapBigToHostInt16(senseDataLength);
+        
+        if(length < senseDataLength + senseDataHeaderSize) {
+            IOLog("iSCSI: Received sense data invalid\n");
+        }
+        
+        // Remaining data is sense data, advance pointer by two bytes to get this
+        SCSI_Sense_Data * newSenseData = (SCSI_Sense_Data *)(data + senseDataHeaderSize);
+        
+        
+        IOLog("iSCSI: Processed sense data\n");
+
+        // Incorporate sense data into the task
+        SetAutoSenseData(parallelTask,newSenseData,senseDataLength);
+    }
     
     // Set the SCSI completion status and service response
     SCSITaskStatus completionStatus = (SCSITaskStatus)bhs->status;
@@ -612,6 +695,9 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
         serviceResponse = kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
     
     CompleteParallelTask(parallelTask,completionStatus,serviceResponse);
+    
+    IOLog("iSCSI: Completed SCSI response\n");
+
 }
 
 void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
@@ -619,26 +705,77 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
                                     iSCSIPDU::iSCSIPDUDataInBHS * bhs)
 {
     // Length of the data segment of the PDU
-    size_t length = iSCSIPDUGetDataSegmentLength((iSCSIPDUCommonBHS*)&bhs);
-    
-    IOLog("iSCSI: Received data in PDU");
-    
+    UInt32 length = 0;
+    memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
+    length = OSSwapBigToHostInt32(length<<8);
+
     // Grab parallel task associated with this PDU, indexed by task tag
     UInt32 taskTag = OSSwapBigToHostInt32(bhs->initiatorTaskTag);
     
     SCSIParallelTaskIdentifier parallelTask =
-        (SCSIParallelTaskIdentifier)taskArray->getObject(taskTag);
+        FindTaskForControllerIdentifier(session->sessionId, taskTag);
+    
+    if(!parallelTask)
+    {
+        IOLog("iSCSI: Task not found.\n");
+        
+        // Flush stream
+        UInt8 buffer[length];
+        RecvPDUData(session,connection,buffer,length,MSG_WAITALL);
+        
+        /// NEED TO SYNC / FLUSH / REMOVE THE DATA SEGMENT LENGTH
+        return;
+    }
     
     // Create a mapping to the task's data buffer
     IOMemoryDescriptor  * dataDesc  = GetDataBuffer(parallelTask);
     IOMemoryMap         * dataMap   = dataDesc->map();
     UInt8               * data      = (UInt8 *)dataMap->getAddress();
+    
+    if(data == NULL)
+    {
+        IOLog("iSCSI: Data pointer is null.\n");
+    }
 
     // Write data received into the parallelTask data structure
     UInt32 dataOffset = OSSwapBigToHostInt32(bhs->bufferOffset);
     data = data + dataOffset;
+    
+    IOLog("iSCSI dataoffset %d\n",dataOffset);
+    IOLog("iSCSI data length %d\n",dataMap->getLength());
+    IOLog("iSCSI PDU data length %d\n",length);
     if(dataOffset + length <= dataMap->getLength())
-        RecvPDUData(session,connection,data,length);
+    {
+        if(RecvPDUData(session,connection,data,length,0))
+        {
+            IOLog("iSCSI: Error in retrieving data segment length.\n");
+        }
+        else {
+            SetRealizedDataTransferCount(parallelTask,dataOffset+length);
+        }
+    }
+    else {
+        // Flush stream
+        UInt8 buffer[length];
+        RecvPDUData(session,connection,buffer,length,MSG_WAITALL);
+
+        IOLog("iSCSI: Data buffer too small for incoming data\n");
+    }
+    
+    // If the PDU contains a status response, complete this task
+    if((bhs->flags & kiSCSIPDUDataInFinalFlag) && (bhs->flags & kiSCSIPDUDataInStatusFlag))
+    {
+        SetRealizedDataTransferCount(parallelTask,dataMap->getLength());
+        
+        CompleteParallelTask(parallelTask,
+                             (SCSITaskStatus)bhs->status,
+                             kSCSIServiceResponse_TASK_COMPLETE);
+        IOLog("iSCSI: Completed data-in\n");
+    }
+    
+    // Send ackonwledgement to target if one is required
+    if(bhs->flags & kiSCSIPDUDataInAckFlag)
+    {}
     
     // Release the mapping object (this leaves the descriptor and buffer intact)
     dataMap->release();
@@ -648,13 +785,13 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
                                  iSCSIConnection * connection,
                                  iSCSIPDU::iSCSIPDUR2TBHS * bhs)
 {
-    IOLog("iSCSI: Received R2T PDU");
+    IOLog("iSCSI: Received R2T PDU\n");
     
     // Grab parallel task associated with this PDU, indexed by task tag
     UInt32 taskTag = OSSwapBigToHostInt32(bhs->initiatorTaskTag);
     
     SCSIParallelTaskIdentifier parallelTask =
-        (SCSIParallelTaskIdentifier)taskArray->getObject(taskTag);
+        FindTaskForControllerIdentifier(session->sessionId, taskTag);
     
     // Create a mapping to the task's data buffer.  This is the data that
     // we will read and pack into a sequence of PDUs to send to the target.
@@ -665,35 +802,60 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     // Obtain requested data offset and requested lengths
     UInt32 dataOffset         = OSSwapBigToHostInt32(bhs->bufferOffset);
     UInt32 desiredDataLength  = OSSwapBigToHostInt32(bhs->desiredDataLength);
+    
 
     // Ensure that our data buffer contains all of the requested data
     if(dataOffset + desiredDataLength > (UInt32)dataMap->getLength())
     {
-        dataMap->release();
-        return;
+        IOLog("iSCSI: Host data buffer doesn't contain requested data");
+//        dataMap->release();
+//        return;
     }
     
     // Amount of data to transfer in each iteration
     UInt32 maxTransferLength = connection->opts.maxSendDataSegmentLength;
     
+//    IOLog("iSCSI: Max Send Length: %d\n",maxTransferLength);
+    
+
+    
+    data = data + dataOffset;
+    
+    IOLog("iSCSI: dataoffset: %d\n",dataOffset);
+    IOLog("iSCSI: desired data length: %d\n",desiredDataLength);
+    
+    UInt32 dataSN = 0;
+    maxTransferLength = 8192;
+    
     // Create data PDUs and send them until all desired data has been sent
     iSCSIPDUDataOutBHS bhsDataOut = iSCSIPDUDataOutBHSInit;
-    bhsDataOut.LUN = OSSwapHostToBigInt64(GetLogicalUnitNumber(parallelTask));
-    bhsDataOut.initiatorTaskTag = OSSwapHostToBigInt32((UInt32)GetTaggedTaskIdentifier(parallelTask));
+    bhsDataOut.LUN              = bhs->LUN;
+    bhsDataOut.initiatorTaskTag = bhs->initiatorTaskTag;
     
     // Let target know that this data out sequence is in response to the
     // transfer tag the target gave us with the R2TSN (both in high-byte order)
     bhsDataOut.targetTransferTag = bhs->targetTransferTag;
-    
-    UInt32 dataSN = 0;
 
     while(desiredDataLength != 0)
     {
         bhsDataOut.bufferOffset = OSSwapHostToBigInt32(dataOffset);
         bhsDataOut.dataSN = OSSwapHostToBigInt32(dataSN);
+
         
-        if(desiredDataLength > maxTransferLength) {
-            SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,maxTransferLength);
+        if(maxTransferLength < desiredDataLength) {
+            IOLog("iSCSI: Max transfer length: %d\n",maxTransferLength);
+            int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,maxTransferLength);
+            
+            if(err != 0) {
+                IOLog("iSCSI: Send error: %d\n",err);
+                return;
+            }
+        
+            SetRealizedDataTransferCount(parallelTask,dataOffset);
+            
+//            IOSleep(50);
+            IOLog("iSCSI: dataoffset: %d\n",dataOffset);
+            IOLog("iSCSI: desired data length: %d\n",desiredDataLength);
             
             desiredDataLength   -= maxTransferLength;
             data                += maxTransferLength;
@@ -701,14 +863,23 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
         }
         // This is the final PDU of the sequence
         else {
+            IOLog("iSCSI: Sending final data out\n");
             bhsDataOut.flags = kiSCSIPDUDataOutFinalFlag;
-            SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,desiredDataLength);
+            int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,desiredDataLength);
+            
+            if(err != 0) {
+                IOLog("iSCSI: Send error: %d\n",err);
+                return;
+            }
+            
             break;
         }
         
         // Increment the data sequence number
         dataSN++;
     }
+
+    SetRealizedDataTransferCount(parallelTask,OSSwapBigToHostInt32(bhs->desiredDataLength));
     // Release the mapping object (this leaves the descriptor and buffer intact)
     dataMap->release();
 }
@@ -751,8 +922,10 @@ UInt16 iSCSIVirtualHBA::CreateSession()
     newSession->activeConnections = 0;
     newSession->cmdSN = 0;
     newSession->expCmdSN = 0;
+    newSession->maxCmdSN = 0;
     newSession->active = false;
     newSession->TSIH = 0;
+    newSession->initiatorTaskTag = 0;
     
     // Retain new session
     sessionList[sessionId] = newSession;
@@ -781,48 +954,6 @@ void iSCSIVirtualHBA::ReleaseSession(UInt16 sessionId)
         
     IOFree(sessionList[sessionId], sizeof(iSCSIConnection*));
     sessionList[sessionId] = NULL;
-}
-
-/** Activates an iSCSI session that has been properly configured.
- *  @param sessionId the session to activate.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::ActivateSession(UInt16 sessionId)
-{
-    if(sessionId >= kMaxSessions)
-        return EINVAL;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * theSession = sessionList[sessionId];
-    
-    if(!theSession)
-        return EINVAL;
-   
-    // Ensure that the session has at least one active connection
-    if(theSession->activeConnections == 0 || !CreateTargetForID(sessionId))
-            return EINVAL;
-    
-    theSession->active = true;
-    return 0;
-}
-
-/** Deactivates an iSCSI session that has been properly configured.
- *  @param sessionId the session to activate.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::DeactivateSession(UInt16 sessionId)
-{
-    if(sessionId >= kMaxSessions)
-        return EINVAL;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * theSession = sessionList[sessionId];
-    
-    if(!theSession)
-        return EINVAL;
-
-    DestroyTargetForID(sessionId);
-
-    theSession->active = false;
-    return 0;
 }
 
 /** Sets options associated with a particular session.
@@ -909,11 +1040,15 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
     
     // Sockets connected and bound add event source to driver workloop
     newConn->active = false;
+    newConn->expStatSN = 0;
     theSession->connections[index] = newConn;
     *connectionId = index;
     
     // Initialize default error (try again)
     errno_t error = EAGAIN;
+    
+    if(!(newConn->sendLock = IOLockAlloc()))
+        goto IOLOCK_ALLOC_FAILURE;
     
     if(!(newConn->eventSource = OSTypeAlloc(iSCSIIOEventSource)))
         goto EVENTSOURCE_ALLOC_FAILURE;
@@ -938,12 +1073,11 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
     // Bind socket to a particular host connection
 //    if((error = sock_bind(newConn->socket,hostAddress)))
   //      goto SOCKET_BIND_FAILURE;
-
+    
     return 0;
     
 SOCKET_BIND_FAILURE:
     theSession->connections[index] = 0;
-    
     
 SOCKET_CONNECT_FAILURE:
     sock_close(newConn->socket);
@@ -955,9 +1089,13 @@ EVENTSOURCE_ADD_FAILURE:
     
 EVENTSOURCE_INIT_FAILURE:
     newConn->eventSource->release();
-        
+    
 EVENTSOURCE_ALLOC_FAILURE:
+    IOLockFree(newConn->sendLock);
+    
+IOLOCK_ALLOC_FAILURE:
     IOFree(newConn,sizeof(iSCSIConnection));
+    
 
     return error;
 }
@@ -982,13 +1120,27 @@ void iSCSIVirtualHBA::ReleaseConnection(UInt16 sessionId,
     if(!theConn)
         return;
     
+    IOLockLock(theConn->sendLock);
+    
+    // First deactivate connection before proceeding
+    if(theConn->active)
+        DeactivateConnection(sessionId,connectionId);
+    
     IOLog("iSCSI: Stopped Connection");
 
     GetWorkLoop()->removeEventSource(theConn->eventSource);
+    
+        IOLog("iSCSI: Removed event source");
     sock_close(theConn->socket);
     theConn->eventSource->release();
+    
+            IOLog("iSCSI: Release event source");
+    IOLockUnlock(theConn->sendLock);
+    IOLockFree(theConn->sendLock);
     IOFree(theConn,sizeof(iSCSIConnection));
     theSession->connections[connectionId] = NULL;
+    
+        IOLog("iSCSI: Released connection");
 }
 
 /** Activates an iSCSI connection, indicating to the kernel that the iSCSI
@@ -1015,7 +1167,14 @@ errno_t iSCSIVirtualHBA::ActivateConnection(UInt16 sessionId,UInt32 connectionId
         return EINVAL;
     
     theConn->active = true;
+    
+    // If this is the first active connection, mount the target
+    if(theSession->activeConnections == 0)
+        if(!CreateTargetForID(sessionId))
+            return EAGAIN;
+    
     theSession->activeConnections++;
+    
     return 0;
 }
 
@@ -1043,13 +1202,24 @@ errno_t iSCSIVirtualHBA::DeactivateConnection(UInt16 sessionId,UInt32 connection
 
     theConn->active = false;
     theSession->activeConnections--;
-
+    
+    // If this is the last active connection, un-mount the target
+    if(theSession->activeConnections == 0)
+        DestroyTargetForID(sessionId);
+    
+    IOLog("iSCSI: Connection Deactivated");
+    
     return 0;
 }
 
 /** Sends data over a kernel socket associated with iSCSI.  If the specified 
  *  data segment length is not a multiple of 4-bytes, padding bytes will be 
  *  added to the data segment of the PDU per RF3720 specification.
+ *  This function will automatically calculate the data segment length
+ *  field of the PDU and place it in the header using the correct byte order.
+ *  It will also assign a command sequence number and expected status sequence
+ *  number using values from the session and connection objects to the PDU
+ *  header in the correct (network) byte order.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @param bhs the basic header segment to send.
@@ -1069,12 +1239,22 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
         return EINVAL;
     
     // Set the command sequence number & expected status sequence number
-    bhs->cmdSN = OSSwapHostToBigInt32(session->cmdSN);
-    bhs->expStatSN = OSSwapHostToBigInt32(connection->expStatSN);
+    if(bhs->opCodeAndDeliveryMarker != kiSCSIPDUOpCodeDataOut) {
+        bhs->cmdSN = OSSwapHostToBigInt32(session->cmdSN);
+        
+        // Advance cmdSN if PDU is not marked for immediate delivery
+        if(!(bhs->opCodeAndDeliveryMarker & kiSCSIPDUImmediateDeliveryFlag))
+            OSIncrementAtomic(&session->cmdSN);
+    }
     
+    bhs->expStatSN = OSSwapHostToBigInt32(connection->expStatSN);
+
     // Set data segment length field
     UInt32 dataSegLength = (OSSwapHostToBigInt32((UInt32)length)>>8);
     memcpy(bhs->dataSegmentLength,&dataSegLength,kiSCSIPDUDataSegmentLengthSize);
+    
+    IOLog("iSCSI: Dataseglength: %d%d%d\n",bhs->dataSegmentLength[0],bhs->dataSegmentLength[1],bhs->dataSegmentLength[2]);
+    IOLog("iSCSI: Dataseglength: %d\n",length);
 
     // Send data over the network, return true if all bytes were sent
     struct msghdr msg;
@@ -1084,8 +1264,10 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     msg.msg_iov = iovec;
     unsigned int iovecCnt = 0;
     
+    UInt8 header[kiSCSIPDUBasicHeaderSegmentSize];
+    memcpy(header,bhs,kiSCSIPDUBasicHeaderSegmentSize);
     // Set basic header segment
-    iovec[iovecCnt].iov_base  = bhs;
+    iovec[iovecCnt].iov_base  = header;
     iovec[iovecCnt].iov_len   = kiSCSIPDUBasicHeaderSegmentSize;
     iovecCnt++;
 /*
@@ -1114,7 +1296,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
         UInt32 paddingLen = 4-(length % 4);
         if(paddingLen != 4)
         {
-            UInt32 padding;
+            UInt32 padding = 0;
             iovec[iovecCnt].iov_base  = &padding;
             iovec[iovecCnt].iov_len   = paddingLen;
             iovecCnt++;
@@ -1131,7 +1313,25 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     // Update io vector count, send data
     msg.msg_iovlen = iovecCnt;
     size_t bytesSent = 0;
-    return sock_send(connection->socket,&msg,0,&bytesSent);
+    IOLockLock(connection->sendLock);
+    int result = sock_send(connection->socket,&msg,0,&bytesSent);
+    IOLockUnlock(connection->sendLock);
+    
+    return result;
+}
+
+
+/** Gets whether a PDU is available for receiption on a particular
+ *  connection.
+ *  @param the connection to check.
+ *  @return true if a PDU is available, false otherwise. */
+bool iSCSIVirtualHBA::isPDUAvailable(iSCSIConnection * connection)
+{
+    int bytesAtSocket;
+    sock_ioctl(connection->socket,FIONREAD,&bytesAtSocket);
+
+    // Guarantee that the data equal to a basic header segment is available
+    return bytesAtSocket >= kiSCSIPDUBasicHeaderSegmentSize;
 }
 
 
@@ -1139,10 +1339,12 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @param bhs the basic header segment received.
+ *  @param flags optional flags to be passed onto sock_recv.
  *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
                                        iSCSIConnection * connection,
-                                       iSCSIPDUTargetBHS * bhs)
+                                       iSCSIPDUTargetBHS * bhs,
+                                       int flags)
 {
     // Range-check inputs
     if(!session || !connection || !bhs)
@@ -1160,11 +1362,34 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     
     // Bytes received from sock_receive call
     size_t bytesRecv;
-    errno_t result = sock_receive(connection->socket,&msg,0,&bytesRecv);
+    IOLockLock(connection->sendLock);
+    errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
+    IOLockUnlock(connection->sendLock);
+    
+    if(result != 0)
+        IOLog("iSCSI: sock_receive error returned with code %d\n",result);
 
     // Verify length; incoming PDUS from a target should have no AHS, verify.
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
+    {
+        IOLog("iSCSI: Received incomplete PDU header.\n");
+        IOLog("iSCSI: Bytes received for header: %d\n",bytesRecv);
+        IOLog("iSCSI: total AHS length: %d\n",bhs->totalAHSLength);
         return EIO;
+    }
+
+    // Read and update the command sequence numbers
+    bhs->maxCmdSN = OSSwapBigToHostInt32(bhs->maxCmdSN);
+    bhs->expCmdSN = OSSwapBigToHostInt32(bhs->expCmdSN);
+    bhs->statSN = OSSwapBigToHostInt32(bhs->statSN);
+    
+    if(bhs->maxCmdSN > session->maxCmdSN)
+        OSWriteLittleInt32(&session->maxCmdSN,0,bhs->maxCmdSN);
+    if(bhs->expCmdSN > session->expCmdSN)
+        OSWriteLittleInt32(&session->expCmdSN,0,bhs->expCmdSN);
+    
+    if(bhs->opCode != kiSCSIPDUOpCodeDataIn || bhs->statSN != 0)
+        OSIncrementAtomic(&connection->expStatSN);
     
     return result;
 }
@@ -1176,11 +1401,13 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
  *  @param connectionId the connection associated with the session.
  *  @param data the data received.
  *  @param length the length of the data buffer.
+ *  @param flags optional flags to be passed onto sock_recv.
  *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
                                      iSCSIConnection * connection,
                                      void * data,
-                                     size_t length)
+                                     size_t length,
+                                     int flags)
 {
     // Range-check inputs
     if(!session || !connection || !data)
@@ -1211,8 +1438,10 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     msg.msg_iovlen = iovecCnt;
     
     size_t bytesRecv;
-    errno_t result = sock_receive(connection->socket,&msg,0,&bytesRecv);
-    
+    IOLockLock(connection->sendLock);
+    errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
+    IOLockUnlock(connection->sendLock);
+    IOLog("iSCSI: Bytes received: %d",bytesRecv);
     
     // I
 /*
@@ -1284,7 +1513,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeaderUser(UInt16 sessionId,
     if(!theConn)
         return EINVAL;
     
-    return RecvPDUHeader(theSession,theConn,bhs);
+    return RecvPDUHeader(theSession,theConn,bhs,MSG_WAITALL);
 }
 
 /** Wrapper around RecvPDUData for user-space calls.
@@ -1314,7 +1543,7 @@ errno_t iSCSIVirtualHBA::RecvPDUDataUser(UInt16 sessionId,
     if(!theConn)
         return EINVAL;
     
-    return RecvPDUData(theSession,theConn,data,length);
+    return RecvPDUData(theSession,theConn,data,length,MSG_WAITALL);
 }
 
 /** Sets options associated with a particular connection.
@@ -1344,6 +1573,22 @@ errno_t iSCSIVirtualHBA::SetConnectionOptions(UInt16 sessionId,
     
     // Copy options into the connection struct
     theConn->opts = *options;
+/*
+    UInt32 sendBufferSize = theConn->opts.maxSendDataSegmentLength * 2;
+    UInt32 recvBufferSize = theConn->opts.maxRecvDataSegmentLength * 2;
+    
+    sock_setsockopt(theConn->socket,
+                    SOL_SOCKET,
+                    SO_SNDBUF,
+                    &sendBufferSize,
+                    sizeof(sendBufferSize));
+    
+    sock_setsockopt(theConn->socket,
+                    SOL_SOCKET,
+                    SO_RCVBUF,
+                    &recvBufferSize,
+                    sizeof(recvBufferSize));
+*/
     
     // Success
     return 0;

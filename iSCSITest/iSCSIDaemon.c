@@ -29,7 +29,7 @@ int main(int argc, const char * argv[])
    if(iSCSIKernelInitialize() == kIOReturnSuccess)
         printf("Connected");
 
-    iSCSISessionRelease(0);
+//    iSCSISessionRelease(0);
      iSCSISessionInfo sessionOpts;
     sessionOpts.maxConnections = 1;
     
@@ -37,9 +37,10 @@ int main(int argc, const char * argv[])
     iSCSIConnectionInfo connOpts;
     connOpts.initiatorAlias = CFSTR("Test");
     connOpts.initiatorName = CFSTR("iqn.2014-01.com.os:host");
-    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:nareg");
-//    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:narreh");
+ //   connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:nareg");
+  //  connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:narreh");
 //    connOpts.targetName = NULL;
+    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi14");
 
     connOpts.hostAddress = CFSTR("192.168.1.147");
     connOpts.targetAddress = CFSTR("192.168.1.115");
@@ -48,18 +49,18 @@ int main(int argc, const char * argv[])
     connOpts.useDataDigest = false;
 
 
-    connOpts.authMethod = iSCSIAuthCreateCHAP(CFSTR("nareg"),CFSTR("test2test2test2"),
-                                              CFSTR("nareg"),CFSTR("testtesttest"));
-   // connOpts.authMethod = NULL;
+//connOpts.authMethod = iSCSIAuthCreateCHAP(CFSTR("nareg"),CFSTR("test2test2test2"),
+  //                                           CFSTR("nareg"),CFSTR("testtesttest"));
+    connOpts.authMethod = NULL;
     
-    UInt16 sessionQualifier;
-    UInt32 connectionID;
+
     iSCSISessionCreate(&sessionOpts,&connOpts);
 //    CFMutableDictionaryRef targetList;
 //    iSCSISessionGetTargetList(sessionQualifier,0,&targetList);
+    iSCSIKernelDeactivateConnection(sessionOpts.sessionId,connOpts.connectionId);
     iSCSISessionRelease(0);
     iSCSISessionRelease(1);
-        iSCSISessionRelease(2);
+    iSCSISessionRelease(2);
   
   
     

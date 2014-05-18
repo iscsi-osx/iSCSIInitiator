@@ -1,4 +1,4 @@
-/**
+    /**
  * @author		Nareg Sinenian
  * @file		iSCSIPDUUser.h
  * @date		April 8, 2014
@@ -81,8 +81,8 @@ const unsigned short kiSCSIPDUTextReqContinueFlag = 0x40;
  *  @param textDict a dictionary of key-value pairs. */
 void iSCSIPDUDataParseToDict(void * data,size_t length,CFMutableDictionaryRef textDict)
 {
-    if(!data || length == 0)
-        return;   
+    if(!data || length == 0 || !textDict)
+        return;
     
     // Parse the text response
     UInt8 * currentByte = data;

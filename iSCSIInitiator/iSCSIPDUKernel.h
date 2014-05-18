@@ -15,12 +15,17 @@
 #include "iSCSIPDUShared.h"
 #include <sys/socket.h>
 #include <sys/errno.h>
+#include <IOKit/IOLib.h>
+
 
 namespace iSCSIPDU {
     
     /** Size of a normal SCSI command descriptor block (CDB). */
     static const UInt8 kiSCSIPDUCDBSize = 16;
     
+    /** Digests are 4 bytes. */
+    static const UInt8 kiSCSIPDUDigestSize = 4;
+
     
     ///////////////////// For use with SCSI command PDUs ///////////////////////
     
@@ -73,7 +78,16 @@ namespace iSCSIPDU {
     ////////////////////// For for use with data out PDUs //////////////////////
 
     static const UInt8 kiSCSIPDUDataOutFinalFlag = 0x80;
+    
+    
+    ////////////////////// For for use with data in PDUs ///////////////////////
+    
+    static const UInt8 kiSCSIPDUDataInFinalFlag = 0x80;
+    
+    static const UInt8 kiSCSIPDUDataInAckFlag = 0x40;
 
+    static const UInt8 kiSCSIPDUDataInStatusFlag = 0x01;
+    
     
     /** Basic header segment for a data in PDU. */
     typedef struct __iSCSIPDUDataInBHS {
@@ -291,6 +305,24 @@ namespace iSCSIPDU {
         /** Target failure. */
         kiSCSIPDUSCSICmdTargetFailure = 0x01
     };
+    
+    inline size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUTargetBHS * bhs)
+    {
+        UInt32 length = 0;
+        memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
+        length = OSSwapBigToHostInt32(length<<8);
+        return length;
+    }
+    
+    inline size_t iSCSIPDUGetPaddedDataSegmentLength(iSCSIPDUTargetBHS * bhs)
+    {
+        size_t length = iSCSIPDUGetDataSegmentLength(bhs);
+        UInt32 padding = (UInt32)(length - length % 4);
+        
+        if(padding != 4)
+            return length+padding;
+        return length;
+    }
     
     extern const iSCSIPDUDataOutBHS iSCSIPDUDataOutBHSInit;
     extern const iSCSIPDUSCSICmdBHS iSCSIPDUSCSICmdBHSInit;

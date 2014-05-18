@@ -13,6 +13,12 @@
 #include "iSCSIPDUUser.h"
 #include "iSCSIKernelInterface.h"
 
+/** The iSCSI error code that is set to a particular value if session management
+ *  functions cannot be completed successfully.  This is distinct from errors
+ *  associated with system function calls.  If no system error has occured
+ *  (e.g., socket API calls) an iSCSI error may still have occured. */
+static UInt16 iSCSILoginResponseCode = 0;
+
 /** Authentication function defined in the authentication modules
  *  (in the file iSCSIAuth.h). */
 extern errno_t iSCSIAuthNegotiate(UInt16 sessionId,
@@ -67,36 +73,6 @@ CFStringRef kiSCSITVSendTargetsAll = CFSTR("All");
 
 CFStringRef kiSCSILVYes = CFSTR("Yes");
 CFStringRef kiSCSILVNo = CFSTR("No");
-
-
-
-/** Helper function, converts an the status detail field of an iSCSI login
- *  response PDU to a system errno. */
-errno_t iSCSILoginDetailToErrno(enum iSCSIPDULoginRspStatusDetail statusDetail)
-{
-    errno_t error = 0;
-    
-    switch(statusDetail)
-    {
-        case kiSCSIPDULDAccessDenied:
-            error = EACCES; break;
-        case kiSCSIPDULDAuthFail:
-            error = EAUTH;  break;
-        case kiSCSIPDULDServiceUnavailable:
-            error = EAGAIN; break;
-        case kiSCSIPDULDInvalidReqDuringLogin:
-        case kiSCSIPDULDSessionTypeUnsupported:
-            error = EOPNOTSUPP; break;
-        case kiSCSIPDULDTooManyConnections:
-            error = ETOOMANYREFS; break;
-
-            //        case kiSCSIPDULDOutOfResources:
-            
-            
-    };
-    
-    return error;
-}
 
 errno_t iSCSILogoutResponseToErrno(enum iSCSIPDULogoutRsp response)
 {
@@ -214,8 +190,9 @@ errno_t iSCSISessionLoginQuery(UInt16 sessionId,
                                     data,length);
     iSCSIPDUDataRelease(&data);
     
-    if(error)
+    if(error) {
         return error;
+    }
     
     // Get response from iSCSI portal, continue until response is complete
     iSCSIPDULoginRspBHS rsp;
@@ -231,8 +208,13 @@ errno_t iSCSISessionLoginQuery(UInt16 sessionId,
         if(rsp.opCode == kiSCSIPDUOpCodeLoginRsp)
         {
             // Convert login detail from PDU to a system errno
-            if((error = iSCSILoginDetailToErrno(rsp.statusDetail)))
+            iSCSILoginResponseCode = rsp.statusClass;
+            error = (iSCSILoginResponseCode << sizeof(UInt8) | rsp.statusDetail);
+            
+            if(error)
                 break;
+      //      if((error = iSCSILoginDetailToErrno(status)))
+        //        break;
             
             iSCSIPDUDataParseToDict(data,length,textRsp);
         }
@@ -246,66 +228,6 @@ errno_t iSCSISessionLoginQuery(UInt16 sessionId,
     while(rsp.loginStage & kiSCSIPDUTextReqContinueFlag);
         
     iSCSIPDUDataRelease(&data);
-    return error;
-}
-    
-/** Helper function used by both session creation functions.  Resolves
- *  hostnames as necessary and creates a session with a connection
- *  in the kernel. */
-errno_t iSCSISessionCreateInKernel(iSCSISessionInfo * sessionInfo,
-                                   iSCSIConnectionInfo * connInfo)
-{
-    if(!sessionInfo || !connInfo)
-        return EINVAL;
-    
-    // Reset qualifier and connection ID by default
-    sessionInfo->sessionId = kiSCSIInvalidConnectionId;
-    connInfo->connectionId = kiSCSIInvalidConnectionId;
-
-    // Resolve IP address (IPv4 or IPv6) or hostname, first get C pointers
-    // to the CF string objects
-    const char * hostAddr, * targetAddr, * targetPort;
-    
-    hostAddr = CFStringGetCStringPtr(connInfo->hostAddress,kCFStringEncodingUTF8);
-    targetAddr = CFStringGetCStringPtr(connInfo->targetAddress,kCFStringEncodingUTF8);
-    targetPort = CFStringGetCStringPtr(connInfo->targetPort,kCFStringEncodingUTF8);
-    
-    struct addrinfo * aiTarget = NULL;
-    struct addrinfo * aiHost = NULL;
-    
-    errno_t error = 0;
-    
-    if((error = getaddrinfo(hostAddr,NULL,NULL,&aiHost)))
-        return error;
-
-    if((error = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget))) {
-        freeaddrinfo(aiHost);
-        return error;
-    }
-    
-    // If both target and host were resolved, grab a session
-    if(aiTarget && aiHost) {
-        sessionInfo->sessionId = iSCSIKernelCreateSession();
-        
-        // If session was allocated, create a connection
-        if(sessionInfo->sessionId != kiSCSIInvalidSessionId)
-        {
-            if((error = iSCSIKernelCreateConnection(sessionInfo->sessionId,
-                                                    aiTarget->ai_family,
-                                                    aiTarget->ai_addr,
-                                                    aiHost->ai_addr,
-                                                    &connInfo->connectionId)))
-            {
-                iSCSIKernelReleaseSession(sessionInfo->sessionId);
-            }
-        }
-        // Invalid session Id (we're maxed out)
-        else {
-            error = EAGAIN;
-        }
-    }
-    freeaddrinfo(aiTarget);
-    freeaddrinfo(aiHost);
     return error;
 }
 
@@ -539,10 +461,7 @@ void iSCSISessionNegotiateCWBuildDict(iSCSIConnectionInfo * connInfo,
     
     // Setup maximum received data length
     CFStringRef maxRecvLength = CFStringCreateWithFormat(
-        kCFAllocatorDefault,
-        NULL,
-        CFSTR("%u"),
-        kMaxRecvDataSegmentLength);
+        kCFAllocatorDefault,NULL,CFSTR("%u"),kMaxRecvDataSegmentLength);
 
     CFDictionaryAddValue(connCmd,kiSCSILKMaxRecvDataSegmentLength,maxRecvLength);
     CFRelease(maxRecvLength);
@@ -595,6 +514,12 @@ void iSCSISessionNegotiateCWParseDict(UInt16 sessionId,
     connOptions->useDataDigest = connInfo->useDataDigest;
     connOptions->useHeaderDigest = connInfo->useHeaderDigest;
     connOptions->maxRecvDataSegmentLength = kMaxRecvDataSegmentLength;
+    
+    if(CFDictionaryGetValueIfPresent(connRsp,kiSCSILKMaxRecvDataSegmentLength,(void*)&targetRsp))
+        connOptions->maxSendDataSegmentLength = 8192;/////////TOODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    else
+        connOptions->maxSendDataSegmentLength = 8192;
+
 }
 
 /** Helper function.  Negotiates operational parameters for a connection
@@ -646,6 +571,114 @@ errno_t iSCSISessionNegotiateCW(UInt16 sessionId,
     return error;
 }
 
+
+
+
+/** Helper function used to log out of connections and sessions. */
+errno_t iSCSISessionLogoutCommon(UInt16 sessionId,
+                                 UInt32 connectionId,
+                                 enum iSCSIPDULogoutReasons logoutReason)
+{
+    if(sessionId >= kiSCSIInvalidSessionId || connectionId >= kiSCSIInvalidConnectionId)
+        return EINVAL;
+    
+    // Grab options related to this connection
+    iSCSIConnectionOptions connOpts;
+    errno_t error;
+    
+    if((error = iSCSIKernelGetConnectionOptions(sessionId,connectionId,&connOpts)))
+        return error;
+    
+    // Create a logout PDU and log out of the session
+    iSCSIPDULogoutReqBHS cmd = iSCSIPDULogoutReqBHSInit;
+    cmd.reasonCode = logoutReason | kISCSIPDULogoutReasonCodeFlag;
+    
+    if((error = iSCSIKernelSend(sessionId,connectionId,(iSCSIPDUInitiatorBHS *)&cmd,NULL,0)))
+        return error;
+    
+    // Get response from iSCSI portal
+    iSCSIPDULogoutRspBHS rsp;
+    void * data = NULL;
+    size_t length = 0;
+    
+    // Receive response PDUs until response is complete
+    if((error = iSCSIKernelRecv(sessionId,connectionId,(iSCSIPDUTargetBHS *)&rsp,&data,&length)))
+        return error;
+    
+    if(rsp.opCode == kiSCSIPDUOpCodeLogoutRsp)
+        error = iSCSILogoutResponseToErrno(rsp.response);
+    
+    // For this case some other kind of PDU or invalid data was received
+    else if(rsp.opCode == kiSCSIPDUOpCodeReject)
+        error = EINVAL;
+    
+    iSCSIPDUDataRelease(data);
+    return error;
+}
+
+errno_t iSCSISessionAddConnection(UInt16 sessionId,
+                                  iSCSIConnectionInfo * connInfo)
+{
+    if(sessionId == kiSCSIInvalidSessionId || !connInfo)
+        return EINVAL;
+    
+    // Reset connection ID by default
+    connInfo->connectionId = kiSCSIInvalidConnectionId;
+    
+    // Resolve IP address (IPv4 or IPv6) or hostname, first get C pointers
+    // to the CF string objects
+    const char * hostAddr, * targetAddr, * targetPort;
+    
+    hostAddr = CFStringGetCStringPtr(connInfo->hostAddress,kCFStringEncodingUTF8);
+    targetAddr = CFStringGetCStringPtr(connInfo->targetAddress,kCFStringEncodingUTF8);
+    targetPort = CFStringGetCStringPtr(connInfo->targetPort,kCFStringEncodingUTF8);
+    
+    struct addrinfo * aiTarget = NULL;
+    struct addrinfo * aiHost = NULL;
+    
+    errno_t error = 0;
+    
+    if((error = getaddrinfo(hostAddr,NULL,NULL,&aiHost)))
+        return error;
+    
+    if((error = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget))) {
+        freeaddrinfo(aiHost);
+        return error;
+    }
+    
+    // If both target and host were resolved, grab a session
+    error = iSCSIKernelCreateConnection(sessionId,
+                                        aiTarget->ai_family,
+                                        aiTarget->ai_addr,
+                                        aiHost->ai_addr,
+                                        &connInfo->connectionId);
+    freeaddrinfo(aiTarget);
+    freeaddrinfo(aiHost);
+    return error;
+}
+
+errno_t iSCSISessionRemoveConnection(UInt16 sessionId,
+                                     UInt16 connectionId)
+{
+    
+    if(sessionId    >= kiSCSIInvalidSessionId ||
+       connectionId >= kiSCSIInvalidConnectionId)
+        return EINVAL;
+    
+    errno_t error = 0;
+    
+    // TODO: if this is the only connection left, disconnect session instead
+    
+    // TODO: Deactivate connection first in kernel...
+    
+    // Logout the session, including all connections
+    error = iSCSISessionLogoutCommon(sessionId,connectionId,kISCSIPDULogoutCloseConnection);
+
+    iSCSIKernelReleaseConnection(sessionId,connectionId);
+    
+    return error;
+}
+
 /** Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionRelease to close this session and free resources.
  *  @param sessionInfo parameters associated with the normal session. A new
@@ -664,9 +697,20 @@ errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
     errno_t error = 0;
     
     // Create session (incl. qualifier) and a new connection (incl. Id)
-    if((error = iSCSISessionCreateInKernel(sessionInfo,connInfo)))
-        return error;
+    // Reset qualifier and connection ID by default
+    sessionInfo->sessionId = iSCSIKernelCreateSession();
     
+    // If session couldn't be allocated were maxed out; try again later
+    if(sessionInfo->sessionId == kiSCSIInvalidSessionId)
+        return EAGAIN;
+
+    // Add a new connection for the new session
+    if((error = iSCSISessionAddConnection(sessionInfo->sessionId,connInfo)))
+    {
+        iSCSIKernelReleaseSession(sessionInfo->sessionId);
+        return error;
+    }
+
     // Grab a session options object and pass it around; at the end, we'll
     // set the session options in the kernel
     iSCSISessionOptions sessOptions;
@@ -711,52 +755,8 @@ errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
         
         // Activate connection first then the session
         iSCSIKernelActivateConnection(sessionInfo->sessionId,connInfo->connectionId);
-        iSCSIKernelActivateSession(sessionInfo->sessionId);
     }
     
-    return error;
-}
-
-
-/** Helper function used to log out of connections and sessions. */
-errno_t iSCSISessionLogoutCommon(UInt16 sessionId,
-                          UInt32 connectionId,
-                          enum iSCSIPDULogoutReasons logoutReason)
-{
-    if(sessionId >= kiSCSIInvalidSessionId || connectionId >= kiSCSIInvalidConnectionId)
-        return EINVAL;
-    
-    // Grab options related to this connection
-    iSCSIConnectionOptions connOpts;
-    errno_t error;
-    
-    if((error = iSCSIKernelGetConnectionOptions(sessionId,connectionId,&connOpts)))
-        return error;
-    
-    // Create a logout PDU and log out of the session
-    iSCSIPDULogoutReqBHS cmd = iSCSIPDULogoutReqBHSInit;
-    cmd.reasonCode = logoutReason | kISCSIPDULogoutReasonCodeFlag;
-    
-    if((error = iSCSIKernelSend(sessionId,connectionId,(iSCSIPDUInitiatorBHS *)&cmd,NULL,0)))
-        return error;
-    
-    // Get response from iSCSI portal
-    iSCSIPDULogoutRspBHS rsp;
-    void * data = NULL;
-    size_t length = 0;
-    
-    // Receive response PDUs until response is complete
-    if((error = iSCSIKernelRecv(sessionId,connectionId,(iSCSIPDUTargetBHS *)&rsp,&data,&length)))
-        return error;
-    
-    if(rsp.opCode == kiSCSIPDUOpCodeLogoutRsp)
-        error = iSCSILogoutResponseToErrno(rsp.response);
-    
-    // For this case some other kind of PDU or invalid data was received
-    else if(rsp.opCode == kiSCSIPDUOpCodeReject)
-        error = EINVAL;
-    
-    iSCSIPDUDataRelease(data);
     return error;
 }
 
@@ -770,50 +770,20 @@ errno_t iSCSISessionRelease(UInt16 sessionId)
     
     errno_t error = 0;
     
-// TODO: Deactivate session in kernel
+    // TODO: Deactivate session in kernel
     
     
     
     // Grab a connection ID for this session so that we can logout session
     UInt32 connectionId = iSCSIKernelGetActiveConnection(sessionId);
-//    if(connectionId == kiSCSIInvalidConnectionId)
-//        return EINVAL;
+    //    if(connectionId == kiSCSIInvalidConnectionId)
+    //        return EINVAL;
     connectionId = 0;
     // Logout the session, including all connections
     error = iSCSISessionLogoutCommon(sessionId,connectionId,kiSCSIPDULogoutCloseSession);
     
     if(!error)
         iSCSIKernelReleaseSession(sessionId);
-    
-    return error;
-}
-
-
-errno_t iSCSISessionAddConnection(UInt16 sessionId,
-                                  iSCSIConnectionInfo * connInfo)
-{
-    return 0;
-}
-
-errno_t iSCSISessionRemoveConnection(UInt16 sessionId,
-                                     UInt16 connectionId)
-{
-    
-    if(sessionId    >= kiSCSIInvalidSessionId ||
-       connectionId >= kiSCSIInvalidConnectionId)
-        return EINVAL;
-    
-    errno_t error = 0;
-    
-    // TODO: if this is the only connection left, disconnect session instead
-    
-    // TODO: Deactivate connection first in kernel...
-    
-    // Logout the session, including all connections
-    error = iSCSISessionLogoutCommon(sessionId,connectionId,kISCSIPDULogoutCloseConnection);
-    
-    if(!error)
-        iSCSIKernelReleaseConnection(sessionId,connectionId);
     
     return error;
 }
@@ -829,10 +799,10 @@ errno_t iSCSISessionGetTargetList(UInt16 sessionId,
 {
     // Place text commands to get target list into a dictionary
     CFMutableDictionaryRef textCmd =
-    CFDictionaryCreateMutable(kCFAllocatorDefault,
-                              kiSCSISessionMaxTextKeyValuePairs,
-                              &kCFTypeDictionaryKeyCallBacks,
-                              &kCFTypeDictionaryValueCallBacks);
+        CFDictionaryCreateMutable(kCFAllocatorDefault,
+                                  kiSCSISessionMaxTextKeyValuePairs,
+                                  &kCFTypeDictionaryKeyCallBacks,
+                                  &kCFTypeDictionaryValueCallBacks);
     
    /*
     CFDictionaryAddValue(textCmd,kiSCSITKSendTargets,kiSCSITVSendTargetsAll);
