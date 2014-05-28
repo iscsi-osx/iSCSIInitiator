@@ -25,6 +25,9 @@ namespace iSCSIPDU {
     
     /** Digests are 4 bytes. */
     static const UInt8 kiSCSIPDUDigestSize = 4;
+    
+    /** Reserved target transfer tag value. */
+    static const UInt32 kiSCSIPDUTargetTransferTagReserved = 0xFFFFFFFF;
 
     
     ///////////////////// For use with SCSI command PDUs ///////////////////////
@@ -74,6 +77,18 @@ namespace iSCSIPDU {
     
     static const UInt8 kiSCSIPDUTaskMgmtFuncTaskReassign = 0x08;
     
+    enum iSCSIPDUTaskMgmtRspCodes {
+        kiSCSIPDUTaskMgmtFuncComplete = 0x00,
+        kiSCSIPDUTaskMgmtInvalidTask  = 0x01,
+        kiSCSIPDUTaskMgmtInvalidLUN   = 0x02,
+        kiSCSIPDUTaskMgmtTaskAllegiant = 0x03,
+        kiSCSIPDUTaskMgmtReassignUnsupported = 0x04,
+        kiSCSIPDUTaskMgmtFuncUnsupported = 0x05,
+        kiSCSIPDUTaskMgmtAuthFail = 0x06,
+        kiSCSIPDUTaskMgmtFuncRejected = 0xFF
+        
+    };
+    
     
     ////////////////////// For for use with data out PDUs //////////////////////
 
@@ -87,6 +102,7 @@ namespace iSCSIPDU {
     static const UInt8 kiSCSIPDUDataInAckFlag = 0x40;
 
     static const UInt8 kiSCSIPDUDataInStatusFlag = 0x01;
+    
     
     
     /** Basic header segment for a data in PDU. */
@@ -175,7 +191,7 @@ namespace iSCSIPDU {
         UInt32 refCmdSN;
         UInt32 expDataSN;
         UInt64 reserved2;
-    } __attribute__((packed)) iSCSIPDUTargetMgmtReqBHS;
+    } __attribute__((packed)) iSCSIPDUTaskMgmtReqBHS;
     
     /** Basic header segment for a target management response PDU. */
     typedef struct __iSCSIPDUTaskMgmtRspBHS {
@@ -193,7 +209,7 @@ namespace iSCSIPDU {
         UInt32 maxCmdSN;
         UInt64 reserved4;
         UInt32 reserved5;
-    } __attribute__((packed)) iSCSIPDUTargetMgmtRspBHS;
+    } __attribute__((packed)) iSCSIPDUTaskMgmtRspBHS;
     
     /** Basic header segment for an R2T PDU. */
     typedef struct __iSCSIPDUR2TBHS {
@@ -326,7 +342,7 @@ namespace iSCSIPDU {
     
     extern const iSCSIPDUDataOutBHS iSCSIPDUDataOutBHSInit;
     extern const iSCSIPDUSCSICmdBHS iSCSIPDUSCSICmdBHSInit;
-    extern const iSCSIPDUTargetMgmtReqBHS iSCSIPDUTargetMgmtReqBHSInit;
+    extern const iSCSIPDUTaskMgmtReqBHS iSCSIPDUTaskMgmtReqBHSInit;
     extern const iSCSIPDUSNACKReqBHS iSCSIPDUSNACKReqBHSInit;
     extern const iSCSIPDUNOPOutBHS iSCSIPDUNOPOutBHSInit;
     extern const iSCSIPDUExtCDBAHS iSCSIPDUExtCDBAHSInit;

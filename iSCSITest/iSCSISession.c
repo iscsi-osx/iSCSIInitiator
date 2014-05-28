@@ -29,8 +29,13 @@ extern errno_t iSCSIAuthNegotiate(UInt16 sessionId,
 const unsigned int kiSCSISessionMaxTextKeyValuePairs = 100;
 const unsigned int kiSCSISessionTimeoutMs = 500;
 const unsigned int kMaxRecvDataSegmentLength = 2048;
-const UInt32 kLoginQueryTaskTag = 0;
+//const UInt32 kLoginQueryTaskTag = 0;
 
+
+/** iSCSI default data sequ
+static const bool kiSCSIDataSequenceInOrder =
+static const bool kRFC3720DataPDUInOrder =
+*/
 
 CFStringRef kiSCSILKHeaderDigest = CFSTR("HeaderDigest");
 CFStringRef kiSCSILVHeaderDigestNone = CFSTR("None");
@@ -207,14 +212,10 @@ errno_t iSCSISessionLoginQuery(UInt16 sessionId,
 
         if(rsp.opCode == kiSCSIPDUOpCodeLoginRsp)
         {
-            // Convert login detail from PDU to a system errno
-            iSCSILoginResponseCode = rsp.statusClass;
-            error = (iSCSILoginResponseCode << sizeof(UInt8) | rsp.statusDetail);
-            
+            connInfo->status = *((UInt16*)(&rsp.statusClass));
+
             if(error)
                 break;
-      //      if((error = iSCSILoginDetailToErrno(status)))
-        //        break;
             
             iSCSIPDUDataParseToDict(data,length,textRsp);
         }

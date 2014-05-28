@@ -57,3 +57,28 @@ struct iSCSIConnectionOpts {
     UInt32 targetPort;
     
 } __attribute__((packed));
+
+
+/** Detailed login respones from a target that supplement the
+ *  general responses defined by iSCSIPDULoginRspStatusClass. */
+enum iSCSIConnectionStatus {
+    
+    kiSCSIPDULDSuccess = 0x0000,
+    kiSCSIPDULDTargetMovedTemp = 0x0101,
+    kiSCSIPDULDTargetMovedPerm = 0x0102,
+    kiSCSIPDULDInitiatorError = 0x0200,
+    kiSCSIPDULDAuthFail = 0x0201,
+    kiSCSIPDULDAccessDenied = 0x0202,
+    kiSCSIPDULDNotFound = 0x0203,
+    kiSCSIPDULDTargetRemoved = 0x0204,
+    kiSCSIPDULDUnsupportedVer = 0x0205,
+    kiSCSIPDULDTooManyConnections = 0x0206,
+    kiSCSIPDULDMissingParam = 0x0207,
+    kiSCSIPDULDCantIncludeInSeession = 0x0208,
+    kiSCSIPDULDSessionTypeUnsupported = 0x0209,
+    kiSCSIPDULDSessionDoesntExist = 0x020a,
+    kiSCSIPDULDInvalidReqDuringLogin = 0x020b,
+    kiSCSIPDULDTargetHWorSWError = 0x0300,
+    kiSCSIPDULDServiceUnavailable = 0x0301,
+    kiSCSIPDULDOutOfResources = 0x0302
+};

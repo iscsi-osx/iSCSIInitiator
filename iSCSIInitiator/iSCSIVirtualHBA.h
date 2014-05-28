@@ -313,10 +313,22 @@ private:
      *  @param session the session associated with the task mgmt response.
      *  @param connection the connection associated with the task mgmt response.
      *  @param bhs the basic header segment of the task mgmt response. */
-    void ProcessTaskMgmtResponse(iSCSISession * session,
-                                 iSCSIConnection * connection,
-                                 UInt8 taskMgmtResponse,
-                                 UInt32 initiatorTaskTag);
+    void ProcessTaskMgmtRsp(iSCSISession * session,
+                            iSCSIConnection * connection,
+                            iSCSIPDU::iSCSIPDUTaskMgmtRspBHS * bhs);
+
+    /** Process an incoming NOP in PDU.  This can be either a simple response
+     *  to a NOP in initiated by the target, or a NOP in response to a previous
+     *  NOP out that was sent by this initiator.  For the latter, the original
+     *  NOP was sent with a timestamp at that time and it should bounce back to
+     *  us allowing us to measure the latency of the connection.
+     *  @param session the session associated with the NOP in.
+     *  @param connection the connection associated with the NOP in.
+     *  @param bhs the basic header segment of the NOP in. */
+    void ProcessNOPIn(iSCSISession * session,
+                      iSCSIConnection * connection,
+                      iSCSIPDU::iSCSIPDUNOPInBHS * bhs);
+    
     
     /** Process an incoming SCSI response PDU.
      *  @param session the session associated with the SCSI response.
@@ -341,6 +353,17 @@ private:
     void ProcessR2T(iSCSISession * session,
                     iSCSIConnection * connection,
                     iSCSIPDU::iSCSIPDUR2TBHS * bhs);
+    
+    
+    /** Adjusts the timeouts associated with a particular connection.  This
+     *  function uses a NOP out PDU to measure the latency of particular
+     *  iSCSI connection. This is achieved by generating and sending 
+     *  a PDU with the current timestamp which is then echoed back by the
+     *  target. The response PDU is processed by ProcessNOPIn().
+     *  @param session the session to tune.
+     *  @param connection the connection to tune. */
+    void TuneConnectionTimeout(iSCSISession * session,
+                               iSCSIConnection * connection);
 	
     /** Maximum allowable sessions. */
     static const UInt16 kMaxSessions;
@@ -357,17 +380,33 @@ private:
     /** Maximum number of SCSI tasks the HBA can handle. */
     static const UInt32 kMaxTaskCount;
     
-
-
+    /** Used as part of the iSCSI layer intiator task tag to specify the 
+     *  type of task. */
+    enum InitiatorTaskTagCodes {
+        
+        /** Used as part of the iSCSI task tag for all SCSI tasks. */
+        kInitiatorTaskTagSCSITask = 0,
     
-
+        /** Used as part of the iSCSI task tag for all timing operations. */
+        kInitiatorTaskTagTiming = 1,
     
-    /** Amount of memory (in bytes) required for a single SCSI task. */
-//    static const UInt32 kTaskDataSize;
+        /** Used as part of the iSCSI task tag for all task management operations. */
+        kInitiatorTaskTagTaskMgmt = 2
+    };
     
-    /** Amount of memory (in bytes) required for each target device. */
- //   static const UInt32 kDeviceDataSize;
-    
+    /** Creates the iSCSI layer's initiator task tag for a PDU using the task
+     *  code, LUN, and the SCSI layer's task identifier. */
+    inline UInt32 BuildInitiatorTaskTag(InitiatorTaskTagCodes taskCode,
+                                        SCSILogicalUnitNumber LUN,
+                                        SCSITaggedTaskIdentifier taskId)
+    {
+        return ( ((UInt8)taskCode)<<24 | ((UInt8)LUN)<<16 | (UInt16)taskId );
+    }
+/*
+    inline UInt32 ParseInitiatorTaskTag(UInt32 initiatorTaskTag,
+                                        SCSILogicalUnitNumber & LUN,
+                                        SCSITaggedTaskIdentifier taskId)
+  */
     /** Initiator ID of the virtual HBA.  This value is auto-generated upon 
      *  initialization of the initiator and the 24 least significant bits
      *  are used to form part of the iSCSI ISID. */

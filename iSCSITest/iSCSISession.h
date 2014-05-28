@@ -38,8 +38,14 @@ typedef struct iSCSISessionInfo {
 typedef struct iSCSIConnectionInfo {
     
     /** Connection ID number (not required for new session or connection).
-     *  For new connections, a value is assigned to this field. */
+     *  For new connections, a value is assigned to this field after
+     *  a connection has been established. */
     UInt32 connectionId;
+    
+    /** Returned error code (not required for new session or connection).
+     *  For new connections, a value is assigned to this field after
+     *  a connection has been established. */
+    UInt16 status;
 
     /** Whether to use a header digest (CRC32C is used if enabled). */
     bool useHeaderDigest;

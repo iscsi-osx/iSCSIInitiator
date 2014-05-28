@@ -25,6 +25,8 @@
 
 int main(int argc, const char * argv[])
 {
+    
+    
 
    if(iSCSIKernelInitialize() == kIOReturnSuccess)
         printf("Connected");
@@ -40,7 +42,7 @@ int main(int argc, const char * argv[])
  //   connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:nareg");
   //  connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:narreh");
 //    connOpts.targetName = NULL;
-    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi14");
+    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi17");
 
     connOpts.hostAddress = CFSTR("192.168.1.147");
     connOpts.targetAddress = CFSTR("192.168.1.115");
@@ -57,7 +59,7 @@ int main(int argc, const char * argv[])
     iSCSISessionCreate(&sessionOpts,&connOpts);
 //    CFMutableDictionaryRef targetList;
 //    iSCSISessionGetTargetList(sessionQualifier,0,&targetList);
-    iSCSIKernelDeactivateConnection(sessionOpts.sessionId,connOpts.connectionId);
+//    iSCSIKernelDeactivateConnection(sessionOpts.sessionId,connOpts.connectionId);
     iSCSISessionRelease(0);
     iSCSISessionRelease(1);
     iSCSISessionRelease(2);
@@ -68,9 +70,9 @@ int main(int argc, const char * argv[])
     iSCSIKernelCleanUp();
 	
 //    CFRelease(targetList);
+ 
+
     
-
-
     
  
     

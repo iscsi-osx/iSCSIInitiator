@@ -39,7 +39,7 @@ namespace iSCSIPDU {
         .dataTransferLength = 0 };
     
     // final
-    const iSCSIPDUTargetMgmtReqBHS iSCSIPDUTargetMgmtReqBHSInit = {
+    const iSCSIPDUTaskMgmtReqBHS iSCSIPDUTaskMgmtReqBHSInit = {
         .opCode             = kiSCSIPDUOpCodeTaskMgmtReq,
         .function           = 0,
         .reserved           = 0,
@@ -47,18 +47,26 @@ namespace iSCSIPDU {
         .LUN                = 0,
         .initiatorTaskTag   = 0,
         .referencedTaskTag  = 0,
+        .refCmdSN           = 0,
         .reserved2          = 0 };
-    
+        
     const iSCSIPDUSNACKReqBHS iSCSIPDUSNACKReqBHSInit {
         .opCode = kiSCSIPDUOpCodeSNACKReq,
         .flags = 0,
         .totalAHSLength = 0};
         
+    // final
     const iSCSIPDUNOPOutBHS iSCSIPDUNOPOutBHSInit = {
-        .opCode = kiSCSIPDUOpCodeNOPOut,
-        .flags  = 0,
-        .totalAHSLength = 0 };
-        
+        .opCode             = kiSCSIPDUOpCodeNOPOut,
+        .flags              = 0,
+        .reserved           = 0,
+        .totalAHSLength     = 0,
+        .LUN                = 0,
+        .initiatorTaskTag   = 0,
+        .targetTransferTag  = 0,
+        .reserved2          = 0,
+        .reserved3          = 0 };
+    
     const iSCSIPDUExtCDBAHS iSCSIPDUExtCDBAHSInit = {
         .ahsLength = 0,
         .ahsType   = kiSCSIPDUAHSExtCDB,

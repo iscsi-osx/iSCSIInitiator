@@ -194,31 +194,6 @@ enum iSCSIPDULoginRspStatusClass {
     kiSCISPDULCTargetError = 0x03
 };
 
-/** Detailed login respones from a target that supplement the
- *  general responses defined by iSCSIPDULoginRspStatusClass. */
-enum iSCSIPDULoginRspStatusDetail {
-    
-    kiSCSIPDULDSuccess = 0x0000,
-    kiSCSIPDULDTargetMovedTemp = 0x0101,
-    kiSCSIPDULDTargetMovedPerm = 0x0102,
-    kiSCSIPDULDInitiatorError = 0x0200,
-    kiSCSIPDULDAuthFail = 0x0201,
-    kiSCSIPDULDAccessDenied = 0x0202,
-    kiSCSIPDULDNotFound = 0x0203,
-    kiSCSIPDULDTargetRemoved = 0x0204,
-    kiSCSIPDULDUnsupportedVer = 0x0205,
-    kiSCSIPDULDTooManyConnections = 0x0206,
-    kiSCSIPDULDMissingParam = 0x0207,
-    kiSCSIPDULDCantIncludeInSeession = 0x0208,
-    kiSCSIPDULDSessionTypeUnsupported = 0x0209,
-    kiSCSIPDULDSessionDoesntExist = 0x020a,
-    kiSCSIPDULDInvalidReqDuringLogin = 0x020b,
-    kiSCSIPDULDTargetHWorSWError = 0x0300,
-    kiSCSIPDULDServiceUnavailable = 0x0301,
-    kiSCSIPDULDOutOfResources = 0x0302
-};
-
-
 ////////////////////////////  LOGIN BHS DEFINITIONS ////////////////////////////
 // This section various constants that are used only for the login PDU.
 // Definitions that are used for more than one type of PDU can be found in

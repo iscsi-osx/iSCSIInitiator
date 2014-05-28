@@ -53,6 +53,8 @@
 	</dict>
 	<key>OSBundleLibraries</key>
 	<dict>
+		<key>com.apple.kpi.mach</key>
+		<string>13.2</string>
 		<key>com.apple.iokit.IOSCSIParallelFamily</key>
 		<string>2.5.1</string>
 		<key>com.apple.kpi.iokit</key>
