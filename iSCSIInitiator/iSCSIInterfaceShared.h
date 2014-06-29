@@ -120,7 +120,7 @@ typedef struct iSCSIConnectionOptions
     /** Maximum data segment length allowed by the target. */
     UInt32 maxSendDataSegmentLength;
     
-    /** Maximum data segment length we can received. */
+    /** Maximum data segment length initiator can receive. */
     UInt32 maxRecvDataSegmentLength;
     
 } iSCSIConnectionOptions;

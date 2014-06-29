@@ -128,13 +128,21 @@ public:
      *  @return a response that indicates the processing status of the task. */
 	virtual SCSIServiceResponse ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask);
     
+    /** Processes a task immediately. This function may be called from
+     *  ProcessParallelTask() to process a task right away or might be called
+     *  by our software interrupt source (iSCSIIOEventSource) to process the
+     *  next task in a queue. */
+    void BeginTaskOnWorkloopThread(iSCSISession * session,
+                                   iSCSIConnection * connection,
+                                   UInt32 initiatorTaskTag);
+    
     /** Called by our software interrupt source (iSCSIIOEventSource) to let us
      *  know that data has become available for a particular session and
-     *  connection.
+     *  connection - this allows us to continue or complete processing the task.
      *  @param owner an instance of this class.
      *  @param session session associated with connection that received data.
      *  @param connection the connection that received data. */
-    static void CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
+    static bool CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
                                              iSCSISession * session,
                                              iSCSIConnection * connection);
     

@@ -18,8 +18,11 @@
 
 #define iSCSIIOEventSource	com_NSinenian_iSCSIIOEventSource
 
+
 struct iSCSISession;
 struct iSCSIConnection;
+
+struct iSCSITask;
 
 /** This event source wraps around a network socket and provides a software
  *	interrupt when data becomes available at a the socket. It is used to wake
@@ -40,7 +43,7 @@ public:
     
 	/** Pointer to the method that is called (within the driver's workloop)
 	 *	when data becomes available at a network socket. */
-    typedef void (*Action) (iSCSIVirtualHBA::iSCSISession * session,
+    typedef bool (*Action) (iSCSIVirtualHBA::iSCSISession * session,
                             iSCSIVirtualHBA::iSCSIConnection * connection);
 	
 	/** Initializes the event source with an owner and an action.
@@ -63,6 +66,11 @@ public:
 	static void socketCallback(socket_t so,
 							   iSCSIIOEventSource * eventSource,
 							   int waitf);
+    
+    void addTaskToQueue(UInt32 initiatorTaskTag);
+    
+    void removeTaskFromQueue();
+
 	
     
 protected:
@@ -74,10 +82,28 @@ protected:
 	virtual bool checkForWork();
 		
 private:
-					  	
+				
+    /** The iSCSI session associated with this event source. */
     iSCSIVirtualHBA::iSCSISession * session;
     
+    /** The iSCSI connection associated with this event source. */
     iSCSIVirtualHBA::iSCSIConnection * connection;
+
+    /** Points to the head of the double-ended singly-linked-list queue
+     *  of iSCSI tasks. */
+    iSCSITask * taskQueueHead;
+
+    /** Points to the tail of the double-ended singly-linked-list queue
+     *  of iSCSI tasks. */
+    iSCSITask * taskQueueTail;
+    
+    /** Flag used to indicate whether the task at the head of the queue is a 
+     *  new task that has not yet been processed. */
+    bool newTask;
+    
+    /** Mutex lock used to prevent simultaneous access to the iSCSI task queue
+     *  (e.g., simultaneous calls to addTaskToQueue() and removeTaskFromQueue(). */
+    IOLock * taskQueueLock;
 };
 
 #endif /* defined(__ISCSI_EVENT_SOURCE_H__) */

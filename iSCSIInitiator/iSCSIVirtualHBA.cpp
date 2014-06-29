@@ -36,7 +36,7 @@ const SCSILogicalUnitNumber iSCSIVirtualHBA::kHighestLun = 63;
 const SCSIDeviceIdentifier iSCSIVirtualHBA::kHighestSupportedDeviceId = kMaxSessions - 1;
 
 /** Maximum number of SCSI tasks the HBA can handle. */
-const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 1;
+const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
 
 /** Definition of a single connection that is associated with a particular
  *  iSCSI session. */
@@ -72,6 +72,12 @@ struct iSCSIVirtualHBA::iSCSIConnection {
      *  connection is one where the user-space code has performed login
      *  and negotiation and placed that connection into full-feature phase. */
     bool active;
+    
+    /** The maximum length of data allowed for immediate data (data sent as part
+     *  of a command PDU).  This parameter is derived by taking the lesser of
+     *  the FirstBurstLength and the maxSendDataSegmentLength.  The former
+     *  is a session option while the latter is a connection option. */
+    UInt32 immediateDataLength;
 };
 
 /** Definition of a single iSCSI session.  Each session is comprised of one
@@ -359,16 +365,12 @@ void iSCSIVirtualHBA::HandleInterruptRequest()
 
 SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask)
 {
-    // Extract information about this SCSI task
+    // Here we set an (iSCSI) initiator task tag for the SCSI task and queue
+    // the iSCSI task for later processing
     SCSITargetIdentifier targetId   = GetTargetIdentifier(parallelTask);
     SCSILogicalUnitNumber LUN       = GetLogicalUnitNumber(parallelTask);
-    SCSITaskAttribute attribute     = GetTaskAttribute(parallelTask);
     SCSITaggedTaskIdentifier taskId = GetTaggedTaskIdentifier(parallelTask);
-    UInt8   transferDirection       = GetDataTransferDirection(parallelTask);
-    UInt32  transferSize            = (UInt32)GetRequestedDataTransferCount(parallelTask);
-    UInt8   cdbSize                 = GetCommandDescriptorBlockSize(parallelTask);
     
-    // Target id and session identifier are one and the same
     iSCSISession * session = sessionList[(UInt16)targetId];
     
     if(!session)
@@ -376,9 +378,44 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     
     iSCSIConnection * conn = session->connections[0];
     
-    if(!conn)
+    if(!conn || !conn->eventSource)
         return kSCSIServiceResponse_FUNCTION_REJECTED;
 
+    // Build and set iSCSI initiator task tag
+    UInt32 initiatorTaskTag = BuildInitiatorTaskTag(kInitiatorTaskTagSCSITask,LUN,taskId);
+    SetControllerTaskIdentifier(parallelTask,initiatorTaskTag);
+    
+    // Queue task in the event source (we'll remove it from the queue when were
+    // done processing the task)
+    conn->eventSource->addTaskToQueue(initiatorTaskTag);
+    
+    DBLog("iSCSI: Queued task %llx\n",taskId);
+
+    return kSCSIServiceResponse_Request_In_Process;
+}
+
+void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
+                                                iSCSIConnection * connection,
+                                                UInt32 initiatorTaskTag)
+{
+    // Grab parallel task associated with this iSCSI task
+    SCSIParallelTaskIdentifier parallelTask =
+        FindTaskForControllerIdentifier(session->sessionId,initiatorTaskTag);
+    
+    if(!parallelTask)
+    {
+        DBLog("iSCSI: Task not found, flushing stream\n");
+        return;
+    }
+    
+    // Extract information about this SCSI task
+    SCSILogicalUnitNumber LUN       = GetLogicalUnitNumber(parallelTask);
+    SCSITaskAttribute attribute     = GetTaskAttribute(parallelTask);
+    SCSITaggedTaskIdentifier taskId = GetTaggedTaskIdentifier(parallelTask);
+    UInt8   transferDirection       = GetDataTransferDirection(parallelTask);
+    UInt32  transferSize            = (UInt32)GetRequestedDataTransferCount(parallelTask);
+    UInt8   cdbSize                 = GetCommandDescriptorBlockSize(parallelTask);
+    
     DBLog("iSCSI: Processing task %llx\n",taskId);
     
     // Create a SCSI request PDU
@@ -387,8 +424,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     bhs.LUN                 = OSSwapHostToBigInt64(LUN);
     
     // The initiator task tag is just LUN and task identifier
-    bhs.initiatorTaskTag = BuildInitiatorTaskTag(kInitiatorTaskTagSCSITask,LUN,taskId);
-    SetControllerTaskIdentifier(parallelTask, bhs.initiatorTaskTag);
+    bhs.initiatorTaskTag = initiatorTaskTag;
     
     if(transferDirection == kSCSIDataTransfer_FromInitiatorToTarget)
         bhs.flags |= kiSCSIPDUSCSICmdFlagWrite;
@@ -396,7 +432,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
         bhs.flags |= kiSCSIPDUSCSICmdFlagRead;
     
     // For CDB sizes less than 16 bytes, plug directly into SCSI command PDU
-    // (Currently, Mac OS X doesn't support CDB's larger than 16 bytes, so
+    // (Currently, OS X doesn't support CDB's larger than 16 bytes, so
     // there's no need for additional header segment to contain spillover).
     switch(cdbSize) {
         case kSCSICDBSize_6Byte:
@@ -404,7 +440,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
         case kSCSICDBSize_12Byte:
         case kSCSICDBSize_16Byte:
             GetCommandDescriptorBlock(parallelTask,&bhs.CDB);
-        break;
+            break;
     };
     
     // Setup the task attribute for this PDU
@@ -425,47 +461,107 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     ///// timeout for tasks where veyr large file transfers occur....
     ///// during startup, if something fails, (e.g., target doesn't respond)
     ///// perhaps set timeout basd on transfer length and adjust it dynamically
-    SetTimeoutForTask(parallelTask,600000);
+ //   SetTimeoutForTask(parallelTask,600000);
     
     // For non-WRITE commands, send off SCSI command PDU immediately.
     if(transferDirection != kSCSIDataTransfer_FromInitiatorToTarget)
     {
         bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
-        SendPDU(session,conn,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
-        return kSCSIServiceResponse_Request_In_Process;
+        SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
+        return;
     }
     
-    // For SCSI WRITE command PDUs, send PDU if initial R2T examine initial R2T and immediate data
-    // options for the session
+    // At this point we have have a write command, determine whether we need
+    // to send data at this point or later in response to an R2T
+    if(session->opts.initialR2T && !session->opts.immediateData)
+    {
+        bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
+        SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
+        return;
+    }
+    
+    // For SCSI WRITE command PDUs, map pointer to IOMemoryDescriptor buffer
     IOMemoryDescriptor  * dataDesc  = GetDataBuffer(parallelTask);
     IOMemoryMap         * dataMap   = dataDesc->map();
-    void                * data      = (void *)dataMap->getAddress();
+    UInt8               * data      = (UInt8 *)dataMap->getAddress();
     
-    // Prefer to use immediate data for writes if possible
-    if(session->opts.immediateData)
-        SendPDU(session,conn,(iSCSIPDUInitiatorBHS *)&bhs,NULL,data,session->opts.firstBurstLength);
-    // If immediate data can't be used, follow up with a data out PDU if R2T=No
-    else if(session->opts.initialR2T) {
-        bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
-        SendPDU(session,conn,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
-    }
-    // Else just send off the write command, wait for initial R2T...
-    else {
-        bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
-        SendPDU(session,conn,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
+    UInt32 dataOffset = 0;
+    
+    // First use immediate data to send as data with command PDU...
+    if(session->opts.immediateData) {
+        
+        // If we need to wait for an R2T then we're only going to send
+        // immediate data with no follow-up PDUs, set flag to indicate this...
+        if(session->opts.initialR2T)
+            bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
+
+        SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,data,connection->immediateDataLength);
+        dataOffset += connection->immediateDataLength;
     }
     
+    // Follow up with data out PDUs up to the firstBurstLength bytes if R2T=No
+    if(!session->opts.initialR2T) {
+
+        iSCSIPDUDataOutBHS bhsDataOut = iSCSIPDUDataOutBHSInit;
+        bhsDataOut.LUN              = bhs.LUN;
+        bhsDataOut.initiatorTaskTag = bhs.initiatorTaskTag;
+        bhsDataOut.targetTransferTag = 0xFFFFFFFF;
+        
+        UInt32 dataSN = 0;
+        UInt32 maxTransferLength = connection->opts.maxSendDataSegmentLength;
+        UInt32 remainingDataLength = session->opts.firstBurstLength - dataOffset;
+        
+        while(dataOffset != session->opts.firstBurstLength)
+        {
+            bhsDataOut.bufferOffset = OSSwapHostToBigInt32(dataOffset);
+            bhsDataOut.dataSN = OSSwapHostToBigInt32(dataSN);
+            
+            
+            if(maxTransferLength < remainingDataLength) {
+                DBLog("iSCSI: Max transfer length: %d\n",maxTransferLength);
+                int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,maxTransferLength);
+                
+                if(err != 0) {
+                    DBLog("iSCSI: Send error: %d\n",err);
+                    dataMap->release();
+                    return;
+                }
+                
+                DBLog("iSCSI: dataoffset: %d\n",dataOffset);
+                
+                remainingDataLength -= maxTransferLength;
+                data                += maxTransferLength;
+                dataOffset          += maxTransferLength;
+            }
+            // This is the final PDU of the sequence
+            else {
+                DBLog("iSCSI: Sending final data out\n");
+                bhsDataOut.flags = kiSCSIPDUDataOutFinalFlag;
+                int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,remainingDataLength);
+                
+                if(err != 0) {
+                    DBLog("iSCSI: Send error: %d\n",err);
+                    dataMap->release();
+                    return;
+                }
+                break;
+            }
+            // Increment the data sequence number
+            dataSN++;
+        }
+    }
+
+    // Release mapping to IOMemoryDescriptor buffer
     dataMap->release();
-	return kSCSIServiceResponse_Request_In_Process;
 }
 
-void iSCSIVirtualHBA::CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
+bool iSCSIVirtualHBA::CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
                                                    iSCSISession * session,
                                                    iSCSIConnection * connection)
 {
     // Quit if the connection isn't active (if it is not in full feature phase)
     if(!owner || !session || !connection || !connection->active)
-        return;
+        return true;
  
     // Grab incoming bhs (we are guaranteed to have a basic header at this
     // point (iSCSIIOEventSource ensures that this is the case)
@@ -473,7 +569,7 @@ void iSCSIVirtualHBA::CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     if(owner->RecvPDUHeader(session,connection,&bhs,0))
     {
         DBLog("iSCSI: Failed to get PDU header\n");
-        return;
+        return true;
     }
     else {
         DBLog("iSCSI: Received PDU\n");
@@ -509,6 +605,7 @@ void iSCSIVirtualHBA::CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         // Catch-all for anything else...
         default: break;
     };
+    return true;
 }
 
 
@@ -557,6 +654,9 @@ void iSCSIVirtualHBA::ProcessTaskMgmtRsp(iSCSISession * session,
         CompleteLogicalUnitReset(session->sessionId, LUN, serviceResponse);
     else if (taskMgmtFunction == kiSCSIPDUTaskMgmtFuncTargetWarmReset)
         CompleteTargetReset(session->sessionId, serviceResponse);
+    
+    // Task is complete, remove it from the queue
+    connection->eventSource->removeTaskFromQueue();
 }
 
 void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
@@ -644,6 +744,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
         // Flush stream
         UInt8 buffer[length];
         RecvPDUData(session,connection,buffer,length,MSG_WAITALL);
+        
         return;
     }
     
@@ -671,7 +772,9 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
         }
     }
     
-    // Set the SCSI completion status and service response
+    // Set the SCSI completion status and service response, let SCSI stack
+    // know that we're done with this task...
+    
     SCSITaskStatus completionStatus = (SCSITaskStatus)bhs->status;
     SCSIServiceResponse serviceResponse;
 
@@ -681,6 +784,9 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
         serviceResponse = kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
     
     CompleteParallelTask(parallelTask,completionStatus,serviceResponse);
+    
+    // Task is complete, remove it from the queue
+    connection->eventSource->removeTaskFromQueue();
     
     DBLog("iSCSI: Processed SCSI response\n");
 
@@ -724,9 +830,10 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     UInt32 dataOffset = OSSwapBigToHostInt32(bhs->bufferOffset);
     data = data + dataOffset;
     
-    DBLog("iSCSI dataoffset %d\n",dataOffset);
-    DBLog("iSCSI data length %llu\n",dataMap->getLength());
-    DBLog("iSCSI PDU data length %d\n",length);
+    DBLog("iSCSI: Data offset %d\n",dataOffset);
+    DBLog("iSCSI: Data length %llu\n",dataMap->getLength());
+    DBLog("iSCSI: PDU data length %d\n",length);
+    
     if(dataOffset + length <= dataMap->getLength())
     {
         if(RecvPDUData(session,connection,data,length,0))
@@ -753,10 +860,14 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
         CompleteParallelTask(parallelTask,
                              (SCSITaskStatus)bhs->status,
                              kSCSIServiceResponse_TASK_COMPLETE);
+        
+        // Task is complete, remove it from the queue
+        connection->eventSource->removeTaskFromQueue();
+
         DBLog("iSCSI: Processed data-in PDU\n");
     }
     
-    // Send ackonwledgement to target if one is required
+    // Send acknowledgement to target if one is required
     if(bhs->flags & kiSCSIPDUDataInAckFlag)
     {}
     
@@ -768,8 +879,6 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
                                  iSCSIConnection * connection,
                                  iSCSIPDU::iSCSIPDUR2TBHS * bhs)
 {
-
-    
     // Grab parallel task associated with this PDU, indexed by task tag
     SCSIParallelTaskIdentifier parallelTask =
         FindTaskForControllerIdentifier(session->sessionId,bhs->initiatorTaskTag);
@@ -799,7 +908,7 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
         return;
     }
     
-    // Amount of data to transfer in each iteration
+    // Amount of data to transfer in each iteration (per PDU)
     UInt32 maxTransferLength = connection->opts.maxSendDataSegmentLength;
     
     data = data + dataOffset;
@@ -831,6 +940,7 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
             
             if(err != 0) {
                 DBLog("iSCSI: Send error: %d\n",err);
+                dataMap->release();
                 return;
             }
             
@@ -849,6 +959,7 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
             
             if(err != 0) {
                 DBLog("iSCSI: Send error: %d\n",err);
+                dataMap->release();
                 return;
             }
             break;
@@ -867,8 +978,8 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
 void iSCSIVirtualHBA::TuneConnectionTimeout(iSCSISession * session,
                                             iSCSIConnection * connection)
 {
-    // Setup a NOP out PDU (LUN is unused with a value of 0 and the target
-    // transfer tag takes on the reserved value fo this type of NOP out
+    // Setup a NOP out PDU (LUN field is unused with a value of 0 and the target
+    // transfer tag takes on the reserved value fo this type of NOP out)
     iSCSIPDUNOPOutBHS bhs = iSCSIPDUNOPOutBHSInit;
     bhs.targetTransferTag = kiSCSIPDUTargetTransferTagReserved;
     bhs.initiatorTaskTag  = 0;
@@ -885,7 +996,7 @@ void iSCSIVirtualHBA::TuneConnectionTimeout(iSCSISession * session,
 }
 
 
-//////////////////////////////// ISCSI FUNCTIONS ///////////////////////////////
+//////////////////////////////// iSCSI FUNCTIONS ///////////////////////////////
 
 /** Allocates a new iSCSI session and returns a session qualifier ID.
  *  @return a valid session qualifier (part of the ISID, see RF3720) or
@@ -973,7 +1084,8 @@ errno_t iSCSIVirtualHBA::SetSessionOptions(UInt16 sessionId,
     if(!(theSession = sessionList[sessionId]))
        return EINVAL;
     
-    // Copy options into the session struct
+    // Copy options into the session struct; nearly all of these options can
+    // only be set once - upon the leading login and session instantiation
     theSession->opts = *options;
 
     // Success
@@ -1586,6 +1698,10 @@ errno_t iSCSIVirtualHBA::SetConnectionOptions(UInt16 sessionId,
                     &recvBufferSize,
                     sizeof(recvBufferSize));
 */
+
+    // Set the maximum amount of immediate data we can send on this connection
+    theConn->immediateDataLength = min(options->maxSendDataSegmentLength,
+                                       theSession->opts.firstBurstLength);
     
     // Success
     return 0;
