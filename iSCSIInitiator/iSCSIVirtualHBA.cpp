@@ -461,7 +461,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
     ///// timeout for tasks where veyr large file transfers occur....
     ///// during startup, if something fails, (e.g., target doesn't respond)
     ///// perhaps set timeout basd on transfer length and adjust it dynamically
- //   SetTimeoutForTask(parallelTask,600000);
+    SetTimeoutForTask(parallelTask,600000);
     
     // For non-WRITE commands, send off SCSI command PDU immediately.
     if(transferDirection != kSCSIDataTransfer_FromInitiatorToTarget)
@@ -484,7 +484,8 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
     IOMemoryDescriptor  * dataDesc  = GetDataBuffer(parallelTask);
     IOMemoryMap         * dataMap   = dataDesc->map();
     UInt8               * data      = (UInt8 *)dataMap->getAddress();
-    
+
+    // Offset relative to transfer request (not relative to IOMemoryDescriptor)
     UInt32 dataOffset = 0;
     
     // First use immediate data to send as data with command PDU...
@@ -494,13 +495,18 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
         // immediate data with no follow-up PDUs, set flag to indicate this...
         if(session->opts.initialR2T)
             bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
+        
+        UInt32 dataLen = min(connection->immediateDataLength,transferSize);
 
-        SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,data,connection->immediateDataLength);
-        dataOffset += connection->immediateDataLength;
+        SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,data,dataLen);
+        dataOffset += dataLen;
+        
+        SetRealizedDataTransferCount(parallelTask,dataLen);
+
     }
-    
+/*
     // Follow up with data out PDUs up to the firstBurstLength bytes if R2T=No
-    if(!session->opts.initialR2T) {
+    if(!session->opts.initialR2T && dataOffset < dataMap->getLength()) {
 
         iSCSIPDUDataOutBHS bhsDataOut = iSCSIPDUDataOutBHSInit;
         bhsDataOut.LUN              = bhs.LUN;
@@ -510,6 +516,8 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
         UInt32 dataSN = 0;
         UInt32 maxTransferLength = connection->opts.maxSendDataSegmentLength;
         UInt32 remainingDataLength = session->opts.firstBurstLength - dataOffset;
+        
+        UInt32 dataLen = min(session->opts.firstBurstLength,dataMap->getLength()-)
         
         while(dataOffset != session->opts.firstBurstLength)
         {
@@ -549,7 +557,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
             // Increment the data sequence number
             dataSN++;
         }
-    }
+    }*/
 
     // Release mapping to IOMemoryDescriptor buffer
     dataMap->release();
@@ -852,10 +860,14 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
         DBLog("iSCSI: Kernel buffer too small for incoming data\n");
     }
     
+    // Release the mapping object (this leaves the descriptor and buffer intact)
+    dataMap->unmap();
+    dataMap->release();
+    
     // If the PDU contains a status response, complete this task
     if((bhs->flags & kiSCSIPDUDataInFinalFlag) && (bhs->flags & kiSCSIPDUDataInStatusFlag))
     {
-        SetRealizedDataTransferCount(parallelTask,dataMap->getLength());
+        SetRealizedDataTransferCount(parallelTask,(UInt32)GetRequestedDataTransferCount(parallelTask));
         
         CompleteParallelTask(parallelTask,
                              (SCSITaskStatus)bhs->status,
@@ -871,8 +883,6 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     if(bhs->flags & kiSCSIPDUDataInAckFlag)
     {}
     
-    // Release the mapping object (this leaves the descriptor and buffer intact)
-    dataMap->release();
 }
 
 void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
@@ -898,12 +908,12 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     // Obtain requested data offset and requested lengths
     UInt32 dataOffset         = OSSwapBigToHostInt32(bhs->bufferOffset);
     UInt32 desiredDataLength  = OSSwapBigToHostInt32(bhs->desiredDataLength);
-    
 
     // Ensure that our data buffer contains all of the requested data
     if(dataOffset + desiredDataLength > (UInt32)dataMap->getLength())
     {
         DBLog("iSCSI: Host data buffer doesn't contain requested data");
+        dataMap->unmap();
         dataMap->release();
         return;
     }
@@ -911,7 +921,7 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     // Amount of data to transfer in each iteration (per PDU)
     UInt32 maxTransferLength = connection->opts.maxSendDataSegmentLength;
     
-    data = data + dataOffset;
+    data += dataOffset;
     
     DBLog("iSCSI: dataoffset: %d\n",dataOffset);
     DBLog("iSCSI: desired data length: %d\n",desiredDataLength);
@@ -933,13 +943,13 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
         bhsDataOut.bufferOffset = OSSwapHostToBigInt32(dataOffset);
         bhsDataOut.dataSN = OSSwapHostToBigInt32(dataSN);
 
-        
         if(maxTransferLength < desiredDataLength) {
             DBLog("iSCSI: Max transfer length: %d\n",maxTransferLength);
             int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,maxTransferLength);
             
             if(err != 0) {
                 DBLog("iSCSI: Send error: %d\n",err);
+                dataMap->unmap();
                 dataMap->release();
                 return;
             }
@@ -959,6 +969,7 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
             
             if(err != 0) {
                 DBLog("iSCSI: Send error: %d\n",err);
+                dataMap->unmap();
                 dataMap->release();
                 return;
             }
@@ -968,10 +979,11 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
         dataSN++;
     }
 
-    // Let the driver stack know how much we've transferred
-    SetRealizedDataTransferCount(parallelTask,OSSwapBigToHostInt32(bhs->desiredDataLength));
+    // Let the driver stack know how much we've transferred (everything)
+    SetRealizedDataTransferCount(parallelTask,OSSwapBigToHostInt32(bhs->desiredDataLength)+dataOffset);
     
     // Release the mapping object (this leaves the descriptor and buffer intact)
+    dataMap->unmap();
     dataMap->release();
 }
 
@@ -1059,6 +1071,8 @@ void iSCSIVirtualHBA::ReleaseSession(UInt16 sessionId)
     
     if(!theSession)
         return;
+    
+    DBLog("iSCSI: Releasing session...\n");
     
     // Disconnect all active connections
     for(UInt32 index = 0; index < kMaxConnectionsPerSession; index++)
@@ -1487,6 +1501,14 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
         DBLog("iSCSI: Received incomplete PDU header: %zu\n bytes",bytesRecv);
         return EIO;
     }
+    
+    // Update command sequence numbers only if the PDU was not a data PDU
+    // (unless the data PDU contains a SCSI service response)
+    if(bhs->opCode == kiSCSIPDUOpCodeDataIn) {
+        iSCSIPDUDataInBHS * bhsDataIn = (iSCSIPDUDataInBHS *)bhs;
+        if((bhsDataIn->flags & kiSCSIPDUDataInStatusFlag) == 0)
+            return result;
+    }
 
     // Read and update the command sequence numbers
     bhs->maxCmdSN = OSSwapBigToHostInt32(bhs->maxCmdSN);
@@ -1563,6 +1585,41 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     }*/
     return result;
 }
+
+IOReturn
+iSCSIVirtualHBA::message(UInt32 type, IOService *provider, void *argument)
+{
+    
+    IOReturn ret;
+    
+#if 1 // Work-around for bug in IOSCSIParallelFamily.  Radar:4914658
+    switch (type) {
+        case kIOMessageServiceIsRequestingClose:
+        {
+            // As the provider is opened by IOSCSIParallelInterfaceController itself, it should
+            // be responsible for closing it, not us.  Currently, this is not the case
+            ret = IOSCSIParallelInterfaceController::message(type, provider, argument);
+            
+            if (getProvider()->isOpen(this))
+                getProvider()->close(this);
+            
+            return (getProvider()->isOpen(this) == false) ? ret : kIOReturnError;
+            
+            break;
+        }
+            
+        default:
+        {
+            break;
+        }
+    }
+#endif
+    
+    ret = IOSCSIParallelInterfaceController::message(type, provider, argument);
+    
+    return ret;
+}
+
 
 
 /** Wrapper around SendPDU for user-space calls.

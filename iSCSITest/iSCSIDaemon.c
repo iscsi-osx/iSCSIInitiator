@@ -42,7 +42,7 @@ int main(int argc, const char * argv[])
  //   connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:nareg");
   //  connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:narreh");
 //    connOpts.targetName = NULL;
-    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi23");
+    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi29");
 
     connOpts.hostAddress = CFSTR("192.168.1.147");
     connOpts.targetAddress = CFSTR("192.168.1.115");

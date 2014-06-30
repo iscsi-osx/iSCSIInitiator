@@ -242,7 +242,7 @@ void iSCSISessionNegotiateSWBuildDictNormal(iSCSISessionInfo * sessionInfo,
 {
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxConnections,CFSTR("1"));
     CFDictionaryAddValue(sessCmd,kiSCSILKInitialR2T,kiSCSILVYes);
-    CFDictionaryAddValue(sessCmd,kiSCSILKImmediateData,kiSCSILVNo);
+    CFDictionaryAddValue(sessCmd,kiSCSILKImmediateData,kiSCSILVYes);
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxBurstLength,CFSTR("262144"));
     CFDictionaryAddValue(sessCmd,kiSCSILKFirstBurstLength,CFSTR("65535"));
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxOutstandingR2T,CFSTR("1"));

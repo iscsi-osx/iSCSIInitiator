@@ -37,6 +37,10 @@ class iSCSIVirtualHBA : public IOSCSIParallelInterfaceController
 
 public:
     
+    virtual IOReturn message( UInt32 type, IOService * provider,
+                             void * argument = 0 );
+    
+    
     /** Forward delcaration of an iSCSI session. */
     struct iSCSISession;
     
@@ -410,6 +414,10 @@ private:
     {
         return ( ((UInt8)taskCode)<<24 | ((UInt8)LUN)<<16 | (UInt16)taskId );
     }
+    
+    /** Helper function.  Sends a burst of data out PDUs, either as a response
+     *  to an R2T from the target or as unsolicited data. */
+ //   void SendDataOutBurst(IOMemoryDescriptor )
 /*
     inline UInt32 ParseInitiatorTaskTag(UInt32 initiatorTaskTag,
                                         SCSILogicalUnitNumber & LUN,
