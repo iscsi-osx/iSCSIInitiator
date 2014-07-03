@@ -28,7 +28,7 @@ extern errno_t iSCSIAuthNegotiate(UInt16 sessionId,
 
 const unsigned int kiSCSISessionMaxTextKeyValuePairs = 100;
 const unsigned int kiSCSISessionTimeoutMs = 500;
-const unsigned int kMaxRecvDataSegmentLength = 2048;
+const unsigned int kMaxRecvDataSegmentLength = 16384;
 //const UInt32 kLoginQueryTaskTag = 0;
 
 
@@ -241,7 +241,7 @@ void iSCSISessionNegotiateSWBuildDictNormal(iSCSISessionInfo * sessionInfo,
                                             CFMutableDictionaryRef sessCmd)
 {
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxConnections,CFSTR("1"));
-    CFDictionaryAddValue(sessCmd,kiSCSILKInitialR2T,kiSCSILVYes);
+    CFDictionaryAddValue(sessCmd,kiSCSILKInitialR2T,kiSCSILVNo);
     CFDictionaryAddValue(sessCmd,kiSCSILKImmediateData,kiSCSILVYes);
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxBurstLength,CFSTR("262144"));
     CFDictionaryAddValue(sessCmd,kiSCSILKFirstBurstLength,CFSTR("65535"));
@@ -268,7 +268,7 @@ void iSCSISessionNegotiateSWBuildDictCommon(iSCSISessionInfo * sessionInfo,
                          kiSCSILVErrorRecoveryLevelDigest);
 }
 
-void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
+void iSCSISessionNegotiateSWParseDictCommon(iSCSISessionInfo * sessionInfo,
                                             CFDictionaryRef sessCmd,
                                             CFDictionaryRef sessRsp,
                                             iSCSISessionOptions * sessOptions)
@@ -307,7 +307,7 @@ void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
         sessOptions->errorRecoveryLevel = 1; // Default time to retain
 }
 
-void iSCSISessionNegotiateSWParseDictCommon(iSCSISessionInfo * sessionInfo,
+void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
                                             CFDictionaryRef sessCmd,
                                             CFDictionaryRef sessRsp,
                                             iSCSISessionOptions * sessOptions)
@@ -336,7 +336,7 @@ void iSCSISessionNegotiateSWParseDictCommon(iSCSISessionInfo * sessionInfo,
         sessOptions->initialR2T = iSCSILVGetOr(initCmd,targetRsp);
     }
     else
-        sessOptions->initialR2T = false; // Default initial R2T
+        sessOptions->initialR2T = true; // Default initial R2T
     
     
     // Grab the AND for immediate data command and response
@@ -346,7 +346,7 @@ void iSCSISessionNegotiateSWParseDictCommon(iSCSISessionInfo * sessionInfo,
         sessOptions->immediateData = iSCSILVGetAnd(initCmd,targetRsp);
     }
     else
-        sessOptions->immediateData = false; // Default immediate data
+        sessOptions->immediateData = true; // Default immediate data
     
     // Get the OR of data PDU in order
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDataPDUInOrder,(void*)&targetRsp))
@@ -355,7 +355,7 @@ void iSCSISessionNegotiateSWParseDictCommon(iSCSISessionInfo * sessionInfo,
         sessOptions->dataPDUInOrder = iSCSILVGetAnd(initCmd,targetRsp);
     }
     else
-        sessOptions->dataPDUInOrder = false; // Default data PDU in order
+        sessOptions->dataPDUInOrder = true; // Default data PDU in order
     
     // Get the OR of data PDU in order
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDataSequenceInOrder,(void*)&targetRsp))
@@ -364,7 +364,7 @@ void iSCSISessionNegotiateSWParseDictCommon(iSCSISessionInfo * sessionInfo,
         sessOptions->dataSequenceInOrder = iSCSILVGetAnd(initCmd,targetRsp);
     }
     else
-        sessOptions->dataSequenceInOrder = false; // Default data sequence
+        sessOptions->dataSequenceInOrder = true; // Default data sequence
 
     // Grab minimum of max burst length
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKMaxBurstLength,(void*)&targetRsp))

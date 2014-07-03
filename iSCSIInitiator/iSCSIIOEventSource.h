@@ -13,8 +13,10 @@
 #include <IOKit/IOEventSource.h>
 
 #include <sys/kpi_socket.h>
+#include <kern/queue.h>
 
 #include "iSCSIVirtualHBA.h"
+
 
 #define iSCSIIOEventSource	com_NSinenian_iSCSIIOEventSource
 
@@ -88,14 +90,8 @@ private:
     
     /** The iSCSI connection associated with this event source. */
     iSCSIVirtualHBA::iSCSIConnection * connection;
-
-    /** Points to the head of the double-ended singly-linked-list queue
-     *  of iSCSI tasks. */
-    iSCSITask * taskQueueHead;
-
-    /** Points to the tail of the double-ended singly-linked-list queue
-     *  of iSCSI tasks. */
-    iSCSITask * taskQueueTail;
+    
+    queue_head_t taskQueue;
     
     /** Flag used to indicate whether the task at the head of the queue is a 
      *  new task that has not yet been processed. */
@@ -103,7 +99,7 @@ private:
     
     /** Mutex lock used to prevent simultaneous access to the iSCSI task queue
      *  (e.g., simultaneous calls to addTaskToQueue() and removeTaskFromQueue(). */
-    IOLock * taskQueueLock;
+    IOSimpleLock * taskQueueLock;
 };
 
 #endif /* defined(__ISCSI_EVENT_SOURCE_H__) */

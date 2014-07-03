@@ -59,7 +59,7 @@ struct iSCSIVirtualHBA::iSCSIConnection {
     
     /** Mutex lock used to prevent simultaneous Send/Recv from different
      *  threads (e.g., workloop thread and other threads). */
-    IOLock * sendLock;
+    IOLock * PDUIOLock;
     
     /** Event source used to signal the Virtual HBA that data has been
      *  received and needs to be processed. */
@@ -491,35 +491,37 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
     // First use immediate data to send as data with command PDU...
     if(session->opts.immediateData) {
         
-        // If we need to wait for an R2T then we're only going to send
-        // immediate data with no follow-up PDUs, set flag to indicate this...
-        if(session->opts.initialR2T)
-            bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
-        
+        // Either we send the max allowed data (immediate data length) or
+        // all of the data if it is lesser than the max allowed limit
         UInt32 dataLen = min(connection->immediateDataLength,transferSize);
+        
+        // If we need to wait for an R2T or we've transferred all data
+        // as immediate data then no additional data will follow this PDU...
+        if(session->opts.initialR2T || dataLen == transferSize)
+            bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
 
         SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,data,dataLen);
         dataOffset += dataLen;
         
         SetRealizedDataTransferCount(parallelTask,dataLen);
-
     }
-/*
+
     // Follow up with data out PDUs up to the firstBurstLength bytes if R2T=No
-    if(!session->opts.initialR2T && dataOffset < dataMap->getLength()) {
+    if(!session->opts.initialR2T &&                     // Initial R2T = No
+       dataOffset < session->opts.firstBurstLength &&   // Haven't hit burst limit
+       dataOffset < transferSize) {                     // Data left to send
 
         iSCSIPDUDataOutBHS bhsDataOut = iSCSIPDUDataOutBHSInit;
         bhsDataOut.LUN              = bhs.LUN;
         bhsDataOut.initiatorTaskTag = bhs.initiatorTaskTag;
-        bhsDataOut.targetTransferTag = 0xFFFFFFFF;
+        bhsDataOut.targetTransferTag = kiSCSIPDUTargetTransferTagReserved;
         
         UInt32 dataSN = 0;
         UInt32 maxTransferLength = connection->opts.maxSendDataSegmentLength;
-        UInt32 remainingDataLength = session->opts.firstBurstLength - dataOffset;
+        UInt32 remainingDataLength =
+            min(session->opts.firstBurstLength - dataOffset,transferSize-dataOffset);
         
-        UInt32 dataLen = min(session->opts.firstBurstLength,dataMap->getLength()-)
-        
-        while(dataOffset != session->opts.firstBurstLength)
+        while(remainingDataLength != 0)
         {
             bhsDataOut.bufferOffset = OSSwapHostToBigInt32(dataOffset);
             bhsDataOut.dataSN = OSSwapHostToBigInt32(dataSN);
@@ -531,6 +533,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
                 
                 if(err != 0) {
                     DBLog("iSCSI: Send error: %d\n",err);
+                    dataMap->unmap();
                     dataMap->release();
                     return;
                 }
@@ -549,6 +552,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
                 
                 if(err != 0) {
                     DBLog("iSCSI: Send error: %d\n",err);
+                    dataMap->unmap();
                     dataMap->release();
                     return;
                 }
@@ -557,9 +561,10 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
             // Increment the data sequence number
             dataSN++;
         }
-    }*/
+    }
 
     // Release mapping to IOMemoryDescriptor buffer
+    dataMap->unmap();
     dataMap->release();
 }
 
@@ -797,7 +802,6 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     connection->eventSource->removeTaskFromQueue();
     
     DBLog("iSCSI: Processed SCSI response\n");
-
 }
 
 void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
@@ -836,7 +840,7 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
 
     // Write data received into the parallelTask data structure
     UInt32 dataOffset = OSSwapBigToHostInt32(bhs->bufferOffset);
-    data = data + dataOffset;
+    data += dataOffset;
     
     DBLog("iSCSI: Data offset %d\n",dataOffset);
     DBLog("iSCSI: Data length %llu\n",dataMap->getLength());
@@ -882,7 +886,6 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     // Send acknowledgement to target if one is required
     if(bhs->flags & kiSCSIPDUDataInAckFlag)
     {}
-    
 }
 
 void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
@@ -906,11 +909,11 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     UInt8               * data       = (UInt8 *)dataMap->getAddress();
 
     // Obtain requested data offset and requested lengths
-    UInt32 dataOffset         = OSSwapBigToHostInt32(bhs->bufferOffset);
-    UInt32 desiredDataLength  = OSSwapBigToHostInt32(bhs->desiredDataLength);
+    UInt32 dataOffset           = OSSwapBigToHostInt32(bhs->bufferOffset);
+    UInt32 remainingDataLength  = OSSwapBigToHostInt32(bhs->desiredDataLength);
 
     // Ensure that our data buffer contains all of the requested data
-    if(dataOffset + desiredDataLength > (UInt32)dataMap->getLength())
+    if(dataOffset + remainingDataLength > (UInt32)dataMap->getLength())
     {
         DBLog("iSCSI: Host data buffer doesn't contain requested data");
         dataMap->unmap();
@@ -924,7 +927,7 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     data += dataOffset;
     
     DBLog("iSCSI: dataoffset: %d\n",dataOffset);
-    DBLog("iSCSI: desired data length: %d\n",desiredDataLength);
+    DBLog("iSCSI: desired data length: %d\n",remainingDataLength);
     
     UInt32 dataSN = 0;
     maxTransferLength = 8192;
@@ -938,12 +941,12 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     // transfer tag the target gave us with the R2TSN (both in high-byte order)
     bhsDataOut.targetTransferTag = bhs->targetTransferTag;
 
-    while(desiredDataLength != 0)
+    while(remainingDataLength != 0)
     {
         bhsDataOut.bufferOffset = OSSwapHostToBigInt32(dataOffset);
         bhsDataOut.dataSN = OSSwapHostToBigInt32(dataSN);
 
-        if(maxTransferLength < desiredDataLength) {
+        if(maxTransferLength < remainingDataLength) {
             DBLog("iSCSI: Max transfer length: %d\n",maxTransferLength);
             int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,maxTransferLength);
             
@@ -955,9 +958,9 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
             }
             
             DBLog("iSCSI: dataoffset: %d\n",dataOffset);
-            DBLog("iSCSI: desired data length: %d\n",desiredDataLength);
+            DBLog("iSCSI: desired data length: %d\n",remainingDataLength);
             
-            desiredDataLength   -= maxTransferLength;
+            remainingDataLength -= maxTransferLength;
             data                += maxTransferLength;
             dataOffset          += maxTransferLength;
         }
@@ -965,7 +968,7 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
         else {
             DBLog("iSCSI: Sending final data out\n");
             bhsDataOut.flags = kiSCSIPDUDataOutFinalFlag;
-            int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,desiredDataLength);
+            int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,remainingDataLength);
             
             if(err != 0) {
                 DBLog("iSCSI: Send error: %d\n",err);
@@ -1174,7 +1177,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
     // Initialize default error (try again)
     errno_t error = EAGAIN;
     
-    if(!(newConn->sendLock = IOLockAlloc()))
+    if(!(newConn->PDUIOLock = IOLockAlloc()))
         goto IOLOCK_ALLOC_FAILURE;
     
     if(!(newConn->eventSource = OSTypeAlloc(iSCSIIOEventSource)))
@@ -1218,7 +1221,7 @@ EVENTSOURCE_INIT_FAILURE:
     newConn->eventSource->release();
     
 EVENTSOURCE_ALLOC_FAILURE:
-    IOLockFree(newConn->sendLock);
+    IOLockFree(newConn->PDUIOLock);
     
 IOLOCK_ALLOC_FAILURE:
     IOFree(newConn,sizeof(iSCSIConnection));
@@ -1247,7 +1250,7 @@ void iSCSIVirtualHBA::ReleaseConnection(UInt16 sessionId,
     if(!theConn)
         return;
     
-    IOLockLock(theConn->sendLock);
+    IOLockLock(theConn->PDUIOLock);
     
     // First deactivate connection before proceeding
     if(theConn->active)
@@ -1264,8 +1267,8 @@ void iSCSIVirtualHBA::ReleaseConnection(UInt16 sessionId,
     
     DBLog("iSCSI: Released event source");
     
-    IOLockUnlock(theConn->sendLock);
-    IOLockFree(theConn->sendLock);
+    IOLockUnlock(theConn->PDUIOLock);
+    IOLockFree(theConn->PDUIOLock);
     IOFree(theConn,sizeof(iSCSIConnection));
     theSession->connections[connectionId] = NULL;
     
@@ -1439,9 +1442,9 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     // Update io vector count, send data
     msg.msg_iovlen = iovecCnt;
     size_t bytesSent = 0;
-    IOLockLock(connection->sendLock);
+    IOLockLock(connection->PDUIOLock);
     int result = sock_send(connection->socket,&msg,0,&bytesSent);
-    IOLockUnlock(connection->sendLock);
+    IOLockUnlock(connection->PDUIOLock);
     
     return result;
 }
@@ -1488,9 +1491,9 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     
     // Bytes received from sock_receive call
     size_t bytesRecv;
-    IOLockLock(connection->sendLock);
+    IOLockLock(connection->PDUIOLock);
     errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
-    IOLockUnlock(connection->sendLock);
+    IOLockUnlock(connection->PDUIOLock);
     
     if(result != 0)
         DBLog("iSCSI: sock_receive error returned with code %d\n",result);
@@ -1570,9 +1573,9 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     msg.msg_iovlen = iovecCnt;
     
     size_t bytesRecv;
-    IOLockLock(connection->sendLock);
+    IOLockLock(connection->PDUIOLock);
     errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
-    IOLockUnlock(connection->sendLock);
+    IOLockUnlock(connection->PDUIOLock);
     
     // I
 /*

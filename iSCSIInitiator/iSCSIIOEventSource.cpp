@@ -13,7 +13,7 @@
 #define super IOEventSource
 
 struct iSCSITask {
-    iSCSITask * next;
+    queue_chain_t queueChain;
     UInt32 initiatorTaskTag;
 };
 
@@ -32,11 +32,9 @@ bool iSCSIIOEventSource::init(iSCSIVirtualHBA * owner,
     iSCSIIOEventSource::connection = connection;
     
     // Initialize task queue to store parallel SCSI tasks for processing
-    taskQueueHead = taskQueueTail = NULL;
-    newTask = false;
-    taskQueueLock = IOLockAlloc();
-/////////////////// NEED TO FREE LOCK UPON DESTRUCTION - OVERLOAD RIGHT FUNCTION
-	
+    queue_init(&taskQueue);
+    taskQueueLock = IOSimpleLockAlloc();
+    
 	return true;
 }
 
@@ -57,50 +55,42 @@ void iSCSIIOEventSource::addTaskToQueue(UInt32 initiatorTaskTag)
     // the only task in the queue (otherwise the task preceding this is
     // being processed; we'll get to this once that's done).
     iSCSITask * task = (iSCSITask*)IOMalloc(sizeof(iSCSITask));
-    task->next = NULL;
     task->initiatorTaskTag = initiatorTaskTag;
     
-    IOLockLock(taskQueueLock);
+    IOSimpleLockLock(taskQueueLock);
     
-    if(taskQueueHead) {
-        taskQueueTail->next = task;
-        taskQueueTail = task;
-    }
-    else {
-        // This is the first element we're adding to the list...
-        taskQueueHead = taskQueueTail = task;
+    if(queue_empty(&taskQueue))
         newTask = true;
+    
+    queue_enter(&taskQueue,task,iSCSITask *,queueChain);
+    
+    IOSimpleLockUnlock(taskQueueLock);
+    
+    if(newTask) {
         IOLog("iSCSI: First task, processing now.\n");
         signalWorkAvailable();
     }
-    
-    IOLockUnlock(taskQueueLock);
 }
 
 void iSCSIIOEventSource::removeTaskFromQueue()
 {
-    IOLockLock(taskQueueLock);
+    iSCSITask * task = NULL;
     
     // Remove the completed task (at the head of the queue) and then
     // move onto the next task if one exists
-    if(taskQueueHead)
-    {
-        iSCSITask * task = taskQueueHead;
-        taskQueueHead = taskQueueHead->next;
-        IOFree(task,sizeof(iSCSITask));
-        
-        // If no tasks are left, update tail
-        if(!taskQueueHead)
-            taskQueueTail = NULL;
-        else {
-            IOLog("iSCSI: Moving to new task.\n");
-            // Otherwise process next task
-            newTask = true;
-            signalWorkAvailable();
-        }
-    }
+    IOSimpleLockLock(taskQueueLock);
+    queue_remove_first(&taskQueue,task,iSCSITask *, queueChain);
     
-    IOLockUnlock(taskQueueLock);
+    IOSimpleLockUnlock(taskQueueLock);
+
+    if(task)
+        IOFree(task,sizeof(iSCSITask));
+    
+    if(!queue_empty(&taskQueue)) {
+        newTask = true;
+        IOLog("iSCSI: Moving to new task.\n");
+        signalWorkAvailable();
+    }
 }
 
 bool iSCSIIOEventSource::checkForWork()
@@ -112,15 +102,20 @@ bool iSCSIIOEventSource::checkForWork()
     // Process a new task, reset flag
     if(newTask)
     {
-        IOLockLock(taskQueueLock);
-        
         newTask = false;
-        if(taskQueueHead)
-            hba->BeginTaskOnWorkloopThread(session,connection,taskQueueHead->initiatorTaskTag);
+        iSCSITask * task = NULL;
         
-        IOLockUnlock(taskQueueLock);
+        IOSimpleLockLock(taskQueueLock);
+
+        if(!queue_empty(&taskQueue))
+            task = (iSCSITask*)queue_first(&taskQueue);
+        
+        IOSimpleLockUnlock(taskQueueLock);
+        
+        if(task)
+            hba->BeginTaskOnWorkloopThread(session,connection,task->initiatorTaskTag);
     }
-    
+
     if(hba->isPDUAvailable(connection))
     {
         // Validate action & owner, then call action on our owner & pass in socket
