@@ -68,10 +68,6 @@ public:
 	static void socketCallback(socket_t so,
 							   iSCSIIOEventSource * eventSource,
 							   int waitf);
-    
-    void addTaskToQueue(UInt32 initiatorTaskTag);
-    
-    void removeTaskFromQueue();
 
 	
     

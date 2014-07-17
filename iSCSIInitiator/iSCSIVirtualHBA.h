@@ -136,9 +136,10 @@ public:
      *  ProcessParallelTask() to process a task right away or might be called
      *  by our software interrupt source (iSCSIIOEventSource) to process the
      *  next task in a queue. */
-    void BeginTaskOnWorkloopThread(iSCSISession * session,
-                                   iSCSIConnection * connection,
-                                   UInt32 initiatorTaskTag);
+    static void BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
+                                          iSCSISession * session,
+                                          iSCSIConnection * connection,
+                                          UInt32 initiatorTaskTag);
     
     /** Called by our software interrupt source (iSCSIIOEventSource) to let us
      *  know that data has become available for a particular session and

@@ -8,6 +8,7 @@
 
 #include "iSCSIVirtualHBA.h"
 #include "iSCSIIOEventSource.h"
+#include "iSCSITaskQueue.h"
 
 #include <sys/ioctl.h>
 #include <sys/unistd.h>
@@ -64,6 +65,9 @@ struct iSCSIVirtualHBA::iSCSIConnection {
     /** Event source used to signal the Virtual HBA that data has been
      *  received and needs to be processed. */
     iSCSIIOEventSource * eventSource;
+    
+    /** iSCSI task queue used to manage tasks for this connection. */
+    iSCSITaskQueue * taskQueue;
     
     /** Options associated with this connection. */
     iSCSIConnectionOptions opts;
@@ -387,20 +391,21 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     
     // Queue task in the event source (we'll remove it from the queue when were
     // done processing the task)
-    conn->eventSource->addTaskToQueue(initiatorTaskTag);
+    conn->taskQueue->queueTask(initiatorTaskTag);
     
     DBLog("iSCSI: Queued task %llx\n",taskId);
 
     return kSCSIServiceResponse_Request_In_Process;
 }
 
-void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
+void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
+                                                iSCSISession * session,
                                                 iSCSIConnection * connection,
                                                 UInt32 initiatorTaskTag)
 {
     // Grab parallel task associated with this iSCSI task
     SCSIParallelTaskIdentifier parallelTask =
-        FindTaskForControllerIdentifier(session->sessionId,initiatorTaskTag);
+        owner->FindTaskForControllerIdentifier(session->sessionId,initiatorTaskTag);
     
     if(!parallelTask)
     {
@@ -409,12 +414,12 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
     }
     
     // Extract information about this SCSI task
-    SCSILogicalUnitNumber LUN       = GetLogicalUnitNumber(parallelTask);
-    SCSITaskAttribute attribute     = GetTaskAttribute(parallelTask);
-    SCSITaggedTaskIdentifier taskId = GetTaggedTaskIdentifier(parallelTask);
-    UInt8   transferDirection       = GetDataTransferDirection(parallelTask);
-    UInt32  transferSize            = (UInt32)GetRequestedDataTransferCount(parallelTask);
-    UInt8   cdbSize                 = GetCommandDescriptorBlockSize(parallelTask);
+    SCSILogicalUnitNumber LUN       = owner->GetLogicalUnitNumber(parallelTask);
+    SCSITaskAttribute attribute     = owner->GetTaskAttribute(parallelTask);
+    SCSITaggedTaskIdentifier taskId = owner->GetTaggedTaskIdentifier(parallelTask);
+    UInt8   transferDirection       = owner->GetDataTransferDirection(parallelTask);
+    UInt32  transferSize            = (UInt32)owner->GetRequestedDataTransferCount(parallelTask);
+    UInt8   cdbSize                 = owner->GetCommandDescriptorBlockSize(parallelTask);
     
     DBLog("iSCSI: Processing task %llx\n",taskId);
     
@@ -439,7 +444,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
         case kSCSICDBSize_10Byte:
         case kSCSICDBSize_12Byte:
         case kSCSICDBSize_16Byte:
-            GetCommandDescriptorBlock(parallelTask,&bhs.CDB);
+            owner->GetCommandDescriptorBlock(parallelTask,&bhs.CDB);
             break;
     };
     
@@ -461,13 +466,13 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
     ///// timeout for tasks where veyr large file transfers occur....
     ///// during startup, if something fails, (e.g., target doesn't respond)
     ///// perhaps set timeout basd on transfer length and adjust it dynamically
-    SetTimeoutForTask(parallelTask,600000);
+    owner->SetTimeoutForTask(parallelTask,600000);
     
     // For non-WRITE commands, send off SCSI command PDU immediately.
     if(transferDirection != kSCSIDataTransfer_FromInitiatorToTarget)
     {
         bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
-        SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
+        owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
         return;
     }
     
@@ -476,12 +481,12 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
     if(session->opts.initialR2T && !session->opts.immediateData)
     {
         bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
-        SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
+        owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
         return;
     }
     
     // For SCSI WRITE command PDUs, map pointer to IOMemoryDescriptor buffer
-    IOMemoryDescriptor  * dataDesc  = GetDataBuffer(parallelTask);
+    IOMemoryDescriptor  * dataDesc  = owner->GetDataBuffer(parallelTask);
     IOMemoryMap         * dataMap   = dataDesc->map();
     UInt8               * data      = (UInt8 *)dataMap->getAddress();
 
@@ -500,10 +505,10 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
         if(session->opts.initialR2T || dataLen == transferSize)
             bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
 
-        SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,data,dataLen);
+        owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,data,dataLen);
         dataOffset += dataLen;
         
-        SetRealizedDataTransferCount(parallelTask,dataLen);
+        owner->SetRealizedDataTransferCount(parallelTask,dataLen);
     }
 
     // Follow up with data out PDUs up to the firstBurstLength bytes if R2T=No
@@ -529,7 +534,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
             
             if(maxTransferLength < remainingDataLength) {
                 DBLog("iSCSI: Max transfer length: %d\n",maxTransferLength);
-                int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,maxTransferLength);
+                int err = owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,maxTransferLength);
                 
                 if(err != 0) {
                     DBLog("iSCSI: Send error: %d\n",err);
@@ -548,7 +553,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSISession * session,
             else {
                 DBLog("iSCSI: Sending final data out\n");
                 bhsDataOut.flags = kiSCSIPDUDataOutFinalFlag;
-                int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,remainingDataLength);
+                int err = owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,data,remainingDataLength);
                 
                 if(err != 0) {
                     DBLog("iSCSI: Send error: %d\n",err);
@@ -669,7 +674,7 @@ void iSCSIVirtualHBA::ProcessTaskMgmtRsp(iSCSISession * session,
         CompleteTargetReset(session->sessionId, serviceResponse);
     
     // Task is complete, remove it from the queue
-    connection->eventSource->removeTaskFromQueue();
+    connection->taskQueue->completeCurrentTask();
 }
 
 void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
@@ -799,7 +804,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     CompleteParallelTask(parallelTask,completionStatus,serviceResponse);
     
     // Task is complete, remove it from the queue
-    connection->eventSource->removeTaskFromQueue();
+    connection->taskQueue->completeCurrentTask();
     
     DBLog("iSCSI: Processed SCSI response\n");
 }
@@ -878,8 +883,8 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
                              kSCSIServiceResponse_TASK_COMPLETE);
         
         // Task is complete, remove it from the queue
-        connection->eventSource->removeTaskFromQueue();
-
+        connection->taskQueue->completeCurrentTask();
+        
         DBLog("iSCSI: Processed data-in PDU\n");
     }
     
@@ -1180,6 +1185,16 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
     if(!(newConn->PDUIOLock = IOLockAlloc()))
         goto IOLOCK_ALLOC_FAILURE;
     
+    if(!(newConn->taskQueue = OSTypeAlloc(iSCSITaskQueue)))
+        goto TASKQUEUE_ALLOC_FAILURE;
+    
+    // Initialize event source, quit if it fails
+    if(!newConn->taskQueue->init(this,(iSCSITaskQueue::Action)&BeginTaskOnWorkloopThread,theSession,newConn))
+        goto TASKQUEUE_INIT_FAILURE;
+    
+    if(GetWorkLoop()->addEventSource(newConn->taskQueue) != kIOReturnSuccess)
+        goto TASKQUEUE_ADD_FAILURE;
+    
     if(!(newConn->eventSource = OSTypeAlloc(iSCSIIOEventSource)))
         goto EVENTSOURCE_ALLOC_FAILURE;
     
@@ -1221,6 +1236,14 @@ EVENTSOURCE_INIT_FAILURE:
     newConn->eventSource->release();
     
 EVENTSOURCE_ALLOC_FAILURE:
+    GetWorkLoop()->removeEventSource(newConn->taskQueue);
+    
+TASKQUEUE_ADD_FAILURE:
+    
+TASKQUEUE_INIT_FAILURE:
+    newConn->taskQueue->release();
+    
+TASKQUEUE_ALLOC_FAILURE:
     IOLockFree(newConn->PDUIOLock);
     
 IOLOCK_ALLOC_FAILURE:
