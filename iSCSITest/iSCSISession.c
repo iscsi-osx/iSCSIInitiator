@@ -732,34 +732,38 @@ errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
     
     // Create session (incl. qualifier) and a new connection (incl. Id)
     // Reset qualifier and connection ID by default
-    sessionInfo->sessionId = iSCSIKernelCreateSession(ai_family,
-                                                      &sa_target,
-                                                      &sa_host,
-                                                      &sessionInfo->sessionId,
-                                                      &connInfo->connectionId);
-    
-    // If session couldn't be allocated were maxed out; try again later
-    if(sessionInfo->sessionId == kiSCSIInvalidSessionId)
-        return EAGAIN;
+    error = iSCSIKernelCreateSession(ai_family,&sa_target,&sa_host,
+                                     &sessionInfo->sessionId,
+                                     &connInfo->connectionId);
 
-    // Grab a session options object and pass it around; at the end, we'll
-    // set the session options in the kernel
     iSCSISessionOptions sessOptions;
-    iSCSIKernelGetSessionOptions(sessionInfo->sessionId,&sessOptions);
-    
-    // Grab a connection object and pass it around; at the end, we'll set
-    // the connection options in the kernel
     iSCSIConnectionOptions connOptions;
-    iSCSIKernelGetConnectionOptions(sessionInfo->sessionId,
-                                    connInfo->connectionId,&connOptions);
     
-    memset(&sessOptions,0,sizeof(sessOptions));
-    memset(&connOptions,0,sizeof(connOptions));
-    
-    // Authenticate (negotiate security parameters)
-    error = iSCSIAuthNegotiate(sessionInfo->sessionId,
-                               connInfo,
-                               &sessOptions,&connOptions);
+    if(!error) {
+        
+        // If session couldn't be allocated were maxed out; try again later
+        if(sessionInfo->sessionId == kiSCSIInvalidSessionId)
+            return EAGAIN;
+
+        // Grab a session options object and pass it around; at the end, we'll
+        // set the session options in the kernel
+        iSCSIKernelGetSessionOptions(sessionInfo->sessionId,&sessOptions);
+        
+        // Grab a connection object and pass it around; at the end, we'll set
+        // the connection options in the kernel
+        iSCSIKernelGetConnectionOptions(sessionInfo->sessionId,
+                                        connInfo->connectionId,&connOptions);
+        
+        memset(&sessOptions,0,sizeof(sessOptions));
+        memset(&connOptions,0,sizeof(connOptions));
+    }
+
+    // If no error, authenticate (negotiate security parameters)
+    if(!error) {
+        error = iSCSIAuthNegotiate(sessionInfo->sessionId,
+                                   connInfo,
+                                   &sessOptions,&connOptions);
+    }
 
     // If no error, negotiate connection-wide (CW) parameters
     if(!error) {

@@ -86,6 +86,8 @@ private:
      *  (e.g., simultaneous calls to addTaskToQueue() and removeTaskFromQueue(). */
     IOSimpleLock * taskQueueLock;
     
+    bool newTask;
+    
 };
 
 #endif

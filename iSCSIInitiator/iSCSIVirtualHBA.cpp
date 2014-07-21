@@ -391,7 +391,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     
     // Queue task in the event source (we'll remove it from the queue when were
     // done processing the task)
-//    conn->taskQueue->queueTask(initiatorTaskTag);
+    conn->taskQueue->queueTask(initiatorTaskTag);
     
     DBLog("iSCSI: Queued task %llx\n",taskId);
 
@@ -409,7 +409,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     
     if(!parallelTask)
     {
-        DBLog("iSCSI: Task not found, flushing stream\n");
+        DBLog("iSCSI: Task not found, flushing stream (BeginTaskOnWorkloopThread)\n");
         return;
     }
     
@@ -757,7 +757,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     
     if(!parallelTask)
     {
-        DBLog("iSCSI: Task not found, flushing stream\n");
+        DBLog("iSCSI: Task not found, flushing stream (ProcessSCSIResponse)\n");
         
         // Flush stream
         UInt8 buffer[length];

@@ -32,6 +32,7 @@ bool iSCSITaskQueue::init(iSCSIVirtualHBA * owner,
     // Initialize task queue to store parallel SCSI tasks for processing
     queue_init(&taskQueue);
     taskQueueLock = IOSimpleLockAlloc();
+    newTask = false;
     
 	return true;
 }
@@ -59,6 +60,7 @@ void iSCSITaskQueue::queueTask(UInt32 initiatorTaskTag)
     // Signal the workloop to process a new task...
     if(firstTaskInQueue) {
         IOLog("iSCSI: First task, processing now.\n");
+        newTask = true;
         signalWorkAvailable();
     }
 }
@@ -86,6 +88,7 @@ UInt32 iSCSITaskQueue::completeCurrentTask()
     // If there are still tasks to process let the HBA know...
     if(!queue_empty(&taskQueue)) {
         IOLog("iSCSI: Moving to new task.\n");
+        newTask = true;
         signalWorkAvailable();
     }
     return taskTag;
@@ -101,6 +104,11 @@ UInt32 getCurrentTask()
 
 bool iSCSITaskQueue::checkForWork()
 {
+    // Check task flag before proceeding
+    if(!newTask)
+        return false;
+    newTask = false;
+    
     // First check to ensure that the reason we've been called is because
     // actual data is available at the port (as opposed to other socket events)
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)owner;
@@ -112,13 +120,17 @@ bool iSCSITaskQueue::checkForWork()
         UInt32 taskTag;
         
         IOSimpleLockLock(taskQueueLock);
+        
+        if(queue_empty(&taskQueue)) {
+            IOSimpleLockUnlock(taskQueueLock);
+            return false;
+        }
+        
         iSCSITask * task = (iSCSITask *)queue_first(&taskQueue);
         taskTag = task->initiatorTaskTag;
         IOSimpleLockUnlock(taskQueueLock);
         
-        if(task) {
-            (*action)(owner,session,connection,taskTag);
-        }
+        (*action)(owner,session,connection,taskTag);
     }
    
     // Tell workloop thread not to call us again until we signal again...
