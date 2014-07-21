@@ -572,9 +572,6 @@ errno_t iSCSISessionNegotiateCW(UInt16 sessionId,
     return error;
 }
 
-
-
-
 /** Helper function used to log out of connections and sessions. */
 errno_t iSCSISessionLogoutCommon(UInt16 sessionId,
                                  UInt32 connectionId,
@@ -617,44 +614,72 @@ errno_t iSCSISessionLogoutCommon(UInt16 sessionId,
     return error;
 }
 
-errno_t iSCSISessionAddConnection(UInt16 sessionId,
-                                  iSCSIConnectionInfo * connInfo)
+/** Helper function used to resolve target nodes as specified by connInfo.
+ *  The target nodes specified in connInfo may be a DNS name, an IPv4 or
+ *  IPv6 address. */
+errno_t iSCSISessionResolveNode(iSCSIConnectionInfo * connInfo,
+                                int * ai_family,
+                                struct sockaddr * sa_target,
+                                struct sockaddr * sa_host)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !connInfo)
-        return EINVAL;
-    
-    // Reset connection ID by default
-    connInfo->connectionId = kiSCSIInvalidConnectionId;
-    
     // Resolve IP address (IPv4 or IPv6) or hostname, first get C pointers
     // to the CF string objects
     const char * hostAddr, * targetAddr, * targetPort;
-    
+
     hostAddr = CFStringGetCStringPtr(connInfo->hostAddress,kCFStringEncodingUTF8);
     targetAddr = CFStringGetCStringPtr(connInfo->targetAddress,kCFStringEncodingUTF8);
     targetPort = CFStringGetCStringPtr(connInfo->targetPort,kCFStringEncodingUTF8);
-    
+
     struct addrinfo * aiTarget = NULL;
     struct addrinfo * aiHost = NULL;
-    
+
     errno_t error = 0;
-    
+
     if((error = getaddrinfo(hostAddr,NULL,NULL,&aiHost)))
         return error;
-    
+
     if((error = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget))) {
         freeaddrinfo(aiHost);
         return error;
     }
     
-    // If both target and host were resolved, grab a session
-    error = iSCSIKernelCreateConnection(sessionId,
-                                        aiTarget->ai_family,
-                                        aiTarget->ai_addr,
-                                        aiHost->ai_addr,
-                                        &connInfo->connectionId);
+    // Return values
+    *ai_family = aiTarget->ai_family;
+    *sa_target = *aiTarget->ai_addr;
+    *sa_host   = *aiHost->ai_addr;
+
+    // Cleanup
     freeaddrinfo(aiTarget);
     freeaddrinfo(aiHost);
+        
+    return 0;
+}
+
+errno_t iSCSISessionAddConnection(UInt16 sessionId,
+                                  iSCSIConnectionInfo * connInfo)
+{
+    if(sessionId == kiSCSIInvalidSessionId || !connInfo)
+        return EINVAL;
+
+    // Reset connection ID by default
+    connInfo->connectionId = kiSCSIInvalidConnectionId;
+
+    errno_t error = 0;
+    
+    // Resolve information about the target
+    int ai_family;
+    struct sockaddr sa_target, sa_host;
+    
+    if((error = iSCSISessionResolveNode(connInfo,&ai_family,&sa_target,&sa_host)))
+       return error;
+    
+    // If both target and host were resolved, grab a session
+    error = iSCSIKernelCreateConnection(sessionId,
+                                        ai_family,
+                                        &sa_target,
+                                        &sa_host,
+                                        &connInfo->connectionId);
+
     return error;
 }
 
@@ -662,19 +687,20 @@ errno_t iSCSISessionRemoveConnection(UInt16 sessionId,
                                      UInt16 connectionId)
 {
     
-    if(sessionId    >= kiSCSIInvalidSessionId ||
-       connectionId >= kiSCSIInvalidConnectionId)
+    if(sessionId >= kiSCSIInvalidSessionId || connectionId >= kiSCSIInvalidConnectionId)
         return EINVAL;
     
     errno_t error = 0;
     
-    // TODO: if this is the only connection left, disconnect session instead
+    // Deactivate connection before we remove it (this is optional but good
+    // practice, as the kernel will deactivate the connection for us).
+    if((error = iSCSIKernelDeactivateConnection(sessionId,connectionId)))
+       return error;
     
-    // TODO: Deactivate connection first in kernel...
-    
-    // Logout the session, including all connections
+    // Logout the connection or session, as necessary
     error = iSCSISessionLogoutCommon(sessionId,connectionId,kISCSIPDULogoutCloseConnection);
 
+    // Release the connection in the kernel
     iSCSIKernelReleaseConnection(sessionId,connectionId);
     
     return error;
@@ -697,20 +723,24 @@ errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
     // Store errno from helpers and pass back to up the call chain
     errno_t error = 0;
     
+    // Resolve information about the target
+    int ai_family;
+    struct sockaddr sa_target, sa_host;
+    
+    if((error = iSCSISessionResolveNode(connInfo,&ai_family,&sa_target,&sa_host)))
+        return error;
+    
     // Create session (incl. qualifier) and a new connection (incl. Id)
     // Reset qualifier and connection ID by default
-    sessionInfo->sessionId = iSCSIKernelCreateSession();
+    sessionInfo->sessionId = iSCSIKernelCreateSession(ai_family,
+                                                      &sa_target,
+                                                      &sa_host,
+                                                      &sessionInfo->sessionId,
+                                                      &connInfo->connectionId);
     
     // If session couldn't be allocated were maxed out; try again later
     if(sessionInfo->sessionId == kiSCSIInvalidSessionId)
         return EAGAIN;
-
-    // Add a new connection for the new session
-    if((error = iSCSISessionAddConnection(sessionInfo->sessionId,connInfo)))
-    {
-        iSCSIKernelReleaseSession(sessionInfo->sessionId);
-        return error;
-    }
 
     // Grab a session options object and pass it around; at the end, we'll
     // set the session options in the kernel

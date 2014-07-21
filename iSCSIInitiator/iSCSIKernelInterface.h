@@ -25,13 +25,24 @@ kern_return_t iSCSIKernelInitialize();
 /** Closes a connection to the iSCSI initiator. */
 kern_return_t iSCSIKernelCleanUp();
 
-/** Allocates a new iSCSI session and returns a session qualifier ID.
- *  @return a valid session qualifier (part of the ISID, see RF3720) or
- *  0 if a new session could not be created. */
-UInt16 iSCSIKernelCreateSession();
+/** Allocates a new iSCSI session in the kernel and creates an associated
+ *  connection to the target portal. Additional connections may be added to the
+ *  session by calling iSCSIKernelCreateConnection().
+ *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
+ *  @param targetAddress the BSD socket structure used to identify the target.
+ *  @param hostAddress the BSD socket structure used to identify the host. This
+ *  specifies the interface that the connection will be bound to.
+ *  @param sessionId the session identifier for the new session (returned).
+ *  @param connectionId the identifier of the new connection (returned).
+ *  @return An error code if a valid session could not be created. */
+errno_t iSCSIKernelCreateSession(int domain,
+                                 const struct sockaddr * targetAddress,
+                                 const struct sockaddr * hostAddress,
+                                 UInt16 * sessionId,
+                                 UInt32 * connectionId);
 
 /** Releases an iSCSI session, including all connections associated with that
- *  session.
+ *  session (there is no requirement to release connections individually).
  *  @param sessionId the session qualifier part of the ISID. */
 void iSCSIKernelReleaseSession(UInt16 sessionId);
 
@@ -50,7 +61,7 @@ errno_t iSCSIKernelSetSessionOptions(UInt16 sessionId,
 errno_t iSCSIKernelGetSessionOptions(UInt16 sessionId,
                                      iSCSISessionOptions * options);
 
-/** Allocates a new iSCSI connection associated with the particular session.
+/** Allocates an additional iSCSI connection for a particular session.
  *  @param sessionId the session to create a new connection for. 
  *  @param domain the IP domain (e.g., AF_INET or AF_INET6). 
  *  @param targetAddress the BSD socket structure used to identify the target. 

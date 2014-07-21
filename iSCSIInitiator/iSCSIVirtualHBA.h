@@ -156,7 +156,11 @@ public:
     /** Allocates a new iSCSI session and returns a session qualifier ID.
      *  @return a valid session qualifier (part of the ISID, see RF3720) or
      *  0 if a new session could not be created. */
-    UInt16 CreateSession();
+    errno_t CreateSession(int domain,
+                          const struct sockaddr * targetAddress,
+                          const struct sockaddr * hostAddress,
+                          UInt16 * sessionId,
+                          UInt32 * connectionId);
     
     /** Releases an iSCSI session, including all connections associated with that
      *  session.

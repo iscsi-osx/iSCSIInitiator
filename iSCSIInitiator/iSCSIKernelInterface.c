@@ -65,31 +65,51 @@ kern_return_t iSCSIKernelCleanUp()
     return kernResult;
 }
 
-/** Allocates a new iSCSI session and returns a session qualifier ID.
- *  @return a valid session qualifier (part of the ISID, see RF3720) or
- *  0 if a new session could not be created. */
-UInt16 iSCSIKernelCreateSession()
+/** Allocates a new iSCSI session in the kernel and creates an associated
+ *  connection to the target portal. Additional connections may be added to the
+ *  session by calling iSCSIKernelCreateConnection().
+ *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
+ *  @param targetAddress the BSD socket structure used to identify the target.
+ *  @param hostAddress the BSD socket structure used to identify the host. This
+ *  specifies the interface that the connection will be bound to.
+ *  @param sessionId the session identifier for the new session (returned).
+ *  @param connectionId the identifier of the new connection (returned).
+ *  @return An error code if a valid session could not be created. */
+errno_t iSCSIKernelCreateSession(int domain,
+                                 const struct sockaddr * targetAddress,
+                                 const struct sockaddr * hostAddress,
+                                 UInt16 * sessionId,
+                                 UInt32 * connectionId)
 {
-    // Expected output (a single number with the session qualifier)
-    const UInt32 expOutputCnt = 1;
+    // Check parameters
+    if(!targetAddress || !hostAddress || !sessionId || !connectionId)
+        return EINVAL;
     
-    // We must tell it how many outputs we are passing in (buffers for outputs)
-    // or IOConnectCall... will fail!
-    UInt32 outputCnt = 1;
-    UInt64 output;
+    // Tell the kernel to drop this session and all of its related resources
+    const UInt32 inputCnt = 1;
+    const UInt64 input = domain;
     
-    // Obtain and return a session qualifier if we can successfully allocate
-    // a session in the kernel
-    if(IOConnectCallScalarMethod(connection,kiSCSICreateSession,
-                                 0,0,&output,&outputCnt) == kIOReturnSuccess)
+    const UInt32 inputStructCnt = 2;
+    const struct sockaddr addresses[] = {*targetAddress,*hostAddress};
+    
+    const UInt32 expOutputCnt = 3;
+    UInt64 output[expOutputCnt];
+    UInt32 outputCnt = expOutputCnt;
+    
+    if(IOConnectCallMethod(connection,kiSCSICreateSession,&input,inputCnt,
+                           addresses,inputStructCnt*sizeof(struct sockaddr),
+                           output,&outputCnt,0,0) == kIOReturnSuccess)
     {
-        // We require at least one output integer
         if(outputCnt == expOutputCnt)
-            return (UInt16)output;
+        {
+            *sessionId    = (UInt16)output[1];
+            *connectionId = (UInt32)output[2];
+            return (UInt32)output[0];
+        }
     }
     
-    // Else we couldnt allocate a session; quit
-    return kiSCSIInvalidSessionId;
+    // Else we couldn't allocate a connection; quit
+    return EINVAL;
 }
 
 /** Releases an iSCSI session, including all connections associated with that
@@ -154,15 +174,14 @@ errno_t iSCSIKernelGetSessionOptions(UInt16 sessionId,
     return EIO;
 }
 
-/** Allocates a new iSCSI connection associated with the particular session.
+/** Allocates an additional iSCSI connection for a particular session.
  *  @param sessionId the session to create a new connection for.
  *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
- *  @param connectionId the identifier of the new connection.
- *  @return a connection identifier using the last parameter, or an error code
- *  if a valid connection could not be created. */
+ *  @param connectionId the identifier of the new connection (returned).
+ *  @return An error code if a valid connection could not be created. */
 errno_t iSCSIKernelCreateConnection(UInt16 sessionId,
                                     int domain,
                                     const struct sockaddr * targetAddress,

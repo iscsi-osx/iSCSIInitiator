@@ -63,8 +63,6 @@ void iSCSITaskQueue::queueTask(UInt32 initiatorTaskTag)
     }
 }
 
-
-
 /** Removes a task from the queue (either the task has been successfully
  *  completed or aborted).
  *  @return the iSCSI task tag for the task that was just completed. */

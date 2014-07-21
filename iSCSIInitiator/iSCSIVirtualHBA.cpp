@@ -391,7 +391,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     
     // Queue task in the event source (we'll remove it from the queue when were
     // done processing the task)
-    conn->taskQueue->queueTask(initiatorTaskTag);
+//    conn->taskQueue->queueTask(initiatorTaskTag);
     
     DBLog("iSCSI: Queued task %llx\n",taskId);
 
@@ -1021,36 +1021,52 @@ void iSCSIVirtualHBA::TuneConnectionTimeout(iSCSISession * session,
 /** Allocates a new iSCSI session and returns a session qualifier ID.
  *  @return a valid session qualifier (part of the ISID, see RF3720) or
  *  0 if a new session could not be created. */
-UInt16 iSCSIVirtualHBA::CreateSession()
+errno_t iSCSIVirtualHBA::CreateSession(int domain,
+                                       const struct sockaddr * targetAddress,
+                                       const struct sockaddr * hostAddress,
+                                       UInt16 * sessionId,
+                                       UInt32 * connectionId)
 {
+    // Validate inputs
+    if(!targetAddress || !hostAddress || !sessionId || !connectionId)
+        return EINVAL;
+
+    // Default session and connection Ids
+    *sessionId = kiSCSIInvalidSessionId;
+    *connectionId = kiSCSIInvalidConnectionId;
+    
+    // Initialize default error (try again)
+    errno_t error = EAGAIN;
+    
+// LOCK SESSION LIST HERE
+    
     // Find an open session slot
-    UInt16 sessionId;
-    for(sessionId = 0; sessionId < kMaxSessions; sessionId++)
-        if(!sessionList[sessionId])
+    UInt16 sessionIdx;
+    for(sessionIdx = 0; sessionIdx < kMaxSessions; sessionIdx++)
+        if(!sessionList[sessionIdx])
             break;
     
-    // If no slots were available...
-    if(sessionId == kMaxSessions)
-        return kiSCSIInvalidSessionId;
-    
+    // If no slots were available tell user to try again later...
+    if(sessionIdx == kMaxSessions)
+        goto SESSION_ID_ALLOC_FAILURE;
+
     // Alloc new session, validate
-    iSCSISession * newSession = (iSCSISession*)IOMalloc(sizeof(iSCSISession));
-    if(!newSession)
-        return kiSCSIInvalidSessionId;
+    iSCSISession * newSession;
+    
+    if(!(newSession = (iSCSISession*)IOMalloc(sizeof(iSCSISession))))
+        goto SESSION_ALLOC_FAILURE;
 
     // Setup connections array for new session
     newSession->connections = (iSCSIConnection **)IOMalloc(kMaxConnectionsPerSession*sizeof(iSCSIConnection*));
     
-    if(!newSession->connections) {
-        IOFree(newSession,sizeof(iSCSISession));
-        return kiSCSIInvalidSessionId;
-    }
+    if(!newSession->connections)
+        goto SESSION_CONNECTION_LIST_ALLOC_FAILURE;
     
     // Reset all connections
     memset(newSession->connections,0,kMaxConnectionsPerSession*sizeof(iSCSIConnection*));
     
     // Setup session parameters with defaults
-    newSession->sessionId = sessionId;
+    newSession->sessionId = sessionIdx;
     newSession->activeConnections = 0;
     newSession->cmdSN = 0;
     newSession->expCmdSN = 0;
@@ -1058,11 +1074,38 @@ UInt16 iSCSIVirtualHBA::CreateSession()
     newSession->active = false;
     newSession->TSIH = 0;
     newSession->initiatorTaskTag = 0;
-    
-    // Retain new session
-    sessionList[sessionId] = newSession;
 
-    return sessionId;
+    // Retain new session
+    sessionList[sessionIdx] = newSession;
+    *sessionId = sessionIdx;
+
+// UNLOCK SESSION HERE...
+
+    // Create a connection associated with this session
+    if((error = CreateConnection(*sessionId,domain,targetAddress,hostAddress,connectionId)))
+        goto SESSION_CREATE_CONNECTION_FAILURE;
+    
+    // Success
+    return 0;
+    
+SESSION_CREATE_CONNECTION_FAILURE:
+    IOFree(newSession->connections,kMaxConnectionsPerSession*sizeof(iSCSIConnection*));
+// LOCK SESSION LIST...
+
+    sessionList[sessionIdx] = nullptr;
+// UNLOCK SESSION LIST...
+    *sessionId = kiSCSIInvalidSessionId;
+ 
+SESSION_CONNECTION_LIST_ALLOC_FAILURE:
+    IOFree(newSession,sizeof(iSCSISession));
+   
+SESSION_ALLOC_FAILURE:
+
+SESSION_ID_ALLOC_FAILURE:
+    // Unlock session list here
+    
+    return error;
+
 }
 
 /** Releases an iSCSI session, including all connections associated with that

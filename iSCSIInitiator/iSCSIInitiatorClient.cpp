@@ -34,28 +34,28 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateSession,
-		0,
-		0,
-		1, // Return value for SessionCreate
+		1,                          // Domain
+		2*sizeof(struct sockaddr),  // Address structures
+		3,                          // Return values (Ids and error)
 		0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::ReleaseSession,
-		1, // Parameter for SessionRelease
+		1, // Session Id
 		0,
 		0,
 		0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::SetSessionOptions,
-		1, // Parameter for SessionRelease
+		1, // Session Id
         sizeof(iSCSISessionOptions),
 		0,
 		0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::GetSessionOptions,
-		1, // Parameter for SessionRelease
+		1, // Session Id
 		0,
 		0,
 		sizeof(iSCSISessionOptions)
@@ -64,7 +64,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateConnection,
 		2,                          // Session, domain
 		2*sizeof(struct sockaddr),  // Address structures
-		2,                          // Return value for CreateConnection
+		2,                          // Return values (Id and error)
 		0
 	},
 	{
@@ -279,9 +279,21 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
                                              IOExternalMethodArguments * args)
 {
     // Create a new session and return session ID
-    args->scalarOutputCount = 1;
-    *args->scalarOutput = target->provider->CreateSession();
-
+    UInt16 sessionId;
+    UInt32 connectionId;
+    
+    // Create a connection
+    args->scalarOutput[0] = target->provider->CreateSession(
+        (int)args->scalarInput[0],          // Socket domain
+        (const sockaddr *)args->structureInput,
+        (const sockaddr *)args->structureInput+args->structureInputSize,
+        &sessionId,
+        &connectionId);
+    
+    args->scalarOutput[1] = sessionId;
+    args->scalarOutput[2] = connectionId;
+    args->scalarOutputCount = 3;
+    
     return kIOReturnSuccess;
 }
 
