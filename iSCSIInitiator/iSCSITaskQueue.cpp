@@ -61,7 +61,8 @@ void iSCSITaskQueue::queueTask(UInt32 initiatorTaskTag)
     if(firstTaskInQueue) {
         IOLog("iSCSI: First task, processing now.\n");
         newTask = true;
-        signalWorkAvailable();
+        if(getWorkLoop())
+            signalWorkAvailable();
     }
 }
 
@@ -70,9 +71,13 @@ void iSCSITaskQueue::queueTask(UInt32 initiatorTaskTag)
  *  @return the iSCSI task tag for the task that was just completed. */
 UInt32 iSCSITaskQueue::completeCurrentTask()
 {
-   UInt32 taskTag = 0;
+    UInt32 taskTag = 0;
     iSCSITask * task = NULL;
     bool tasksRemaining = false;
+    
+    // Do nothing if the queue is empty
+    if(queue_empty(&taskQueue))
+        return taskTag;
     
     // Remove the completed task (at the head of the queue) and then
     // move onto the next task if one exists
@@ -89,7 +94,8 @@ UInt32 iSCSITaskQueue::completeCurrentTask()
     if(!queue_empty(&taskQueue)) {
         IOLog("iSCSI: Moving to new task.\n");
         newTask = true;
-        signalWorkAvailable();
+        if(getWorkLoop())
+            signalWorkAvailable();
     }
     return taskTag;
 }
@@ -104,6 +110,9 @@ UInt32 getCurrentTask()
 
 bool iSCSITaskQueue::checkForWork()
 {
+    if(!isEnabled())
+        return false;
+    
     // Check task flag before proceeding
     if(!newTask)
         return false;
@@ -137,9 +146,13 @@ bool iSCSITaskQueue::checkForWork()
 	return false;
 }
 
-/*
+/** Removes all tasks from the queue. */
 void iSCSITaskQueue::clearTasksFromQueue()
 {
+    // Ensure the event source is disabled before proceeding...
+    disable();
+    
+    // Iterate over queue and clear all tasks (free memory for each task)
     iSCSITask * task = NULL;
     IOSimpleLockLock(taskQueueLock);
     
@@ -150,5 +163,5 @@ void iSCSITaskQueue::clearTasksFromQueue()
             IOFree(task,sizeof(iSCSITask));
     }
     IOSimpleLockUnlock(taskQueueLock);
-}*/
+}
 

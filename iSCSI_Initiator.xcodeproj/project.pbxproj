@@ -681,6 +681,7 @@
 		2B5935591810CE6800FFC3D3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_WARN_PEDANTIC = NO;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 			};
 			name = Debug;
@@ -688,6 +689,7 @@
 		2B59355A1810CE6800FFC3D3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_WARN_PEDANTIC = NO;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 			};
 			name = Release;

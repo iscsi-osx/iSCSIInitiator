@@ -686,11 +686,19 @@ errno_t iSCSISessionAddConnection(UInt16 sessionId,
 errno_t iSCSISessionRemoveConnection(UInt16 sessionId,
                                      UInt16 connectionId)
 {
-    
     if(sessionId >= kiSCSIInvalidSessionId || connectionId >= kiSCSIInvalidConnectionId)
         return EINVAL;
     
     errno_t error = 0;
+    
+    // Release the session instead if there's only a single connection
+    // for this session
+    UInt32 numConnections = 0;
+    if((error = iSCSIKernelGetNumConnections(sessionId,&numConnections)))
+        return error;
+    
+    if(numConnections == 1)
+        return iSCSISessionRelease(sessionId);
     
     // Deactivate connection before we remove it (this is optional but good
     // practice, as the kernel will deactivate the connection for us).
@@ -744,15 +752,6 @@ errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
         // If session couldn't be allocated were maxed out; try again later
         if(sessionInfo->sessionId == kiSCSIInvalidSessionId)
             return EAGAIN;
-
-        // Grab a session options object and pass it around; at the end, we'll
-        // set the session options in the kernel
-        iSCSIKernelGetSessionOptions(sessionInfo->sessionId,&sessOptions);
-        
-        // Grab a connection object and pass it around; at the end, we'll set
-        // the connection options in the kernel
-        iSCSIKernelGetConnectionOptions(sessionInfo->sessionId,
-                                        connInfo->connectionId,&connOptions);
         
         memset(&sessOptions,0,sizeof(sessOptions));
         memset(&connOptions,0,sizeof(connOptions));
@@ -796,8 +795,13 @@ errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
 }
 
 
-/** Closes the iSCSI connection and frees the session qualifier.
- *  @param sessionId the session to free. */
+/** Closes the iSCSI session by deactivating and removing all connections. Any
+ *  pending or current data transfers are aborted. This function may be called 
+ *  on a session with one or more connections that are either inactive or 
+ *  active. The session identifier is released and may be reused by other
+ *  sessions the future.
+ *  @param sessionId the session to release.
+ *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSISessionRelease(UInt16 sessionId)
 {
     if(sessionId >= kiSCSIInvalidSessionId)
@@ -805,20 +809,18 @@ errno_t iSCSISessionRelease(UInt16 sessionId)
     
     errno_t error = 0;
     
-    // TODO: Deactivate session in kernel
+    // First deactivate all of the connections
+    if((error = iSCSIKernelDeactivateAllConnections(sessionId)))
+        return error;
     
+    // Grab a handle to any connection so we can logout of the session
+    UInt32 connectionId = kiSCSIInvalidConnectionId;
+    if(!(error = iSCSIKernelGetConnection(sessionId,&connectionId)))
+        iSCSISessionLogoutCommon(sessionId, connectionId, kiSCSIPDULogoutCloseSession);
+
     
-    
-    // Grab a connection ID for this session so that we can logout session
-    UInt32 connectionId = iSCSIKernelGetActiveConnection(sessionId);
-    //    if(connectionId == kiSCSIInvalidConnectionId)
-    //        return EINVAL;
-    connectionId = 0;
-    // Logout the session, including all connections
-    error = iSCSISessionLogoutCommon(sessionId,connectionId,kiSCSIPDULogoutCloseSession);
-    
-    if(!error)
-        iSCSIKernelReleaseSession(sessionId);
+    // Release all of the connections in the kernel by releasing the session
+    iSCSIKernelReleaseSession(sessionId);
     
     return error;
 }

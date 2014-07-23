@@ -64,18 +64,13 @@ struct iSCSIVirtualHBA::iSCSIConnection {
     
     /** Event source used to signal the Virtual HBA that data has been
      *  received and needs to be processed. */
-    iSCSIIOEventSource * eventSource;
+    iSCSIIOEventSource * dataRecvEventSource;
     
     /** iSCSI task queue used to manage tasks for this connection. */
     iSCSITaskQueue * taskQueue;
     
     /** Options associated with this connection. */
     iSCSIConnectionOptions opts;
-    
-    /** Flag that indicates whether this connection is active.  An active
-     *  connection is one where the user-space code has performed login
-     *  and negotiation and placed that connection into full-feature phase. */
-    bool active;
     
     /** The maximum length of data allowed for immediate data (data sent as part
      *  of a command PDU).  This parameter is derived by taking the lesser of
@@ -113,7 +108,10 @@ struct iSCSIVirtualHBA::iSCSISession {
     iSCSISessionOptions opts;
     
     /** Number of active connections. */
-    UInt32 activeConnections;
+    UInt32 numActiveConnections;
+    
+    /** Total number of connections (either active or inactive). */
+    UInt32 numConnections;
     
     /** Initiator tag for the newest task. */
     UInt32 initiatorTaskTag;
@@ -382,7 +380,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     
     iSCSIConnection * conn = session->connections[0];
     
-    if(!conn || !conn->eventSource)
+    if(!conn || !conn->dataRecvEventSource)
         return kSCSIServiceResponse_FUNCTION_REJECTED;
 
     // Build and set iSCSI initiator task tag
@@ -578,7 +576,7 @@ bool iSCSIVirtualHBA::CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
                                                    iSCSIConnection * connection)
 {
     // Quit if the connection isn't active (if it is not in full feature phase)
-    if(!owner || !session || !connection || !connection->active)
+    if(!owner || !session || !connection)
         return true;
  
     // Grab incoming bhs (we are guaranteed to have a basic header at this
@@ -1067,11 +1065,10 @@ errno_t iSCSIVirtualHBA::CreateSession(int domain,
     
     // Setup session parameters with defaults
     newSession->sessionId = sessionIdx;
-    newSession->activeConnections = 0;
+    newSession->numActiveConnections = 0;
     newSession->cmdSN = 0;
     newSession->expCmdSN = 0;
     newSession->maxCmdSN = 0;
-    newSession->active = false;
     newSession->TSIH = 0;
     newSession->initiatorTaskTag = 0;
 
@@ -1125,11 +1122,17 @@ void iSCSIVirtualHBA::ReleaseSession(UInt16 sessionId)
     
     DBLog("iSCSI: Releasing session...\n");
     
-    // Disconnect all active connections
-    for(UInt32 index = 0; index < kMaxConnectionsPerSession; index++)
-        ReleaseConnection(sessionId,index);
-        
-    IOFree(sessionList[sessionId], sizeof(iSCSIConnection*));
+    // Disconnect all connections
+    for(UInt32 connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+    {
+        if(theSession->connections[connectionId])
+            ReleaseConnection(sessionId,connectionId);
+    }
+    
+    // Free connection list and session object
+    IOFree(theSession->connections,kMaxConnectionsPerSession*sizeof(iSCSIConnection*));
+    IOFree(theSession,sizeof(iSCSISession));
+
     sessionList[sessionId] = NULL;
 }
 
@@ -1217,7 +1220,6 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
         return EAGAIN;
     
     // Sockets connected and bound add event source to driver workloop
-    newConn->active = false;
     newConn->expStatSN = 0;
     theSession->connections[index] = newConn;
     *connectionId = index;
@@ -1238,20 +1240,24 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
     if(GetWorkLoop()->addEventSource(newConn->taskQueue) != kIOReturnSuccess)
         goto TASKQUEUE_ADD_FAILURE;
     
-    if(!(newConn->eventSource = OSTypeAlloc(iSCSIIOEventSource)))
+    newConn->taskQueue->disable();
+    
+    if(!(newConn->dataRecvEventSource = OSTypeAlloc(iSCSIIOEventSource)))
         goto EVENTSOURCE_ALLOC_FAILURE;
     
     // Initialize event source, quit if it fails
-    if(!newConn->eventSource->init(this,(iSCSIIOEventSource::Action)&CompleteTaskOnWorkloopThread,theSession,newConn))
+    if(!newConn->dataRecvEventSource->init(this,(iSCSIIOEventSource::Action)&CompleteTaskOnWorkloopThread,theSession,newConn))
         goto EVENTSOURCE_INIT_FAILURE;
     
-    if(GetWorkLoop()->addEventSource(newConn->eventSource) != kIOReturnSuccess)
+    if(GetWorkLoop()->addEventSource(newConn->dataRecvEventSource) != kIOReturnSuccess)
         goto EVENTSOURCE_ADD_FAILURE;
+    
+    newConn->dataRecvEventSource->disable();
         
     // Create a new socket (per RFC3720, only TCP sockets are used.
     // Domain can vary between IPv4 or IPv6.
     if((error = sock_socket(domain,SOCK_STREAM,IPPROTO_TCP,(sock_upcall)&iSCSIIOEventSource::socketCallback,
-                        newConn->eventSource,&newConn->socket)))
+                        newConn->dataRecvEventSource,&newConn->socket)))
         goto SOCKET_CREATE_FAILURE;
 
     // Connect the socket to the target node
@@ -1262,6 +1268,9 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
 //    if((error = sock_bind(newConn->socket,hostAddress)))
   //      goto SOCKET_BIND_FAILURE;
     
+    // Keep track of connection count
+    OSIncrementAtomic(&theSession->numConnections);
+    
     return 0;
     
 SOCKET_BIND_FAILURE:
@@ -1271,12 +1280,12 @@ SOCKET_CONNECT_FAILURE:
     sock_close(newConn->socket);
     
 SOCKET_CREATE_FAILURE:
-    GetWorkLoop()->removeEventSource(newConn->eventSource);
+    GetWorkLoop()->removeEventSource(newConn->dataRecvEventSource);
     
 EVENTSOURCE_ADD_FAILURE:
     
 EVENTSOURCE_INIT_FAILURE:
-    newConn->eventSource->release();
+    newConn->dataRecvEventSource->release();
     
 EVENTSOURCE_ALLOC_FAILURE:
     GetWorkLoop()->removeEventSource(newConn->taskQueue);
@@ -1316,29 +1325,34 @@ void iSCSIVirtualHBA::ReleaseConnection(UInt16 sessionId,
     if(!theConn)
         return;
     
+    // Keep track of connection count
+    OSDecrementAtomic(&theSession->numConnections);
+    
     IOLockLock(theConn->PDUIOLock);
     
     // First deactivate connection before proceeding
-    if(theConn->active)
+    if(theConn->taskQueue->isEnabled())
         DeactivateConnection(sessionId,connectionId);
-    
-    DBLog("iSCSI: Stopped Connection");
 
-    GetWorkLoop()->removeEventSource(theConn->eventSource);
-    
-    DBLog("iSCSI: Removed event source");
     
     sock_close(theConn->socket);
-    theConn->eventSource->release();
+
+    DBLog("iSCSI: Deactivated connection.\n");
+
+    GetWorkLoop()->removeEventSource(theConn->dataRecvEventSource);
+    GetWorkLoop()->removeEventSource(theConn->taskQueue);
     
-    DBLog("iSCSI: Released event source");
+    DBLog("iSCSI: Removed event sources.\n");
+    
+    theConn->dataRecvEventSource->release();
+    theConn->taskQueue->release();
     
     IOLockUnlock(theConn->PDUIOLock);
     IOLockFree(theConn->PDUIOLock);
     IOFree(theConn,sizeof(iSCSIConnection));
     theSession->connections[connectionId] = NULL;
     
-    DBLog("iSCSI: Released connection");
+    DBLog("iSCSI: Released connection.\n");
 }
 
 /** Activates an iSCSI connection, indicating to the kernel that the iSCSI
@@ -1364,14 +1378,44 @@ errno_t iSCSIVirtualHBA::ActivateConnection(UInt16 sessionId,UInt32 connectionId
     if(!theConn)
         return EINVAL;
     
-    theConn->active = true;
+    theConn->taskQueue->enable();
+    theConn->dataRecvEventSource->enable();
     
     // If this is the first active connection, mount the target
-    if(theSession->activeConnections == 0)
+    if(theSession->numActiveConnections == 0)
         if(!CreateTargetForID(sessionId))
+        {
+            theConn->taskQueue->disable();
+            theConn->dataRecvEventSource->disable();
             return EAGAIN;
+        }
     
-    theSession->activeConnections++;
+    OSIncrementAtomic(&theSession->numActiveConnections);
+    
+    return 0;
+}
+
+/** Activates all iSCSI connections for the session, indicating to the
+ *  kernel that the iSCSI daemon has negotiated security and operational
+ *  parameters and that the connection is in the full-feature phase.
+ *  @param sessionId the session to deactivate.
+ *  @param connectionId the connection to deactivate.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIVirtualHBA::ActivateAllConnections(UInt16 sessionId)
+{
+    if(sessionId >= kMaxSessions)
+        return EINVAL;
+    
+    // Do nothing if session doesn't exist
+    iSCSISession * theSession = sessionList[sessionId];
+    
+    if(!theSession)
+        return EINVAL;
+    
+    errno_t error = 0;
+    for(UInt32 connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+        if((error = ActivateConnection(sessionId,connectionId)))
+            return error;
     
     return 0;
 }
@@ -1398,11 +1442,31 @@ errno_t iSCSIVirtualHBA::DeactivateConnection(UInt16 sessionId,UInt32 connection
     if(!theConn)
         return EINVAL;
 
-    theConn->active = false;
-    theSession->activeConnections--;
+    theConn->dataRecvEventSource->disable();
+    theConn->taskQueue->disable();
+    
+    // Tell driver stack that tasks have been rejected (stack will reattempt
+    // the task on a different connection, if one is available)
+    UInt32 initiatorTaskTag = 0;
+    SCSIParallelTaskIdentifier task;
+ 
+    while((initiatorTaskTag = theConn->taskQueue->completeCurrentTask()) != 0)
+    {
+        task = FindTaskForControllerIdentifier(sessionId, initiatorTaskTag);
+        if(!task)
+            continue;
+        
+        // Notify the SCSI driver stack that we couldn't finish these tasks
+        // on this connection
+        CompleteParallelTask(task,
+                             kSCSITaskStatus_DeliveryFailure,
+                             kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE);
+    }
+
+    OSDecrementAtomic(&theSession->numActiveConnections);
     
     // If this is the last active connection, un-mount the target
-    if(theSession->activeConnections == 0)
+    if(theSession->numActiveConnections == 0)
         DestroyTargetForID(sessionId);
     
     DBLog("iSCSI: Connection Deactivated");
@@ -1410,7 +1474,92 @@ errno_t iSCSIVirtualHBA::DeactivateConnection(UInt16 sessionId,UInt32 connection
     return 0;
 }
 
-/** Sends data over a kernel socket associated with iSCSI.  If the specified 
+
+/** Deactivates all iSCSI connections so that parameters can be adjusted or
+ *  negotiated by the iSCSI daemon.
+ *  @param sessionId the session to deactivate.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIVirtualHBA::DeactivateAllConnections(UInt16 sessionId)
+{
+    if(sessionId >= kMaxSessions)
+        return EINVAL;
+    
+    // Do nothing if session doesn't exist
+    iSCSISession * theSession = sessionList[sessionId];
+    
+    if(!theSession)
+        return EINVAL;
+    
+    errno_t error = 0;
+    for(UInt32 connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+    {
+        if(theSession->connections[connectionId])
+        {
+            if((error = DeactivateConnection(sessionId,connectionId)))
+                return error;
+        }
+    }
+    
+    return 0;
+}
+
+
+
+/** Gets the first connection (the lowest connectionId) for the
+ *  specified session.
+ *  @param sessionId obtain an connectionId for this session.
+ *  @param connectionId the identifier of the connection.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIVirtualHBA::GetConnection(UInt16 sessionId,UInt32 * connectionId)
+{
+    if(sessionId >= kMaxSessions || !connectionId)
+        return EINVAL;
+    
+    // Do nothing if session doesn't exist
+    iSCSISession * theSession = sessionList[sessionId];
+    
+    if(!theSession)
+        return EINVAL;
+    
+    for(UInt32 connectionIdx = 0; connectionIdx < kMaxConnectionsPerSession; connectionIdx++)
+    {
+        if(theSession->connections[connectionIdx])
+        {
+            *connectionId = connectionIdx;
+            return 0;
+        }
+    }
+
+    *connectionId = kiSCSIInvalidConnectionId;
+    return 0;
+}
+
+/** Gets the connection count for the specified session.
+ *  @param sessionId obtain the connection count for this session.
+ *  @param numConnections the connection count.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIVirtualHBA::GetNumConnections(UInt16 sessionId,UInt32 * numConnections)
+{
+    if(sessionId >= kMaxSessions || !numConnections)
+        return EINVAL;
+    
+    *numConnections = 0;
+    
+    // Do nothing if session doesn't exist
+    iSCSISession * theSession = sessionList[sessionId];
+    
+    if(!theSession)
+        return EINVAL;
+    
+    *numConnections = 0;
+    for(UInt32 connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+        if(theSession->connections[connectionId])
+            (*numConnections)++;
+    
+    return 0;
+}
+
+/** Sends data over a kernel socket associated with iSCSI.  If the specified
  *  data segment length is not a multiple of 4-bytes, padding bytes will be 
  *  added to the data segment of the PDU per RF3720 specification.
  *  This function will automatically calculate the data segment length
@@ -1471,7 +1620,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
 //        iovec[iovecCnt].iov_len  = ahsLength;
         iovecCnt++;
     }
-/*
+
     // Leave room for a header digest
     if(theConn->opts.useHeaderDigest)    {
         UInt32 headerDigest;

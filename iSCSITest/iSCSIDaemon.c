@@ -42,14 +42,13 @@ int main(int argc, const char * argv[])
  //   connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:nareg");
   //  connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:narreh");
 //    connOpts.targetName = NULL;
-    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi40");
+    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi48");
 
     connOpts.hostAddress = CFSTR("192.168.1.147");
     connOpts.targetAddress = CFSTR("192.168.1.115");
     connOpts.targetPort = CFSTR("3260");
     connOpts.useHeaderDigest = false;
     connOpts.useDataDigest = false;
-
 
 //connOpts.authMethod = iSCSIAuthCreateCHAP(CFSTR("nareg"),CFSTR("test2test2test2"),
   //                                           CFSTR("nareg"),CFSTR("testtesttest"));

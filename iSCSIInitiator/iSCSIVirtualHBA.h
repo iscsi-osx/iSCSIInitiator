@@ -163,7 +163,8 @@ public:
                           UInt32 * connectionId);
     
     /** Releases an iSCSI session, including all connections associated with that
-     *  session.
+     *  session.  Connections may be active or inactive when this function is
+     *  called.
      *  @param sessionId the session qualifier part of the ISID. */
     void ReleaseSession(UInt16 sessionId);
         
@@ -206,13 +207,39 @@ public:
      *  @param connectionId the connection to deactivate.
      *  @return error code indicating result of operation. */
     errno_t ActivateConnection(UInt16 sessionId,UInt32 connectionId);
-    
-    /** Deactivates an iSCSI connection so that parameters can be adjusted or
-     *  negotiated by the iSCSI daemon.
+
+    /** Activates all iSCSI connections for the session, indicating to the 
+     *  kernel that the iSCSI daemon has negotiated security and operational 
+     *  parameters and that the connection is in the full-feature phase.
      *  @param sessionId the session to deactivate.
      *  @param connectionId the connection to deactivate.
      *  @return error code indicating result of operation. */
+    errno_t ActivateAllConnections(UInt16 sessionId);
+
+    /** Deactivates an iSCSI connection so that parameters can be adjusted or
+     *  negotiated by the iSCSI daemon.
+     *  @param sessionId the session to deactivate.
+     *  @return error code indicating result of operation. */
     errno_t DeactivateConnection(UInt16 sessionId,UInt32 connectionId);
+
+    /** Deactivates all iSCSI connections so that parameters can be adjusted or
+     *  negotiated by the iSCSI daemon.
+     *  @param sessionId the session to deactivate.
+     *  @return error code indicating result of operation. */
+    errno_t DeactivateAllConnections(UInt16 sessionId);
+
+    /** Gets the first connection (the lowest connectionId) for the
+     *  specified session.
+     *  @param sessionId obtain an connectionId for this session.
+     *  @param connectionId the identifier of the connection.
+     *  @return error code indicating result of operation. */
+    errno_t GetConnection(UInt16 sessionId,UInt32 * connectionId);
+
+    /** Gets the connection count for the specified session.
+     *  @param sessionId obtain the connection count for this session.
+     *  @param numConnections the connection count.
+     *  @return error code indicating result of operation. */
+    errno_t GetNumConnections(UInt16 sessionId,UInt32 * numConnections);
     
     /** Sends data over a kernel socket associated with iSCSI.  If the specified
      *  data segment length is not a multiple of 4-bytes, padding bytes will be

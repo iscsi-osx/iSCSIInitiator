@@ -79,10 +79,26 @@ public:
     static IOReturn ActivateConnection(iSCSIInitiatorClient * target,
                                        void * reference,
                                        IOExternalMethodArguments * args);
-    
+
+    static IOReturn ActivateAllConnections(iSCSIInitiatorClient * target,
+                                           void * reference,
+                                           IOExternalMethodArguments * args);
+
     static IOReturn DeactivateConnection(iSCSIInitiatorClient * target,
                                          void * reference,
                                          IOExternalMethodArguments * args);
+
+    static IOReturn DeactivateAllConnections(iSCSIInitiatorClient * target,
+                                             void * reference,
+                                             IOExternalMethodArguments * args);
+
+    static IOReturn GetConnection(iSCSIInitiatorClient * target,
+                                  void * reference,
+                                  IOExternalMethodArguments * args);
+    
+    static IOReturn GetNumConnections(iSCSIInitiatorClient * target,
+                                      void * reference,
+                                      IOExternalMethodArguments * args);
 
 
     /** Dispatched function invoked from user-space to send data

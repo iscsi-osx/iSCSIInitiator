@@ -131,23 +131,40 @@ errno_t iSCSIKernelGetConnectionOptions(UInt16 sessionId,
                                         UInt32 connectionId,
                                         iSCSIConnectionOptions * options);
 
-/** Gets the connection Id for any active connection associated with session.
- *  This function can be used when a connection is required to service a
- *  session.
- *  @param sessionId the session for which to retreive a connection.
- *  @return an active connection Id for the specified session. */
-UInt32 iSCSIKernelGetActiveConnection(UInt16 sessionId);
-
-/** Activates an iSCSI connection.  Lets the
+/** Activates an iSCSI connection associated with a session.
  *  @param sessionId session associated with connection to activate.
  *  @param connectionId  connection to activate.
  *  @return error code inidicating result of operation. */
 errno_t iSCSIKernelActivateConnection(UInt16 sessionId,UInt32 connectionId);
 
-/** Dectivates an iSCSI session.
+/** Activates all iSCSI connections associated with a session.
  *  @param sessionId session associated with connection to activate.
- *  @param connectionId  connection to activate.
+ *  @return error code inidicating result of operation. */
+errno_t iSCSIKernelActivateAllConnections(UInt16 sessionId);
+
+/** Dectivates an iSCSI connection associated with a session.
+ *  @param sessionId session associated with connection to deactivate.
+ *  @param connectionId  connection to deactivate.
  *  @return error code inidicating result of operation. */
 errno_t iSCSIKernelDeactivateConnection(UInt16 sessionId,UInt32 connectionId);
+
+/** Dectivates all iSCSI sessions associated with a session.
+ *  @param sessionId session associated with connections to deactivate.
+ *  @return error code inidicating result of operation. */
+errno_t iSCSIKernelDeactivateAllConnections(UInt16 sessionId);
+
+/** Gets the first connection (the lowest connectionId) for the
+ *  specified session.
+ *  @param sessionId obtain an connectionId for this session.
+ *  @param connectionId the identifier of the connection.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIKernelGetConnection(UInt16 sessionId,UInt32 * connectionId);
+
+/** Gets the connection count for the specified session.
+ *  @param sessionId obtain the connection count for this session.
+ *  @param numConnections the connection count.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIKernelGetNumConnections(UInt16 sessionId,UInt32 * numConnections);
+
 
 #endif /* defined(__ISCSI_KERNEL_INTERFACE_H__) */

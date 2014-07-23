@@ -45,12 +45,15 @@ void iSCSIIOEventSource::socketCallback(socket_t so,
 	// Wake up the workloop thread that this event source is attached to.
 	// The workloop thread will call checkForWork(), which will then dispatch
 	// the action method to process data on the correct socket.
-    if(eventSource)
+    if(eventSource && eventSource->getWorkLoop())
         eventSource->signalWorkAvailable();
 }
 
 bool iSCSIIOEventSource::checkForWork()
 {
+    if(!isEnabled())
+        return false;
+    
     // First check to ensure that the reason we've been called is because
     // actual data is available at the port (as opposed to other socket events)
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)owner;

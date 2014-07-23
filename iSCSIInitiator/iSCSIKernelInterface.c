@@ -396,35 +396,7 @@ errno_t iSCSIKernelGetConnectionOptions(UInt16 sessionId,
     return EIO;
 }
 
-/** Gets the connection Id for any active connection associated with session.
- *  This function can be used when a connection is required to service a
- *  session.
- *  @param sessionId the session for which to retreive a connection.
- *  @return an active connection Id for the specified session. */
-UInt32 iSCSIKernelGetActiveConnection(UInt16 sessionId)
-{
-    // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId)
-        return kiSCSIInvalidConnectionId;
-    
-    const UInt32 inputCnt = 1;
-    const UInt64 input = sessionId;
-    
-    const UInt32 expOutputCnt = 1;
-    UInt32 outputCnt = 1;
-    UInt64 output;
-    
-    if(IOConnectCallScalarMethod(connection,kiSCSIGetActiveConnection,&input,
-                                 inputCnt,&output,&outputCnt) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-            return (UInt32)output;
-    }
-    
-    return kiSCSIInvalidConnectionId;
-}
-
-/** Activates an iSCSI connection.  Lets the
+/** Activates an iSCSI connection associated with a session.
  *  @param sessionId session associated with connection to activate.
  *  @param connectionId  connection to activate.
  *  @return error code inidicating result of operation. */
@@ -451,9 +423,35 @@ errno_t iSCSIKernelActivateConnection(UInt16 sessionId,UInt32 connectionId)
     return EINVAL;
 }
 
-/** Dectivates an iSCSI session.
+/** Activates all iSCSI connections associated with a session.
  *  @param sessionId session associated with connection to activate.
- *  @param connectionId  connection to activate.
+ *  @return error code inidicating result of operation. */
+errno_t iSCSIKernelActivateAllConnections(UInt16 sessionId)
+{
+    // Check parameters
+    if(sessionId == kiSCSIInvalidSessionId)
+        return EINVAL;
+    
+    const UInt32 inputCnt = 1;
+    UInt64 input = sessionId;
+    
+    UInt64 output;
+    UInt32 outputCnt = 1;
+    const UInt32 expOutputCnt = 1;
+    
+    if(IOConnectCallScalarMethod(connection,kiSCSIActivateAllConnections,
+                                 &input,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
+    {
+        if(outputCnt == expOutputCnt)
+            return (errno_t)output;
+    }
+    return EINVAL;
+}
+
+
+/** Dectivates an iSCSI connection associated with a session.
+ *  @param sessionId session associated with connection to deactivate.
+ *  @param connectionId  connection to deactivate.
  *  @return error code inidicating result of operation. */
 errno_t iSCSIKernelDeactivateConnection(UInt16 sessionId,UInt32 connectionId)
 {
@@ -471,6 +469,85 @@ errno_t iSCSIKernelDeactivateConnection(UInt16 sessionId,UInt32 connectionId)
     
     if(IOConnectCallScalarMethod(connection,kiSCSIDeactivateConnection,
                                  inputs,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
+    {
+        if(outputCnt == expOutputCnt)
+            return (errno_t)output;
+    }
+    return EINVAL;
+}
+
+/** Dectivates all iSCSI sessions associated with a session.
+ *  @param sessionId session associated with connections to deactivate.
+ *  @return error code inidicating result of operation. */
+errno_t iSCSIKernelDeactivateAllConnections(UInt16 sessionId)
+{
+    // Check parameters
+    if(sessionId == kiSCSIInvalidSessionId)
+        return EINVAL;
+    
+    const UInt32 inputCnt = 1;
+    UInt64 input = sessionId;
+    
+    UInt64 output;
+    UInt32 outputCnt = 1;
+    const UInt32 expOutputCnt = 1;
+    
+    if(IOConnectCallScalarMethod(connection,kiSCSIDeactivateAllConnections,
+                                 &input,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
+    {
+        if(outputCnt == expOutputCnt)
+            return (errno_t)output;
+    }
+    return EINVAL;
+}
+
+/** Gets the first connection (the lowest connectionId) for the
+ *  specified session.
+ *  @param sessionId obtain an connectionId for this session.
+ *  @param connectionId the identifier of the connection.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIKernelGetConnection(UInt16 sessionId,UInt32 * connectionId)
+{
+    // Check parameters
+    if(sessionId == kiSCSIInvalidSessionId || !connectionId)
+        return EINVAL;
+    
+    const UInt32 inputCnt = 1;
+    UInt64 input = sessionId;
+    
+    UInt64 output;
+    UInt32 outputCnt = 2;
+    const UInt32 expOutputCnt = 2;
+    
+    if(IOConnectCallScalarMethod(connection,kiSCSIGetConnection,
+                                 &input,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
+    {
+        if(outputCnt == expOutputCnt)
+            return (errno_t)output;
+    }
+    return EINVAL;
+
+}
+
+/** Gets the connection count for the specified session.
+ *  @param sessionId obtain the connection count for this session.
+ *  @param numConnections the connection count.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIKernelGetNumConnections(UInt16 sessionId,UInt32 * numConnections)
+{
+    // Check parameters
+    if(sessionId == kiSCSIInvalidSessionId || !numConnections)
+        return EINVAL;
+    
+    const UInt32 inputCnt = 1;
+    UInt64 input = sessionId;
+    
+    UInt64 output;
+    UInt32 outputCnt = 2;
+    const UInt32 expOutputCnt = 2;
+    
+    if(IOConnectCallScalarMethod(connection,kiSCSIGetNumConnections,
+                                 &input,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
     {
         if(outputCnt == expOutputCnt)
             return (errno_t)output;

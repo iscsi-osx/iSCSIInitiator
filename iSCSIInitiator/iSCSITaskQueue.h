@@ -60,6 +60,9 @@ public:
      *  @return the iSCSI task tag for the task that was just completed. */
     UInt32 completeCurrentTask();
     
+    /** Removes all tasks from the queue. */
+    void clearTasksFromQueue();
+    
     /** Gets the iSCSI task tag of the task that is current being processed.
      *  @return iSCSI task tag of the current task. */
     UInt32 getCurrentTask();

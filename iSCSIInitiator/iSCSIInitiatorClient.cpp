@@ -20,10 +20,10 @@ OSDefineMetaClassAndStructors(iSCSIInitiatorClient,IOUserClient);
 const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumMethods] = {
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::OpenInitiator,
-		0, // Scalar input count
-		0, // Structure input size
-		0, // Scalar output count
-		0  // Structure output size
+		0,                                  // Scalar input count
+		0,                                  // Structure input size
+		0,                                  // Scalar output count
+		0                                   // Structure output size
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CloseInitiator,
@@ -34,109 +34,130 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateSession,
-		1,                          // Domain
-		2*sizeof(struct sockaddr),  // Address structures
-		3,                          // Return values (Ids and error)
+		1,                                  // Domain
+		2*sizeof(struct sockaddr),          // Address structures
+		3,                                  // Return values (IDs and error)
 		0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::ReleaseSession,
-		1, // Session Id
+		1,                                  // Session ID
 		0,
 		0,
 		0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::SetSessionOptions,
-		1, // Session Id
-        sizeof(iSCSISessionOptions),
+		1,                                  // Session ID
+        sizeof(iSCSISessionOptions),        // Options to set
 		0,
 		0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::GetSessionOptions,
-		1, // Session Id
+		1,                                  // Session ID
 		0,
 		0,
-		sizeof(iSCSISessionOptions)
+		sizeof(iSCSISessionOptions)         // Options to get
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateConnection,
-		2,                          // Session, domain
-		2*sizeof(struct sockaddr),  // Address structures
-		2,                          // Return values (Id and error)
+		2,                                  // Session ID, domain
+		2*sizeof(struct sockaddr),          // Address structures
+		2,                                  // Return values (ID and error)
 		0
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::ReleaseConnection,
-		2, // Session Id, connection Id
+		2,                                  // Session ID, connection ID
 		0,
 		0,
 		0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::ActivateConnection,
-		2, // Session Id, connection Id
+		2,                                  // Session ID, connection ID
 		0,
-		1,
+		1,                                  // Return value
+		0
+	},
+    {
+		(IOExternalMethodAction) &iSCSIInitiatorClient::ActivateAllConnections,
+		1,                                  // Session ID
+		0,
+		1,                                  // Return value
 		0
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::DeactivateConnection,
-		2, // Session Id, connection Id
+		2,                                  // Session ID, connection ID
 		0,
-		1,
+		1,                                  // Return value
+		0
+	},
+    {
+		(IOExternalMethodAction) &iSCSIInitiatorClient::DeactivateAllConnections,
+		1,                                  // Session ID
+		0,
+		1,                                  // Return value
 		0
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::SendBHS,
-		0,                                  // Session Id, connection Id
+		0,                                  // Session ID, connection ID
 		sizeof(struct __iSCSIPDUCommonBHS), // Buffer to send
 		0,                                  // Return value
 		0
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::SendData,
-        2,                                  // Session Id, connection Id
+        2,                                  // Session ID, connection ID
 		kIOUCVariableStructureSize,         // Data is a variable size block
 		1,                                  // Return value
 		0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::RecvBHS,
-        2,                                  // Session Id, connection Id
+        2,                                  // Session ID, connection ID
 		0,
 		1,                                  // Return value
 		sizeof(struct __iSCSIPDUCommonBHS), // Receive buffer
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::RecvData,
-        2,                                  // Session Id, connection Id
+        2,                                  // Session ID, connection ID
 		0,
 		1,                                  // Return value
 		kIOUCVariableStructureSize          // Receive buffer
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::SetConnectionOptions,
-		2, // Session Id, connection Id
-        sizeof(iSCSIConnectionOptions),
+		2,                                  // Session ID, connection ID
+        sizeof(iSCSIConnectionOptions),     // Options to set
 		0,
 		0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::GetConnectionOptions,
-		2, // Session Id, connection Id
+		2,                                  // Session ID, connection ID
 		0,
 		0,
-		sizeof(iSCSIConnectionOptions)
+		sizeof(iSCSIConnectionOptions)      // Options to get
 	},
     {
-		(IOExternalMethodAction) &iSCSIInitiatorClient::GetActiveConnection,
-		1, // Session Id
+		(IOExternalMethodAction) &iSCSIInitiatorClient::GetConnection,
+		1,                                  // Session ID
 		0,
-		1, // Connection Id
+		2,                                  // Return values
         0
-	}
+	},
+    {
+		(IOExternalMethodAction) &iSCSIInitiatorClient::GetNumConnections,
+		1,                                  // Session ID
+		0,
+		2,                                  // Return values
+        0
+    }
 };
 
 IOReturn iSCSIInitiatorClient::externalMethod(uint32_t selector,
@@ -375,17 +396,35 @@ IOReturn iSCSIInitiatorClient::ActivateConnection(iSCSIInitiatorClient * target,
     return kIOReturnSuccess;
 }
 
+IOReturn iSCSIInitiatorClient::ActivateAllConnections(iSCSIInitiatorClient * target,
+                                                      void * reference,
+                                                      IOExternalMethodArguments * args)
+{
+    *args->scalarOutput =
+        target->provider->ActivateAllConnections((UInt16)args->scalarInput[0]);
+    return kIOReturnSuccess;
+}
+
 IOReturn iSCSIInitiatorClient::DeactivateConnection(iSCSIInitiatorClient * target,
                                                     void * reference,
                                                     IOExternalMethodArguments * args)
 {
     *args->scalarOutput =
-    target->provider->DeactivateConnection((UInt16)args->scalarInput[0],
-                                           (UInt32)args->scalarInput[1]);
+        target->provider->DeactivateConnection((UInt16)args->scalarInput[0],
+                                               (UInt32)args->scalarInput[1]);
 
     return kIOReturnSuccess;
 }
 
+IOReturn iSCSIInitiatorClient::DeactivateAllConnections(iSCSIInitiatorClient * target,
+                                                        void * reference,
+                                                        IOExternalMethodArguments * args)
+{
+    *args->scalarOutput =
+        target->provider->DeactivateAllConnections((UInt16)args->scalarInput[0]);
+    
+    return kIOReturnSuccess;
+}
 
 /** Dispatched function invoked from user-space to send data
  *  over an existing, active connection. */
@@ -493,14 +532,42 @@ IOReturn iSCSIInitiatorClient::GetConnectionOptions(iSCSIInitiatorClient * targe
     return kIOReturnError;
 }
 
-IOReturn iSCSIInitiatorClient::GetActiveConnection(iSCSIInitiatorClient * target,
-                                                   void * reference,
-                                                   IOExternalMethodArguments * args)
+IOReturn iSCSIInitiatorClient::GetConnection(iSCSIInitiatorClient * target,
+                                             void * reference,
+                                             IOExternalMethodArguments * args)
 {
+    // Grab a connection
+    args->scalarOutputCount = 2;
+    UInt32 connectionId;
     
+    args->scalarOutput[0] = target->provider->GetConnection(
+        (UInt16)args->scalarInput[0],               // Session qualifier
+        &connectionId);                             // Connection ID
     
+    args->scalarOutput[1] = connectionId;
+    args->scalarOutputCount = 2;
     
-    return kIOReturnError;
+    return kIOReturnSuccess;
 }
+
+IOReturn iSCSIInitiatorClient::GetNumConnections(iSCSIInitiatorClient * target,
+                                                 void * reference,
+                                                 IOExternalMethodArguments * args)
+{
+    // Get number of connections
+    args->scalarOutputCount = 2;
+    UInt32 numConnections;
+    
+    args->scalarOutput[0] = target->provider->GetNumConnections(
+        (UInt16)args->scalarInput[0],               // Session qualifier
+        &numConnections);                           // Connection ID
+    
+    args->scalarOutput[1] = numConnections;
+    args->scalarOutputCount = 2;
+    
+    return kIOReturnSuccess;
+
+}
+
 
 

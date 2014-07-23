@@ -35,14 +35,17 @@ enum functionNames {
     kiSCSICreateConnection,
     kiSCSIReleaseConnection,
     kiSCSIActivateConnection,
+    kiSCSIActivateAllConnections,
     kiSCSIDeactivateConnection,
+    kiSCSIDeactivateAllConnections,
     kiSCSISendBHS,
     kiSCSISendData,
     kiSCSIRecvBHS,
     kiSCSIRecvData,
     kiSCSISetConnectionOptions,
     kiSCSIGetConnectionOptions,
-    kiSCSIGetActiveConnection,
+    kiSCSIGetConnection,
+    kiSCSIGetNumConnections,
 	kiSCSIInitiatorNumMethods
 };
 
