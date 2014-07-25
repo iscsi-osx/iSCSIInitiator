@@ -14,6 +14,7 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <netdb.h>
+#include <ifaddrs.h>
 #include "iSCSIAuth.h"
 
 /*! Session options that are passed in when creating a new session.
@@ -53,8 +54,8 @@ typedef struct iSCSIConnectionInfo {
     /*! Whether to use a data digest (CRC32C is used if enabled). */
     bool useDataDigest;
     
-    /*! The host IP address to bind the target name to use. */
-    CFStringRef hostAddress;
+    /*! The host adapter to use for the connection (e.g., "en0"). */
+    CFStringRef hostInterface;
     
     /*! The target name to use. */
     CFStringRef targetAddress;

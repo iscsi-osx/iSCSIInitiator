@@ -808,37 +808,59 @@ errno_t iSCSISessionResolveNode(iSCSIConnectionInfo * connInfo,
                                 struct sockaddr * sa_target,
                                 struct sockaddr * sa_host)
 {
-    // Resolve IP address (IPv4 or IPv6) or hostname, first get C pointers
-    // to the CF string objects
-    const char * hostAddr, * targetAddr, * targetPort;
+    if (!connInfo || !ai_family || !sa_target || !sa_host)
+        return EINVAL;
+    
+    errno_t error = 0;
+    
+    // Resolve the target node first and get a sockaddr info for it
+    const char * targetAddr, * targetPort;
 
-    hostAddr = CFStringGetCStringPtr(connInfo->hostAddress,kCFStringEncodingUTF8);
     targetAddr = CFStringGetCStringPtr(connInfo->targetAddress,kCFStringEncodingUTF8);
     targetPort = CFStringGetCStringPtr(connInfo->targetPort,kCFStringEncodingUTF8);
 
     struct addrinfo * aiTarget = NULL;
-    struct addrinfo * aiHost = NULL;
-
-    errno_t error = 0;
-
-    if((error = getaddrinfo(hostAddr,NULL,NULL,&aiHost)))
+    if((error = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget)))
         return error;
-
-    if((error = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget))) {
-        freeaddrinfo(aiHost);
-        return error;
-    }
     
-    // Return values
     *ai_family = aiTarget->ai_family;
     *sa_target = *aiTarget->ai_addr;
-    *sa_host   = *aiHost->ai_addr;
 
-    // Cleanup
     freeaddrinfo(aiTarget);
-    freeaddrinfo(aiHost);
+    
+    
+    // Grab a list of interfaces on this system, iterate over them and
+    // find the requested interface.
+    struct ifaddrs * interfaceList;
+    
+    if((error = getifaddrs(&interfaceList)))
+        return error;
+    
+    error = EAFNOSUPPORT;
+    struct ifaddrs * interface = interfaceList;
+    while(interface)
+    {
+        CFStringRef interfaceName = CFStringCreateWithCString(kCFAllocatorDefault,
+                                                              interface->ifa_name,
+                                                              kCFStringEncodingUTF8);
         
-    return 0;
+        // Check if interface names match...
+        if(CFStringCompare(interfaceName,connInfo->hostInterface,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+        {
+            // Check if the interface supports the target's
+            // address family (e.g., IPv4 vs IPv6)
+            if(interface->ifa_addr->sa_family == *ai_family)
+            {
+                *sa_host = *interface->ifa_addr;
+                error = 0;
+                break;
+            }
+        }
+        interface = interface->ifa_next;
+    }
+        
+    freeifaddrs(interfaceList);
+    return error;
 }
 
 errno_t iSCSIAddConnection(UInt16 sessionId,iSCSIConnectionInfo * connInfo)

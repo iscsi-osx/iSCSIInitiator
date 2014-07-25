@@ -154,8 +154,12 @@ public:
     /////////////////////  FUNCTIONS TO MANIPULATE ISCSI ///////////////////////
     
     /*! Allocates a new iSCSI session and returns a session qualifier ID.
-     *  @return a valid session qualifier (part of the ISID, see RF3720) or
-     *  0 if a new session could not be created. */
+     *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
+     *  @param targetaddress the BSD socket structure used to identify the target.
+     *  @param hostaddress the BSD socket structure used to identify the host adapter.
+     *  @param sessionId identifier for the new session.
+     *  @param connectionId identifier for the new connection.
+     *  @return error code indicating result of operation. */
     errno_t CreateSession(int domain,
                           const struct sockaddr * targetAddress,
                           const struct sockaddr * hostAddress,
@@ -187,7 +191,7 @@ public:
      *  @param sessionId the session to create a new connection for.
      *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
      *  @param targetaddress the BSD socket structure used to identify the target.
-     *  @param hostaddress the BSD socket structure used to identify the host.
+     *  @param hostaddress the BSD socket structure used to identify the host adapter.
      *  @param connectionId identifier for the new connection.
      *  @return error code indicating result of operation. */
     errno_t CreateConnection(UInt16 sessionId,

@@ -307,7 +307,7 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
     args->scalarOutput[0] = target->provider->CreateSession(
         (int)args->scalarInput[0],          // Socket domain
         (const sockaddr *)args->structureInput,
-        (const sockaddr *)args->structureInput+args->structureInputSize,
+        (const sockaddr *)args->structureInput+1,
         &sessionId,
         &connectionId);
     
@@ -367,7 +367,7 @@ IOReturn iSCSIInitiatorClient::CreateConnection(iSCSIInitiatorClient * target,
             (UInt16)args->scalarInput[0],       // Session qualifier
             (int)args->scalarInput[1],          // Socket domain
             (const sockaddr *)args->structureInput,
-            (const sockaddr *)args->structureInput+args->structureInputSize,
+            (const sockaddr *)args->structureInput+1,
             &connectionId);
     
     args->scalarOutput[1] = connectionId;

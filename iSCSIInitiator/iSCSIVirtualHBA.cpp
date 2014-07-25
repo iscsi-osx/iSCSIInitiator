@@ -1017,8 +1017,12 @@ void iSCSIVirtualHBA::TuneConnectionTimeout(iSCSISession * session,
 //////////////////////////////// iSCSI FUNCTIONS ///////////////////////////////
 
 /*! Allocates a new iSCSI session and returns a session qualifier ID.
- *  @return a valid session qualifier (part of the ISID, see RF3720) or
- *  0 if a new session could not be created. */
+ *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
+ *  @param targetaddress the BSD socket structure used to identify the target.
+ *  @param hostaddress the BSD socket structure used to identify the host adapter.
+ *  @param sessionId identifier for the new session.
+ *  @param connectionId identifier for the new connection.
+ *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::CreateSession(int domain,
                                        const struct sockaddr * targetAddress,
                                        const struct sockaddr * hostAddress,
@@ -1187,8 +1191,10 @@ errno_t iSCSIVirtualHBA::GetSessionOptions(UInt16 sessionId,
 /*! Allocates a new iSCSI connection associated with the particular session.
  *  @param sessionId the session to create a new connection for.
  *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
- *  @param address the BSD socket structure used to identify the target.
- *  @return a connection ID, or 0 if a connection could not be created. */
+ *  @param targetaddress the BSD socket structure used to identify the target.
+ *  @param hostaddress the BSD socket structure used to identify the host adapter.
+ *  @param connectionId identifier for the new connection.
+ *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
                                           int domain,
                                           const struct sockaddr * targetAddress,
@@ -1259,24 +1265,24 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
     if((error = sock_socket(domain,SOCK_STREAM,IPPROTO_TCP,(sock_upcall)&iSCSIIOEventSource::socketCallback,
                         newConn->dataRecvEventSource,&newConn->socket)))
         goto SOCKET_CREATE_FAILURE;
+    
+    // Bind socket to a particular host connection
+    if((error = sock_bind(newConn->socket,hostAddress)))
+        goto SOCKET_BIND_FAILURE;
 
     // Connect the socket to the target node
     if((error = sock_connect(newConn->socket,targetAddress,0)))
         goto SOCKET_CONNECT_FAILURE;
-    
-    // Bind socket to a particular host connection
-//    if((error = sock_bind(newConn->socket,hostAddress)))
-  //      goto SOCKET_BIND_FAILURE;
+
     
     // Keep track of connection count
     OSIncrementAtomic(&theSession->numConnections);
     
     return 0;
     
-SOCKET_BIND_FAILURE:
-    theSession->connections[index] = 0;
-    
 SOCKET_CONNECT_FAILURE:
+    
+SOCKET_BIND_FAILURE:
     sock_close(newConn->socket);
     
 SOCKET_CREATE_FAILURE:
@@ -1299,9 +1305,9 @@ TASKQUEUE_ALLOC_FAILURE:
     IOLockFree(newConn->PDUIOLock);
     
 IOLOCK_ALLOC_FAILURE:
+    theSession->connections[index] = 0;
     IOFree(newConn,sizeof(iSCSIConnection));
     
-
     return error;
 }
 

@@ -44,7 +44,7 @@ int main(int argc, const char * argv[])
 //    connOpts.targetName = NULL;
     connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi40");
 
-    connOpts.hostAddress = CFSTR("192.168.1.147");
+    connOpts.hostInterface = CFSTR("en0");// CFSTR("192.168.1.147");
     connOpts.targetAddress = CFSTR("192.168.1.115");
     connOpts.targetPort = CFSTR("3260");
     connOpts.useHeaderDigest = false;
