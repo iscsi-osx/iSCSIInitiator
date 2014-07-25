@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIInitiator.h
  * @date		October 13, 2013
@@ -13,7 +13,7 @@
 
 #define iSCSIInitiator com_NSinenian_iSCSIInitiator
 
-/** This class defines the iSCSI driver entry point. This driver is a virtual
+/*! This class defines the iSCSI driver entry point. This driver is a virtual
  *	device and does control hardware directly. The class iSCSIInitiator acts
  *  as a nub for a virtual host bus adapter (HBA), called the 
  *	iSCSIInitiatorVirtualHBA.  That virtual HBA matches against this class.

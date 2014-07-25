@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIInitiatorClient.cpp
  * @date		October 13, 2013
@@ -10,13 +10,13 @@
 #include "iSCSIInitiatorClient.h"
 #include <IOKit/IOLib.h>
 
-/** Required IOKit macro that defines the constructors, destructors, etc. */
+/*! Required IOKit macro that defines the constructors, destructors, etc. */
 OSDefineMetaClassAndStructors(iSCSIInitiatorClient,IOUserClient);
 
-/** The superclass is defined as a macro to follow IOKit conventions. */
+/*! The superclass is defined as a macro to follow IOKit conventions. */
 #define super IOUserClient
 
-/** Array of methods that can be called by user-space. */
+/*! Array of methods that can be called by user-space. */
 const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumMethods] = {
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::OpenInitiator,
@@ -276,7 +276,7 @@ IOReturn iSCSIInitiatorClient::close()
 	return kIOReturnSuccess;
 }
 
-/** Dispatched function called from the device interface to this user
+/*! Dispatched function called from the device interface to this user
  *	client .*/
 IOReturn iSCSIInitiatorClient::OpenInitiator(iSCSIInitiatorClient * target,
                                              void * reference,
@@ -285,7 +285,7 @@ IOReturn iSCSIInitiatorClient::OpenInitiator(iSCSIInitiatorClient * target,
     return target->open();
 }
 
-/** Dispatched function called from the device interface to this user
+/*! Dispatched function called from the device interface to this user
  *	client .*/
 IOReturn iSCSIInitiatorClient::CloseInitiator(iSCSIInitiatorClient * target,
                                               void * reference,
@@ -294,7 +294,7 @@ IOReturn iSCSIInitiatorClient::CloseInitiator(iSCSIInitiatorClient * target,
     return target->close();
 }
 
-/** Dispatched function invoked from user-space to create new session. */
+/*! Dispatched function invoked from user-space to create new session. */
 IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
                                              void * reference,
                                              IOExternalMethodArguments * args)
@@ -318,7 +318,7 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
     return kIOReturnSuccess;
 }
 
-/** Dispatched function invoked from user-space to release session. */
+/*! Dispatched function invoked from user-space to release session. */
 IOReturn iSCSIInitiatorClient::ReleaseSession(iSCSIInitiatorClient * target,
                                               void * reference,
                                               IOExternalMethodArguments * args)
@@ -355,7 +355,7 @@ IOReturn iSCSIInitiatorClient::GetSessionOptions(iSCSIInitiatorClient * target,
     return kIOReturnError;
 }
 
-/** Dispatched function invoked from user-space to create new connection. */
+/*! Dispatched function invoked from user-space to create new connection. */
 IOReturn iSCSIInitiatorClient::CreateConnection(iSCSIInitiatorClient * target,
                                                 void * reference,
                                                 IOExternalMethodArguments * args)
@@ -376,7 +376,7 @@ IOReturn iSCSIInitiatorClient::CreateConnection(iSCSIInitiatorClient * target,
     return kIOReturnSuccess;
 }
 
-/** Dispatched function invoked from user-space to release connection. */
+/*! Dispatched function invoked from user-space to release connection. */
 IOReturn iSCSIInitiatorClient::ReleaseConnection(iSCSIInitiatorClient * target,
                                                  void * reference,
                                                  IOExternalMethodArguments * args)
@@ -426,7 +426,7 @@ IOReturn iSCSIInitiatorClient::DeactivateAllConnections(iSCSIInitiatorClient * t
     return kIOReturnSuccess;
 }
 
-/** Dispatched function invoked from user-space to send data
+/*! Dispatched function invoked from user-space to send data
  *  over an existing, active connection. */
 IOReturn iSCSIInitiatorClient::SendBHS(iSCSIInitiatorClient * target,
                                        void * reference,
@@ -443,7 +443,7 @@ IOReturn iSCSIInitiatorClient::SendBHS(iSCSIInitiatorClient * target,
     return kIOReturnSuccess;
 }
 
-/** Dispatched function invoked from user-space to send data
+/*! Dispatched function invoked from user-space to send data
  *  over an existing, active connection. */
 IOReturn iSCSIInitiatorClient::SendData(iSCSIInitiatorClient * target,
                                         void * reference,
@@ -463,7 +463,7 @@ IOReturn iSCSIInitiatorClient::SendData(iSCSIInitiatorClient * target,
 
 }
 
-/** Dispatched function invoked from user-space to receive data
+/*! Dispatched function invoked from user-space to receive data
  *  over an existing, active connection, and to retrieve the size of
  *  a user-space buffer that is required to hold the data. */
 IOReturn iSCSIInitiatorClient::RecvBHS(iSCSIInitiatorClient * target,
@@ -484,7 +484,7 @@ IOReturn iSCSIInitiatorClient::RecvBHS(iSCSIInitiatorClient * target,
     return kIOReturnSuccess;
 }
 
-/** Dispatched function invoked from user-space to receive data
+/*! Dispatched function invoked from user-space to receive data
  *  over an existing, active connection, and to retrieve the size of
  *  a user-space buffer that is required to hold the data. */
 IOReturn iSCSIInitiatorClient::RecvData(iSCSIInitiatorClient * target,
@@ -537,7 +537,6 @@ IOReturn iSCSIInitiatorClient::GetConnection(iSCSIInitiatorClient * target,
                                              IOExternalMethodArguments * args)
 {
     // Grab a connection
-    args->scalarOutputCount = 2;
     UInt32 connectionId;
     
     args->scalarOutput[0] = target->provider->GetConnection(

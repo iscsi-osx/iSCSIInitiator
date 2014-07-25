@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIIOEventSource.h
  * @date		October 13, 2013
@@ -26,7 +26,7 @@ struct iSCSIConnection;
 
 struct iSCSITask;
 
-/** This event source wraps around a network socket and provides a software
+/*! This event source wraps around a network socket and provides a software
  *	interrupt when data becomes available at a the socket. It is used to wake
  *	up the driver's workloop and to process incoming data by using a callback
  *	function (see Action private member). The callback function is executed
@@ -43,12 +43,12 @@ class iSCSIIOEventSource : public IOEventSource
     
 public:
     
-	/** Pointer to the method that is called (within the driver's workloop)
+	/*! Pointer to the method that is called (within the driver's workloop)
 	 *	when data becomes available at a network socket. */
     typedef bool (*Action) (iSCSIVirtualHBA::iSCSISession * session,
                             iSCSIVirtualHBA::iSCSIConnection * connection);
 	
-	/** Initializes the event source with an owner and an action.
+	/*! Initializes the event source with an owner and an action.
 	 *	@param owner the owner that this event source will be attached to.
 	 *	@param action pointer to a function to call when processing
 	 *	interrupts.  This function is called by checkForWork() and executes in
@@ -61,7 +61,7 @@ public:
                       iSCSIVirtualHBA::iSCSISession * session,
                       iSCSIVirtualHBA::iSCSIConnection * connection);
 
-	/** Callback function for BSD sockets. Assign this function as the
+	/*! Callback function for BSD sockets. Assign this function as the
 	 *	call back when opening a socket using sock_socket(). Note that the
 	 *	cookie (see sock_socket() documentation) must be an instance of
 	 *	an event source. */
@@ -73,7 +73,7 @@ public:
     
 protected:
 	
-	/** Called by the attached work loop to check if there is any processing
+	/*! Called by the attached work loop to check if there is any processing
 	 *	to be completed.  This fu	nction will call the action method pointed
 	 *	to by this object.
 	 *	@return true if there was work, false otherwise. */
@@ -81,19 +81,19 @@ protected:
 		
 private:
 				
-    /** The iSCSI session associated with this event source. */
+    /*! The iSCSI session associated with this event source. */
     iSCSIVirtualHBA::iSCSISession * session;
     
-    /** The iSCSI connection associated with this event source. */
+    /*! The iSCSI connection associated with this event source. */
     iSCSIVirtualHBA::iSCSIConnection * connection;
     
     queue_head_t taskQueue;
     
-    /** Flag used to indicate whether the task at the head of the queue is a 
+    /*! Flag used to indicate whether the task at the head of the queue is a 
      *  new task that has not yet been processed. */
     bool newTask;
     
-    /** Mutex lock used to prevent simultaneous access to the iSCSI task queue
+    /*! Mutex lock used to prevent simultaneous access to the iSCSI task queue
      *  (e.g., simultaneous calls to addTaskToQueue() and removeTaskFromQueue(). */
     IOSimpleLock * taskQueueLock;
 };

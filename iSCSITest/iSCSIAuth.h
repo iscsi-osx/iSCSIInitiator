@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIAuth.h
  * @date		April 14, 2014
@@ -19,7 +19,7 @@
 struct __iSCSIAuthMethod;
 typedef struct __iSCSIAuthMethod * iSCSIAuthMethodRef;
 
-/** Creates an authentication method block for use with CHAP.  If both secrets
+/*! Creates an authentication method block for use with CHAP.  If both secrets
  *  are used, two-way authentication is used.  Otherwise, 1-way authentication
  *  is used depending on which secret is omitted.  To omitt a secret, pass in
  *  an emptry string for either the user or the secret.
@@ -33,7 +33,7 @@ iSCSIAuthMethodRef iSCSIAuthCreateCHAP(CFStringRef initiatorUser,
                                        CFStringRef targetUser,
                                        CFStringRef targetSecret);
 
-/** Releases an authentication method block, freeing associated resources.
+/*! Releases an authentication method block, freeing associated resources.
  *  @param auth the authentication method block to release. */
 void iSCSIAuthRelease(iSCSIAuthMethodRef auth);
 

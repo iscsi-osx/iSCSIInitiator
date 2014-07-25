@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		main.h
  * @date		June 29, 2014
@@ -11,7 +11,7 @@
 
 CFMutableDictionaryRef args = NULL;
 
-/** Parses command line arguments into a lookup dictionary.
+/*! Parses command line arguments into a lookup dictionary.
  *  @param argc argument count.
  *  @param argv command-line arguments.
  *  @param argDict a dictionary of command-line arguments. */
@@ -31,14 +31,14 @@ void parseArguments(int argc,char * argv[],CFMutableDictionaryRef * argDict)
     
 }
 
-/** Displays a list of valid command-line arguments. */
+/*! Displays a list of valid command-line arguments. */
 void displayHelp()
 {
     
     
 }
 
-/** Entry point.  Parses command line arguments, establishes a connection to the
+/*! Entry point.  Parses command line arguments, establishes a connection to the
  *  iSCSI deamon and executes requested iSCSI tasks. */
 int main(int argc, const char * argv[])
 {

@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSITaskQueue.cpp
  * @date		July 13, 2014
@@ -37,7 +37,7 @@ bool iSCSITaskQueue::init(iSCSIVirtualHBA * owner,
 	return true;
 }
 
-/** Queues a new iSCSI task for delayed processing.
+/*! Queues a new iSCSI task for delayed processing.
  *  @param initiatorTaskTag the iSCSI task tag associated with the task. */
 void iSCSITaskQueue::queueTask(UInt32 initiatorTaskTag)
 {
@@ -66,7 +66,7 @@ void iSCSITaskQueue::queueTask(UInt32 initiatorTaskTag)
     }
 }
 
-/** Removes a task from the queue (either the task has been successfully
+/*! Removes a task from the queue (either the task has been successfully
  *  completed or aborted).
  *  @return the iSCSI task tag for the task that was just completed. */
 UInt32 iSCSITaskQueue::completeCurrentTask()
@@ -100,7 +100,7 @@ UInt32 iSCSITaskQueue::completeCurrentTask()
     return taskTag;
 }
 
-/** Gets the iSCSI task tag of the task that is current being processed.
+/*! Gets the iSCSI task tag of the task that is current being processed.
  *  @return iSCSI task tag of the current task. */
 UInt32 getCurrentTask()
 {
@@ -146,7 +146,7 @@ bool iSCSITaskQueue::checkForWork()
 	return false;
 }
 
-/** Removes all tasks from the queue. */
+/*! Removes all tasks from the queue. */
 void iSCSITaskQueue::clearTasksFromQueue()
 {
     // Ensure the event source is disabled before proceeding...

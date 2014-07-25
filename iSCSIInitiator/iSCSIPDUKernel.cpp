@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIPDUKernel.cpp
  * @date		April 20, 2014
@@ -73,7 +73,7 @@ namespace iSCSIPDU {
         .reserved  = 0,
         .extendedCDB = NULL };
     
-    /** Additional header segment for bi-directional read AHS. */
+    /*! Additional header segment for bi-directional read AHS. */
     const iSCSIPDUBiReadAHS iSCSIPDUBiReadAHSInit = {
         .ahsLength = 0,
         .ahsType = kiSCSIPDUAHSBiRead,

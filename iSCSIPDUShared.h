@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIPDUShared.h
  * @date		April 8, 2014
@@ -30,16 +30,20 @@
 
 ///////////////////// BYTE SIZE OF VARIOUS PDU FIELDS //////////////////////
 
-/** Byte size of the data segment length field in all iSCSI PDUs. */
+/*! Byte size of the data segment length field in all iSCSI PDUs. */
 static const unsigned short kiSCSIPDUDataSegmentLengthSize = 3;
 
 static const unsigned short kiSCSIPDUBasicHeaderSegmentSize = 48;
 
-/** Bit offset within opcode byte for request PDUs that should be set to
+/*! Each PDU must be a multiple of this many bytes.  If the data contained
+ *  in a PDU is less than this value it is padded with zeros. */
+static const unsigned short kiSCSIPDUByteAlignment = 4;
+
+/*! Bit offset within opcode byte for request PDUs that should be set to
  *  '1' to indicate immediate delivery of the PDU. */
 static const UInt8 kiSCSIPDUImmediateDeliveryFlag = 0x40;
 
-/** Fields that are common to the basic header segment of all PDUs.
+/*! Fields that are common to the basic header segment of all PDUs.
  *  The ordering of these fields must not be changed as it matches
  *  the ordering of respective fields in the PDU. */
 typedef struct __iSCSIPDUCommonBHS {
@@ -55,7 +59,7 @@ typedef struct __iSCSIPDUCommonBHS {
     UInt32 reserved4;
 } __attribute__((packed)) iSCSIPDUCommonBHS;
 
-/** Fields that are common to the basic header segment of initiator PDUs.
+/*! Fields that are common to the basic header segment of initiator PDUs.
  *  The ordering of these fields must not be changed as it matches
  *  the ordering of respective fields in the PDU. */
 typedef struct __iSCSIPDUInitiatorBHS {
@@ -73,7 +77,7 @@ typedef struct __iSCSIPDUInitiatorBHS {
     UInt32 reserved4;
 } __attribute__((packed)) iSCSIPDUInitiatorBHS;
 
-/** Fields that are common to the basic header segment of target PDUs.
+/*! Fields that are common to the basic header segment of target PDUs.
  *  The ordering of these fields must not be changed as it matches
  *  the ordering of respective fields in the PDU. */
 typedef struct __iSCSIPDUTargetBHS {
@@ -91,75 +95,73 @@ typedef struct __iSCSIPDUTargetBHS {
     UInt32 reserved3;
 } __attribute__((packed)) iSCSIPDUTargetBHS;
 
-
-
-/**	Op codes are used to code PDUs sent form the initiator to the target.
+/*!	Op codes are used to code PDUs sent form the initiator to the target.
  *  They specify the type of commands or data encoded witin the PDU. */
 enum iSCSIPDUInitiatorOpCodes {
     
-    /** Initiator command for a ping. */
+    /*! Initiator command for a ping. */
     kiSCSIPDUOpCodeNOPOut = 0x00,
     
-    /** SCSI command send by the initiator. */
+    /*! SCSI command send by the initiator. */
     kiSCSIPDUOpCodeSCSICmd = 0x01,
     
-    /** Task management request sent by the initiator. */
+    /*! Task management request sent by the initiator. */
     kiSCSIPDUOpCodeTaskMgmtReq= 0x02,
     
-    /** Login request sent by the initiator. */
+    /*! Login request sent by the initiator. */
     kiSCSIPDUOpCodeLoginReq = 0x03,
     
-    /** Text request sent by the initiator. */
+    /*! Text request sent by the initiator. */
     kiSCSIPDUOpCodeTextReq = 0x04,
     
-    /** Data sent to a target. */
+    /*! Data sent to a target. */
     kiSCSIPDUOpCodeDataOut = 0x05,
     
-    /** Logout request sent by the initiator. */
+    /*! Logout request sent by the initiator. */
     kiSCSIPDUOpCodeLogoutReq = 0x06,
     
-    /** SNACK request sent by the initiator. */
+    /*! SNACK request sent by the initiator. */
     kiSCSIPDUOpCodeSNACKReq = 0x10,
     
-    /** Maximum allowable initiator op code for error-checking. */
+    /*! Maximum allowable initiator op code for error-checking. */
     kiSCSIPDUMaxInitiatorOpCode
 };
 
-/**	Op codes are used to code PDUs sent form the initiator to the target.
+/*!	Op codes are used to code PDUs sent form the initiator to the target.
  *  They specify the type of commands or data encoded witin the PDU. */
 enum iSCSIPDUTargetOpCodes {
     
-    /** Target repsonse for a ping from the initiator. */
+    /*! Target repsonse for a ping from the initiator. */
     kiSCSIPDUOpCodeNOPIn = 0x20,
     
-    /** Target reponse for a SCSI command. */
+    /*! Target reponse for a SCSI command. */
     kiSCSIPDUOpCodeSCSIRsp = 0x21,
     
-    /** Target response to a task management request. */
+    /*! Target response to a task management request. */
     kiSCSIPDUOpCodeTaskMgmtRsp = 0x22,
     
-    /** Target response to a login request. */
+    /*! Target response to a login request. */
     kiSCSIPDUOpCodeLoginRsp = 0x23,
     
-    /** Target response to  a text request. */
+    /*! Target response to  a text request. */
     kiSCSIPDUOpCodeTextRsp = 0x24,
     
-    /** Target response with data (e.g., to a SCSI read request). */
+    /*! Target response with data (e.g., to a SCSI read request). */
     kiSCSIPDUOpCodeDataIn = 0x25,
     
-    /** Target response to a logout request. */
+    /*! Target response to a logout request. */
     kiSCSIPDUOpCodeLogoutRsp = 0x26,
     
-    /** Target response indicating it is ready to transfer. */
+    /*! Target response indicating it is ready to transfer. */
     kiSCSIPDUOpCodeR2T = 0x31,
     
-    /** Asynchronous message from the target. */
+    /*! Asynchronous message from the target. */
     kiSCSIPDUOpCodeAsyncMsg = 0x32,
      
-    /** Response indicating last PDU was rejected. */
+    /*! Response indicating last PDU was rejected. */
     kiSCSIPDUOpCodeReject = 0x3F,
     
-    /** Maximum allowable target op code for error-checking. */
+    /*! Maximum allowable target op code for error-checking. */
     kiSCSIPDUMaxTargetOpCode
 };
 

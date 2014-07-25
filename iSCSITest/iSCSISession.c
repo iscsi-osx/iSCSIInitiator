@@ -1,9 +1,9 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSISession.h
- * @date		November 16, 2013
+ * @date		July 24, 2014
  * @version		1.0
- * @copyright	(c) 2013 Nareg Sinenian. All rights reserved.
+ * @copyright	(c) 2013-2014 Nareg Sinenian. All rights reserved.
  * @brief		User-space iSCSI session management functions.  This library
  *              depends on the user-space iSCSI PDU library to login, logout
  *              and perform discovery functions on iSCSI target nodes.
@@ -13,13 +13,13 @@
 #include "iSCSIPDUUser.h"
 #include "iSCSIKernelInterface.h"
 
-/** The iSCSI error code that is set to a particular value if session management
+/*! The iSCSI error code that is set to a particular value if session management
  *  functions cannot be completed successfully.  This is distinct from errors
  *  associated with system function calls.  If no system error has occured
  *  (e.g., socket API calls) an iSCSI error may still have occured. */
 static UInt16 iSCSILoginResponseCode = 0;
 
-/** Authentication function defined in the authentication modules
+/*! Authentication function defined in the authentication modules
  *  (in the file iSCSIAuth.h). */
 extern errno_t iSCSIAuthNegotiate(UInt16 sessionId,
                                   iSCSIConnectionInfo * connInfo,
@@ -27,15 +27,110 @@ extern errno_t iSCSIAuthNegotiate(UInt16 sessionId,
                                   iSCSIConnectionOptions * connOptions);
 
 const unsigned int kiSCSISessionMaxTextKeyValuePairs = 100;
-const unsigned int kiSCSISessionTimeoutMs = 500;
-const unsigned int kMaxRecvDataSegmentLength = 16384;
-//const UInt32 kLoginQueryTaskTag = 0;
+static const unsigned int kRFC3720_kiSCSISessionTimeoutMs = 500;
 
 
-/** iSCSI default data sequ
-static const bool kiSCSIDataSequenceInOrder =
-static const bool kRFC3720DataPDUInOrder =
-*/
+/////////// RFC3720 ALLOWED VALUES FOR SESSION & CONNECTION PARAMETERS /////////
+
+/*! Default max connections value per RFC3720. */
+static const unsigned int kRFC3720_MaxConnections = 1;
+
+/*! Maximum max connections value per RFC3720. */
+static const unsigned int kRFC3720_MaxConnections_Min = 1;
+
+/*! Minimum max connections value per RFC3720. */
+static const unsigned int kRFC3720_MaxConnections_Max = 65535;
+
+
+
+/*! Default initialR2T connections value per RFC3720. */
+static const bool kRFC3720_InitialR2T = true;
+
+/*! Default immediate data value per RFC3720. */
+static const bool kRFC3720_ImmediateData = true;
+
+
+/*! Default maximum received data segment length value per RFC3720. */
+static const unsigned int kRFC3720_MaxRecvDataSegmentLength = 8192;
+
+/*! Minimum allowed received data segment length value per RFC3720. */
+static const unsigned int kRFC3720_MaxRecvDataSegmentLength_Min = 512;
+
+/*! Maximum allowed received data segment length value per RFC3720. */
+static const unsigned int kRFC3720_MaxRecvDataSegmentLength_Max = (2e24-1);
+
+
+
+/*! Default maximum burst length value per RFC3720. */
+static const unsigned int kRFC3720_MaxBurstLength = 262144;
+
+/*! Minimum maximum burst length value per RFC3720. */
+static const unsigned int kRFC3720_MaxBurstLength_Min = 512;
+
+/*! Maximum maximum burst length value per RFC3720. */
+static const unsigned int kRFC3720_MaxBurstLength_Max = (2e24-1);
+
+
+
+/*! Default first burst length value per RFC3720. */
+static const unsigned int kRFC3720_FirstBurstLength = 65536;
+
+/*! Minimum first burst length value per RFC3720. */
+static const unsigned int kRFC3720_FirstBurstLength_Min = 512;
+
+/*! Maximum first burst length value per RFC3720. */
+static const unsigned int kRFC3720_FirstBurstLength_Max = (2e24-1);
+
+
+/*! Default time to wait value per RFC3720. */
+static const unsigned int kRFC3720_DefaultTime2Wait = 2;
+
+/*! Minimum time to wait value per RFC3720. */
+static const unsigned int kRFC3720_DefaultTime2Wait_Min = 0;
+
+/*! Maximum time to wait value per RFC3720. */
+static const unsigned int kRFC3720_DefaultTime2Wait_Max = 3600;
+
+
+/*! Default time to retain value per RFC3720. */
+static const unsigned int kRFC3720_DefaultTime2Retain = 20;
+
+/*! Minimum time to retain value per RFC3720. */
+static const unsigned int kRFC3720_DefaultTime2Retain_Min = 0;
+
+/*! Maximum time to retain value per RFC3720. */
+static const unsigned int kRFC3720_DefaultTime2Retain_Max = 3600;
+
+
+/*! Default maximum outstanding R2T value per RFC3720. */
+static const unsigned int kRFC3720_MaxOutstandingR2T = 1;
+
+/*! Minimum maximum outstanding R2T value per RFC3720. */
+static const unsigned int kRFC3720_MaxOutstandingR2T_Min = 1;
+
+/*! Maximum maximum outstanding R2T value per RFC3720. */
+static const unsigned int kRFC3720_MaxOutstandingR2T_Max = 65535;
+
+
+/*! Default data PDU in order value per RFC3720. */
+static const bool kRFC3720_DataPDUInOrder = true;
+
+/*! Default data segment in order value per RFC3720. */
+static const bool kRFC3720_DataSequenceInOrder = true;
+
+
+/*! Default error recovery level per RFC3720. */
+static const unsigned int kRFC3720_ErrorRecoveryLevel = 0;
+
+/*! Minimum error recovery level per RFC3720. */
+static const unsigned int kRFC3720_ErrorRecoveryLevel_Min = 0;
+
+/*! Maximum error recovery level per RFC3720. */
+static const unsigned int kRFC3720_ErrorRecoveryLevel_Max = 2;
+
+
+/////////// RFC3720 ALLOWED KEYS FOR SESSION & CONNECTION NEGOTIATION //////////
+
 
 CFStringRef kiSCSILKHeaderDigest = CFSTR("HeaderDigest");
 CFStringRef kiSCSILVHeaderDigestNone = CFSTR("None");
@@ -71,7 +166,7 @@ CFStringRef kiSCSILVErrorRecoveryLevelConnection = CFSTR("2");
 CFStringRef kiSCSILKIFMarker = CFSTR("IFMarker");
 CFStringRef kiSCSILKOFMarker = CFSTR("OFMarker");
 
-/** The following text commands  and corresponding possible values are used
+/*! The following text commands  and corresponding possible values are used
  *  as key-value pairs during the full-feature phase of the connection. */
 CFStringRef kiSCSITKSendTargets = CFSTR("SendTargets");
 CFStringRef kiSCSITVSendTargetsAll = CFSTR("All");
@@ -79,12 +174,16 @@ CFStringRef kiSCSITVSendTargetsAll = CFSTR("All");
 CFStringRef kiSCSILVYes = CFSTR("Yes");
 CFStringRef kiSCSILVNo = CFSTR("No");
 
+
+
+
+
 errno_t iSCSILogoutResponseToErrno(enum iSCSIPDULogoutRsp response)
 {
     return 0;
 }
 
-/** Helper function used during session negotiation.  Returns true if BOTH
+/*! Helper function used during session negotiation.  Returns true if BOTH
  *  the command and the response strings are "Yes" */
 bool iSCSILVGetEqual(CFStringRef cmdStr,CFStringRef rspStr)
 {
@@ -94,7 +193,7 @@ bool iSCSILVGetEqual(CFStringRef cmdStr,CFStringRef rspStr)
     return false;
 }
 
-/** Helper function used during session negotiation.  Returns true if BOTH
+/*! Helper function used during session negotiation.  Returns true if BOTH
  *  the command and the response strings are "Yes" */
 bool iSCSILVGetAnd(CFStringRef cmdStr,CFStringRef rspStr)
 {
@@ -108,7 +207,7 @@ bool iSCSILVGetAnd(CFStringRef cmdStr,CFStringRef rspStr)
     return false;
 }
 
-/** Helper function used during session negotiation.  Returns true if either
+/*! Helper function used during session negotiation.  Returns true if either
  *  one of the command or response strings are "Yes" */
 bool iSCSILVGetOr(CFStringRef cmdStr,CFStringRef rspStr)
 {
@@ -121,7 +220,7 @@ bool iSCSILVGetOr(CFStringRef cmdStr,CFStringRef rspStr)
     return false;
 }
 
-/** Helper function used during session negotiation.  Converts values in 
+/*! Helper function used during session negotiation.  Converts values in 
  *  the command and response strings to numbers and returns the minimum. */
 UInt32 iSCSILVGetMin(CFStringRef cmdStr, CFStringRef rspStr)
 {
@@ -135,7 +234,7 @@ UInt32 iSCSILVGetMin(CFStringRef cmdStr, CFStringRef rspStr)
     return rspInt;
 }
 
-/** Helper function used during session negotiation.  Converts values in
+/*! Helper function used during session negotiation.  Converts values in
  *  the command and response strings to numbers and returns the minimum. */
 UInt32 iSCSILVGetMax(CFStringRef cmdStr, CFStringRef rspStr)
 {
@@ -149,7 +248,14 @@ UInt32 iSCSILVGetMax(CFStringRef cmdStr, CFStringRef rspStr)
     return rspInt;
 }
 
-/** Helper function used throughout the login process to query the target.
+/*! Helper function used during session negotiation.  Checks range of
+ *  a particular value associated with a given key. */
+bool iSCSILVRangeInvalid(UInt32 value,UInt32 min, UInt32 max)
+{
+    return (value < min || value > max);
+}
+
+/*! Helper function used throughout the login process to query the target.
  *  This function will take a dictionary of key-value pairs and send the
  *  appropriate login PDU to the target.  It will then receive one or more
  *  login response PDUs from the target, parse them and return the key-value
@@ -232,35 +338,51 @@ errno_t iSCSISessionLoginQuery(UInt16 sessionId,
     return error;
 }
 
-/** Helper function used by iSCSISessionNegotiateSW to build a dictionary
+/*! Helper function used by iSCSINegotiateSession to build a dictionary
  *  of session options (key-value pairs) that will be sent to the target.
  *  @param sessionInfo a session information object.
  *  @return a dictionary of key-value pairs used to negotiate session
  *  parameters during the iSCSI operational login negotiation. */
-void iSCSISessionNegotiateSWBuildDictNormal(iSCSISessionInfo * sessionInfo,
-                                            CFMutableDictionaryRef sessCmd)
+void iSCSINegotiateBuildSWDictNormal(iSCSISessionInfo * sessionInfo,
+                                     CFMutableDictionaryRef sessCmd)
 {
-    CFDictionaryAddValue(sessCmd,kiSCSILKMaxConnections,CFSTR("1"));
+    CFStringRef value;
+    
+    value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxConnections);
+    CFDictionaryAddValue(sessCmd,kiSCSILKMaxConnections,value);
+    
     CFDictionaryAddValue(sessCmd,kiSCSILKInitialR2T,kiSCSILVNo);
     CFDictionaryAddValue(sessCmd,kiSCSILKImmediateData,kiSCSILVYes);
-    CFDictionaryAddValue(sessCmd,kiSCSILKMaxBurstLength,CFSTR("262144"));
-    CFDictionaryAddValue(sessCmd,kiSCSILKFirstBurstLength,CFSTR("65535"));
-    CFDictionaryAddValue(sessCmd,kiSCSILKMaxOutstandingR2T,CFSTR("1"));
+    
+    value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxBurstLength);
+    CFDictionaryAddValue(sessCmd,kiSCSILKMaxBurstLength,value);
+    
+    value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_FirstBurstLength);
+    CFDictionaryAddValue(sessCmd,kiSCSILKFirstBurstLength,value);
+    
+    value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxOutstandingR2T);
+    CFDictionaryAddValue(sessCmd,kiSCSILKMaxOutstandingR2T,value);
+    
     CFDictionaryAddValue(sessCmd,kiSCSILKDataPDUInOrder,kiSCSILVYes);
     CFDictionaryAddValue(sessCmd,kiSCSILKDataSequenceInOrder,kiSCSILVYes);
 }
 
-/** Helper function used by iSCSISessionNegotiateSW to build a dictionary
+/*! Helper function used by iSCSINegotiateSession to build a dictionary
  *  of session options (key-value pairs) that will be sent to the target.
  *  @param sessionInfo a session information object.
  *  @return a dictionary of key-value pairs used to negotiate session
  *  parameters during the iSCSI operational login negotiation. */
-void iSCSISessionNegotiateSWBuildDictCommon(iSCSISessionInfo * sessionInfo,
-                                            CFMutableDictionaryRef sessCmd)
+void iSCSINegotiateBuildSWDictCommon(iSCSISessionInfo * sessionInfo,
+                                     CFMutableDictionaryRef sessCmd)
 {
+    CFStringRef value;
+    
     // Add key-value pair for time to retain and time to wait
-    CFDictionaryAddValue(sessCmd,kiSCSILKDefaultTime2Wait,CFSTR("0"));
-    CFDictionaryAddValue(sessCmd,kiSCSILKDefaultTime2Retain,CFSTR("0"));
+    value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_DefaultTime2Wait);
+    CFDictionaryAddValue(sessCmd,kiSCSILKDefaultTime2Wait,value);
+    
+    value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_DefaultTime2Retain);
+    CFDictionaryAddValue(sessCmd,kiSCSILKDefaultTime2Retain,value);
     
     // Add key-value pair for error recovery level supported
     CFDictionaryAddValue(sessCmd,
@@ -268,10 +390,10 @@ void iSCSISessionNegotiateSWBuildDictCommon(iSCSISessionInfo * sessionInfo,
                          kiSCSILVErrorRecoveryLevelDigest);
 }
 
-void iSCSISessionNegotiateSWParseDictCommon(iSCSISessionInfo * sessionInfo,
-                                            CFDictionaryRef sessCmd,
-                                            CFDictionaryRef sessRsp,
-                                            iSCSISessionOptions * sessOptions)
+errno_t iSCSINegotiateParseSWDictCommon(iSCSISessionInfo * sessionInfo,
+                                        CFDictionaryRef sessCmd,
+                                        CFDictionaryRef sessRsp,
+                                        iSCSISessionOptions * sessOptions)
 
 {
     // Holds target value & comparison result for keys that we'll process
@@ -281,36 +403,57 @@ void iSCSISessionNegotiateSWParseDictCommon(iSCSISessionInfo * sessionInfo,
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDefaultTime2Retain,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKDefaultTime2Retain);
-        sessOptions->defaultTime2Retain = iSCSILVGetMin(initCmd,targetRsp);
+        UInt32 defaultTime2Retain = CFStringGetIntValue(targetRsp);
+
+        // Range-check value...
+        if(iSCSILVRangeInvalid(defaultTime2Retain,kRFC3720_DefaultTime2Retain_Min,kRFC3720_DefaultTime2Retain_Max))
+            return ENOTSUP;
+        
+        sessOptions->defaultTime2Retain = iSCSILVGetMin(initCmd,targetRsp);;
     }
     else
-        sessOptions->defaultTime2Retain = 1; // Default time to retain
-
+        return ENOTSUP;
+    
     
     // Grab maximum of default time 2 wait
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDefaultTime2Wait,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKDefaultTime2Wait);
-        sessOptions->defaultTime2Wait = iSCSILVGetMax(initCmd,targetRsp);
+        UInt32 defaultTime2Wait = CFStringGetIntValue(targetRsp);
+        
+        // Range-check value...
+        if(iSCSILVRangeInvalid(defaultTime2Wait,kRFC3720_DefaultTime2Wait_Min,kRFC3720_DefaultTime2Wait_Max))
+            return ENOTSUP;
+        
+        sessOptions->defaultTime2Wait = iSCSILVGetMin(initCmd,targetRsp);;
     }
     else
-        sessOptions->defaultTime2Wait = 1; // Default time to retain
+        return ENOTSUP;
 
 
     // Grab minimum value of error recovery level
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKErrorRecoveryLevel,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKErrorRecoveryLevel);
+        UInt32 errorRecoveryLevel = CFStringGetIntValue(targetRsp);
+        
+        // Range-check value...
+        if(iSCSILVRangeInvalid(errorRecoveryLevel,kRFC3720_ErrorRecoveryLevel_Min,kRFC3720_ErrorRecoveryLevel_Max))
+            return ENOTSUP;
+        
         sessOptions->errorRecoveryLevel = iSCSILVGetMin(initCmd,targetRsp);
     }
     else
-        sessOptions->errorRecoveryLevel = 1; // Default time to retain
+        return ENOTSUP;
+    
+    // Success
+    return 0;
 }
 
-void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
-                                            CFDictionaryRef sessCmd,
-                                            CFDictionaryRef sessRsp,
-                                            iSCSISessionOptions * sessOptions)
+errno_t iSCSINegotiateParseSWDictNormal(iSCSISessionInfo * sessionInfo,
+                                        CFDictionaryRef sessCmd,
+                                        CFDictionaryRef sessRsp,
+                                        iSCSISessionOptions * sessOptions)
 
 {
     // Holds target value & comparison result for keys that we'll process
@@ -320,10 +463,16 @@ void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKMaxConnections,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKMaxConnections);
+        UInt32 maxConnections = CFStringGetIntValue(targetRsp);
+        
+        // Range-check value...
+        if(iSCSILVRangeInvalid(maxConnections,kRFC3720_MaxConnections_Min,kRFC3720_MaxConnections_Max))
+            return ENOTSUP;
+        
         sessOptions->maxConnections = iSCSILVGetMin(initCmd,targetRsp);
     }
     else
-        sessOptions->maxConnections = 1; // Default max
+        return ENOTSUP;
     
     // Return value to caller by setting info (it is both an input & output)
     sessionInfo->maxConnections = sessOptions->maxConnections;
@@ -336,7 +485,7 @@ void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
         sessOptions->initialR2T = iSCSILVGetOr(initCmd,targetRsp);
     }
     else
-        sessOptions->initialR2T = true; // Default initial R2T
+        return ENOTSUP;
     
     
     // Grab the AND for immediate data command and response
@@ -346,7 +495,7 @@ void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
         sessOptions->immediateData = iSCSILVGetAnd(initCmd,targetRsp);
     }
     else
-        sessOptions->immediateData = true; // Default immediate data
+        return ENOTSUP;
     
     // Get the OR of data PDU in order
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDataPDUInOrder,(void*)&targetRsp))
@@ -355,7 +504,7 @@ void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
         sessOptions->dataPDUInOrder = iSCSILVGetAnd(initCmd,targetRsp);
     }
     else
-        sessOptions->dataPDUInOrder = true; // Default data PDU in order
+        return ENOTSUP;
     
     // Get the OR of data PDU in order
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDataSequenceInOrder,(void*)&targetRsp))
@@ -364,7 +513,7 @@ void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
         sessOptions->dataSequenceInOrder = iSCSILVGetAnd(initCmd,targetRsp);
     }
     else
-        sessOptions->dataSequenceInOrder = true; // Default data sequence
+        return ENOTSUP;
 
     // Grab minimum of max burst length
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKMaxBurstLength,(void*)&targetRsp))
@@ -373,80 +522,48 @@ void iSCSISessionNegotiateSWParseDictNormal(iSCSISessionInfo * sessionInfo,
         sessOptions->maxBurstLength = iSCSILVGetMin(initCmd,targetRsp);
     }
     else
-        sessOptions->maxBurstLength = 1; // Default max
+        return ENOTSUP;
 
     // Grab minimum of first burst length
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKFirstBurstLength,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKFirstBurstLength);
+        UInt32 firstBurstLength = CFStringGetIntValue(targetRsp);
+        
+        // Range-check value...
+        if(iSCSILVRangeInvalid(firstBurstLength,kRFC3720_FirstBurstLength_Min,kRFC3720_FirstBurstLength_Max))
+            return ENOTSUP;
+        
         sessOptions->firstBurstLength = iSCSILVGetMin(initCmd,targetRsp);
     }
     else
-        sessOptions->firstBurstLength = 1; // Default max
+        return ENOTSUP;
 
     // Grab minimum of max outstanding R2T
     if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKMaxOutstandingR2T,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKMaxOutstandingR2T);
+        UInt32 maxOutStandingR2T = CFStringGetIntValue(targetRsp);
+        
+        // Range-check value...
+        if(iSCSILVRangeInvalid(maxOutStandingR2T,kRFC3720_MaxOutstandingR2T_Min,kRFC3720_MaxOutstandingR2T_Max))
+            return ENOTSUP;
+        
         sessOptions->maxOutStandingR2T = iSCSILVGetMin(initCmd,targetRsp);
     }
     else
-        sessOptions->maxOutStandingR2T = 1; // Default max
+        return ENOTSUP;
+    
+    // Success
+    return 0;
 }
 
-errno_t iSCSISessionNegotiateSW(iSCSISessionInfo * sessionInfo,
-                                iSCSIConnectionInfo * connInfo,
-                                iSCSISessionOptions * sessOptions)
-{
-    // Create a new dictionary for connection parameters we want to send
-    CFMutableDictionaryRef sessCmd = CFDictionaryCreateMutable(
-                                            kCFAllocatorDefault,
-                                            kiSCSISessionMaxTextKeyValuePairs,
-                                            &kCFTypeDictionaryKeyCallBacks,
-                                            &kCFTypeDictionaryValueCallBacks);
-    
-    // Add session parameters common to all session types
-    iSCSISessionNegotiateSWBuildDictCommon(sessionInfo,sessCmd);
-    
-    // If target name is specified, this is a normal session; add parameters
-    if(connInfo->targetName != NULL)
-        iSCSISessionNegotiateSWBuildDictNormal(sessionInfo,sessCmd);
-    
-    // Create a dictionary to store query response
-    CFMutableDictionaryRef sessRsp = CFDictionaryCreateMutable(
-                                            kCFAllocatorDefault,
-                                            kiSCSISessionMaxTextKeyValuePairs,
-                                            &kCFTypeDictionaryKeyCallBacks,
-                                            &kCFTypeDictionaryValueCallBacks);
-    
-    // Send session-wide options to target and retreive a response dictionary
-    errno_t error = iSCSISessionLoginQuery(sessionInfo->sessionId,
-                                              &sessOptions->targetSessionId,
-                                              connInfo,
-                                              kiSCSIPDULoginOperationalNegotiation,
-                                              kiSCSIPDUFullFeaturePhase,
-                                              sessCmd,sessRsp);
-    
-    // Parse dictionaries and store session parameters if no I/O error occured
-    if(!error) {
-        // Parse received dictionary for parameters common to all session types
-        iSCSISessionNegotiateSWParseDictCommon(sessionInfo,sessCmd,sessRsp,sessOptions);
-    
-        if(connInfo->targetName != NULL)
-            iSCSISessionNegotiateSWParseDictNormal(sessionInfo,sessCmd,sessRsp,sessOptions);
-    }
-    
-    CFRelease(sessCmd);
-    CFRelease(sessRsp);
-    return error;
-}
-
-/** Helper function used by iSCSISessionNegotiateCW to build a dictionary
+/*! Helper function used by iSCSISessionNegotiateCW to build a dictionary
  *  of connection options (key-value pairs) that will be sent to the target.
  *  @param connInfo a connection information object.
  *  @param connCmd  a dictionary that is populated with key-value pairs that
  *  will be used to negotiate connection parameters. */
-void iSCSISessionNegotiateCWBuildDict(iSCSIConnectionInfo * connInfo,
+void iSCSINegotiateBuildCWDict(iSCSIConnectionInfo * connInfo,
                                       CFMutableDictionaryRef connCmd)
 {
     // Setup digest options
@@ -462,28 +579,27 @@ void iSCSISessionNegotiateCWBuildDict(iSCSIConnectionInfo * connInfo,
     
     // Setup maximum received data length
     CFStringRef maxRecvLength = CFStringCreateWithFormat(
-        kCFAllocatorDefault,NULL,CFSTR("%u"),kMaxRecvDataSegmentLength);
-
+        kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxRecvDataSegmentLength);
+    
     CFDictionaryAddValue(connCmd,kiSCSILKMaxRecvDataSegmentLength,maxRecvLength);
-    CFRelease(maxRecvLength);
 }
 
-/** Helper function used by iSCSISessionNegotiateCW to parse a dictionary
+/*! Helper function used by iSCSISessionNegotiateCW to parse a dictionary
  *  of connection options received from the target.  This function stores
  *  those options with the kernel.
  *  @param sessionId the session qualifier.
- *  @param connCmd a dictionary of connection commands (key-value pairs) 
+ *  @param connCmd a dictionary of connection commands (key-value pairs)
  *  that were sent to the target.
  *  @param connRsp a dictionary of connection respones (key-value pairs)
  *  @param connInfo a connection information object.
  *  @param connOptions a connection options object used to store options with
  *  the iSCSI kernel extension
  *  there were received from the target. */
-void iSCSISessionNegotiateCWParseDict(UInt16 sessionId,
-                                      CFDictionaryRef connCmd,
-                                      CFDictionaryRef connRsp,
-                                      iSCSIConnectionInfo * connInfo,
-                                      iSCSIConnectionOptions * connOptions)
+errno_t iSCSINegotiateParseCWDict(UInt16 sessionId,
+                                  CFDictionaryRef connCmd,
+                                  CFDictionaryRef connRsp,
+                                  iSCSIConnectionInfo * connInfo,
+                                  iSCSIConnectionOptions * connOptions)
 
 {
     // Holds target value & comparison result for keys that we'll process
@@ -514,21 +630,92 @@ void iSCSISessionNegotiateCWParseDict(UInt16 sessionId,
     // Set connection options and send to kernel
     connOptions->useDataDigest = connInfo->useDataDigest;
     connOptions->useHeaderDigest = connInfo->useHeaderDigest;
-    connOptions->maxRecvDataSegmentLength = kMaxRecvDataSegmentLength;
     
+    // This option is declarative; we sent the default length, and the target
+    // must accept our choice as it is within a valid range
+    connOptions->maxRecvDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
+    
+    // This is the declaration made by the target as to the length it can
+    // receive.  Accept the value if it is within the RFC3720 allowed range
+    // otherwise, terminate the connection...
     if(CFDictionaryGetValueIfPresent(connRsp,kiSCSILKMaxRecvDataSegmentLength,(void*)&targetRsp))
-        connOptions->maxSendDataSegmentLength = 8192;/////////TOODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    else
-        connOptions->maxSendDataSegmentLength = 8192;
-
+    {
+        UInt32 maxSendDataSegmentLength = CFStringGetIntValue(targetRsp);
+        
+        // Range-check value...
+        if(iSCSILVRangeInvalid(maxSendDataSegmentLength,kRFC3720_MaxRecvDataSegmentLength_Min,kRFC3720_MaxRecvDataSegmentLength_Max))
+            return ENOTSUP;
+        
+        connOptions->maxSendDataSegmentLength = maxSendDataSegmentLength;
+    }
+    else // If the target doesn't explicitly declare this, use the default
+        connOptions->maxSendDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
+    
+    // Success
+    return 0;
 }
 
-/** Helper function.  Negotiates operational parameters for a connection
+
+errno_t iSCSINegotiateSession(iSCSISessionInfo * sessionInfo,
+                              iSCSIConnectionInfo * connInfo,
+                              iSCSISessionOptions * sessOptions,
+                              iSCSIConnectionOptions * connOptions)
+{
+    // Create a new dictionary for connection parameters we want to send
+    CFMutableDictionaryRef sessCmd = CFDictionaryCreateMutable(
+                                            kCFAllocatorDefault,
+                                            kiSCSISessionMaxTextKeyValuePairs,
+                                            &kCFTypeDictionaryKeyCallBacks,
+                                            &kCFTypeDictionaryValueCallBacks);
+    
+    // Add session parameters common to all session types
+    iSCSINegotiateBuildSWDictCommon(sessionInfo,sessCmd);
+    
+    // If target name is specified, this is a normal session; add parameters
+    if(connInfo->targetName != NULL)
+        iSCSINegotiateBuildSWDictNormal(sessionInfo,sessCmd);
+    
+    // Add connection parameters
+    iSCSINegotiateBuildCWDict(connInfo,sessCmd);
+    
+    // Create a dictionary to store query response
+    CFMutableDictionaryRef sessRsp = CFDictionaryCreateMutable(
+                                            kCFAllocatorDefault,
+                                            kiSCSISessionMaxTextKeyValuePairs,
+                                            &kCFTypeDictionaryKeyCallBacks,
+                                            &kCFTypeDictionaryValueCallBacks);
+    
+    // Send session-wide options to target and retreive a response dictionary
+    errno_t error = iSCSISessionLoginQuery(sessionInfo->sessionId,
+                                              &sessOptions->targetSessionId,
+                                              connInfo,
+                                              kiSCSIPDULoginOperationalNegotiation,
+                                              kiSCSIPDUFullFeaturePhase,
+                                              sessCmd,sessRsp);
+    
+    // Parse dictionaries and store session parameters if no I/O error occured
+    if(!error)
+        error = iSCSINegotiateParseSWDictCommon(sessionInfo,sessCmd,sessRsp,sessOptions);
+    
+    if(!error)
+        if(connInfo->targetName != NULL)
+            error = iSCSINegotiateParseSWDictNormal(sessionInfo,sessCmd,sessRsp,sessOptions);
+    
+    if(!error)
+        error = iSCSINegotiateParseCWDict(sessionInfo->sessionId,sessCmd,sessRsp,connInfo,connOptions);
+    
+    CFRelease(sessCmd);
+    CFRelease(sessRsp);
+    return error;
+}
+
+
+/*! Helper function.  Negotiates operational parameters for a connection
  *  as part of the login and connection instantiation process. */
-errno_t iSCSISessionNegotiateCW(UInt16 sessionId,
-                                UInt16 targetSessionId,
-                                iSCSIConnectionInfo * connInfo,
-                                iSCSIConnectionOptions * connOptions)
+errno_t iSCSINegotiateConnection(UInt16 sessionId,
+                                 UInt16 targetSessionId,
+                                 iSCSIConnectionInfo * connInfo,
+                                 iSCSIConnectionOptions * connOptions)
 {
     // Create a dictionary to store query request
     CFMutableDictionaryRef connCmd = CFDictionaryCreateMutable(
@@ -538,7 +725,7 @@ errno_t iSCSISessionNegotiateCW(UInt16 sessionId,
                                             &kCFTypeDictionaryValueCallBacks);
     
     // Populate dictionary with connection options based on connInfo
-    iSCSISessionNegotiateCWBuildDict(connInfo,connCmd);
+    iSCSINegotiateBuildCWDict(connInfo,connCmd);
 
     // Create a dictionary to store query response
     CFMutableDictionaryRef connRsp = CFDictionaryCreateMutable(
@@ -562,17 +749,16 @@ errno_t iSCSISessionNegotiateCW(UInt16 sessionId,
                                               connCmd,connRsp);
 
     // If no error, parse received dictionary and store connection options
-    if(!error) {
-        // Parse received dictionary, store options with kernel
-        iSCSISessionNegotiateCWParseDict(sessionId,connCmd,
-                                         connRsp,connInfo,connOptions);
-    }
+    if(!error)
+        error = iSCSINegotiateParseCWDict(sessionId,connCmd,
+                                          connRsp,connInfo,connOptions);
+
     CFRelease(connCmd);
     CFRelease(connRsp);
     return error;
 }
 
-/** Helper function used to log out of connections and sessions. */
+/*! Helper function used to log out of connections and sessions. */
 errno_t iSCSISessionLogoutCommon(UInt16 sessionId,
                                  UInt32 connectionId,
                                  enum iSCSIPDULogoutReasons logoutReason)
@@ -614,7 +800,7 @@ errno_t iSCSISessionLogoutCommon(UInt16 sessionId,
     return error;
 }
 
-/** Helper function used to resolve target nodes as specified by connInfo.
+/*! Helper function used to resolve target nodes as specified by connInfo.
  *  The target nodes specified in connInfo may be a DNS name, an IPv4 or
  *  IPv6 address. */
 errno_t iSCSISessionResolveNode(iSCSIConnectionInfo * connInfo,
@@ -655,8 +841,7 @@ errno_t iSCSISessionResolveNode(iSCSIConnectionInfo * connInfo,
     return 0;
 }
 
-errno_t iSCSISessionAddConnection(UInt16 sessionId,
-                                  iSCSIConnectionInfo * connInfo)
+errno_t iSCSIAddConnection(UInt16 sessionId,iSCSIConnectionInfo * connInfo)
 {
     if(sessionId == kiSCSIInvalidSessionId || !connInfo)
         return EINVAL;
@@ -683,8 +868,7 @@ errno_t iSCSISessionAddConnection(UInt16 sessionId,
     return error;
 }
 
-errno_t iSCSISessionRemoveConnection(UInt16 sessionId,
-                                     UInt16 connectionId)
+errno_t iSCSIRemoveConnection(UInt16 sessionId,UInt16 connectionId)
 {
     if(sessionId >= kiSCSIInvalidSessionId || connectionId >= kiSCSIInvalidConnectionId)
         return EINVAL;
@@ -698,7 +882,7 @@ errno_t iSCSISessionRemoveConnection(UInt16 sessionId,
         return error;
     
     if(numConnections == 1)
-        return iSCSISessionRelease(sessionId);
+        return iSCSIReleaseSession(sessionId);
     
     // Deactivate connection before we remove it (this is optional but good
     // practice, as the kernel will deactivate the connection for us).
@@ -714,14 +898,14 @@ errno_t iSCSISessionRemoveConnection(UInt16 sessionId,
     return error;
 }
 
-/** Creates a normal iSCSI session and returns a handle to the session. Users
- *  must call iSCSISessionRelease to close this session and free resources.
+/*! Creates a normal iSCSI session and returns a handle to the session. Users
+ *  must call iSCSIReleaseSession to close this session and free resources.
  *  @param sessionInfo parameters associated with the normal session. A new
  *  sessionId is assigned and returned.
  *  @param connInfo parameters associated with the connection. A new
  *  connectionId is assigned and returned.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
+errno_t iSCSICreateSession(iSCSISessionInfo * sessionInfo,
                            iSCSIConnectionInfo * connInfo)
 
 {
@@ -764,16 +948,9 @@ errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
                                    &sessOptions,&connOptions);
     }
 
-    // If no error, negotiate connection-wide (CW) parameters
-    if(!error) {
-        error = iSCSISessionNegotiateCW(sessionInfo->sessionId,
-                                        sessOptions.targetSessionId,
-                                        connInfo,&connOptions);
-    }
-
-    // If no error, negotiate session-wide (SW) parameters
+    // Negotiate session & connection parameters
     if(!error)
-        error = iSCSISessionNegotiateSW(sessionInfo,connInfo,&sessOptions);
+        error = iSCSINegotiateSession(sessionInfo,connInfo,&sessOptions,&connOptions);
     
     if(error) {
         iSCSIKernelReleaseSession(sessionInfo->sessionId);
@@ -794,15 +971,14 @@ errno_t iSCSISessionCreate(iSCSISessionInfo * sessionInfo,
     return error;
 }
 
-
-/** Closes the iSCSI session by deactivating and removing all connections. Any
+/*! Closes the iSCSI session by deactivating and removing all connections. Any
  *  pending or current data transfers are aborted. This function may be called 
  *  on a session with one or more connections that are either inactive or 
  *  active. The session identifier is released and may be reused by other
  *  sessions the future.
  *  @param sessionId the session to release.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSISessionRelease(UInt16 sessionId)
+errno_t iSCSIReleaseSession(UInt16 sessionId)
 {
     if(sessionId >= kiSCSIInvalidSessionId)
         return  EINVAL;
@@ -818,14 +994,13 @@ errno_t iSCSISessionRelease(UInt16 sessionId)
     if(!(error = iSCSIKernelGetConnection(sessionId,&connectionId)))
         iSCSISessionLogoutCommon(sessionId, connectionId, kiSCSIPDULogoutCloseSession);
 
-    
     // Release all of the connections in the kernel by releasing the session
     iSCSIKernelReleaseSession(sessionId);
     
     return error;
 }
 
-/** Gets a list of targets associated with a particular session.
+/*! Gets a list of targets associated with a particular session.
  *  @param sessionId the session (discovery or normal) to use.
  *  @param connectionId the connection ID to use.
  *  @param targetList a list of targets retreived from teh iSCSI node.
@@ -890,21 +1065,4 @@ errno_t iSCSISessionGetTargetList(UInt16 sessionId,
 */
     return 0;
 }
-    
-
-    
-///// TODO:
-// 1. make key=value function add to an existing dictionary as necessary
-// (assume keys dont' break mid-PDU)
-
-        // 2. Finalize structs that serve as arguments to session functions, fix
-        // contents and ensure that values to be returned to daemon client are included
-
-// 3. store settings once session negotiation is complete - do this for session
-// and for connection.
-// 4. add session and connection activation functions (and / or?) decided how
-// this will work and add them to kernel, interface, and call them from user
-// 5. hide interface layer from damone entirely
-
-
 

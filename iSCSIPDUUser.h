@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIPDUUser.h
  * @date		April 8, 2014
@@ -18,7 +18,7 @@
 #include "iSCSIPDUShared.h"
 #include <CoreFoundation/CoreFoundation.h>
 
-/** Basic header segment for a login request PDU. */
+/*! Basic header segment for a login request PDU. */
 typedef struct __iSCSIPDULoginReqBHS {
     const UInt8 opCodeAndDeliveryMarker;
     UInt8 loginStage;
@@ -38,7 +38,7 @@ typedef struct __iSCSIPDULoginReqBHS {
     UInt32 expStatSN;
 } __attribute__((packed)) iSCSIPDULoginReqBHS;
 
-/** Basic header segment for a login response PDU. */
+/*! Basic header segment for a login response PDU. */
 typedef struct __iSCSIPDULoginRspBHS {
     const UInt8 opCode;
     UInt8 loginStage;
@@ -60,7 +60,7 @@ typedef struct __iSCSIPDULoginRspBHS {
     UInt8 statusDetail;
 } __attribute__((packed)) iSCSIPDULoginRspBHS;
 
-/** Basic header segment for a logout request PDU. */
+/*! Basic header segment for a logout request PDU. */
 typedef struct __iSCSIPDULogoutReqBHS {
     const UInt8 opCodeAndDeliveryMarker;
     UInt8 reasonCode;
@@ -76,7 +76,7 @@ typedef struct __iSCSIPDULogoutReqBHS {
 } __attribute__((packed)) iSCSIPDULogoutReqBHS;
 
 
-/** Basic header segment for a logout response PDU. */
+/*! Basic header segment for a logout response PDU. */
 typedef struct __iSCSIPDULogoutRspBHS {
     const UInt8 opCode;
     UInt8 reserved1;
@@ -95,7 +95,7 @@ typedef struct __iSCSIPDULogoutRspBHS {
     UInt16 time2Retain;
 } __attribute__((packed)) iSCSIPDULogoutRspBHS;
 
-/** Basic header segment for a text request PDU. */
+/*! Basic header segment for a text request PDU. */
 typedef struct __iSCSIPDUTextReqBHS {
     const UInt8 opCodeAndDeliveryMarker;
     UInt8 textReqStageFlags;
@@ -109,7 +109,7 @@ typedef struct __iSCSIPDUTextReqBHS {
     UInt32 expStatSN;
 } __attribute__((packed)) iSCSIPDUTextReqBHS;
 
-/** Basic header segment for a text response PDU. */
+/*! Basic header segment for a text response PDU. */
 typedef struct __iSCSIPDUTextRspBHS {
     const UInt8 opCode;
     UInt8 textReqStageBits;
@@ -124,73 +124,75 @@ typedef struct __iSCSIPDUTextRspBHS {
     UInt32 maxCmdSN;
 } __attribute__((packed)) iSCSIPDUTextRspBHS;
 
-/** Default initialized value for this PDU type. */
+/*! Default initialization for a logout request PDU. */
 extern const iSCSIPDULogoutReqBHS iSCSIPDULogoutReqBHSInit;
 
+/*! Default initialization for a login request PDU. */
 extern const iSCSIPDULoginReqBHS iSCSIPDULoginReqBHSInit;
 
+/*! Default initialization for a text request PDU. */
 extern const iSCSIPDUTextReqBHS iSCSIPDUTextReqBHSInit;
 
 
-/** Possible stages of the login process, used with login BHS. */
+/*! Possible stages of the login process, used with login BHS. */
 enum iSCSIPDULoginStages {
-    /** Security negotiation, where initiator/target authenticate
+    /*! Security negotiation, where initiator/target authenticate
      *  each other. */
     kiSCSIPDUSecurityNegotiation = 0,
     
-    /** Operational negotation, where initiator/target negotiate
+    /*! Operational negotation, where initiator/target negotiate
      *  whether to use digests, etc. */
     kiSCSIPDULoginOperationalNegotiation = 1,
     
-    /** Full feature phase, where PDUs other than login PDUs can be
+    /*! Full feature phase, where PDUs other than login PDUs can be
      *  sent or received. */
     kiSCSIPDUFullFeaturePhase = 3
 };
 
-/** Reasons for issuing a logout PDU, used with logout BHS. */
+/*! Reasons for issuing a logout PDU, used with logout BHS. */
 enum iSCSIPDULogoutReasons {
-    /** All commands associated with the session are terminated. 
+    /*! All commands associated with the session are terminated. 
      *  (A session may consist of multiple connections.) */
     kiSCSIPDULogoutCloseSession = 0x00,
     
-    /** All commands associated with the connection are terminated. */
+    /*! All commands associated with the connection are terminated. */
     kISCSIPDULogoutCloseConnection = 0x01,
     
-    /** The connection is removed and commands associated with the
+    /*! The connection is removed and commands associated with the
      *  connection are prepared for association with a new connection. */
     kISCSIPDULogoutRemoveConnectionForRecovery = 0x02
 };
 
-/** Responses from a target to a logout request, received within logout BHS. */
+/*! Responses from a target to a logout request, received within logout BHS. */
 enum iSCSIPDULogoutRsp {
     
-    /** The logout was successfully completed. */
+    /*! The logout was successfully completed. */
     kiSCSIPDULogoutRspSuccess = 0x00,
     
-    /** The connection Id was not found. */
+    /*! The connection Id was not found. */
     kiSCSIPDULogoutRspCIDNotFound = 0x01,
     
-    /** Recovery is not supported for this connection or session. */
+    /*! Recovery is not supported for this connection or session. */
     kiSCSIPDULogoutRspRecoveryUnsupported = 0x02,
     
-    /** Cleanup failed during logout. */
+    /*! Cleanup failed during logout. */
     kiSCSIPDULogoutRspCleanupFailed = 0x03
 };
 
-/** General login responses from a target, receivd within login BHS. */
+/*! General login responses from a target, receivd within login BHS. */
 enum iSCSIPDULoginRspStatusClass {
     
-    /** Successfully logged onto the target. */
+    /*! Successfully logged onto the target. */
     kiSCSIPDULCSuccess = 0x00,
     
-    /** The target has moved, the response contains redirection
+    /*! The target has moved, the response contains redirection
      *  text keys ("TargetAddress=") that can be used to reconnect. */
     kiSCSIPDULCRedirection = 0x01,
     
-    /** Initiator error (e.g., permission denied to requested resource). */
+    /*! Initiator error (e.g., permission denied to requested resource). */
     kiSCSIPDULCInitiatorError = 0x02,
     
-    /** Target error (e.g., target can't fulfill request). */
+    /*! Target error (e.g., target can't fulfill request). */
     kiSCISPDULCTargetError = 0x03
 };
 
@@ -200,20 +202,20 @@ enum iSCSIPDULoginRspStatusClass {
 // the header iSCSIPDUShared.h.
 
 
-/** Bit offsets here start with the low-order bit (e.g., a 0 here corresponds
+/*! Bit offsets here start with the low-order bit (e.g., a 0 here corresponds
  *  to the LSB and would correspond to bit 7 if the data was in big-endian
  *  format (this representation is endian neutral with bitwise operators). */
 
-/** Next login stage bit offset of the login stage byte. */
+/*! Next login stage bit offset of the login stage byte. */
 extern const unsigned short kiSCSIPDULoginNSGBitOffset;
 
-/** Current login stage bit offset of the login stage byte. */
+/*! Current login stage bit offset of the login stage byte. */
 extern const unsigned short kiSCSIPDULoginCSGBitOffset;
 
-/** Continue the current stage bit offset. */
+/*! Continue the current stage bit offset. */
 extern const UInt8 kiSCSIPDULoginContinueFlag;
 
-/** Transit to next stage bit offset. */
+/*! Transit to next stage bit offset. */
 extern const UInt8 kiSCSIPDULoginTransitFlag;
 
 ///////////////////////////  LOGOUT BHS DEFINITIONS ////////////////////////////
@@ -221,7 +223,7 @@ extern const UInt8 kiSCSIPDULoginTransitFlag;
 // Definitions that are used for more than one type of PDU can be found in
 // the header iSCSIPDUShared.h.
 
-/** Flag that must be applied to the reason code byte of the logout PDU. */
+/*! Flag that must be applied to the reason code byte of the logout PDU. */
 extern const unsigned short kISCSIPDULogoutReasonCodeFlag;
 
 
@@ -230,15 +232,15 @@ extern const unsigned short kISCSIPDULogoutReasonCodeFlag;
 // Definitions that are used for more than one type of PDU can be found in
 // the header iSCSIPDUShared.h.
 
-/** Bit offset for the final bit indicating this is the last PDU in the
+/*! Bit offset for the final bit indicating this is the last PDU in the
  *  text request. */
 extern const unsigned short kiSCSIPDUTextReqFinalFlag;
 
-/** Bit offset for the continue bit indicating more text commands are to
+/*! Bit offset for the continue bit indicating more text commands are to
  *  follow for this text request. */
 extern const unsigned short kiSCSIPDUTextReqContinueFlag;
 
-/** Get the value of the data segment length field of a PDU.
+/*! Get the value of the data segment length field of a PDU.
  *  @param bhs the basic header segment of a PDU.
  *  @return the value of the data segment length. */
 static inline size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUCommonBHS * bhs)
@@ -249,21 +251,21 @@ static inline size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUCommonBHS * bhs)
     return length;
 }
 
-/** Creates a PDU data segment consisting of key-value pairs from a dictionary.
+/*! Creates a PDU data segment consisting of key-value pairs from a dictionary.
  *  @param textDict the user-specified dictionary to use.
  *  @param data a pointer to a pointer the data, returned by this function.
  *  @param length the length of the data block, returned by this function. */
 void iSCSIPDUDataCreateFromDict(CFDictionaryRef textDict,void * * data,size_t * length);
 
-/** Creates a PDU data segment of the specified size.
+/*! Creates a PDU data segment of the specified size.
  *  @param length the byte size of the data segment. */
 void * iSCSIPDUDataCreate(size_t length);
 
-/** Releases a PDU data segment created using an iSCSIPDUDataCreate... function.
+/*! Releases a PDU data segment created using an iSCSIPDUDataCreate... function.
  *  @param data pointer to the data segment pointer to release. */
 void iSCSIPDUDataRelease(void * * data);
 
-/** Parses key-value pairs to a dictionary.
+/*! Parses key-value pairs to a dictionary.
  *  @param data the data segment (from a PDU) to parse.
  *  @param length the length of the data segment.
  *  @param textDict a dictionary of key-value pairs. */

@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSITaskQueue.h
  * @date		July 13, 2014
@@ -19,7 +19,7 @@
 
 struct iSCSITask;
 
-/** Provides an iSCSI task queue for an iSCSI HBA.  The HBA queues tasks as
+/*! Provides an iSCSI task queue for an iSCSI HBA.  The HBA queues tasks as
  *  it receives them from the SCSI layer by calling queueTask().
  *  This queue will invoke a callback function gated against
  *  the HBA workloop to process new tasks as existing tasks are completed.
@@ -31,14 +31,14 @@ class iSCSITaskQueue : public IOEventSource
 
 public:
     
-    /** Pointer to the method that is called (within the driver's workloop)
+    /*! Pointer to the method that is called (within the driver's workloop)
 	 *	when data becomes available at a network socket. */
     typedef bool (*Action) (iSCSIVirtualHBA * owner,
                             iSCSIVirtualHBA::iSCSISession * session,
                             iSCSIVirtualHBA::iSCSIConnection * connection,
                             UInt32 initiatorTaskTag);
 	
-	/** Initializes the event source with an owner and an action.
+	/*! Initializes the event source with an owner and an action.
 	 *	@param owner the owner that this event source will be attached to.
 	 *	@param action pointer to a function to call when processing
 	 *	interrupts.  This function is called by checkForWork() and executes in
@@ -51,25 +51,25 @@ public:
                       iSCSIVirtualHBA::iSCSISession * session,
                       iSCSIVirtualHBA::iSCSIConnection * connection);
     
-    /** Queues a new iSCSI task for delayed processing. 
+    /*! Queues a new iSCSI task for delayed processing. 
      *  @param initiatorTaskTag the iSCSI task tag associated with the task. */
     void queueTask(UInt32 initiatorTaskTag);
     
-    /** Removes a task from the queue (either the task has been successfully
+    /*! Removes a task from the queue (either the task has been successfully
      *  completed or aborted).
      *  @return the iSCSI task tag for the task that was just completed. */
     UInt32 completeCurrentTask();
     
-    /** Removes all tasks from the queue. */
+    /*! Removes all tasks from the queue. */
     void clearTasksFromQueue();
     
-    /** Gets the iSCSI task tag of the task that is current being processed.
+    /*! Gets the iSCSI task tag of the task that is current being processed.
      *  @return iSCSI task tag of the current task. */
     UInt32 getCurrentTask();
     
 protected:
     
-    /** Called by the attached work loop to check if there is any processing
+    /*! Called by the attached work loop to check if there is any processing
 	 *	to be completed.  This fu	nction will call the action method pointed
 	 *	to by this object.
 	 *	@return true if there was work, false otherwise. */
@@ -77,15 +77,15 @@ protected:
 
 private:
     
-    /** The iSCSI session associated with this event source. */
+    /*! The iSCSI session associated with this event source. */
     iSCSIVirtualHBA::iSCSISession * session;
     
-    /** The iSCSI connection associated with this event source. */
+    /*! The iSCSI connection associated with this event source. */
     iSCSIVirtualHBA::iSCSIConnection * connection;
     
     queue_head_t taskQueue;
     
-    /** Mutex lock used to prevent simultaneous access to the iSCSI task queue
+    /*! Mutex lock used to prevent simultaneous access to the iSCSI task queue
      *  (e.g., simultaneous calls to addTaskToQueue() and removeTaskFromQueue(). */
     IOSimpleLock * taskQueueLock;
     

@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIVirtualHBA.cpp
  * @date		October 13, 2013
@@ -23,100 +23,100 @@
 
 using namespace iSCSIPDU;
 
-/** Maximum number of connections allowed per session. */
+/*! Maximum number of connections allowed per session. */
 const UInt16 iSCSIVirtualHBA::kMaxConnectionsPerSession = 1;
 
-/** Maximum number of session allowed (globally). */
+/*! Maximum number of session allowed (globally). */
 const UInt16 iSCSIVirtualHBA::kMaxSessions = 16;
 
-/** Highest LUN supported by the virtual HBA.  Due to internal design 
+/*! Highest LUN supported by the virtual HBA.  Due to internal design 
  *  contraints, this number should never exceed 2**8 - 1 or 255 (8-bits). */
 const SCSILogicalUnitNumber iSCSIVirtualHBA::kHighestLun = 63;
 
-/** Highest SCSI device ID supported by the HBA. */
+/*! Highest SCSI device ID supported by the HBA. */
 const SCSIDeviceIdentifier iSCSIVirtualHBA::kHighestSupportedDeviceId = kMaxSessions - 1;
 
-/** Maximum number of SCSI tasks the HBA can handle. */
+/*! Maximum number of SCSI tasks the HBA can handle. */
 const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
 
-/** Definition of a single connection that is associated with a particular
+/*! Definition of a single connection that is associated with a particular
  *  iSCSI session. */
 struct iSCSIVirtualHBA::iSCSIConnection {
     
-    /** Status sequence number expected by the initiator. */
+    /*! Status sequence number expected by the initiator. */
     UInt32 expStatSN;
     
-    /** Connection ID. */
+    /*! Connection ID. */
     UInt32 CID;
     
-    /** Target tag for current transfer. */
+    /*! Target tag for current transfer. */
     UInt32 targetTransferTag;
     
-    /** Socket used for communication. */
+    /*! Socket used for communication. */
     socket_t socket;
     
-    /** Used to keep track of R2T PDUs. */
+    /*! Used to keep track of R2T PDUs. */
     UInt32 R2TSN;
     
-    /** Mutex lock used to prevent simultaneous Send/Recv from different
+    /*! Mutex lock used to prevent simultaneous Send/Recv from different
      *  threads (e.g., workloop thread and other threads). */
     IOLock * PDUIOLock;
     
-    /** Event source used to signal the Virtual HBA that data has been
+    /*! Event source used to signal the Virtual HBA that data has been
      *  received and needs to be processed. */
     iSCSIIOEventSource * dataRecvEventSource;
     
-    /** iSCSI task queue used to manage tasks for this connection. */
+    /*! iSCSI task queue used to manage tasks for this connection. */
     iSCSITaskQueue * taskQueue;
     
-    /** Options associated with this connection. */
+    /*! Options associated with this connection. */
     iSCSIConnectionOptions opts;
     
-    /** The maximum length of data allowed for immediate data (data sent as part
+    /*! The maximum length of data allowed for immediate data (data sent as part
      *  of a command PDU).  This parameter is derived by taking the lesser of
      *  the FirstBurstLength and the maxSendDataSegmentLength.  The former
      *  is a session option while the latter is a connection option. */
     UInt32 immediateDataLength;
 };
 
-/** Definition of a single iSCSI session.  Each session is comprised of one
+/*! Definition of a single iSCSI session.  Each session is comprised of one
  *  or more connections as defined by the struct iSCSIConnection.  Each session
  *  is further associated with an initiator session ID (ISID), a target session
  *  ID (TSIH), a target IP address, a target name, and a target alias. */
 struct iSCSIVirtualHBA::iSCSISession {
     
-    /** The initiator session ID, which is also used as the target ID within
+    /*! The initiator session ID, which is also used as the target ID within
      *  this kernel extension since there is a 1-1 mapping. */
     UInt16 sessionId;
     
-    /** The target session identifying handle. */
+    /*! The target session identifying handle. */
     UInt16 TSIH;
     
-    /** Command sequence number to be used for the next initiator command. */
+    /*! Command sequence number to be used for the next initiator command. */
     UInt32 cmdSN;
     
-    /** Command seqeuence number expected by the target. */
+    /*! Command seqeuence number expected by the target. */
     UInt32 expCmdSN;
     
-    /** Maximum command seqeuence number allowed. */
+    /*! Maximum command seqeuence number allowed. */
     UInt32 maxCmdSN;
     
-    /** Connections associated with this session. */
+    /*! Connections associated with this session. */
     iSCSIConnection * * connections;
     
-    /** Options associated with this session. */
+    /*! Options associated with this session. */
     iSCSISessionOptions opts;
     
-    /** Number of active connections. */
+    /*! Number of active connections. */
     UInt32 numActiveConnections;
     
-    /** Total number of connections (either active or inactive). */
+    /*! Total number of connections (either active or inactive). */
     UInt32 numConnections;
     
-    /** Initiator tag for the newest task. */
+    /*! Initiator tag for the newest task. */
     UInt32 initiatorTaskTag;
     
-    /** Indicates whether session is active, which means that a SCSI target
+    /*! Indicates whether session is active, which means that a SCSI target
      *  exists and is backing the the iSCSI session. */
     bool active;
     
@@ -1016,7 +1016,7 @@ void iSCSIVirtualHBA::TuneConnectionTimeout(iSCSISession * session,
 
 //////////////////////////////// iSCSI FUNCTIONS ///////////////////////////////
 
-/** Allocates a new iSCSI session and returns a session qualifier ID.
+/*! Allocates a new iSCSI session and returns a session qualifier ID.
  *  @return a valid session qualifier (part of the ISID, see RF3720) or
  *  0 if a new session could not be created. */
 errno_t iSCSIVirtualHBA::CreateSession(int domain,
@@ -1105,7 +1105,7 @@ SESSION_ID_ALLOC_FAILURE:
 
 }
 
-/** Releases an iSCSI session, including all connections associated with that
+/*! Releases an iSCSI session, including all connections associated with that
  *  session.
  *  @param sessionId the session qualifier part of the ISID. */
 void iSCSIVirtualHBA::ReleaseSession(UInt16 sessionId)
@@ -1136,7 +1136,7 @@ void iSCSIVirtualHBA::ReleaseSession(UInt16 sessionId)
     sessionList[sessionId] = NULL;
 }
 
-/** Sets options associated with a particular session.
+/*! Sets options associated with a particular session.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param options the options to set.
  *  @return error code indicating result of operation. */
@@ -1160,7 +1160,7 @@ errno_t iSCSIVirtualHBA::SetSessionOptions(UInt16 sessionId,
     return 0;
 }
 
-/** Gets options associated with a particular session.
+/*! Gets options associated with a particular session.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param options the options to get.  The user of this function is
  *  responsible for allocating and freeing the options struct.
@@ -1184,7 +1184,7 @@ errno_t iSCSIVirtualHBA::GetSessionOptions(UInt16 sessionId,
     return 0;
 }
 
-/** Allocates a new iSCSI connection associated with the particular session.
+/*! Allocates a new iSCSI connection associated with the particular session.
  *  @param sessionId the session to create a new connection for.
  *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
  *  @param address the BSD socket structure used to identify the target.
@@ -1305,7 +1305,7 @@ IOLOCK_ALLOC_FAILURE:
     return error;
 }
 
-/** Frees a given iSCSI connection associated with a given session.
+/*! Frees a given iSCSI connection associated with a given session.
  *  The session should be logged out using the appropriate PDUs. */
 void iSCSIVirtualHBA::ReleaseConnection(UInt16 sessionId,
                                         UInt32 connectionId)
@@ -1355,7 +1355,7 @@ void iSCSIVirtualHBA::ReleaseConnection(UInt16 sessionId,
     DBLog("iSCSI: Released connection.\n");
 }
 
-/** Activates an iSCSI connection, indicating to the kernel that the iSCSI
+/*! Activates an iSCSI connection, indicating to the kernel that the iSCSI
  *  daemon has negotiated security and operational parameters and that the
  *  connection is in the full-feature phase.
  *  @param sessionId the session to deactivate.
@@ -1395,7 +1395,7 @@ errno_t iSCSIVirtualHBA::ActivateConnection(UInt16 sessionId,UInt32 connectionId
     return 0;
 }
 
-/** Activates all iSCSI connections for the session, indicating to the
+/*! Activates all iSCSI connections for the session, indicating to the
  *  kernel that the iSCSI daemon has negotiated security and operational
  *  parameters and that the connection is in the full-feature phase.
  *  @param sessionId the session to deactivate.
@@ -1420,7 +1420,7 @@ errno_t iSCSIVirtualHBA::ActivateAllConnections(UInt16 sessionId)
     return 0;
 }
 
-/** Deactivates an iSCSI connection so that parameters can be adjusted or
+/*! Deactivates an iSCSI connection so that parameters can be adjusted or
  *  negotiated by the iSCSI daemon.
  *  @param sessionId the session to deactivate.
  *  @param connectionId the connection to deactivate.
@@ -1475,7 +1475,7 @@ errno_t iSCSIVirtualHBA::DeactivateConnection(UInt16 sessionId,UInt32 connection
 }
 
 
-/** Deactivates all iSCSI connections so that parameters can be adjusted or
+/*! Deactivates all iSCSI connections so that parameters can be adjusted or
  *  negotiated by the iSCSI daemon.
  *  @param sessionId the session to deactivate.
  *  @return error code indicating result of operation. */
@@ -1503,9 +1503,7 @@ errno_t iSCSIVirtualHBA::DeactivateAllConnections(UInt16 sessionId)
     return 0;
 }
 
-
-
-/** Gets the first connection (the lowest connectionId) for the
+/*! Gets the first connection (the lowest connectionId) for the
  *  specified session.
  *  @param sessionId obtain an connectionId for this session.
  *  @param connectionId the identifier of the connection.
@@ -1534,7 +1532,7 @@ errno_t iSCSIVirtualHBA::GetConnection(UInt16 sessionId,UInt32 * connectionId)
     return 0;
 }
 
-/** Gets the connection count for the specified session.
+/*! Gets the connection count for the specified session.
  *  @param sessionId obtain the connection count for this session.
  *  @param numConnections the connection count.
  *  @return error code indicating result of operation. */
@@ -1559,7 +1557,7 @@ errno_t iSCSIVirtualHBA::GetNumConnections(UInt16 sessionId,UInt32 * numConnecti
     return 0;
 }
 
-/** Sends data over a kernel socket associated with iSCSI.  If the specified
+/*! Sends data over a kernel socket associated with iSCSI.  If the specified
  *  data segment length is not a multiple of 4-bytes, padding bytes will be 
  *  added to the data segment of the PDU per RF3720 specification.
  *  This function will automatically calculate the data segment length
@@ -1665,7 +1663,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
 }
 
 
-/** Gets whether a PDU is available for receiption on a particular
+/*! Gets whether a PDU is available for receiption on a particular
  *  connection.
  *  @param the connection to check.
  *  @return true if a PDU is available, false otherwise. */
@@ -1679,7 +1677,7 @@ bool iSCSIVirtualHBA::isPDUAvailable(iSCSIConnection * connection)
 }
 
 
-/** Receives a basic header segment over a kernel socket.
+/*! Receives a basic header segment over a kernel socket.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @param bhs the basic header segment received.
@@ -1744,7 +1742,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     return result;
 }
 
-/** Receives a data segment over a kernel socket.  If the specified length is 
+/*! Receives a data segment over a kernel socket.  If the specified length is 
  *  not a multiple of 4-bytes, the padding bytes will be discarded per 
  *  RF3720 specification (all data segment are multiples of 4 bytes).
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
@@ -1840,7 +1838,7 @@ iSCSIVirtualHBA::message(UInt32 type, IOService *provider, void *argument)
 
 
 
-/** Wrapper around SendPDU for user-space calls.
+/*! Wrapper around SendPDU for user-space calls.
  *  Sends data over a kernel socket associated with iSCSI.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
@@ -1872,7 +1870,7 @@ errno_t iSCSIVirtualHBA::SendPDUUser(UInt16 sessionId,
     return SendPDU(theSession,theConn,bhs,NULL,data,dataLength);
 }
 
-/** Wrapper around RecvPDUHeader for user-space calls.
+/*! Wrapper around RecvPDUHeader for user-space calls.
  *  Receives a basic header segment over a kernel socket.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
@@ -1900,7 +1898,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeaderUser(UInt16 sessionId,
     return RecvPDUHeader(theSession,theConn,bhs,MSG_WAITALL);
 }
 
-/** Wrapper around RecvPDUData for user-space calls.
+/*! Wrapper around RecvPDUData for user-space calls.
  *  Receives a data segment over a kernel socket.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
@@ -1930,7 +1928,7 @@ errno_t iSCSIVirtualHBA::RecvPDUDataUser(UInt16 sessionId,
     return RecvPDUData(theSession,theConn,data,length,MSG_WAITALL);
 }
 
-/** Sets options associated with a particular connection.
+/*! Sets options associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @param options the options to set.
@@ -1982,7 +1980,7 @@ errno_t iSCSIVirtualHBA::SetConnectionOptions(UInt16 sessionId,
     return 0;
 }
 
-/** Gets options associated with a particular connection.
+/*! Gets options associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @param options the options to get.  The user of this function is

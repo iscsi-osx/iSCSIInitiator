@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIKernelInterface.c
  * @date		March 14, 2014
@@ -13,7 +13,7 @@
 static io_service_t service;
 static io_connect_t connection;
 
-/** Opens a connection to the iSCSI initiator.  A connection must be
+/*! Opens a connection to the iSCSI initiator.  A connection must be
  *  successfully opened before any of the supporting functions below can be
  *  called. */
 kern_return_t iSCSIKernelInitialize()
@@ -52,7 +52,7 @@ kern_return_t iSCSIKernelInitialize()
     return IOConnectCallScalarMethod(connection,kiSCSIOpenInitiator,0,0,0,0);
 }
 
-/** Closes a connection to the iSCSI initiator. */
+/*! Closes a connection to the iSCSI initiator. */
 kern_return_t iSCSIKernelCleanUp()
 {
     kern_return_t kernResult =
@@ -65,7 +65,7 @@ kern_return_t iSCSIKernelCleanUp()
     return kernResult;
 }
 
-/** Allocates a new iSCSI session in the kernel and creates an associated
+/*! Allocates a new iSCSI session in the kernel and creates an associated
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
  *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
@@ -112,7 +112,7 @@ errno_t iSCSIKernelCreateSession(int domain,
     return EINVAL;
 }
 
-/** Releases an iSCSI session, including all connections associated with that
+/*! Releases an iSCSI session, including all connections associated with that
  *  session.
  *  @param sessionId the session qualifier part of the ISID. */
 void iSCSIKernelReleaseSession(UInt16 sessionId)
@@ -128,7 +128,7 @@ void iSCSIKernelReleaseSession(UInt16 sessionId)
     IOConnectCallScalarMethod(connection,kiSCSIReleaseSession,&input,inputCnt,0,0);
 }
 
-/** Sets options associated with a particular connection.
+/*! Sets options associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param options the options to set.
  *  @return error code indicating result of operation. */
@@ -150,7 +150,7 @@ errno_t iSCSIKernelSetSessionOptions(UInt16 sessionId,
     return EIO;
 }
 
-/** Gets options associated with a particular connection.
+/*! Gets options associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param options the options to get.  The user of this function is
  *  responsible for allocating and freeing the options struct.
@@ -174,7 +174,7 @@ errno_t iSCSIKernelGetSessionOptions(UInt16 sessionId,
     return EIO;
 }
 
-/** Allocates an additional iSCSI connection for a particular session.
+/*! Allocates an additional iSCSI connection for a particular session.
  *  @param sessionId the session to create a new connection for.
  *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
  *  @param targetAddress the BSD socket structure used to identify the target.
@@ -218,7 +218,7 @@ errno_t iSCSIKernelCreateConnection(UInt16 sessionId,
     return EINVAL;
 }
 
-/** Frees a given
+/*! Frees a given
  iSCSI connection associated with a given session.
  *  The session should be logged out using the appropriate PDUs. */
 void iSCSIKernelReleaseConnection(UInt16 sessionId,UInt32 connectionId)
@@ -235,7 +235,7 @@ void iSCSIKernelReleaseConnection(UInt16 sessionId,UInt32 connectionId)
 }
 
 
-/** Sends data over a kernel socket associated with iSCSI.
+/*! Sends data over a kernel socket associated with iSCSI.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @param bhs the basic header segment to send over the connection.
@@ -279,7 +279,7 @@ errno_t iSCSIKernelSend(UInt16 sessionId,
     return EINVAL;
 }
 
-/** Receives data over a kernel socket associated with iSCSI.
+/*! Receives data over a kernel socket associated with iSCSI.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @param bhs the basic header segment received over the connection.
@@ -343,7 +343,7 @@ errno_t iSCSIKernelRecv(UInt16 sessionId,
 }
 
 
-/** Sets options associated with a particular connection.
+/*! Sets options associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @param options the options to set.
@@ -368,7 +368,7 @@ errno_t iSCSIKernelSetConnectionOptions(UInt16 sessionId,
     return EIO;
 }
 
-/** Gets options associated with a particular connection.
+/*! Gets options associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @param options the options to get.  The user of this function is
@@ -396,7 +396,7 @@ errno_t iSCSIKernelGetConnectionOptions(UInt16 sessionId,
     return EIO;
 }
 
-/** Activates an iSCSI connection associated with a session.
+/*! Activates an iSCSI connection associated with a session.
  *  @param sessionId session associated with connection to activate.
  *  @param connectionId  connection to activate.
  *  @return error code inidicating result of operation. */
@@ -423,7 +423,7 @@ errno_t iSCSIKernelActivateConnection(UInt16 sessionId,UInt32 connectionId)
     return EINVAL;
 }
 
-/** Activates all iSCSI connections associated with a session.
+/*! Activates all iSCSI connections associated with a session.
  *  @param sessionId session associated with connection to activate.
  *  @return error code inidicating result of operation. */
 errno_t iSCSIKernelActivateAllConnections(UInt16 sessionId)
@@ -449,7 +449,7 @@ errno_t iSCSIKernelActivateAllConnections(UInt16 sessionId)
 }
 
 
-/** Dectivates an iSCSI connection associated with a session.
+/*! Dectivates an iSCSI connection associated with a session.
  *  @param sessionId session associated with connection to deactivate.
  *  @param connectionId  connection to deactivate.
  *  @return error code inidicating result of operation. */
@@ -476,7 +476,7 @@ errno_t iSCSIKernelDeactivateConnection(UInt16 sessionId,UInt32 connectionId)
     return EINVAL;
 }
 
-/** Dectivates all iSCSI sessions associated with a session.
+/*! Dectivates all iSCSI sessions associated with a session.
  *  @param sessionId session associated with connections to deactivate.
  *  @return error code inidicating result of operation. */
 errno_t iSCSIKernelDeactivateAllConnections(UInt16 sessionId)
@@ -501,7 +501,7 @@ errno_t iSCSIKernelDeactivateAllConnections(UInt16 sessionId)
     return EINVAL;
 }
 
-/** Gets the first connection (the lowest connectionId) for the
+/*! Gets the first connection (the lowest connectionId) for the
  *  specified session.
  *  @param sessionId obtain an connectionId for this session.
  *  @param connectionId the identifier of the connection.
@@ -515,12 +515,12 @@ errno_t iSCSIKernelGetConnection(UInt16 sessionId,UInt32 * connectionId)
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    UInt64 output;
-    UInt32 outputCnt = 2;
     const UInt32 expOutputCnt = 2;
+    UInt64 output[expOutputCnt];
+    UInt32 outputCnt = expOutputCnt;
     
     if(IOConnectCallScalarMethod(connection,kiSCSIGetConnection,
-                                 &input,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
+                                 &input,inputCnt,output,&outputCnt) == kIOReturnSuccess)
     {
         if(outputCnt == expOutputCnt)
             return (errno_t)output;
@@ -529,7 +529,7 @@ errno_t iSCSIKernelGetConnection(UInt16 sessionId,UInt32 * connectionId)
 
 }
 
-/** Gets the connection count for the specified session.
+/*! Gets the connection count for the specified session.
  *  @param sessionId obtain the connection count for this session.
  *  @param numConnections the connection count.
  *  @return error code indicating result of operation. */
@@ -542,12 +542,12 @@ errno_t iSCSIKernelGetNumConnections(UInt16 sessionId,UInt32 * numConnections)
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    UInt64 output;
-    UInt32 outputCnt = 2;
     const UInt32 expOutputCnt = 2;
+    UInt64 output[expOutputCnt];
+    UInt32 outputCnt = expOutputCnt;
     
     if(IOConnectCallScalarMethod(connection,kiSCSIGetNumConnections,
-                                 &input,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
+                                 &input,inputCnt,output,&outputCnt) == kIOReturnSuccess)
     {
         if(outputCnt == expOutputCnt)
             return (errno_t)output;

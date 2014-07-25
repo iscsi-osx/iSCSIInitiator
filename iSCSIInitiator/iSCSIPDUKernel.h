@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIPDUKernel.h
  * @date		April 20, 2013
@@ -20,40 +20,40 @@
 
 namespace iSCSIPDU {
     
-    /** Size of a normal SCSI command descriptor block (CDB). */
+    /*! Size of a normal SCSI command descriptor block (CDB). */
     static const UInt8 kiSCSIPDUCDBSize = 16;
     
-    /** Digests are 4 bytes. */
+    /*! Digests are 4 bytes. */
     static const UInt8 kiSCSIPDUDigestSize = 4;
     
-    /** Reserved target transfer tag value. */
+    /*! Reserved target transfer tag value. */
     static const UInt32 kiSCSIPDUTargetTransferTagReserved = 0xFFFFFFFF;
 
     
     ///////////////////// For use with SCSI command PDUs ///////////////////////
     
-    /** No unsolicited data out PDU follows the SCSI command. */
+    /*! No unsolicited data out PDU follows the SCSI command. */
     static const UInt8 kiSCSIPDUSCSICmdFlagNoUnsolicitedData = 0x80;
 
-    /** Indicates a SCSI write command. */
+    /*! Indicates a SCSI write command. */
     static const UInt8 kiSCSIPDUSCSICmdFlagWrite = 0x20;
 
-    /** Indicates a SCSI read command. */
+    /*! Indicates a SCSI read command. */
     static const UInt8 kiSCSIPDUSCSICmdFlagRead = 0x40;
     
-    /** An untagged SCSI command. */
+    /*! An untagged SCSI command. */
     static const UInt8 kiSCSIPDUSCSICmdTaskAttrUntagged = 0x00;
 
-    /** A simple SCSI command. */
+    /*! A simple SCSI command. */
     static const UInt8 kiSCSIPDUSCSICmdTaskAttrSimple = 0x01;
 
-    /** An ordered SCSI command. */
+    /*! An ordered SCSI command. */
     static const UInt8 kiSCSIPDUSCSICmdTaskAttrOrdered = 0x02;
 
-    /** A head of queue SCSI command. */
+    /*! A head of queue SCSI command. */
     static const UInt8 kiSCSIPDUSCSICmdTaskAttrHead = 0x03;
 
-    /** An ACA SCSI command. */
+    /*! An ACA SCSI command. */
     static const UInt8 kiSCSIPDUSCSICmdTaskAttrACA = 0x04;
     
     
@@ -105,7 +105,7 @@ namespace iSCSIPDU {
     
     
     
-    /** Basic header segment for a data in PDU. */
+    /*! Basic header segment for a data in PDU. */
     typedef struct __iSCSIPDUDataInBHS {
         const UInt8 opCode;
         UInt8 flags;
@@ -124,7 +124,7 @@ namespace iSCSIPDU {
         UInt32 residualCount;
     } __attribute__((packed)) iSCSIPDUDataInBHS;
     
-    /** Basic header segment for a data out PDU. */
+    /*! Basic header segment for a data out PDU. */
     typedef struct __iSCSIPDUDataOutBHS {
         const UInt8 opCode;
         UInt8 flags;
@@ -142,7 +142,7 @@ namespace iSCSIPDU {
         UInt32 reserved4;
     } __attribute__((packed)) iSCSIPDUDataOutBHS;
     
-    /** Basic header segment for a SCSI command PDU. */
+    /*! Basic header segment for a SCSI command PDU. */
     typedef struct __iSCSIPDUSCSICmdBHS {
         const UInt8 opCode;
         UInt8 flags;
@@ -157,7 +157,7 @@ namespace iSCSIPDU {
         UInt8 CDB[kiSCSIPDUCDBSize];
     } __attribute__((packed)) iSCSIPDUSCSICmdBHS;
     
-    /** Basic header segment for a SCSI response PDU. */
+    /*! Basic header segment for a SCSI response PDU. */
     typedef struct __iSCSIPDUSCSIRspBHS {
         const UInt8 opCode;
         UInt8 flags;
@@ -176,7 +176,7 @@ namespace iSCSIPDU {
         UInt32 residualCount;
     } __attribute__((packed)) iSCSIPDUSCSIRspBHS;
     
-    /** Basic header segment for a target management request PDU. */
+    /*! Basic header segment for a target management request PDU. */
     typedef struct __iSCSIPDUTaskMgmtReqBHS {
         const UInt8 opCode;
         UInt8 function;
@@ -193,7 +193,7 @@ namespace iSCSIPDU {
         UInt64 reserved2;
     } __attribute__((packed)) iSCSIPDUTaskMgmtReqBHS;
     
-    /** Basic header segment for a target management response PDU. */
+    /*! Basic header segment for a target management response PDU. */
     typedef struct __iSCSIPDUTaskMgmtRspBHS {
         const UInt8 opCode;
         UInt8 flags;
@@ -211,7 +211,7 @@ namespace iSCSIPDU {
         UInt32 reserved5;
     } __attribute__((packed)) iSCSIPDUTaskMgmtRspBHS;
     
-    /** Basic header segment for an R2T PDU. */
+    /*! Basic header segment for an R2T PDU. */
     typedef struct __iSCSIPDUR2TBHS {
         const UInt8 opCode;
         UInt8 flags;
@@ -229,7 +229,7 @@ namespace iSCSIPDU {
         UInt32 desiredDataLength;
     } __attribute__((packed)) iSCSIPDUR2TBHS;
     
-    /** Basic header segment for a SNACK request PDU. */
+    /*! Basic header segment for a SNACK request PDU. */
     typedef struct __iSCSIPDUSNACKReqBHS {
         const UInt8 opCode;
         UInt8 flags;
@@ -246,7 +246,7 @@ namespace iSCSIPDU {
         UInt32 runLength;
     } __attribute__((packed)) iSCSIPDUSNACKReqBHS;
     
-    /** Basic header segment for a NOP out PDU. */
+    /*! Basic header segment for a NOP out PDU. */
     typedef struct __iSCSIPDUNOPOutBHS {
         const UInt8 opCode;
         UInt8 flags;
@@ -262,7 +262,7 @@ namespace iSCSIPDU {
         UInt64 reserved3;
     } __attribute__((packed)) iSCSIPDUNOPOutBHS;
     
-    /** Basic header segment for an NOP in PDU. */
+    /*! Basic header segment for an NOP in PDU. */
     typedef struct __iSCSIPDUNOPInBHS {
         const UInt8 opCode;
         UInt8 flags;
@@ -279,14 +279,14 @@ namespace iSCSIPDU {
         UInt64 reserved3;
     } __attribute__((packed)) iSCSIPDUNOPInBHS;
     
-    /** Additional header segment format common to all AHS. */
+    /*! Additional header segment format common to all AHS. */
     typedef struct __iSCSIPDUCommonAHS {
         UInt16 ahsLength;
         const UInt8  ahsType;
         UInt8  reserved;
     } __attribute__((packed)) iSCSIPDUCommonAHS;
     
-    /** Additional header segmetn for extended CDBs. */
+    /*! Additional header segmetn for extended CDBs. */
     typedef struct __iSCSIPDUExtCDBAHS {
         UInt16 ahsLength;
         const UInt8  ahsType;
@@ -294,7 +294,7 @@ namespace iSCSIPDU {
         UInt8  * extendedCDB;
     } __attribute__((packed)) iSCSIPDUExtCDBAHS;
     
-    /** Additional header segment for bi-directional read AHS. */
+    /*! Additional header segment for bi-directional read AHS. */
     typedef struct __iSCSIPDUBiReadAHS {
         UInt16 ahsLength;
         const UInt8  ahsType;
@@ -302,23 +302,23 @@ namespace iSCSIPDU {
         UInt32 readDataLength;
     } __attribute__((packed)) iSCSIPDUBiReadAHS;
     
-    /** Additional header segment types for PDUs. */
+    /*! Additional header segment types for PDUs. */
     enum iSCSIPDUAHSTypes {
         
-        /** Extended CDB AHS. */
+        /*! Extended CDB AHS. */
         kiSCSIPDUAHSExtCDB = 0x01,
         
-        /** Bi-directional read AHS. */
+        /*! Bi-directional read AHS. */
         kiSCSIPDUAHSBiRead = 0x02,
     };
     
-    /** SCSI response PDU valid values for the response field. */
+    /*! SCSI response PDU valid values for the response field. */
     enum iSCSIPDUSCSIRspBHSResponse {
         
-        /** Command was completed at the target. */
+        /*! Command was completed at the target. */
         kiSCSIPDUSCSICmdCompleted = 0x00,
         
-        /** Target failure. */
+        /*! Target failure. */
         kiSCSIPDUSCSICmdTargetFailure = 0x01
     };
     

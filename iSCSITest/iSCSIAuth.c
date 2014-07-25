@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIAuth.c
  * @date		April 14, 2014
@@ -16,7 +16,7 @@
 #include "iSCSIKernelInterface.h"
 
 
-/** Defined by the session layer and used during authentication here. */
+/*! Defined by the session layer and used during authentication here. */
 extern unsigned int kiSCSISessionMaxTextKeyValuePairs;
 extern errno_t iSCSISessionLoginQuery(UInt16 sessionId,
                                       UInt16 * targetSessionId,
@@ -50,53 +50,53 @@ CFStringRef kiSCSILKAuthCHAPChallenge = CFSTR("CHAP_C");
 CFStringRef kiSCSILKAuthCHAPResponse = CFSTR("CHAP_R");
 CFStringRef kiSCSILKAuthCHAPName = CFSTR("CHAP_N");
 
-/** Authentication methods to be used by the NewConnectionInfo struct. */
+/*! Authentication methods to be used by the NewConnectionInfo struct. */
 enum iSCSIAuthMethods {
     
-    /** No authentication. */
+    /*! No authentication. */
     kiSCSIAuthNone = 0,
     
-    /** CHAP authentication. */
+    /*! CHAP authentication. */
     kiSCSIAuthCHAP = 1,
 };
 
 
-/** Struct used during the authentication process. */
+/*! Struct used during the authentication process. */
 typedef struct __iSCSIAuthMethod
 {
-    /** The authentication type. */
+    /*! The authentication type. */
     enum iSCSIAuthMethods authMethod;
     
 } iSCSIAuthMethod;
 
 
-/** Struct used for CHAP authentication.  The target secret and user name
+/*! Struct used for CHAP authentication.  The target secret and user name
  *  are mandatory and are used by the target to authenticate the initiator.
  *  The initiator fields may be left blank (empty string) in which case the 
  *  target will authenticate the initiator, and the target won't be
  *  authenticated by the initiator. */
 typedef struct __iSCSIAuthMethodCHAP
 {
-    /** The authentication method (this is always kiSCSIAuthCHAP). */
+    /*! The authentication method (this is always kiSCSIAuthCHAP). */
     enum iSCSIAuthMethods authMethod;
     
-    /** Target password used to authenticate initiator (required). */
+    /*! Target password used to authenticate initiator (required). */
     CFStringRef targetSecret;
     
-    /** Target user name used to authenticate initiator (required). */
+    /*! Target user name used to authenticate initiator (required). */
     CFStringRef targetUser;
     
-    /** Initiator password used to authenticate target (optional). */
+    /*! Initiator password used to authenticate target (optional). */
     CFStringRef initiatorSecret;
     
-    /** Initiator user name used to authenticate target  (optional). */
+    /*! Initiator user name used to authenticate target  (optional). */
     CFStringRef initiatorUser;
 
     
 } iSCSIAuthMethodCHAP;
 
 
-/** Creates an authentication method block for use with CHAP.  If both secrets
+/*! Creates an authentication method block for use with CHAP.  If both secrets
  *  are used, two-way authentication is used.  Otherwise, 1-way authentication
  *  is used depending on which secret is omitted.  To omitt a secret, pass in
  *  an emptry string for either the user or the secret.
@@ -139,7 +139,7 @@ iSCSIAuthMethodRef iSCSIAuthCreateCHAP(CFStringRef initiatorUser,
     return (iSCSIAuthMethodRef)authMeth;
 }
 
-/** Releases an authentication method block, freeing associated resources.
+/*! Releases an authentication method block, freeing associated resources.
  *  @param auth the authentication method block to release. */
 void iSCSIAuthRelease(iSCSIAuthMethodRef auth)
 {
@@ -163,7 +163,7 @@ void iSCSIAuthRelease(iSCSIAuthMethodRef auth)
 }
 
 
-/** Helper function.  Create a null-terminated byte array that holds the
+/*! Helper function.  Create a null-terminated byte array that holds the
  *  value represented by the hexidecimal string. Handles strings with or
  *  without a 0x prefix.  Use free() to free the allocated byte array. */
 size_t CreateByteArrayFromHexString(CFStringRef hexStr,UInt8 * * bytes)
@@ -212,7 +212,7 @@ size_t CreateByteArrayFromHexString(CFStringRef hexStr,UInt8 * * bytes)
     return byteLength;
 }
 
-/** Helper function.  Creates a CFString object that holds the hexidecimal
+/*! Helper function.  Creates a CFString object that holds the hexidecimal
  *  representation of the values contained in the byte array.  Use CFRelease()
  *  to free the CFString object created by this function (this follows the
  *  Core Foundation "Create" rule). */
@@ -294,7 +294,7 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateId()
     return CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%d"),id);
 }
 
-/** Helper function for iSCSIConnectionSecurityNegotiate.  Once it has been
+/*! Helper function for iSCSIConnectionSecurityNegotiate.  Once it has been
  *  determined that a CHAP session is to be used, this function will perform
  *  the CHAP authentication. */
 errno_t iSCSIAuthNegotiateCHAP(UInt16 sessionId,
@@ -433,7 +433,7 @@ void iSCSIAuthNegotiateBuildDict(iSCSIConnectionInfo * connInfo,
     CFDictionaryAddValue(authCmd,kiSCSILKAuthMethod,authMeth);
 }
 
-/** Helper function.  Called by session or connection creation functions to
+/*! Helper function.  Called by session or connection creation functions to
  *  begin authentication between the initiator and a selected target. */
 errno_t iSCSIAuthNegotiate(UInt16 sessionId,
                            iSCSIConnectionInfo * connInfo,

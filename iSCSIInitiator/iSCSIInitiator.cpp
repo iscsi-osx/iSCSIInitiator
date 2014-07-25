@@ -1,4 +1,4 @@
-/**
+/*!
  * @author		Nareg Sinenian
  * @file		iSCSIInitiator.cpp
  * @date		October 13, 2013
@@ -10,10 +10,10 @@
 #include "iSCSIInitiator.h"
 #include "iSCSIInterfaceShared.h"
 
-/** Required IOKit macro that defines the constructors, destructors, etc. */
+/*! Required IOKit macro that defines the constructors, destructors, etc. */
 OSDefineMetaClassAndStructors(iSCSIInitiator,IOService);
 
-/** The superclass is defined as a macro to follow IOKit conventions. */
+/*! The superclass is defined as a macro to follow IOKit conventions. */
 #define super IOService
 
 bool iSCSIInitiator::init(OSDictionary * dictionary)
