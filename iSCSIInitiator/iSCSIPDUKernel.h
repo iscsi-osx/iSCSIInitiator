@@ -246,6 +246,47 @@ namespace iSCSIPDU {
         UInt32 runLength;
     } __attribute__((packed)) iSCSIPDUSNACKReqBHS;
     
+    /*! Basic header segment for a reject PDU. */
+    typedef struct __iSCSIPDURejectBHS {
+        const UInt8 opCode;
+        UInt8 reserved;
+        UInt8 reason;
+        UInt8 reserved2;
+        UInt8 totalAHSLength;
+        UInt8 dataSegmentLength[kiSCSIPDUDataSegmentLengthSize];
+        UInt64 reserved3;
+        UInt32 reserved4;
+        UInt32 flag;
+        UInt32 reserved5;
+        UInt32 statSN;
+        UInt32 expCmdSN;
+        UInt32 maxCmdSN;
+        UInt32 dataSNorR2TSN;
+        UInt32 reserved6;
+        UInt32 reserved7;
+    } __attribute__((packed)) iSCSIPDURejectBHS;
+    
+    /*! Basic header segment for an asynchronous message PDU. */
+    typedef  struct __iSCSIPDUAsyncMsgBHS {
+        const UInt8 opCode;
+        UInt8 reserved;
+        UInt16 reserved2;
+        UInt8 totalAHSLength;
+        UInt8 dataSegmentLength[kiSCSIPDUDataSegmentLengthSize];
+        UInt64 LUN;
+        UInt32 flag;
+        UInt32 reserved3;
+        UInt32 statSN;
+        UInt32 expCmdSN;
+        UInt32 maxCmdSN;
+        UInt8 asyncEvent;
+        UInt8 asyncVCode;
+        UInt16 parameter1;
+        UInt16 parameter2;
+        UInt16 parameter3;
+        UInt32 reserved6;
+    } __attribute__((packed)) iSCSIPDUAsyncMsgBHS;
+    
     /*! Basic header segment for a NOP out PDU. */
     typedef struct __iSCSIPDUNOPOutBHS {
         const UInt8 opCode;
@@ -320,6 +361,28 @@ namespace iSCSIPDU {
         
         /*! Target failure. */
         kiSCSIPDUSCSICmdTargetFailure = 0x01
+    };
+    
+    /*! Asynchronous message event codes. */
+    enum iSCSIPDUAsyncMsgEvent {
+        
+        /*! SCSI asynchronous event (with sense data). */
+        kiSCSIPDUAsyncMsgSCSIAsyncMsg = 0x00,
+        
+        /*! Target requests logout. */
+        kiSCSIPDUAsyncMsgLogout = 0x01,
+        
+        /*! Target will drop connection. */
+        kiSCSIPDUAsynMsgDropConnection = 0x02,
+        
+        /*! Target will drop all connections. */
+        kiSCSIPDUAsyncMsgDropAllConnections = 0x03,
+        
+        /*! Target requests parameter renegotiation. */
+        kiSCSIPDUAsyncMsgNegotiateParams = 0x04,
+        
+        /*! Vendor specific event. */
+        kiSCSIPDUAsyncMsgVendorCode = 0xFF
     };
     
     inline size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUTargetBHS * bhs)

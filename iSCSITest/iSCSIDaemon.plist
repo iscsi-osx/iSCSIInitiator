@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>ServiceIPC</key>
+	<true/>
+	<key>Sockets</key>
+	<dict>
+		<key>iscsid</key>
+		<dict>
+			<key>SockServiceName</key>
+			<string>1234</string>
+		</dict>
+	</dict>
+	<key>ProgramArguments</key>
+	<dict>
+		<key>Item 0</key>
+		<string>/tmp/iscsid</string>
+	</dict>
+	<key>Label</key>
+	<string>com.NSinenian.iscsid</string>
+</dict>
+</plist>

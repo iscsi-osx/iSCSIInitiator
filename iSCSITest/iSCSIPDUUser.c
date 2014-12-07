@@ -18,7 +18,15 @@ const iSCSIPDULogoutReqBHS iSCSIPDULogoutReqBHSInit = {
     .opCodeAndDeliveryMarker = (kiSCSIPDUOpCodeLogoutReq | kiSCSIPDUImmediateDeliveryFlag) };
 
 const iSCSIPDUTextReqBHS iSCSIPDUTextReqBHSInit = {
-    .opCodeAndDeliveryMarker = (kiSCSIPDUOpCodeTextReq | kiSCSIPDUImmediateDeliveryFlag) };
+    .opCodeAndDeliveryMarker    = (kiSCSIPDUOpCodeTextReq | kiSCSIPDUImmediateDeliveryFlag),
+    .textReqStageFlags          = 0,
+    .reserved                   = 0,
+    .totalAHSLength             = 0,
+    .LUNorOpCodeFields          = 0,
+    .initiatorTaskTag           = 0,
+    .reserved2                  = 0,
+    .reserved3                  = 0
+};
 
 const iSCSIPDULoginReqBHS iSCSIPDULoginReqBHSInit = {
     .opCodeAndDeliveryMarker = (kiSCSIPDUOpCodeLoginReq | kiSCSIPDUImmediateDeliveryFlag),
@@ -75,22 +83,21 @@ const unsigned short kiSCSIPDUTextReqFinalFlag = 0x80;
  *  follow for this text request. */
 const unsigned short kiSCSIPDUTextReqContinueFlag = 0x40;
 
-/*! Parses key-value pairs to a dictionary.
- *  @param data the data segment (from a PDU) to parse.
- *  @param length the length of the data segment.
- *  @param textDict a dictionary of key-value pairs. */
-void iSCSIPDUDataParseToDict(void * data,size_t length,CFMutableDictionaryRef textDict)
+void iSCSIPDUDataParseCommon(void * data,size_t length,
+                             void * keyContainer,
+                             void * valContainer,
+                             void (*callback)(void * keyContainer,CFStringRef key, void * valContainer,CFStringRef val))
 {
-    if(!data || length == 0 || !textDict)
+    if(!data || length == 0)
         return;
     
     // Parse the text response
     UInt8 * currentByte = data;
-
+    
     UInt8 * lastByte = currentByte + length;
     UInt8 * tokenStartByte = currentByte;
-
-    CFStringRef keyString, valueString;
+    
+    CFStringRef keyString, valString;
     
     // Search through bytes and look for key=value pairs.  Convert key and
     // value strings to CFStrings and add to a dictionary
@@ -107,19 +114,56 @@ void iSCSIPDUDataParseToDict(void * data,size_t length,CFMutableDictionaryRef te
         }
         // Second boolean expression is required for the case of null-padded
         // datasegments (per RFC3720 PDUs are padded up to the nearest word)
-        else if(*currentByte == 0) // && *tokenStartByte != 0)
+        else if(*currentByte == 0)
         {
-            valueString = CFStringCreateWithBytes(kCFAllocatorDefault,
-                                                  tokenStartByte,
-                                                  currentByte-tokenStartByte,
-                                                  kCFStringEncodingUTF8,false);
+            valString = CFStringCreateWithBytes(kCFAllocatorDefault,
+                                                tokenStartByte,
+                                                currentByte-tokenStartByte,
+                                                kCFStringEncodingUTF8,false);
             // Advance the starting point to skip the '='
             tokenStartByte = currentByte + 1;
-            CFDictionaryAddValue(textDict,keyString,valueString);
+            (*callback)(keyContainer,keyString,valContainer,valString);
         }
         currentByte++;
     }
+    
 }
+
+void iSCSIPDUDataParseToDictCallback(void * keyContainer,CFStringRef keyString,
+                                     void * valContainer,CFStringRef valString)
+{
+    CFDictionaryAddValue(keyContainer,keyString,valString);
+}
+
+
+/*! Parses key-value pairs to a dictionary.
+ *  @param data the data segment (from a PDU) to parse.
+ *  @param length the length of the data segment.
+ *  @param textDict a dictionary of key-value pairs. */
+void iSCSIPDUDataParseToDict(void * data,size_t length,CFMutableDictionaryRef textDict)
+{
+    iSCSIPDUDataParseCommon(data,length,textDict,textDict,&iSCSIPDUDataParseToDictCallback);
+}
+
+void iSCSIPDUDataParseToArraysCallback(void * keyContainer,CFStringRef keyString,
+                                       void * valContainer,CFStringRef valString)
+{
+    CFArrayAppendValue(keyContainer,keyString);
+    CFArrayAppendValue(valContainer,valString);
+}
+
+/*! Parses key-value pairs to two arrays. This is useful for situations where
+ *  the data segment may contain duplicate key names.
+ *  @param data the data segment (from a PDU) to parse.
+ *  @param length the length of the data segment.
+ *  @param keys an array of key values.
+ *  @param values an array of corresponding values for each key. */
+void iSCSIPDUDataParseToArrays(void * data,size_t length,CFMutableArrayRef keys,CFMutableArrayRef values)
+{
+    iSCSIPDUDataParseCommon(data,length,keys,values,&iSCSIPDUDataParseToDictCallback);
+}
+
+
 
 /*! Struct used to track the position of the PDU data segment being written. */
 typedef struct iSCSIPDUDataSegmentTracker  {

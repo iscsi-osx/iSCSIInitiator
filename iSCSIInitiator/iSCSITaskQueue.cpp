@@ -59,7 +59,6 @@ void iSCSITaskQueue::queueTask(UInt32 initiatorTaskTag)
     
     // Signal the workloop to process a new task...
     if(firstTaskInQueue) {
-        IOLog("iSCSI: First task, processing now.\n");
         newTask = true;
         if(getWorkLoop())
             signalWorkAvailable();
@@ -92,7 +91,6 @@ UInt32 iSCSITaskQueue::completeCurrentTask()
     
     // If there are still tasks to process let the HBA know...
     if(!queue_empty(&taskQueue)) {
-        IOLog("iSCSI: Moving to new task.\n");
         newTask = true;
         if(getWorkLoop())
             signalWorkAvailable();

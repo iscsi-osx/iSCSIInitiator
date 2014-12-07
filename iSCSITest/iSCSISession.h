@@ -96,8 +96,8 @@ errno_t iSCSIReleaseSession(UInt16 sessionId);
  *  @param sessionId the session to add a connection to.
  *  @param connectionId the ID of the new connection.
  *  @return an error code indicating whether the operation was successful. */
-//errno_t iSCSIAddConnection(UInt16 sessionId,
-//                                  iSCSIConnectionInfo * connInfo);
+errno_t iSCSIAddConnection(UInt16 sessionId,
+                           iSCSIConnectionInfo * connInfo);
 
     
 /*! Removes a connection from an existing session.
@@ -113,7 +113,7 @@ errno_t iSCSIReleaseSession(UInt16 sessionId);
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSISessionGetTargetList(UInt16 sessionId,
                                   UInt32 connectionId,
-                                  CFMutableDictionaryRef targetList);
+                                  CFMutableArrayRef targetList);
     
 
 #endif

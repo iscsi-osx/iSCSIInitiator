@@ -75,7 +75,6 @@ typedef struct __iSCSIPDULogoutReqBHS {
     UInt32 expStatSN;
 } __attribute__((packed)) iSCSIPDULogoutReqBHS;
 
-
 /*! Basic header segment for a logout response PDU. */
 typedef struct __iSCSIPDULogoutRspBHS {
     const UInt8 opCode;
@@ -107,6 +106,8 @@ typedef struct __iSCSIPDUTextReqBHS {
     UInt32 targetTransferTag;
     UInt32 cmdSN;
     UInt32 expStatSN;
+    UInt64 reserved2;
+    UInt64 reserved3;
 } __attribute__((packed)) iSCSIPDUTextReqBHS;
 
 /*! Basic header segment for a text response PDU. */
@@ -122,6 +123,8 @@ typedef struct __iSCSIPDUTextRspBHS {
     UInt32 statSN;
     UInt32 expCmdSN;
     UInt32 maxCmdSN;
+    UInt64 reserved2;
+    UInt32 reserved3;
 } __attribute__((packed)) iSCSIPDUTextRspBHS;
 
 /*! Default initialization for a logout request PDU. */
@@ -270,5 +273,13 @@ void iSCSIPDUDataRelease(void * * data);
  *  @param length the length of the data segment.
  *  @param textDict a dictionary of key-value pairs. */
 void iSCSIPDUDataParseToDict(void * data,size_t length,CFMutableDictionaryRef textDict);
+
+/*! Parses key-value pairs to two arrays. This is useful for situations where
+ *  the data segment may contain duplicate key names.
+ *  @param data the data segment (from a PDU) to parse.
+ *  @param length the length of the data segment.
+ *  @param keys an array of key values.
+ *  @param values an array of corresponding values for each key. */
+void iSCSIPDUDataParseToArrays(void * data,size_t length,CFMutableArrayRef keys,CFMutableArrayRef values);
 
 #endif

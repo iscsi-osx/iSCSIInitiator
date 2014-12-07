@@ -38,6 +38,8 @@
 		2BA96D9118D4F60200F135E3 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B5935C21810DF7100FFC3D3 /* IOKit.framework */; };
 		2BA96D9218D4F60200F135E3 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
 		2BA96D9418D4F60200F135E3 /* iSCSITest.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2B69E7DB1829EC530028D999 /* iSCSITest.1 */; };
+		2BB10CB71A33BF1100D7301A /* crc32c.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BB10CB51A33BF1100D7301A /* crc32c.c */; };
+		2BB10CB81A33BF1100D7301A /* crc32c.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BB10CB61A33BF1100D7301A /* crc32c.h */; };
 		2BE6AF33186FA1820056B1B8 /* iSCSIPDUKernel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BE6AF32186FA1820056B1B8 /* iSCSIPDUKernel.cpp */; };
 /* End PBXBuildFile section */
 
@@ -83,6 +85,7 @@
 		2B2351E81814D89600148816 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/iSCSIPreferences.xib; sourceTree = "<group>"; };
 		2B240AB0183477EA00FC1894 /* iSCSIPDUUser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSIPDUUser.h; path = ../iSCSIPDUUser.h; sourceTree = "<group>"; };
 		2B240AB51837D8D600FC1894 /* iSCSIPDUUser.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = iSCSIPDUUser.c; sourceTree = "<group>"; };
+		2B52534A1A252B1700E03997 /* iSCSIDaemon.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = iSCSIDaemon.plist; sourceTree = "<group>"; };
 		2B5935651810D38E00FFC3D3 /* Kernel.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Kernel.framework; path = System/Library/Frameworks/Kernel.framework; sourceTree = SDKROOT; };
 		2B59357A1810D3C800FFC3D3 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		2B59357C1810D3C800FFC3D3 /* PreferencePanes.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PreferencePanes.framework; path = System/Library/Frameworks/PreferencePanes.framework; sourceTree = SDKROOT; };
@@ -113,6 +116,8 @@
 		2B9CABA0185CFC2000F3A9C6 /* iSCSISession.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = iSCSISession.c; sourceTree = "<group>"; };
 		2BA96D8618D4EED600F135E3 /* iSCSIDaemonProto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = iSCSIDaemonProto.h; sourceTree = "<group>"; };
 		2BA96D9818D4F60200F135E3 /* iSCSITest copy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "iSCSITest copy"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2BB10CB51A33BF1100D7301A /* crc32c.c */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = crc32c.c; path = ../crc32c.c; sourceTree = "<group>"; };
+		2BB10CB61A33BF1100D7301A /* crc32c.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = crc32c.h; path = ../crc32c.h; sourceTree = "<group>"; };
 		2BE6AF31186FA1730056B1B8 /* iSCSIPDUKernel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = iSCSIPDUKernel.h; sourceTree = "<group>"; };
 		2BE6AF32186FA1820056B1B8 /* iSCSIPDUKernel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = iSCSIPDUKernel.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -249,6 +254,7 @@
 				2BA96D8618D4EED600F135E3 /* iSCSIDaemonProto.h */,
 				2B69E7D91829EC530028D999 /* iSCSIDaemon.c */,
 				2B69E7DB1829EC530028D999 /* iSCSITest.1 */,
+				2B52534A1A252B1700E03997 /* iSCSIDaemon.plist */,
 			);
 			name = iSCSIDaemon;
 			path = iSCSITest;
@@ -257,6 +263,8 @@
 		2B9519881810F852006CE7E5 /* iSCSIInitiator */ = {
 			isa = PBXGroup;
 			children = (
+				2BB10CB61A33BF1100D7301A /* crc32c.h */,
+				2BB10CB51A33BF1100D7301A /* crc32c.c */,
 				2B95198E1810F852006CE7E5 /* iSCSIInitiator.h */,
 				2B95198F1810F852006CE7E5 /* iSCSIInitiator.cpp */,
 				2B69E7CC18270DE50028D999 /* iSCSIVirtualHBA.h */,
@@ -301,6 +309,7 @@
 			files = (
 				2B012FBA19775B5B00098F9B /* iSCSITaskQueue.h in Headers */,
 				2B69E7CE18270DE50028D999 /* iSCSIVirtualHBA.h in Headers */,
+				2BB10CB81A33BF1100D7301A /* crc32c.h in Headers */,
 				2B240AB21834780E00FC1894 /* iSCSIInterfaceShared.h in Headers */,
 				2B880930181230BF0047608F /* iSCSIInitiatorClient.h in Headers */,
 				2B69E7D218278BBE0028D999 /* iSCSIIOEventSource.h in Headers */,
@@ -388,7 +397,7 @@
 		2B5935551810CE6800FFC3D3 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0500;
+				LastUpgradeCheck = 0510;
 			};
 			buildConfigurationList = 2B5935581810CE6800FFC3D3 /* Build configuration list for PBXProject "iSCSI_Initiator" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -473,6 +482,7 @@
 				2B88092F181230BF0047608F /* iSCSIInitiatorClient.cpp in Sources */,
 				2B69E7CD18270DE50028D999 /* iSCSIVirtualHBA.cpp in Sources */,
 				2B9519901810F852006CE7E5 /* iSCSIInitiator.cpp in Sources */,
+				2BB10CB71A33BF1100D7301A /* crc32c.c in Sources */,
 				2B69E7D118278BBE0028D999 /* iSCSIIOEventSource.cpp in Sources */,
 				2B012FB919775B5B00098F9B /* iSCSITaskQueue.cpp in Sources */,
 				2BE6AF33186FA1820056B1B8 /* iSCSIPDUKernel.cpp in Sources */,
@@ -598,7 +608,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -643,7 +652,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -683,6 +691,7 @@
 			buildSettings = {
 				GCC_WARN_PEDANTIC = NO;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				ONLY_ACTIVE_ARCH = YES;
 			};
 			name = Debug;
 		};
@@ -739,7 +748,7 @@
 				MODULE_VERSION = 1.0.0d1;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx10.8;
+				SDKROOT = macosx;
 				WRAPPER_EXTENSION = kext;
 			};
 			name = Debug;
@@ -784,7 +793,7 @@
 				MODULE_VERSION = 1.0.0d1;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx10.8;
+				SDKROOT = macosx;
 				WRAPPER_EXTENSION = kext;
 			};
 			name = Release;

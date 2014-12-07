@@ -54,7 +54,7 @@ namespace iSCSIPDU {
         .opCode = kiSCSIPDUOpCodeSNACKReq,
         .flags = 0,
         .totalAHSLength = 0};
-        
+
     // final
     const iSCSIPDUNOPOutBHS iSCSIPDUNOPOutBHSInit = {
         .opCode             = kiSCSIPDUOpCodeNOPOut,

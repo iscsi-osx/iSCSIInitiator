@@ -37,10 +37,6 @@ class iSCSIVirtualHBA : public IOSCSIParallelInterfaceController
 
 public:
     
-    virtual IOReturn message( UInt32 type, IOService * provider,
-                             void * argument = 0 );
-    
-    
     /*! Forward delcaration of an iSCSI session. */
     struct iSCSISession;
     
@@ -126,6 +122,15 @@ public:
 
 	/*! Handles hardware interrupts (not used for this virtual HBA). */
 	virtual void HandleInterruptRequest();
+    
+    /*! Handles task timeouts.
+     *  @param task the task that timed out. */
+    virtual void HandleTimeout(SCSIParallelTaskIdentifier task);
+    
+    /*! Handles connection timeouts.
+     *  @param sessionId the session associated with the timed-out connection.
+     *  @param connectionId the connection that timed out. */
+    void HandleConnectionTimeout(UInt16 sessionId,UInt32 connectionId);
 
 	/*! Processes a task passed down by SCSI target devices in driver stack.
      *  @param parallelTask the task to process.
@@ -147,9 +152,23 @@ public:
      *  @param owner an instance of this class.
      *  @param session session associated with connection that received data.
      *  @param connection the connection that received data. */
-    static bool CompleteTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
+    static bool ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
                                              iSCSISession * session,
                                              iSCSIConnection * connection);
+    
+    /** This function has been overloaded to provide additional task-timing
+     *  support for multiple connections.
+     *  @param session the session associated with the task.
+     *  @param connection the connection associated with the task.
+     *  @param parallelRequest the request to complete.
+     *  @param completionStatus status of the request.
+     *  @param serviceResponse the SCSI service response. */
+    void CompleteParallelTask(iSCSISession * session,
+                              iSCSIConnection * connection,
+                              SCSIParallelTaskIdentifier parallelRequest,
+                              SCSITaskStatus completionStatus,
+                              SCSIServiceResponse serviceResponse);
+        
     
     /////////////////////  FUNCTIONS TO MANIPULATE ISCSI ///////////////////////
     
@@ -186,7 +205,7 @@ public:
      *  @return error code indicating result of operation. */
     errno_t GetSessionOptions(UInt16 sessionId,
                               iSCSISessionOptions * options);
-    
+        
     /*! Allocates a new iSCSI connection associated with the particular session.
      *  @param sessionId the session to create a new connection for.
      *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
@@ -393,6 +412,15 @@ private:
     void ProcessDataIn(iSCSISession * session,
                        iSCSIConnection * connection,
                        iSCSIPDU::iSCSIPDUDataInBHS * bhs);
+    
+    /*! Process an incoming asynchronous message PDU.
+     *  @param session the session associated with the async PDU.
+     *  @param connection the connection associated with the async PDU.
+     *  @param bhs the basic header segment of the async PDU. */
+    void ProcessAsyncMsg(iSCSISession * session,
+                         iSCSIConnection * connection,
+                         iSCSIPDU::iSCSIPDUAsyncMsgBHS * bhs);
+
 
     /*! Process an incoming R2T PDU.
      *  @param session the session associated with the R2T PDU.
@@ -403,6 +431,15 @@ private:
                     iSCSIPDU::iSCSIPDUR2TBHS * bhs);
     
     
+    /*! Process an incoming reject PDU.
+     *  @param session the session associated with the reject PDU.
+     *  @param connection the connection associated with the reject PDU.
+     *  @param bhs the basic header segment of the reject PDU. */
+    void ProcessReject(iSCSISession * session,
+                       iSCSIConnection * connection,
+                       iSCSIPDU::iSCSIPDURejectBHS * bhs);
+
+    
     /*! Adjusts the timeouts associated with a particular connection.  This
      *  function uses a NOP out PDU to measure the latency of particular
      *  iSCSI connection. This is achieved by generating and sending 
@@ -410,8 +447,8 @@ private:
      *  target. The response PDU is processed by ProcessNOPIn().
      *  @param session the session to tune.
      *  @param connection the connection to tune. */
-    void TuneConnectionTimeout(iSCSISession * session,
-                               iSCSIConnection * connection);
+    void MeasureConnectionLatency(iSCSISession * session,
+                                  iSCSIConnection * connection);
 	
     /*! Maximum allowable sessions. */
     static const UInt16 kMaxSessions;
@@ -428,6 +465,10 @@ private:
     /*! Maximum number of SCSI tasks the HBA can handle. */
     static const UInt32 kMaxTaskCount;
     
+    /*! Number of PDUs that are transmitted before we calculate an average speed
+     *  for the connection. */
+    static const UInt32 kNumBytesPerAvgBW;
+    
     /*! Used as part of the iSCSI layer intiator task tag to specify the 
      *  type of task. */
     enum InitiatorTaskTagCodes {
@@ -435,8 +476,8 @@ private:
         /*! Used as part of the iSCSI task tag for all SCSI tasks. */
         kInitiatorTaskTagSCSITask = 0,
     
-        /*! Used as part of the iSCSI task tag for all timing operations. */
-        kInitiatorTaskTagTiming = 1,
+        /*! Used as part of the iSCSI task tag for latency measurement task. */
+        kInitiatorTaskTagLatency = 1,
     
         /*! Used as part of the iSCSI task tag for all task management operations. */
         kInitiatorTaskTagTaskMgmt = 2
@@ -448,7 +489,14 @@ private:
                                         SCSILogicalUnitNumber LUN,
                                         SCSITaggedTaskIdentifier taskId)
     {
+        // The task tag is constructed using the HBA controller task ID, the
+        // LUN and a taskCode that maps to differnet *types* of iSCSI tasks
         return ( ((UInt8)taskCode)<<24 | ((UInt8)LUN)<<16 | (UInt16)taskId );
+    }
+    
+    inline InitiatorTaskTagCodes ParseInitiatorTaskTagForID(UInt32 initiatorTaskTag)
+    {
+        return (InitiatorTaskTagCodes)((initiatorTaskTag>>24) & 0xFF);
     }
     
     /*! Helper function.  Sends a burst of data out PDUs, either as a response

@@ -175,9 +175,6 @@ CFStringRef kiSCSILVYes = CFSTR("Yes");
 CFStringRef kiSCSILVNo = CFSTR("No");
 
 
-
-
-
 errno_t iSCSILogoutResponseToErrno(enum iSCSIPDULogoutRsp response)
 {
     return 0;
@@ -262,7 +259,7 @@ bool iSCSILVRangeInvalid(UInt32 value,UInt32 min, UInt32 max)
  *  pairs received as a dictionary.  If an error occurs, this function will
  *  parse the iSCSI error and express it in terms of a system errno_t as
  *  the system would treat any other device.
- *  @param sessionId the session qualifier.
+ *  @param sessionId the session identifier.
  *  @param targetSessionId the target session identifying handle.
  *  @param connInfo a connection information object.
  *  @param currentStage the current stage of the login process.
@@ -334,6 +331,70 @@ errno_t iSCSISessionLoginQuery(UInt16 sessionId,
     }
     while(rsp.loginStage & kiSCSIPDUTextReqContinueFlag);
         
+    iSCSIPDUDataRelease(&data);
+    return error;
+}
+
+/*! Helper function used during the full feature phase of a connection to
+ *  send and receive text requests and responses.
+ *  This function will take a dictionary of key-value pairs and send the
+ *  appropriate text request PDU to the target.  It will then receive one or more
+ *  text response PDUs from the target, parse them and return the key-value
+ *  pairs received as a dictionary.  If an error occurs, this function will
+ *  parse the iSCSI error and express it in terms of a system errno_t as
+ *  the system would treat any other device.
+ *  @param sessionId the session identifier.
+ *  @param connectionId a connection identifier.
+ *  @param textCmd a dictionary of key-value pairs to send.
+ *  @param textRsp a dictionary of key-value pairs to receive.
+ *  @return an error code that indicates the result of the operation. */
+errno_t iSCSISessionTextQuery(UInt16 sessionId,
+                               UInt32 connectionId,
+                               CFDictionaryRef   textCmd,
+                               CFMutableDictionaryRef  textRsp)
+{
+    // Create a new login request basic header segment
+    iSCSIPDUTextReqBHS cmd = iSCSIPDUTextReqBHSInit;
+    cmd.textReqStageFlags = 0;
+    
+    // Create a data segment based on text commands (key-value pairs)
+    void * data;
+    size_t length;
+    iSCSIPDUDataCreateFromDict(textCmd,&data,&length);
+    
+    errno_t error = iSCSIKernelSend(sessionId,
+                                    connectionId,
+                                    (iSCSIPDUInitiatorBHS *)&cmd,
+                                    data,length);
+    iSCSIPDUDataRelease(&data);
+    
+    if(error) {
+        return error;
+    }
+    
+    // Get response from iSCSI portal, continue until response is complete
+    iSCSIPDUTextRspBHS rsp;
+    
+    do {
+        if((error = iSCSIKernelRecv(sessionId,connectionId,
+                                    (iSCSIPDUTargetBHS *)&rsp,&data,&length)))
+        {
+            iSCSIPDUDataRelease(&data);
+            return error;
+        }
+        
+        if(rsp.opCode == kiSCSIPDUOpCodeTextRsp)
+            iSCSIPDUDataParseToDict(data,length,textRsp);
+        
+        // For this case some other kind of PDU or invalid data was received
+        else if(rsp.opCode == kiSCSIPDUOpCodeReject)
+        {
+            error = EINVAL;
+            break;
+        }
+    }
+    while(rsp.textReqStageBits & kiSCSIPDUTextReqContinueFlag);
+    
     iSCSIPDUDataRelease(&data);
     return error;
 }
@@ -886,7 +947,35 @@ errno_t iSCSIAddConnection(UInt16 sessionId,iSCSIConnectionInfo * connInfo)
                                         &sa_target,
                                         &sa_host,
                                         &connInfo->connectionId);
-
+    
+    // Perform authentication and negotiate connection-level parameters
+    iSCSIConnectionOptions connOptions;
+    memset(&connOptions,0,sizeof(connOptions));
+    
+    iSCSISessionOptions sessOptions;
+    iSCSIKernelGetSessionOptions(sessionId,&sessOptions);
+    
+    // If no error, authenticate (negotiate security parameters)
+    if(!error) {
+        error = iSCSIAuthNegotiate(sessionId,
+                                   connInfo,
+                                   &sessOptions,&connOptions);
+    }
+    
+    if(error) {
+        // Release connection
+        iSCSIKernelReleaseConnection(sessionId,connInfo->connectionId);
+    }
+    else {
+        
+        // At this point connection options have been modified/parsed by
+        // the helper functions called above; set these options in the kernel
+        iSCSIKernelSetConnectionOptions(sessionId,
+                                        connInfo->connectionId,&connOptions);
+        
+        // Activate connection first then the session
+        iSCSIKernelActivateConnection(sessionId,connInfo->connectionId);
+    }
     return error;
 }
 
@@ -1029,8 +1118,9 @@ errno_t iSCSIReleaseSession(UInt16 sessionId)
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSISessionGetTargetList(UInt16 sessionId,
                                   UInt32 connectionId,
-                                  CFMutableDictionaryRef targetList)
+                                  CFMutableArrayRef targetList)
 {
+    /*
     // Place text commands to get target list into a dictionary
     CFMutableDictionaryRef textCmd =
         CFDictionaryCreateMutable(kCFAllocatorDefault,
@@ -1038,53 +1128,57 @@ errno_t iSCSISessionGetTargetList(UInt16 sessionId,
                                   &kCFTypeDictionaryKeyCallBacks,
                                   &kCFTypeDictionaryValueCallBacks);
     
-   /*
+    // Can't use a text query; must manually send/receive as the received
+    // keys will be duplicates and CFDictionary doesn't support them
     CFDictionaryAddValue(textCmd,kiSCSITKSendTargets,kiSCSITVSendTargetsAll);
     
-    // Retreive connection options for this connection
-    iSCSIConnectionOptions options;
-    iSCSIKernelGetConnectionOptions(sessionId,connectionId,&options);
+    // Create a data segment based on text commands (key-value pairs)
+    void * data;
+    size_t length;
+    iSCSIPDUDataCreateFromDict(textCmd,&data,&length);
     
-    // Create a text reqeust PDU
-    iSCSIPDUInitiatorRef textPDU =
-        (iSCSIPDUInitiatorRef)iSCSIPDUCreateTextRequest(textCmd,&options,0,0xFFFFFFFF);
+    errno_t error = iSCSIKernelSend(sessionId,
+                                    connectionId,
+                                    (iSCSIPDUInitiatorBHS *)&cmd,
+                                    data,length);
+    iSCSIPDUDataRelease(&data);
     
-    errno_t error;
-    if((error = iSCSIKernelSend(sessionId,connectionId,textPDU)))
-    {
-        iSCSIPDURelease((iSCSIPDURef)textPDU);
+    if(error) {
         return error;
     }
     
-    // Grab response and parse it for target names and addresses
-    iSCSIPDUTargetRef rspPDU;
-    bool finalResponse = false;
+    // Create response arrays
+    CFMutableArrayRef
     
-    while(!finalResponse)
-    {
-        // Get response from iSCSI portal
-        if((error = iSCSIKernelRecv(sessionId,connectionId,&rspPDU)))
+    // Get response from iSCSI portal, continue until response is complete
+    iSCSIPDULoginRspBHS rsp;
+    
+    do {
+        if((error = iSCSIKernelRecv(sessionId,connInfo->connectionId,
+                                    (iSCSIPDUTargetBHS *)&rsp,&data,&length)))
+        {
+            iSCSIPDUDataRelease(&data);
             return error;
-        
-        // Parse the PDU
-        enum iSCSIPDUTargetOpCodes opCode = iSCSIPDUGetTargetOpCode(rspPDU);
-        
-        if(opCode == kiSCSIPDUOpCodeTextRsp)
-        {
-            // The target has responded to our request, parse response
-            iSCSIPDUParseTextResponse((iSCSIPDUTextRspRef)rspPDU,&finalResponse,targetList);
-            
         }
-        else if(opCode == kiSCSIPDUOpCodeReject)
+        
+        if(rsp.opCode == kiSCSIPDUOpCodeTextRsp)
         {
-            // Command failed for some reason
             
-            
+            iSCSIPDUDataParseToArrays(data,length,keys,values);
+        }
+        // For this case some other kind of PDU or invalid data was received
+        else if(rsp.opCode == kiSCSIPDUOpCodeReject)
+        {
+            error = EINVAL;
+            break;
         }
     }
+    while(rsp.loginStage & kiSCSIPDUTextReqContinueFlag);
     
+    iSCSIPDUDataRelease(&data);
+    return error;
+    */
 
-*/
     return 0;
 }
 
