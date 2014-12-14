@@ -84,7 +84,7 @@ int main(int argc, char * argv[])
 */
     
     
-    
+  
 
    if(iSCSIKernelInitialize() == kIOReturnSuccess)
         printf("Connected");
@@ -97,11 +97,11 @@ int main(int argc, char * argv[])
     iSCSIConnectionInfo connOpts;
     connOpts.initiatorAlias = CFSTR("Test");
     connOpts.initiatorName = CFSTR("iqn.2014-01.com.os:host");
-    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi52");
+    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi56");
     connOpts.hostInterface = CFSTR("en0");
     connOpts.targetAddress = CFSTR("192.168.1.116");
     connOpts.targetPort = CFSTR("3260");
-    connOpts.useHeaderDigest = true;
+    connOpts.useHeaderDigest = false;
     connOpts.useDataDigest = false;
 
 //connOpts.authMethod = iSCSIAuthCreateCHAP(CFSTR("nareg"),CFSTR("test2test2test2"),
@@ -110,7 +110,7 @@ int main(int argc, char * argv[])
     
  
     iSCSICreateSession(&sessionOpts,&connOpts);
- 
+
 
 //    CFMutableDictionaryRef targetList;
 //    iSCSISessionGetTargetList(sessionQualifier,0,&targetList);
@@ -129,7 +129,7 @@ int main(int argc, char * argv[])
   
     
  
-    
+ 
     return 0;
 }
 

@@ -38,10 +38,6 @@
 /* CRC-32C (iSCSI) polynomial in reversed bit order. */
 #define POLY 0x82f63b78
 
-/* Table for a quadword-at-a-time software crc. */
-static uint32_t crc32c_table[8][256];
-
-
 /* Multiply a matrix times a vector over the Galois field of two elements,
  GF(2).  Each element is a bit in an unsigned integer.  mat must have at
  least as many entries as the power of two for most significant one bit in
@@ -146,7 +142,6 @@ static inline uint32_t crc32c_shift(uint32_t zeros[][256], uint32_t crc)
 #define SHORTx2 "512"
 
 /* Tables for hardware crc that shift a crc by LONG and SHORT zeros. */
-
 static uint32_t crc32c_long[4][256];
 static uint32_t crc32c_short[4][256];
 
@@ -158,8 +153,12 @@ void crc32c_init(void)
 }
 
 /* Compute CRC-32C using the Intel hardware instruction. */
-uint32_t crc32c(uint32_t crc, const void *buf, size_t len)
+uint32_t crc32c(uint32_t crc,const void * buf,size_t len)
 {
+    // NS modification - return initial value if buffer empty
+    if(!len || !buf)
+        return crc;
+    
     const unsigned char *next = (const unsigned char *)buf;
     const unsigned char *end;
     uint64_t crc0, crc1, crc2;      /* need to be 64 bits for crc32q */

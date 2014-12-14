@@ -1006,8 +1006,10 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     
     // Create a mapping to the task's data buffer
     IOMemoryDescriptor  * dataDesc  = GetDataBuffer(parallelTask);
-    IOMemoryMap         * dataMap   = dataDesc->map();
+ /*   IOMemoryMap         * dataMap   = dataDesc->map();
     UInt8               * data      = (UInt8 *)dataMap->getAddress();
+   */
+    UInt8 data[length];
     
     if(data == NULL)
     {
@@ -1016,19 +1018,20 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
 
     // Write data received into the parallelTask data structure
     UInt32 dataOffset = OSSwapBigToHostInt32(bhs->bufferOffset);
-    data += dataOffset;
+//    data += dataOffset;
     
     DBLog("iSCSI: Data offset %d\n",dataOffset);
     DBLog("iSCSI: Data length %llu\n",dataMap->getLength());
     DBLog("iSCSI: PDU data length %d\n",length);
     
-    if(dataOffset + length <= dataMap->getLength())
+    if(true)//dataOffset + length <= dataMap->getLength())
     {
         if(RecvPDUData(session,connection,data,length,0))
         {
             DBLog("iSCSI: Error in retrieving data segment length.\n");
         }
         else {
+            dataDesc->writeBytes(dataOffset, data, length);
             SetRealizedDataTransferCount(parallelTask,dataOffset+length);
             connection->dataToTransfer -= length;
         }
@@ -1042,8 +1045,8 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     }
     
     // Release the mapping object (this leaves the descriptor and buffer intact)
-    dataMap->unmap();
-    dataMap->release();
+//    dataMap->unmap();
+//    dataMap->release();
     
     // If the PDU contains a status response, complete this task
     if((bhs->flags & kiSCSIPDUDataInFinalFlag) && (bhs->flags & kiSCSIPDUDataInStatusFlag))
@@ -1130,7 +1133,6 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     DBLog("iSCSI: desired data length: %d\n",remainingDataLength);
     
     UInt32 dataSN = 0;
-    maxTransferLength = 8192;
     
     // Create data PDUs and send them until all desired data has been sent
     iSCSIPDUDataOutBHS bhsDataOut = iSCSIPDUDataOutBHSInit;
@@ -1442,6 +1444,8 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
     newConn->expStatSN = 0;
     newConn->dataToTransfer = 0;
     newConn->bytesPerSecond = 0;
+    newConn->opts.useHeaderDigest = false;
+    newConn->opts.useDataDigest = false;
     session->connections[index] = newConn;
     *connectionId = index;
     
@@ -1858,7 +1862,8 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
         iovecCnt++;
     }
  
-    if(data)
+    // If theres data to send...
+    if(length)
     {
         // Add data segment
         iovec[iovecCnt].iov_base = data;
@@ -1867,9 +1872,9 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
         
         // Add padding bytes if required
         UInt32 paddingLen = 4-(length % 4);
+        UInt32 padding = 0;
         if(paddingLen != 4)
         {
-            UInt32 padding = 0;
             iovec[iovecCnt].iov_base  = &padding;
             iovec[iovecCnt].iov_len   = paddingLen;
             iovecCnt++;
@@ -1881,12 +1886,17 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
             
             // Compute digest
             dataDigest = crc32c(0,data,length);
+            
+            // Add padding to digest calculation
+            if(paddingLen != 4)
+                dataDigest = crc32c(dataDigest,&padding,paddingLen);
 
             iovec[iovecCnt].iov_base = &dataDigest;
             iovec[iovecCnt].iov_len  = sizeof(dataDigest);
             iovecCnt++;
         }
     }
+    
     // Update io vector count, send data
     msg.msg_iovlen = iovecCnt;
     size_t bytesSent = 0;
@@ -1975,8 +1985,8 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
         if(headerDigest != crc32c(0,bhs,kiSCSIPDUBasicHeaderSegmentSize))
         {
             // Digest failed, log and quit
-            DBLog("iSCSI: Failed header digest.\n");
-            return EIO;
+            IOLog("iSCSI: Failed header digest.\n");
+            //return EIO;
         }
     }
     
@@ -2037,9 +2047,9 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     
     // Setup to receive (and discard) padding bytes, if required
     UInt32 paddingLen = 4-(length % 4);
+    UInt32 padding = 0;
     if(paddingLen != 4)
     {
-       UInt32 padding;
        iovec[iovecCnt].iov_base  = &padding;
        iovec[iovecCnt].iov_len   = paddingLen;
        iovecCnt++;
@@ -2063,14 +2073,19 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     IOLockUnlock(connection->PDUIOLock);
     
     // Verify digest if present
-    if(dataDigest)
+    if(connection->opts.useDataDigest)
     {
-        // Compute digest (should be 0 since we start with the digest)
-        if(dataDigest != crc32c(0,data,length))
+        // Compute digest including padding...
+        UInt32 calcDigest = crc32c(0,data,length);
+        
+        if(paddingLen != 4)
+            calcDigest = crc32c(calcDigest,&padding,paddingLen);
+        
+        if(dataDigest != calcDigest)
         {
             // Digest failed, log and quit
-            DBLog("iSCSI: Failed data digest.\n");
-            return EIO;
+            IOLog("iSCSI: Failed data digest.\n");
+//            return EIO;
         }
     }
 
