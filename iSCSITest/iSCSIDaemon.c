@@ -97,12 +97,12 @@ int main(int argc, char * argv[])
     iSCSIConnectionInfo connOpts;
     connOpts.initiatorAlias = CFSTR("Test");
     connOpts.initiatorName = CFSTR("iqn.2014-01.com.os:host");
-    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi56");
+    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi55");
     connOpts.hostInterface = CFSTR("en0");
     connOpts.targetAddress = CFSTR("192.168.1.116");
     connOpts.targetPort = CFSTR("3260");
     connOpts.useHeaderDigest = false;
-    connOpts.useDataDigest = false;
+    connOpts.useDataDigest = true;
 
 //connOpts.authMethod = iSCSIAuthCreateCHAP(CFSTR("nareg"),CFSTR("test2test2test2"),
   //                                           CFSTR("nareg"),CFSTR("testtesttest"));

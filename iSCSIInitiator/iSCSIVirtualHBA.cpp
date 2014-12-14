@@ -993,60 +993,33 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     SCSIParallelTaskIdentifier parallelTask =
         FindTaskForControllerIdentifier(session->sessionId,bhs->initiatorTaskTag);
     
-    if(!parallelTask)
+    if(length == 0)
     {
-        DBLog("iSCSI: Task not found\n");
-        
-        // Flush stream
-        UInt8 buffer[length];
-        RecvPDUData(session,connection,buffer,length,MSG_WAITALL);
-        
+        DBLog("iSCSI: Missing data segment in data-in PDU\n");
         return;
     }
     
-    // Create a mapping to the task's data buffer
-    IOMemoryDescriptor  * dataDesc  = GetDataBuffer(parallelTask);
- /*   IOMemoryMap         * dataMap   = dataDesc->map();
-    UInt8               * data      = (UInt8 *)dataMap->getAddress();
-   */
-    UInt8 data[length];
+    UInt8 buffer[length];
     
-    if(data == NULL)
+    // If task not found, flush stream
+    if(!parallelTask)
     {
-        DBLog("iSCSI: Missing data segment in data-in PDU\n");
-    }
-
-    // Write data received into the parallelTask data structure
-    UInt32 dataOffset = OSSwapBigToHostInt32(bhs->bufferOffset);
-//    data += dataOffset;
-    
-    DBLog("iSCSI: Data offset %d\n",dataOffset);
-    DBLog("iSCSI: Data length %llu\n",dataMap->getLength());
-    DBLog("iSCSI: PDU data length %d\n",length);
-    
-    if(true)//dataOffset + length <= dataMap->getLength())
-    {
-        if(RecvPDUData(session,connection,data,length,0))
-        {
-            DBLog("iSCSI: Error in retrieving data segment length.\n");
-        }
-        else {
-            dataDesc->writeBytes(dataOffset, data, length);
-            SetRealizedDataTransferCount(parallelTask,dataOffset+length);
-            connection->dataToTransfer -= length;
-        }
-    }
-    else {
-        // Flush stream
-        UInt8 buffer[length];
+        DBLog("iSCSI: Task not found\n");
         RecvPDUData(session,connection,buffer,length,MSG_WAITALL);
-
-        DBLog("iSCSI: Kernel buffer too small for incoming data\n");
+        return;
     }
     
-    // Release the mapping object (this leaves the descriptor and buffer intact)
-//    dataMap->unmap();
-//    dataMap->release();
+    // System buffer offset for this PDU data segment...
+    UInt32 dataOffset = OSSwapBigToHostInt32(bhs->bufferOffset);
+    
+    if(RecvPDUData(session,connection,buffer,length,0))
+        DBLog("iSCSI: Error in retrieving data segment length.\n");
+    else {
+        IOMemoryDescriptor  * dataDesc = GetDataBuffer(parallelTask);
+        dataDesc->writeBytes(dataOffset,buffer,length);
+        SetRealizedDataTransferCount(parallelTask,dataOffset+length);
+        connection->dataToTransfer -= length;
+    }
     
     // If the PDU contains a status response, complete this task
     if((bhs->flags & kiSCSIPDUDataInFinalFlag) && (bhs->flags & kiSCSIPDUDataInStatusFlag))
