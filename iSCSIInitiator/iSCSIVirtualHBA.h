@@ -11,6 +11,7 @@
 
 #include <IOKit/IOService.h>
 #include <IOKit/scsi/spi/IOSCSIParallelInterfaceController.h>
+#include <IOKit/scsi/IOSCSIProtocolInterface.h>
 
 #include <libkern/c++/OSArray.h>
 
@@ -512,9 +513,12 @@ private:
      *  are used to form part of the iSCSI ISID. */
     SCSIInitiatorIdentifier kInitiatorId;
 	
-	/*! Lookup table that maps SCSI sessions to ISID qualifiers 
+	/*! Lookup table that maps iSCSI sessions to ISID qualifiers
      *  (session qualifier IDs). */
     iSCSISession * * sessionList;
+    
+    /*! Lookup table that maps target names to ISID qualifier. */
+    OSDictionary * targetList;
 };
 
 

@@ -1,62 +1,97 @@
-//
-//  File.c
-//  iSCSI_Initiator
-//
-//  Created by Nareg Sinenian on 3/15/14.
-//
-//
+/*!
+ * @author		Nareg Sinenian
+ * @file		iSCSIDaemonProto.h
+ * @date		December 15, 2014
+ * @version		1.0
+ * @copyright	(c) 2013-2014 Nareg Sinenian. All rights reserved.
+ * @brief		Defines the protocol for use in communicating with the
+ *              iSCSI daemon.
+ */
 
-#include <stdio.h>
+#ifndef __ISCSI_DAEMONPROTO_H__
+#define __ISCSI_DAEMONPROTO_H__
 
-const unsigned int kiSCSISessionMaxStringSize = 100;
+#include <CoreFoundation/CoreFoundation.h>
 
-/*! Session options that are passed in when creating a new session.  */
-struct iSCSISessionOpts {
-    
-    /*! The initiator name to use. */
-    UInt8 initiatorName[kiSCSISessionMaxStringSize];
-    
-    /*! The target name to use. */
-    UInt8 initiatorAlias[kiSCSISessionMaxStringSize];
-    
-    /*! Maximum number of connections allowed this session. */
-    UInt16 maxConnections;
-    
-}  __attribute__((packed));
+////////////////////////////// DAEMON FUNCTIONS ////////////////////////////////
 
-typedef struct iSCSISessionOpts iSCSISessionOpts;
+/*!  . */
+CFStringRef kiSCSIDaemonFuncKey = CFSTR("Function");
+
+CFStringRef kiSCSIDaemonFuncCreateSession = CFSTR("CreateSession");
+
+CFStringRef kiSCSIDaemonFuncReleaseSession = CFSTR("ReleaseSession");
+
+CFStringRef kiSCSIDaemonFuncAddConnection = CFSTR("AddConnection");
+
+CFStringRef kiSCSIDaemonFuncRemoveConnection = CFSTR("RemoveConnection");
 
 
-// Authentication methods to be used by the iSCSIConnectionOpts struct.
+/*! Preference key name for iSCSI initiator settings dictionary. */
+CFStringRef kiSCSIPKInitiatorSettingsDict = CFSTR("InitiatorSettings");
 
-/*! No authentication. */
-const UInt8 kiSCSIAuthMethodNone = 0;
+/*! Preference key name for iSCSI initiator name. */
+CFStringRef kiSCSIPKInitiatorSettingsName = CFSTR("Name");
 
-/*! CHAP authentication. */
-const UInt8 kiSCSIAuthMethodCHAP = 1;
+/*! Preference key name for iSCSI initiator alias. */
+CFStringRef kiSCSIPKInitiatorSettingsAlias = CFSTR("Alias");
 
-/*! Connection options that are passed in when creating a new connection. */
-struct iSCSIConnectionOpts {
-    
-    /*! Authentication method to use. */
-    UInt8 authMethod;
-    
-    /*! Whether to use a header digest (CRC32C is used if enabled). */
-    UInt8 useHeaderDigest;
-    
-    /*! Whether to use a data digest (CRC32C is used if enabled). */
-    UInt8 useDataDigest;
-    
-    /*! The host IP address to bind the target name to use. */
-    UInt8 hostAddress[kiSCSISessionMaxStringSize];
-    
-    /*! The target name to use. */
-    UInt8 targetAddress[kiSCSISessionMaxStringSize];
-    
-    /*! The TCP port to use. */
-    UInt32 targetPort;
-    
-} __attribute__((packed));
+
+/*! Preference key name for iSCSI target array. */
+CFStringRef kiSCSIPKTargetsArray = CFSTR("Targets");
+
+/*! Preference key name for iSCSI target name. */
+CFStringRef kiSCSIPKTargetName = CFSTR("Name");
+
+
+/*! Pereference key name for iSCSI session context dictionary. */
+CFStringRef kiSCSIPKSessionContextDict = CFSTR("SessionContext");
+
+/*! Pereference key name for iSCSI session identifier. */
+CFStringRef kiSCSIPKSessionIdentifier = CFSTR("SessionIdentifier");
+
+/*! Pereference key name for iSCSI target session identifying handle. */
+CFStringRef kiSCSIPKTSIH = CFSTR("TSIH");
+
+/*! Pereference key name for iSCSI session maximum number of connections. */
+CFStringRef kiSCSIPKMaxConnections = CFSTR("MaxConnections");
+
+/*! Pereference key name for iSCSI session target portal group tag. */
+CFStringRef kiSCSIPKTargetPortalGroupTag = CFSTR("TargetPortalGroupTag");
+
+/*! Pereference key name for iSCSI target alias (supplied by the target). */
+CFStringRef kiSCSIPKTargetAlias = CFSTR("Alias");
+
+
+/*! Pereference key name for iSCSI session connections array. */
+CFStringRef kiSCSIPKConnectionsArray = CFSTR("Connections");
+
+
+
+
+
+
+
+/*! Preference key name for iSCSI portal array. */
+CFStringRef kiSCSIPKPortalsArray = CFSTR("Portals");
+
+/*! Preference key name for iSCSI portal address. */
+CFStringRef kiSCSIPKPortalAddress = CFSTR("Address");
+
+/*! Preference key name for iSCSI portal port. */
+CFStringRef kiSCSIPKPortalPort = CFSTR("Port");
+
+/*! Preference key name for host interface used to connect to this portal. */
+CFStringRef kiSCSIPKHostInterface = CFSTR("HostInterface");
+
+
+
+
+
+
+
+
+
 
 
 /*! Detailed login respones from a target that supplement the
@@ -82,3 +117,5 @@ enum iSCSIConnectionStatus {
     kiSCSIPDULDServiceUnavailable = 0x0301,
     kiSCSIPDULDOutOfResources = 0x0302
 };
+
+#endif

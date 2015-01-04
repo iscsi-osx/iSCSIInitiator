@@ -58,9 +58,6 @@ static const UInt32 kiSCSIInvalidConnectionId = 0xFFFFFFFF;
 /*! Struct used to set session-wide options in the kernel. */
 typedef struct iSCSISessionOptions
 {
-    /*! Tag that identifies the target portal (connection series). */
-    UInt16 targetPortalGroupTag;
-    
     /*! Time to retain. */
     UInt16 defaultTime2Retain;
     
@@ -71,7 +68,7 @@ typedef struct iSCSISessionOptions
     UInt8 errorRecoveryLevel;
     
     /*! Max connections supported by target. */
-    UInt8 maxConnections;
+    UInt32 maxConnections;
     
     /*! Send data immediately. */
     bool immediateData;
@@ -95,7 +92,11 @@ typedef struct iSCSISessionOptions
     UInt32 firstBurstLength;
     
     /*! Target session identifying handle. */
-    UInt16 targetSessionId;
+    UInt32 TSIH;
+    
+    /*! Target portal group tag. */
+    UInt32 TPGT;
+
     
 } iSCSISessionOptions;
 

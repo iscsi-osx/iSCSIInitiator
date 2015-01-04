@@ -17,103 +17,109 @@
 #include <ifaddrs.h>
 #include "iSCSIAuth.h"
 
-/*! Session options that are passed in when creating a new session.
- *  Some parameters may be negotiated and this struct is returned to the user
- *  with the final outcome of those negotiations. */
-typedef struct iSCSISessionInfo {
+/*! iSCSI portal address and port.  This is used when establishing a new 
+ *  session or connection. */
+typedef struct iSCSIPortal {
     
-    /*! Session qualifier (not required for new session, but required
-     *  for a new connection for an existing session).  For new sessions,
-     *  a value is assigned to this field. */
-    UInt16 sessionId;
-    
-    /*! Maximum number of connections allowed this session. */
-    UInt16 maxConnections;
-
-}  iSCSISessionInfo;
-
-
-/*! Connection options that are passed in when creating a new connection.
- *  Some parameters may be negotiated and this struct is returned to the user
- *  with the final outcome of those negotiations. */
-typedef struct iSCSIConnectionInfo {
-    
-    /*! Connection ID number (not required for new session or connection).
-     *  For new connections, a value is assigned to this field after
-     *  a connection has been established. */
-    UInt32 connectionId;
-    
-    /*! Returned error code (not required for new session or connection).
-     *  For new connections, a value is assigned to this field after
-     *  a connection has been established. */
-    UInt16 status;
-
-    /*! Whether to use a header digest (CRC32C is used if enabled). */
-    bool useHeaderDigest;
-    
-    /*! Whether to use a data digest (CRC32C is used if enabled). */
-    bool useDataDigest;
-    
-    /*! The host adapter to use for the connection (e.g., "en0"). */
-    CFStringRef hostInterface;
-    
-    /*! The target name to use. */
-    CFStringRef targetAddress;
+    /*! The portal address to query. */
+    CFStringRef address;
     
     /*! The TCP port to use. */
-    CFStringRef targetPort;
+    CFStringRef port;
     
-    /*! The initiator name to use. */
-    CFStringRef initiatorName;
+    /*! The host adapter to use when connecting to the target. */
+    CFStringRef hostInterface;
     
-    /*! The target name to use. */
+} iSCSIPortal;
+
+/*! Information used to establish a connection to a target. */
+typedef struct iSCSITarget {
+    
+    /*! Name of target to connect. */
     CFStringRef targetName;
-    
-    /*! The initiator alias. */
-    CFStringRef initiatorAlias;
-    
-    /*! Authentication block. */
+
+    /*! Authentication method to use for the connection. */
     iSCSIAuthMethodRef authMethod;
     
-} iSCSIConnectionInfo;
+    /*! Whether to try to use a header digest for the connection. */
+    bool useHeaderDigest;
+    
+    /*! Whether to try to use a data digest for the connection. */
+    bool useDataDigest;
+    
+} iSCSITarget;
 
 /*! Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionClose to close this session and free resources.
- *  @param sessionInfo parameters associated with the normal session. A new
- *  sessionId is assigned and returned.
- *  @param connInfo parameters associated with the connection. A new
- *  connectionId is assigned and returned.
+ *  @param portal specifies the portal to use for the new session.
+ *  @param target specifies the target and connection parameters to use.
+ *  @param sessionId the new session identifier.
+ *  @param connectionId the new connection identifier.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSICreateSession(iSCSISessionInfo * sessionInfo,
-                           iSCSIConnectionInfo * connInfo);
-
+errno_t iSCSICreateSession(iSCSIPortal * const portal,
+                           iSCSITarget * const target,
+                           UInt16 * sessionId,
+                           UInt32 * connectionId);
 
 /*! Closes the iSCSI connection and frees the session qualifier.
  *  @param sessionId the session to free. */
 errno_t iSCSIReleaseSession(UInt16 sessionId);
 
 /*! Adds a new connection to an iSCSI session.
- *  @param sessionId the session to add a connection to.
- *  @param connectionId the ID of the new connection.
+ *  @param portal specifies the portal to use for the connection.
+ *  @param target specifies the target and connection parameters to use.
+ *  @param sessionId the new session identifier.
+ *  @param connectionId the new connection identifier.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIAddConnection(UInt16 sessionId,
-                           iSCSIConnectionInfo * connInfo);
+errno_t iSCSIAddConnection(iSCSIPortal * const portal,
+                           iSCSITarget * const target,
+                           UInt16 sessionId,
+                           UInt32 * connectionId);
 
-    
 /*! Removes a connection from an existing session.
  *  @param sessionId the session to remove a connection from.
  *  @param connectionId the connection to remove. */
-//errno_t iSCSIRemoveConnection(UInt16 sessionId,
-//                                     UInt16 connectionId);
+errno_t iSCSIRemoveConnection(UInt16 sessionId,
+                              UInt32 connectionId);
 
-/*! Gets a list of targets associated with a particular session.
- *  @param sessionId the session (discovery or normal) to use.
- *  @param connectionId the connection ID to use.
- *  @param targetList a list of targets retreived from teh iSCSI node.
+/*! Queries a portal for available targets.
+ *  @param portal the iSCSI portal to query.
+ *  @param targets an array of strings, where each string contains the name,
+ *  alias, and portal associated with each target.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSISessionGetTargetList(UInt16 sessionId,
-                                  UInt32 connectionId,
-                                  CFMutableArrayRef targetList);
+errno_t iSCSIQueryPortalForTargets(iSCSIPortal * const portal,
+                                   CFArrayRef * targets);
+
+/*! Retrieves a list of targets available from a give portal.
+ *  @param portal the iSCSI portal to look for targets.
+ *  @param authMethods a comma-separated list of authentication methods
+ *  as defined in the RFC3720 standard (version 1).
+ *  @return an error code indicating whether the operation was successful. */
+errno_t iSCSIQueryTargetForAuthMethods(iSCSIPortal * const portal,
+                                       CFStringRef targetName,
+                                       CFStringRef * authMethods);
+
+/*! Retreives the initiator session identifier associated with this target.
+ *  @param targetName the name of the target.
+ *  @param sessionId the session identiifer.
+ *  @return an error code indicating whether the operation was successful. */
+errno_t iSCSIGetSessionIdForTaget(CFStringRef targetName,
+                                  UInt16 * sessionId);
+
+/*! Sets the name of this initiator.  This is the IQN-format name that is
+ *  exchanged with a target during negotiation.
+ *  @param initiatorName the initiator name.
+ *  @return an error code indicating whether the operation was successful. */
+errno_t iSCSISetInitiatiorName(CFStringRef initiatorName);
+
+/*! Sets the alias of this initiator.  This is the IQN-format alias that is
+ *  exchanged with a target during negotiation.
+ *  @param initiatorAlias the initiator alias.
+ *  @return an error code indicating whether the operation was successful. */
+errno_t iSCSISetInitiatorAlias(CFStringRef initiatorAlias);
+
+
+
     
 
 #endif

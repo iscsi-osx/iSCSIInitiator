@@ -18,7 +18,7 @@
 
 - (void)didSelect
 {
-	
+	CFPreferences
 }
 
 - (IBAction)targetsModified:(id)sender {

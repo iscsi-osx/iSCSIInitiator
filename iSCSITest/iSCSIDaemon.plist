@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>StandardErrorPath</key>
+	<string>/var/log/iscsid.log</string>
 	<key>ServiceIPC</key>
 	<true/>
 	<key>Sockets</key>
@@ -12,11 +14,8 @@
 			<string>1234</string>
 		</dict>
 	</dict>
-	<key>ProgramArguments</key>
-	<dict>
-		<key>Item 0</key>
-		<string>/tmp/iscsid</string>
-	</dict>
+	<key>Program</key>
+	<string>/tmp/iscsid</string>
 	<key>Label</key>
 	<string>com.NSinenian.iscsid</string>
 </dict>

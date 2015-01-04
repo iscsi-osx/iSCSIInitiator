@@ -58,10 +58,10 @@ struct iSCSIVirtualHBA::iSCSIConnection {
     UInt32 expStatSN;
     
     /*! Connection ID. */
-    UInt32 CID;
+    UInt32 CID; // Might need this for ErrorRecovery (otherwise have to search through list for it)
     
     /*! Target tag for current transfer. */
-    UInt32 targetTransferTag;
+//    UInt32 targetTransferTag;  /// NEED THIS???
     
     /*! Socket used for communication. */
     socket_t socket;
@@ -126,10 +126,7 @@ struct iSCSIVirtualHBA::iSCSISession {
     /*! The initiator session ID, which is also used as the target ID within
      *  this kernel extension since there is a 1-1 mapping. */
     UInt16 sessionId;
-    
-    /*! The target session identifying handle. */
-    UInt16 TSIH;
-    
+        
     /*! Command sequence number to be used for the next initiator command. */
     UInt32 cmdSN;
     
@@ -349,6 +346,9 @@ bool iSCSIVirtualHBA::DoesHBAPerformDeviceManagement()
 bool iSCSIVirtualHBA::InitializeController()
 {
     DBLog("iSCSI: Initializing virtual HBA\n");
+    
+    OSString * value = OSString::withCString(kIOPropertyPhysicalInterconnectTypeVirtual);
+    SetHBAProperty(kIOPropertyPhysicalInterconnectLocationKey,value);
     
     // Initialize CRC32C
     crc32c_init();
@@ -629,14 +629,13 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         
         UInt32 dataSN = 0;
         UInt32 maxTransferLength = connection->opts.maxSendDataSegmentLength;
-        UInt32 remainingDataLength =
-            min(session->opts.firstBurstLength - dataOffset,transferSize-dataOffset);
+        UInt32 remainingDataLength = min(session->opts.firstBurstLength-dataOffset,
+                                         transferSize-dataOffset);
         
         while(remainingDataLength != 0)
         {
             bhsDataOut.bufferOffset = OSSwapHostToBigInt32(dataOffset);
             bhsDataOut.dataSN = OSSwapHostToBigInt32(dataSN);
-            
             
             if(maxTransferLength < remainingDataLength) {
                 DBLog("iSCSI: Max transfer length: %d\n",maxTransferLength);
@@ -1064,6 +1063,10 @@ void iSCSIVirtualHBA::ProcessAsyncMsg(iSCSISession * session,
     };
 }
 
+/*! Process an incoming R2T PDU.
+ *  @param session the session associated with the R2T PDU.
+ *  @param connection the connection associated with the R2T PDU.
+ *  @param bhs the basic header segment of the R2T PDU. */
 void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
                                  iSCSIConnection * connection,
                                  iSCSIPDU::iSCSIPDUR2TBHS * bhs)
@@ -1181,6 +1184,12 @@ void iSCSIVirtualHBA::ProcessReject(iSCSISession * session,
 
 }
 
+/*! Measures the latency of a connection (the iSCSI latency).  This is achieved
+ *  by sending out a NOP PDU with a timestamp.  Once the NOP bounces back from
+ *  the peer the timestamp is compared to the current system time to determine
+ *  the latency.
+ *  @param session the session associated with the connection to measure.
+ *  @param connection the connection to measure. */
 void iSCSIVirtualHBA::MeasureConnectionLatency(iSCSISession * session,
                                                iSCSIConnection * connection)
 {
@@ -1261,7 +1270,6 @@ errno_t iSCSIVirtualHBA::CreateSession(int domain,
     newSession->cmdSN = 0;
     newSession->expCmdSN = 0;
     newSession->maxCmdSN = 0;
-    newSession->TSIH = 0;
     newSession->initiatorTaskTag = 0;
 
     // Retain new session
