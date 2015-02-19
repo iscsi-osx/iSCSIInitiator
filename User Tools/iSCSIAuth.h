@@ -22,18 +22,18 @@
  *  (in the file iSCSIAuth.h). */
 errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                            iSCSIAuthRef auth,
-                           UInt16 sessionId,
-                           UInt32 connectionId,
+                           SID sessionId,
+                           CID connectionId,
                            iSCSISessionOptions * sessionOptions,
-                           enum iSCSIStatusCode * statusCode);
+                           enum iSCSILoginStatusCode * statusCode);
 
 /*! Authentication function defined in the authentication module
  *  (in the file iSCSIAuth.h). */
 errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
-                             UInt16 sessionId,
-                             UInt32 connectionId,
+                             SID sessionId,
+                             CID connectionId,
                              iSCSISessionOptions * sessionOptions,
-                             CFStringRef * authMethods,
-                             enum iSCSIStatusCode * statusCode);
+                             enum iSCSIAuthMethods * authMethod,
+                             enum iSCSILoginStatusCode * statusCode);
 
 #endif

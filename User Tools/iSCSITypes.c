@@ -3,7 +3,8 @@
  * @file		iSCSITypes.h
  * @version		1.0
  * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
- * @brief		iSCSI data types used in user space.
+ * @brief		iSCSI data types used in user space.  All of the data types
+ *              defined here are based on Core Foundation (CF) data types.
  */
 
 #include "iSCSITypes.h"
@@ -15,8 +16,17 @@ CFStringRef kiSCSIPortalAddresssKey = CFSTR("Address");
 CFStringRef kiSCSIPortalPortKey = CFSTR("Port");
 CFStringRef kiSCSIPortalHostInterfaceKey = CFSTR("HostInterface");
 
+/*! Maximum number of discovery record entries (targets). */
+const int kMaxDiscoveryRecEntries = 50;
+
+/*! Maximum number of portal groups per target. */
+const int kMaxPortalGroupsPerTarget = 10;
+
+/*! Maximum number of portals per portal group. */
+const int kMaxPortalsPerGroup = 10;
+
 /*! Creates a new portal object from byte representation. */
-iSCSIPortalRef iSCSIPoralCreateFromBytes(CFDataRef bytes)
+iSCSIPortalRef iSCSIPortalCreateFromBytes(CFDataRef bytes)
 {
     CFPropertyListFormat format;
     
@@ -30,7 +40,7 @@ iSCSIPortalRef iSCSIPoralCreateFromBytes(CFDataRef bytes)
 }
 
 /*! Convenience function.  Creates a new iSCSIPortalRef with the above keys. */
-iSCSIMutablePortalRef iSCSIPortalCreate()
+iSCSIMutablePortalRef iSCSIMutablePortalCreate()
 {
     iSCSIMutablePortalRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,NULL,NULL);
     CFDictionaryAddValue(portal,kiSCSIPortalAddresssKey,CFSTR(""));
@@ -47,6 +57,10 @@ CFStringRef iSCSIPortalGetAddress(iSCSIPortalRef portal)
 
 void iSCSIPortalSetAddress(iSCSIMutablePortalRef portal,CFStringRef address)
 {
+    // Ignore blanks
+    if(CFStringCompare(address,CFSTR(""),0) == kCFCompareEqualTo)
+        return;
+
     CFDictionarySetValue(portal,kiSCSIPortalAddresssKey,address);
 }
 
@@ -57,6 +71,10 @@ CFStringRef iSCSIPortalGetPort(iSCSIPortalRef portal)
 
 void iSCSIPortalSetPort(iSCSIMutablePortalRef portal,CFStringRef port)
 {
+    // Ignore blanks
+    if(CFStringCompare(port,CFSTR(""),0) == kCFCompareEqualTo)
+        return;
+
     CFDictionarySetValue(portal,kiSCSIPortalPortKey,port);
 }
 
@@ -71,13 +89,13 @@ void iSCSIPortalSetHostInterface(iSCSIMutablePortalRef portal,CFStringRef hostIn
 }
 
 /*! Releases memory associated with iSCSI portals. */
-void iSCSIPortalRelease(iSCSITargetRef portal)
+void iSCSIPortalRelease(iSCSIPortalRef portal)
 {
     CFRelease(portal);
 }
 
 /*! Retains an iSCSI portal object. */
-void iSCSIPortalRetain(iSCSITargetRef portal)
+void iSCSIPortalRetain(iSCSIPortalRef portal)
 {
     CFRetain(portal);
 }
@@ -123,12 +141,12 @@ CFStringRef kiSCSITargetHeaderDigestKey = CFSTR("HeaderDigest");
 CFStringRef kiSCSITargetDataDigestKey = CFSTR("DataDigest");
 
 /*! Convenience function.  Creates a new iSCSITargetRef with the above keys. */
-iSCSIMutableTargetRef iSCSITargetCreate()
+iSCSIMutableTargetRef iSCSIMutableTargetCreate()
 {
     iSCSIMutableTargetRef target = CFDictionaryCreateMutable(kCFAllocatorDefault,5,NULL,NULL);
-    CFDictionaryAddValue(target,kiSCSITargetNameKey,CFSTR(""));
-    CFDictionaryAddValue(target,kiSCSITargetHeaderDigestKey,CFSTR(""));
-    CFDictionaryAddValue(target,kiSCSITargetDataDigestKey,CFSTR(""));
+
+    CFDictionaryAddValue(target,kiSCSITargetHeaderDigestKey,kCFBooleanFalse);
+    CFDictionaryAddValue(target,kiSCSITargetDataDigestKey,kCFBooleanFalse);
     
     return target;
 }
@@ -142,6 +160,10 @@ CFStringRef iSCSITargetGetName(iSCSITargetRef target)
 /*! Sets the name associated with the iSCSI target. */
 void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name)
 {
+    // Ignore blanks
+    if(CFStringCompare(name,CFSTR(""),0) == kCFCompareEqualTo)
+        return;
+    
     CFDictionarySetValue(target,kiSCSITargetNameKey,name);
 }
 
@@ -247,6 +269,10 @@ iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef initiatorUser,
                                  CFStringRef targetUser,
                                  CFStringRef targetSecret)
 {
+    // Required parameters
+    if(!initiatorUser || !initiatorSecret)
+        return NULL;
+    
     UInt8 authMethod = kiSCSIAuthMethodCHAP;
     CFNumberRef authNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&authMethod);
     
@@ -265,30 +291,35 @@ iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef initiatorUser,
         targetUser,
         targetSecret
     };
+
+    // Check for mutual CHAP before including the targetUser and targetSecret
+    // (include the first there terms of the arrays above when mutual CHAP
+    // is not used).
+    if(!targetUser || !targetSecret)
+        return CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,NULL,NULL);
     
+    // Else we include all parameters
     return CFDictionaryCreate(kCFAllocatorDefault,keys,values,5,NULL,NULL);
 }
 
 /*! Returns the CHAP authentication parameter values if the authentication
  *  method is actually CHAP. */
-errno_t iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
-                               CFStringRef * initiatorUser,
-                               CFStringRef * initiatorSecret,
-                               CFStringRef * targetUser,
-                               CFStringRef * targetSecret)
+void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
+                            CFStringRef * initiatorUser,
+                            CFStringRef * initiatorSecret,
+                            CFStringRef * targetUser,
+                            CFStringRef * targetSecret)
 {
     if(iSCSIAuthGetMethod(auth) != kiSCSIAuthMethodCHAP)
-        return EINVAL;
+        return;
     
     if(!auth || !initiatorUser || !initiatorSecret || !targetUser || !targetSecret)
-        return EINVAL;
+        return;
     
     *initiatorUser = CFDictionaryGetValue(auth,CFSTR("InitiatorUser"));
     *initiatorUser = CFDictionaryGetValue(auth,CFSTR("InitiatorSecret"));
     *targetUser = CFDictionaryGetValue(auth,CFSTR("TargetUser"));
     *targetSecret = CFDictionaryGetValue(auth,CFSTR("TargetSecret"));
-    
-    return 0;
 }
 
 /*! Gets the authentication method used. */
@@ -328,5 +359,177 @@ CFDictionaryRef iSCSIAuthCopyToDictionary(iSCSIAuthRef auth)
 CFDataRef iSCSIAuthCopyToBytes(iSCSIAuthRef auth)
 {
     return CFPropertyListCreateData(kCFAllocatorDefault,auth,kCFPropertyListBinaryFormat_v1_0,0,NULL);
+}
+
+
+
+
+
+
+/*! Creates a discovery record from data obtained from a send targets operation. */
+iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreate()
+{
+    return CFDictionaryCreateMutable(kCFAllocatorDefault,
+                                     kMaxDiscoveryRecEntries,
+                                     &kCFTypeDictionaryKeyCallBacks,
+                                     &kCFTypeDictionaryValueCallBacks);
+}
+
+/*! Add a portal to a specified portal group tag for a given target.
+ *  @param discoveryRec the discovery record.
+ *  @param targetName the name of the target to add.
+ *  @param portalGroupTag the target portal group tag to add.
+ *  @param portal the iSCSI portal to add. */
+void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
+                                CFStringRef targetName,
+                                CFStringRef portalGroupTag,
+                                iSCSIPortalRef portal)
+{
+    // Validate inputs
+    if(!discoveryRec || !targetName || !portalGroupTag)
+        return;
+    
+    CFMutableDictionaryRef targetDict;
+    
+    // If target doesn't exist add it
+    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetName,(void *)&targetDict))
+    {
+        targetDict = CFDictionaryCreateMutable(kCFAllocatorDefault,
+                                               kMaxPortalGroupsPerTarget,
+                                               &kCFTypeDictionaryKeyCallBacks,
+                                               &kCFTypeDictionaryValueCallBacks);
+        
+        CFDictionaryAddValue(discoveryRec,targetName,targetDict);
+    }
+    
+    // If the group tag doesn't exist do nothing
+    CFMutableArrayRef portalsArray;
+    
+    if(!CFDictionaryGetValueIfPresent(targetDict,portalGroupTag,(void *)&portalsArray))
+    {
+        // Add a new portal group
+        portalsArray = CFArrayCreateMutable(kCFAllocatorDefault,
+                                            kMaxPortalsPerGroup,
+                                            &kCFTypeArrayCallBacks);
+        
+        CFDictionaryAddValue(targetDict,portalGroupTag,portalsArray);
+    }
+    
+    // If we've exceeded the max number of portals do nothing
+    if(CFArrayGetCount(portalsArray) == kMaxPortalsPerGroup)
+        return;
+    
+    // Add a new portal
+    CFArrayAppendValue(portalsArray,portal);
+}
+
+/*! Creates a CFArray object containing CFString objects with names of
+ *  all of the targets in the discovery record.
+ *  @param discoveryRec the discovery record.
+ *  @return an array of strings with names of the targets in the record. */
+CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIMutableDiscoveryRecRef discoveryRec)
+{
+    // Validate input
+    if(!discoveryRec)
+        return NULL;
+    
+    // Get all keys, which correspond to the targets
+    const void * keys;
+    CFDictionaryGetKeysAndValues(discoveryRec,&keys,NULL);
+    
+    CFArrayRef targets = CFArrayCreate(kCFAllocatorDefault,
+                                       &keys,
+                                       CFDictionaryGetCount(discoveryRec),
+                                       &kCFTypeArrayCallBacks);
+    
+    return targets;
+}
+
+/*! Creates a CFArray object containing CFString objects with portal group
+ *  tags for a particular target.
+ *  @param discoveryRec the discovery record.
+ *  @param targetName the name of the target.
+ *  @return an array of strings with portal group tags for the specified target. */
+CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIMutableDiscoveryRecRef discoveryRec,
+                                                         CFStringRef targetName)
+{
+    // Validate inputs
+    if(!discoveryRec || !targetName)
+        return NULL;
+    
+    // If target doesn't exist return NULL
+    CFMutableDictionaryRef targetDict;
+    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetName,(void *)&targetDict))
+        return NULL;
+    
+    // Otherwise get all keys, which correspond to the portal group tags
+    const void * keys;
+    CFDictionaryGetKeysAndValues(targetDict,&keys,NULL);
+    
+    CFArrayRef portalGroups = CFArrayCreate(kCFAllocatorDefault,
+                                            &keys,
+                                            CFDictionaryGetCount(targetDict),
+                                            &kCFTypeArrayCallBacks);
+    
+    return portalGroups;
+}
+
+/*! Gets all of the portals associated with a partiular target and portal
+ *  group tag.
+ *  @param discoveryRec the discovery record.
+ *  @param targetName the name of the target.
+ *  @param portalGroupTag the portal group tag associated with the target.
+ *  @return an array of iSCSIPortal objects associated with the specified
+ *  group tag for the specified target. */
+CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIMutableDiscoveryRecRef discoveryRec,
+                                       CFStringRef targetName,
+                                       CFStringRef portalGroupTag)
+{
+    // Validate inputs
+    if(!discoveryRec || !targetName || !portalGroupTag)
+        return NULL;
+    
+    // If target doesn't exist return NULL
+    CFMutableDictionaryRef targetDict;
+    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetName,(void *)&targetDict))
+        return NULL;
+
+    // Grab requested portal group
+    CFArrayRef portalGroup = NULL;
+    CFDictionaryGetValueIfPresent(targetDict,portalGroupTag,(void *)&portalGroup);
+    
+    return portalGroup;
+}
+
+/*! Releases memory associated with an iSCSI discovery record object.
+ * @param target the iSCSI discovery record object. */
+void iSCSIDiscoveryRecRelease(iSCSIMutableDiscoveryRecRef discoveryRec)
+{
+    CFRelease(discoveryRec);
+}
+
+/*! Retains an iSCSI discovery record object.
+ * @param target the iSCSI discovery record object. */
+void iSCSIDiscoveryRecRetain(iSCSIMutableDiscoveryRecRef discoveryRec)
+{
+    CFRetain(discoveryRec);
+}
+
+/*! Copies an iSCSI discovery record object to a dictionary representation.
+ *  @param auth an iSCSI discovery record object.
+ *  @return a dictionary representation of the discovery record object or
+ *  NULL if the discovery record object is invalid. */
+CFDictionaryRef iSCSIDiscoveryRecCopyToDictionary(iSCSIMutableDiscoveryRecRef discoveryRec)
+{
+    return CFDictionaryCreateCopy(kCFAllocatorDefault,discoveryRec);
+}
+
+/*! Copies the discovery record object to a byte array representation.
+ *  @param auth an iSCSI discovery record object.
+ *  @return data representing the discovery record object
+ *  or NULL if the discovery record object is invalid. */
+CFDataRef iSCSIDiscoveryRecCopyToBytes(iSCSIMutableDiscoveryRecRef discoveryRec)
+{
+    return CFPropertyListCreateData(kCFAllocatorDefault,discoveryRec,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
 

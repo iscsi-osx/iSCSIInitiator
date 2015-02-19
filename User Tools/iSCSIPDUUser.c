@@ -1,6 +1,6 @@
     /*!
  * @author		Nareg Sinenian
- * @file		iSCSIPDUUser.h
+ * @file		iSCSIPDUUser.c
  * @version		1.0
  * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
  * @brief		User-space iSCSI PDU functions.  These functions cannot be used
@@ -12,6 +12,7 @@
  */
 
 #include "iSCSIPDUUser.h"
+
 
 const iSCSIPDULogoutReqBHS iSCSIPDULogoutReqBHSInit = {
     .opCodeAndDeliveryMarker = (kiSCSIPDUOpCodeLogoutReq | kiSCSIPDUImmediateDeliveryFlag) };
@@ -85,7 +86,8 @@ const unsigned short kiSCSIPDUTextReqContinueFlag = 0x40;
 void iSCSIPDUDataParseCommon(void * data,size_t length,
                              void * keyContainer,
                              void * valContainer,
-                             void (*callback)(void * keyContainer,CFStringRef key, void * valContainer,CFStringRef val))
+                             void (*callback)(void * keyContainer,CFStringRef key,
+                                              void * valContainer,CFStringRef val))
 {
     if(!data || length == 0)
         return;
@@ -96,7 +98,9 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
     UInt8 * lastByte = currentByte + length;
     UInt8 * tokenStartByte = currentByte;
     
-    CFStringRef keyString, valString;
+    CFStringRef keyString = NULL, valString = NULL;
+    
+    bool equalFound = false;
     
     // Search through bytes and look for key=value pairs.  Convert key and
     // value strings to CFStrings and add to a dictionary
@@ -110,10 +114,13 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
                                                 kCFStringEncodingUTF8,false);
             // Advance the starting point to skip the '='
             tokenStartByte = currentByte + 1;
+            
+            // We've crossed from key to value
+            equalFound = true;
         }
         // Second boolean expression is required for the case of null-padded
         // datasegments (per RFC3720 PDUs are padded up to the nearest word)
-        else if(*currentByte == 0)
+        else if(*currentByte == 0 && equalFound)
         {
             valString = CFStringCreateWithBytes(kCFAllocatorDefault,
                                                 tokenStartByte,
@@ -122,6 +129,10 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
             // Advance the starting point to skip the '='
             tokenStartByte = currentByte + 1;
             (*callback)(keyContainer,keyString,valContainer,valString);
+            
+            // Reset for next key-value pair (this allows extra 0's for padding
+            // if the string should contain any)
+            equalFound = false;
         }
         currentByte++;
     }

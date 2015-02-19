@@ -40,19 +40,19 @@ errno_t iSCSIKernelCreateSession(const char * targetName,
                                  int domain,
                                  const struct sockaddr * targetAddress,
                                  const struct sockaddr * hostAddress,
-                                 UInt16 * sessionId,
-                                 UInt32 * connectionId);
+                                 SID * sessionId,
+                                 CID * connectionId);
 
 /*! Releases an iSCSI session, including all connections associated with that
  *  session (there is no requirement to release connections individually).
  *  @param sessionId the session qualifier part of the ISID. */
-void iSCSIKernelReleaseSession(UInt16 sessionId);
+void iSCSIKernelReleaseSession(SID sessionId);
 
 /*! Sets options associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param options the options to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetSessionOptions(UInt16 sessionId,
+errno_t iSCSIKernelSetSessionOptions(SID sessionId,
                                      iSCSISessionOptions * options);
 
 /*! Gets options associated with a particular connection.
@@ -60,7 +60,7 @@ errno_t iSCSIKernelSetSessionOptions(UInt16 sessionId,
  *  @param options the options to get.  The user of this function is
  *  responsible for allocating and freeing the options struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionOptions(UInt16 sessionId,
+errno_t iSCSIKernelGetSessionOptions(SID sessionId,
                                      iSCSISessionOptions * options);
 
 /*! Allocates an additional iSCSI connection for a particular session.
@@ -72,15 +72,15 @@ errno_t iSCSIKernelGetSessionOptions(UInt16 sessionId,
  *  @param connectionId the identifier of the new connection.
  *  @return a connection identifier using the last parameter, or an error code
  *  if a valid connection could not be created. */
-errno_t iSCSIKernelCreateConnection(UInt16 sessionId,
+errno_t iSCSIKernelCreateConnection(SID sessionId,
                                     int domain,
                                     const struct sockaddr * targetAddress,
                                     const struct sockaddr * hostAddress,
-                                    UInt32 * connectionId);
+                                    CID * connectionId);
 
 /*! Frees a given iSCSI connection associated with a given session.
  *  The session should be logged out using the appropriate PDUs. */
-void iSCSIKernelReleaseConnection(UInt16 sessionId,UInt32 connectionId);
+void iSCSIKernelReleaseConnection(SID sessionId,CID connectionId);
 
 /*! Sends data over a kernel socket associated with iSCSI. The data sent should
  *  be specified by the buffer pointer to by data, with a length given by 
@@ -92,8 +92,8 @@ void iSCSIKernelReleaseConnection(UInt16 sessionId,UInt32 connectionId);
  *  @param data the data segment of the PDU to send over the connection.
  *  @param length the length of the data block to send over the connection.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSend(UInt16 sessionId,
-                        UInt32 connectionId,
+errno_t iSCSIKernelSend(SID sessionId,
+                        CID connectionId,
                         iSCSIPDUInitiatorBHS * bhs,
                         void * data,
                         size_t length);
@@ -108,8 +108,8 @@ errno_t iSCSIKernelSend(UInt16 sessionId,
  *  @param data the data segment of the PDU received over the connection.
  *  @param length the length of the data block received.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelRecv(UInt16 sessionId,
-                        UInt32 connectionId,
+errno_t iSCSIKernelRecv(SID sessionId,
+                        CID connectionId,
                         iSCSIPDUTargetBHS * bhs,
                         void * * data,
                         size_t * length);
@@ -119,8 +119,8 @@ errno_t iSCSIKernelRecv(UInt16 sessionId,
  *  @param connectionId the connection associated with the session.
  *  @param options the options to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetConnectionOptions(UInt16 sessionId,
-                                        UInt32 connectionId,
+errno_t iSCSIKernelSetConnectionOptions(SID sessionId,
+                                        CID connectionId,
                                         iSCSIConnectionOptions * options);
 
 /*! Gets options associated with a particular connection.
@@ -129,66 +129,66 @@ errno_t iSCSIKernelSetConnectionOptions(UInt16 sessionId,
  *  @param options the options to get.  The user of this function is
  *  responsible for allocating and freeing the options struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionOptions(UInt16 sessionId,
-                                        UInt32 connectionId,
+errno_t iSCSIKernelGetConnectionOptions(SID sessionId,
+                                        CID connectionId,
                                         iSCSIConnectionOptions * options);
 
 /*! Activates an iSCSI connection associated with a session.
  *  @param sessionId session associated with connection to activate.
  *  @param connectionId  connection to activate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelActivateConnection(UInt16 sessionId,UInt32 connectionId);
+errno_t iSCSIKernelActivateConnection(SID sessionId,CID connectionId);
 
 /*! Activates all iSCSI connections associated with a session.
  *  @param sessionId session associated with connection to activate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelActivateAllConnections(UInt16 sessionId);
+errno_t iSCSIKernelActivateAllConnections(SID sessionId);
 
 /*! Dectivates an iSCSI connection associated with a session.
  *  @param sessionId session associated with connection to deactivate.
  *  @param connectionId  connection to deactivate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelDeactivateConnection(UInt16 sessionId,UInt32 connectionId);
+errno_t iSCSIKernelDeactivateConnection(SID sessionId,CID connectionId);
 
 /*! Dectivates all iSCSI sessions associated with a session.
  *  @param sessionId session associated with connections to deactivate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelDeactivateAllConnections(UInt16 sessionId);
+errno_t iSCSIKernelDeactivateAllConnections(SID sessionId);
 
 /*! Gets the first connection (the lowest connectionId) for the
  *  specified session.
  *  @param sessionId obtain an connectionId for this session.
  *  @param connectionId the identifier of the connection.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnection(UInt16 sessionId,UInt32 * connectionId);
+errno_t iSCSIKernelGetConnection(SID sessionId,CID * connectionId);
 
 /*! Gets the connection count for the specified session.
  *  @param sessionId obtain the connection count for this session.
  *  @param numConnections the connection count.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetNumConnections(UInt16 sessionId,UInt32 * numConnections);
+errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections);
 
 /*! Looks up the session identifier associated with a particular target name.
  *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,
-                                              UInt16 * sessionId);
+                                              SID * sessionId);
 
 /*! Looks up the connection identifier associated with a particular connection address.
  *  @param sessionId the session identifier.
  *  @param address the name used when adding the connection (e.g., IP or DNS).
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionIdFromAddress(UInt16 sessionId,
+errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
                                               const char * address,
-                                              UInt32 * connectionId);
+                                              CID * connectionId);
 
 /*! Gets an array of session identifiers for each session.
  *  @param sessionIds an array of session identifiers.
  *  @param sessionCount number of session identifiers.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIds(UInt16 ** sessionIds,
+errno_t iSCSIKernelGetSessionIds(UInt16 * sessionIds,
                                  UInt16 * sessionCount);
 
 /*! Gets an array of connection identifiers for each session.
@@ -196,8 +196,8 @@ errno_t iSCSIKernelGetSessionIds(UInt16 ** sessionIds,
  *  @param connectionIds an array of connection identifiers for the session.
  *  @param connectionCount number of connection identifiers.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionIds(UInt16 sessionId,
-                                    UInt32 ** connectionIds,
+errno_t iSCSIKernelGetConnectionIds(SID sessionId,
+                                    UInt32 * connectionIds,
                                     UInt32 * connectionCount);
 
 

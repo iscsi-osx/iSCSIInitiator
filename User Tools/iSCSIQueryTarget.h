@@ -1,10 +1,11 @@
-//
-//  iSCSIQueryTarget.h
-//  iSCSI_Initiator
-//
-//  Created by Nareg Sinenian on 1/18/15.
-//
-//
+/*!
+ * @author		Nareg Sinenian
+ * @file		iSCSIQueryTarget.h
+ * @version		1.0
+ * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
+ * @brief		User-space iSCSI query function.  Used throughout the login
+ *              process to perform parameter negotiation and login.
+ */
 
 #ifndef __ISCSI_QUERY_TARGET_H__
 #define __ISCSI_QUERY_TARGET_H__
@@ -12,18 +13,19 @@
 #include "iSCSITypes.h"
 #include "iSCSIPDUUser.h"
 
+/*! Used to perform a login query during the login phase of a connection. */
 struct iSCSILoginQueryContext {
-    UInt16 sessionId;
-    UInt32 connectionId;
+    SID sessionId;
+    CID connectionId;
     UInt32 TSIH;
     enum iSCSIPDULoginStages currentStage;
     enum iSCSIPDULoginStages nextStage;
 };
 
+/*! Possible reject codes that may be issued throughout the login process. */
 enum iSCSIRejectCode {
     kiSCSIRejectCodeTest
 };
-
 
 
 /*! Helper function used throughout the login process to query the target.
@@ -40,7 +42,7 @@ enum iSCSIRejectCode {
  *  @param textRsp a dictionary of key-value pairs to receive.
  *  @return an error code that indicates the result of the operation. */
 errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
-                               enum iSCSIStatusCode * statusCode,
+                               enum iSCSILoginStatusCode * statusCode,
                                enum iSCSIRejectCode * rejectCode,
                                CFDictionaryRef   textCmd,
                                CFMutableDictionaryRef  textRsp);
@@ -59,8 +61,8 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
  *  @param textCmd a dictionary of key-value pairs to send.
  *  @param textRsp a dictionary of key-value pairs to receive.
  *  @return an error code that indicates the result of the operation. */
-errno_t iSCSISessionTextQuery(UInt16 sessionId,
-                              UInt32 connectionId,
+errno_t iSCSISessionTextQuery(SID sessionId,
+                              CID connectionId,
                               CFDictionaryRef   textCmd,
                               CFMutableDictionaryRef  textRsp);
 

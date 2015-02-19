@@ -29,12 +29,35 @@ int main(int argc, const char * argv[]) {
     
     if(iSCSIKernelInitialize() == kIOReturnSuccess)
         printf("Connected");
+
+ //       iSCSILogoutSession(0);
     
-    iSCSIMutablePortalRef portal = iSCSIPortalCreate();
+    
+    iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
     iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
     iSCSIPortalSetPort(portal,CFSTR("3260"));
     iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
     
+    CFArrayRef targets;
+    enum iSCSILoginStatusCode statusCode;
+    iSCSIMutableDiscoveryRecRef discoveryRec = iSCSIMutableDiscoveryRecCreate();
+    
+    iSCSIQueryPortalForTargets(portal,&discoveryRec,&statusCode);
+    
+    CFArrayRef targetlist = iSCSIDiscoveryRecCreateArrayOfTargets(discoveryRec);
+    
+    CFShow(CFSTR("The following targets were detected:\n"));
+    CFStringRef targetName = CFArrayGetValueAtIndex(targetlist,0);
+    CFShow(targetName);
+    
+    CFArrayRef TPGT = iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(discoveryRec,targetName);
+    CFArrayRef portals = iSCSIDiscoveryRecGetPortals(discoveryRec,targetName,CFArrayGetValueAtIndex(TPGT,0));
+    
+    iSCSIPortalRef por = CFArrayGetValueAtIndex(portals,0);
+    CFShow(iSCSIPortalGetAddress(por));
+    
+
+  /*
     iSCSIMutableTargetRef target = iSCSITargetCreate();
     iSCSITargetSetName(target,CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi55"));
     iSCSITargetSetHeaderDigest(target,false);
@@ -45,65 +68,34 @@ int main(int argc, const char * argv[]) {
 
 //    iSCSIQueryPortalForTargets(&portal,&targets);
 
-    UInt16 sessionId;
-    UInt32 connectionId;
+    SID sessionId;
+    CID connectionId;
 
-    enum iSCSIStatusCode statusCode;
-    iSCSICreateSession(portal,target,auth,&sessionId,&connectionId,&statusCode);
+    enum iSCSILoginStatusCode statusCode;
+    iSCSILoginSession(portal,target,auth,&sessionId,&connectionId,&statusCode);
     
     UInt16 id;
     iSCSIGetSessionIdForTarget(CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi55"),&id);
     
     UInt32 connectionCount;
-    UInt32 * connectionIds = malloc(kiSCSIMaxConnectionsPerSession*sizeof(UInt32));
+    CID * connectionIds = malloc(kiSCSIMaxConnectionsPerSession*sizeof(CID));
     connectionIds[0] = 10;
-    iSCSIGetConnectionIds(sessionId, &connectionIds, &connectionCount);
+    iSCSIGetConnectionIds(sessionId, connectionIds, &connectionCount);
     
     UInt16 sessionCount;
-    UInt16 * sessionIds = malloc(kiSCSIMaxSessions*sizeof(UInt16));
-    iSCSIGetSessionIds(&sessionIds,&sessionCount);
-    
+    SID * sessionIds = malloc(kiSCSIMaxSessions*sizeof(SID));
+    iSCSIGetSessionIds(sessionIds,&sessionCount);
+ 
 //    iSCSIQueryTargetForAuthMethods(&portal,CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi56"),&authMethods);
-    iSCSIReleaseSession(0);
- /*
-    //    iSCSIReleaseSession(0);
-    iSCSISessionInfo sessionOpts;
-    sessionOpts.maxConnections = 2;
-    
-    
-    iSCSIConnectionInfo connOpts;
-    connOpts.initiatorAlias = CFSTR("Test");
-    connOpts.initiatorName = CFSTR("iqn.2014-01.com.os:host");
-    connOpts.targetName = CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi55");
-    connOpts.hostInterface = CFSTR("en0");
-    connOpts.targetAddress = CFSTR("192.168.1.116");
-    connOpts.targetPort = CFSTR("3260");
-    connOpts.useHeaderDigest = false;
-    connOpts.useDataDigest = true;
-    
-    //connOpts.authMethod = iSCSIAuthCreateCHAP(CFSTR("nareg"),CFSTR("test2test2test2"),
-    //                                           CFSTR("nareg"),CFSTR("testtesttest"));
-    connOpts.authMethod = NULL;
-    
-    
-    iSCSICreateSession(&sessionOpts,&connOpts);
-    
-    
-    //    CFMutableDictionaryRef targetList;
-    //    iSCSISessionGetTargetList(sessionQualifier,0,&targetList);
-    //    iSCSIKernelDeactivateConnection(sessionOpts.sessionId,connOpts.connectionId);
-    iSCSIReleaseSession(0);
-    iSCSIReleaseSession(1);
-    iSCSIReleaseSession(2);
-    
-  */  
+   
+   */
     
     iSCSIKernelCleanUp();
     
     //    CFRelease(targetList);
     
     
-    
+
     
 
     

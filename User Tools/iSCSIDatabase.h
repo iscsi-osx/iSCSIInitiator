@@ -10,13 +10,10 @@
 #ifndef __ISCSI_DATABASE_H__
 #define __ISCSI_DATABASE_H__
 
-
 #include <CoreFoundation/CoreFoundation.h>
 #include <errno.h>
 
 #include "iSCSITypes.h"
-
-
 
 /*! Copys the initiator name from the database into a CFString object.
  *  @param initiatorName the initiator name retrieved.

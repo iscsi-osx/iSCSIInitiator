@@ -79,8 +79,8 @@ errno_t iSCSIKernelCreateSession(const char * targetName,
                                  int domain,
                                  const struct sockaddr * targetAddress,
                                  const struct sockaddr * hostAddress,
-                                 UInt16 * sessionId,
-                                 UInt32 * connectionId)
+                                 SID * sessionId,
+                                 CID * connectionId)
 {
     // Check parameters
     if(!targetAddress || !hostAddress || !sessionId || !connectionId)
@@ -99,12 +99,15 @@ errno_t iSCSIKernelCreateSession(const char * targetName,
 
     // Pack the targetAddress, hostAddress, targetName and connectionName into
     // a single buffer in that order.  The strings targetName and connectionName
-    // are NULL-terminated C strings (the NULL characteris copied)
+    // are NULL-terminated C strings (the NULL character is copied)
     void * inputBuffer = malloc(inputBufferSize);
 
     memcpy(inputBuffer,targetAddress,sockaddr_len);
     memcpy(inputBuffer+sockaddr_len,hostAddress,sockaddr_len);
-    memcpy(inputBuffer+2*sockaddr_len,targetName,targetNameSize);
+    
+    // For discovery sessions target name is left blank (NULL)
+    if(targetName)
+        memcpy(inputBuffer+2*sockaddr_len,targetName,targetNameSize);
     
     const UInt32 expOutputCnt = 3;
     UInt64 output[expOutputCnt];
@@ -129,7 +132,7 @@ errno_t iSCSIKernelCreateSession(const char * targetName,
 /*! Releases an iSCSI session, including all connections associated with that
  *  session.
  *  @param sessionId the session qualifier part of the ISID. */
-void iSCSIKernelReleaseSession(UInt16 sessionId)
+void iSCSIKernelReleaseSession(SID sessionId)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId)
@@ -146,7 +149,7 @@ void iSCSIKernelReleaseSession(UInt16 sessionId)
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param options the options to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetSessionOptions(UInt16 sessionId,
+errno_t iSCSIKernelSetSessionOptions(SID sessionId,
                                      iSCSISessionOptions * options)
 {
     // Check parameters
@@ -169,7 +172,7 @@ errno_t iSCSIKernelSetSessionOptions(UInt16 sessionId,
  *  @param options the options to get.  The user of this function is
  *  responsible for allocating and freeing the options struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionOptions(UInt16 sessionId,
+errno_t iSCSIKernelGetSessionOptions(SID sessionId,
                                      iSCSISessionOptions * options)
 {
     // Check parameters
@@ -196,11 +199,11 @@ errno_t iSCSIKernelGetSessionOptions(UInt16 sessionId,
  *  specifies the interface that the connection will be bound to.
  *  @param connectionId the identifier of the new connection (returned).
  *  @return An error code if a valid connection could not be created. */
-errno_t iSCSIKernelCreateConnection(UInt16 sessionId,
+errno_t iSCSIKernelCreateConnection(SID sessionId,
                                     int domain,
                                     const struct sockaddr * targetAddress,
                                     const struct sockaddr * hostAddress,
-                                    UInt32 * connectionId)
+                                    CID * connectionId)
 {
     // Check parameters
     if(!targetAddress || !hostAddress || sessionId == kiSCSIInvalidSessionId)
@@ -235,7 +238,7 @@ errno_t iSCSIKernelCreateConnection(UInt16 sessionId,
 /*! Frees a given
  iSCSI connection associated with a given session.
  *  The session should be logged out using the appropriate PDUs. */
-void iSCSIKernelReleaseConnection(UInt16 sessionId,UInt32 connectionId)
+void iSCSIKernelReleaseConnection(SID sessionId,CID connectionId)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
@@ -256,8 +259,8 @@ void iSCSIKernelReleaseConnection(UInt16 sessionId,UInt32 connectionId)
  *  @param data the data segment of the PDU to send over the connection.
  *  @param length the length of the data block to send over the connection.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSend(UInt16 sessionId,
-                        UInt32 connectionId,
+errno_t iSCSIKernelSend(SID sessionId,
+                        CID connectionId,
                         iSCSIPDUInitiatorBHS * bhs,
                         void * data,
                         size_t length)
@@ -300,8 +303,8 @@ errno_t iSCSIKernelSend(UInt16 sessionId,
  *  @param data the data segment of the PDU received over the connection.
  *  @param length the length of the data block received.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelRecv(UInt16 sessionId,
-                        UInt32 connectionId,
+errno_t iSCSIKernelRecv(SID sessionId,
+                        CID connectionId,
                         iSCSIPDUTargetBHS * bhs,
                         void * * data,
                         size_t * length)
@@ -362,8 +365,8 @@ errno_t iSCSIKernelRecv(UInt16 sessionId,
  *  @param connectionId the connection associated with the session.
  *  @param options the options to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetConnectionOptions(UInt16 sessionId,
-                                        UInt32 connectionId,
+errno_t iSCSIKernelSetConnectionOptions(SID sessionId,
+                                        CID connectionId,
                                         iSCSIConnectionOptions * options)
 {
     // Check parameters
@@ -388,8 +391,8 @@ errno_t iSCSIKernelSetConnectionOptions(UInt16 sessionId,
  *  @param options the options to get.  The user of this function is
  *  responsible for allocating and freeing the options struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionOptions(UInt16 sessionId,
-                                        UInt32 connectionId,
+errno_t iSCSIKernelGetConnectionOptions(SID sessionId,
+                                        CID connectionId,
                                         iSCSIConnectionOptions * options)
 {
     // Check parameters
@@ -414,7 +417,7 @@ errno_t iSCSIKernelGetConnectionOptions(UInt16 sessionId,
  *  @param sessionId session associated with connection to activate.
  *  @param connectionId  connection to activate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelActivateConnection(UInt16 sessionId,UInt32 connectionId)
+errno_t iSCSIKernelActivateConnection(SID sessionId,CID connectionId)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
@@ -440,7 +443,7 @@ errno_t iSCSIKernelActivateConnection(UInt16 sessionId,UInt32 connectionId)
 /*! Activates all iSCSI connections associated with a session.
  *  @param sessionId session associated with connection to activate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelActivateAllConnections(UInt16 sessionId)
+errno_t iSCSIKernelActivateAllConnections(SID sessionId)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId)
@@ -467,7 +470,7 @@ errno_t iSCSIKernelActivateAllConnections(UInt16 sessionId)
  *  @param sessionId session associated with connection to deactivate.
  *  @param connectionId  connection to deactivate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelDeactivateConnection(UInt16 sessionId,UInt32 connectionId)
+errno_t iSCSIKernelDeactivateConnection(SID sessionId,CID connectionId)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
@@ -493,7 +496,7 @@ errno_t iSCSIKernelDeactivateConnection(UInt16 sessionId,UInt32 connectionId)
 /*! Dectivates all iSCSI sessions associated with a session.
  *  @param sessionId session associated with connections to deactivate.
  *  @return error code inidicating result of operation. */
-errno_t iSCSIKernelDeactivateAllConnections(UInt16 sessionId)
+errno_t iSCSIKernelDeactivateAllConnections(SID sessionId)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId)
@@ -520,7 +523,7 @@ errno_t iSCSIKernelDeactivateAllConnections(UInt16 sessionId)
  *  @param sessionId obtain an connectionId for this session.
  *  @param connectionId the identifier of the connection.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnection(UInt16 sessionId,UInt32 * connectionId)
+errno_t iSCSIKernelGetConnection(SID sessionId,CID * connectionId)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId || !connectionId)
@@ -539,7 +542,7 @@ errno_t iSCSIKernelGetConnection(UInt16 sessionId,UInt32 * connectionId)
         if(outputCnt == expOutputCnt)
         {
             *connectionId = (UInt32)output[1];
-            return (errno_t)output;
+            return (errno_t)output[0];
         }
     }
     return EINVAL;
@@ -550,7 +553,7 @@ errno_t iSCSIKernelGetConnection(UInt16 sessionId,UInt32 * connectionId)
  *  @param sessionId obtain the connection count for this session.
  *  @param numConnections the connection count.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetNumConnections(UInt16 sessionId,UInt32 * numConnections)
+errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId || !numConnections)
@@ -579,7 +582,7 @@ errno_t iSCSIKernelGetNumConnections(UInt16 sessionId,UInt32 * numConnections)
  *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,UInt16 * sessionId)
+errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,SID * sessionId)
 {
     if(!targetName || !sessionId)
         return EINVAL;
@@ -595,7 +598,7 @@ errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,UInt16 * s
         if(outputCnt == expOutputCnt)
         {
             *sessionId = (UInt16)output[1];
-            return (errno_t)output;
+            return (errno_t)output[0];
         }
     }
     
@@ -607,9 +610,9 @@ errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,UInt16 * s
  *  @param address the name used when adding the connection (e.g., IP or DNS).
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionIdFromAddress(UInt16 sessionId,
+errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
                                               const char * address,
-                                              UInt32 * connectionId)
+                                              CID * connectionId)
 {
     if(!address || !sessionId || !connectionId)
         return EINVAL;
@@ -628,7 +631,7 @@ errno_t iSCSIKernelGetConnectionIdFromAddress(UInt16 sessionId,
         if(outputCnt == expOutputCnt)
         {
             *connectionId = (UInt16)output[1];
-            return (errno_t)output;
+            return (errno_t)output[0];
         }
     }
     
@@ -640,10 +643,10 @@ errno_t iSCSIKernelGetConnectionIdFromAddress(UInt16 sessionId,
  *  enough to hold the maximum number of sessions (kiSCSIMaxSessions).
  *  @param sessionCount number of session identifiers.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIds(UInt16 ** sessionIds,
+errno_t iSCSIKernelGetSessionIds(UInt16 * sessionIds,
                                  UInt16 * sessionCount)
 {
-    if(!sessionIds || !sessionCount || (sizeof(*sessionIds)/sizeof(UInt16) != kiSCSIMaxSessions))
+    if(!sessionIds || !sessionCount)
         return EINVAL;
     
     const UInt32 expOutputCnt = 2;
@@ -659,7 +662,7 @@ errno_t iSCSIKernelGetSessionIds(UInt16 ** sessionIds,
         if(outputCnt == expOutputCnt)
         {
             *sessionCount = (UInt32)output[1];
-            return (errno_t)output;
+            return (errno_t)output[0];
         }
     }
     
@@ -671,12 +674,11 @@ errno_t iSCSIKernelGetSessionIds(UInt16 ** sessionIds,
  *  @param connectionIds an array of connection identifiers for the session.
  *  @param connectionCount number of connection identifiers.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionIds(UInt16 sessionId,
-                                    UInt32 ** connectionIds,
+errno_t iSCSIKernelGetConnectionIds(SID sessionId,
+                                    UInt32 * connectionIds,
                                     UInt32 * connectionCount)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !connectionIds || !connectionCount ||
-       (sizeof(*connectionIds)/sizeof(UInt32) != kiSCSIMaxConnectionsPerSession))
+    if(sessionId == kiSCSIInvalidSessionId || !connectionIds || !connectionCount)
         return EINVAL;
     
     const UInt32 inputCnt = 1;
@@ -695,7 +697,7 @@ errno_t iSCSIKernelGetConnectionIds(UInt16 sessionId,
         if(outputCnt == expOutputCnt)
         {
             *connectionCount = (UInt32)output[1];
-            return (errno_t)output;
+            return (errno_t)output[0];
         }
     }
     

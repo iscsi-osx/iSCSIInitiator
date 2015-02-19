@@ -1,12 +1,15 @@
-//
-//  iSCSIQueryTarget.c
-//  iSCSI_Initiator
-//
-//  Created by Nareg Sinenian on 1/18/15.
-//
-//
+/*!
+ * @author		Nareg Sinenian
+ * @file		iSCSIQueryTarget.c
+ * @version		1.0
+ * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
+ * @brief		User-space iSCSI query function.  Used throughout the login
+ *              process to perform parameter negotiation and login.
+ */
+
 
 #include "iSCSIQueryTarget.h"
+#include "iSCSIKernelInterface.h"
 
 /*! Helper function used throughout the login process to query the target.
  *  This function will take a dictionary of key-value pairs and send the
@@ -22,7 +25,7 @@
  *  @param textRsp a dictionary of key-value pairs to receive.
  *  @return an error code that indicates the result of the operation. */
 errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
-                               enum iSCSIStatusCode * statusCode,
+                               enum iSCSILoginStatusCode * statusCode,
                                enum iSCSIRejectCode * rejectCode,
                                CFDictionaryRef   textCmd,
                                CFMutableDictionaryRef  textRsp)
@@ -99,8 +102,8 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
  *  @param textCmd a dictionary of key-value pairs to send.
  *  @param textRsp a dictionary of key-value pairs to receive.
  *  @return an error code that indicates the result of the operation. */
-errno_t iSCSISessionTextQuery(UInt16 sessionId,
-                              UInt32 connectionId,
+errno_t iSCSISessionTextQuery(SID sessionId,
+                              CID connectionId,
                               CFDictionaryRef   textCmd,
                               CFMutableDictionaryRef  textRsp)
 {

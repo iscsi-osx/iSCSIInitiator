@@ -10,7 +10,8 @@
 		2B16EECA196085A40061E7FA /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
 		2B4A60371A3E6F690006AFCC /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B5935C21810DF7100FFC3D3 /* IOKit.framework */; };
 		2B4A60381A3E6F830006AFCC /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
-		2BCB2B321A7015CF00A81C80 /* crc32c.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B1F1A7015CF00A81C80 /* crc32c.c */; };
+		2BC0A4A21A80C6A60042105C /* crc32c.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B1F1A7015CF00A81C80 /* crc32c.c */; };
+		2BC0A4A41A80C8540042105C /* iSCSIInitiator-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2BCB2B471A70182D00A81C80 /* iSCSIInitiator-Info.plist */; };
 		2BCB2B331A7015CF00A81C80 /* crc32c.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B201A7015CF00A81C80 /* crc32c.h */; };
 		2BCB2B351A7015CF00A81C80 /* iSCSIInitiator-Prefix.pch in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B221A7015CF00A81C80 /* iSCSIInitiator-Prefix.pch */; };
 		2BCB2B361A7015CF00A81C80 /* iSCSIInitiator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B231A7015CF00A81C80 /* iSCSIInitiator.cpp */; };
@@ -26,7 +27,6 @@
 		2BCB2B421A7015CF00A81C80 /* iSCSITaskQueue.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B2F1A7015CF00A81C80 /* iSCSITaskQueue.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		2BCB2B431A7015CF00A81C80 /* iSCSIVirtualHBA.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B301A7015CF00A81C80 /* iSCSIVirtualHBA.cpp */; };
 		2BCB2B441A7015CF00A81C80 /* iSCSIVirtualHBA.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B311A7015CF00A81C80 /* iSCSIVirtualHBA.h */; settings = {ATTRIBUTES = (Private, ); }; };
-		2BCB2B491A70189200A81C80 /* iSCSIInitiator-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2BCB2B471A70182D00A81C80 /* iSCSIInitiator-Info.plist */; };
 		2BCB2B4C1A70195600A81C80 /* iSCSIPDUShared.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B4B1A70195600A81C80 /* iSCSIPDUShared.h */; };
 		2BCB2B4E1A70199900A81C80 /* iSCSIKernelInterface.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B451A70168B00A81C80 /* iSCSIKernelInterface.c */; };
 		2BCB2B4F1A70199900A81C80 /* iSCSIAuth.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B091A70157200A81C80 /* iSCSIAuth.c */; };
@@ -42,7 +42,6 @@
 		2BCB2B591A7019D700A81C80 /* iSCSITypes.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B1B1A70157200A81C80 /* iSCSITypes.c */; };
 		2BCB2B5A1A7019F100A81C80 /* iSCSIKernelInterface.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B451A70168B00A81C80 /* iSCSIKernelInterface.c */; };
 		2BCB2B5B1A7019F100A81C80 /* iSCSIAuth.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B091A70157200A81C80 /* iSCSIAuth.c */; };
-		2BCB2B5C1A7019F100A81C80 /* iSCSIDaemonInterface.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B0E1A70157200A81C80 /* iSCSIDaemonInterface.c */; };
 		2BCB2B5D1A7019F100A81C80 /* iSCSIDatabase.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B111A70157200A81C80 /* iSCSIDatabase.c */; };
 		2BCB2B5E1A7019F100A81C80 /* iSCSIPDUUser.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B141A70157200A81C80 /* iSCSIPDUUser.c */; };
 		2BCB2B5F1A7019F100A81C80 /* iSCSIQueryTarget.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B161A70157200A81C80 /* iSCSIQueryTarget.c */; };
@@ -112,8 +111,8 @@
 		2BCB2B1C1A70157200A81C80 /* iSCSITypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSITypes.h; path = "User Tools/iSCSITypes.h"; sourceTree = "<group>"; };
 		2BCB2B1D1A70157200A81C80 /* iSCSITypesShared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSITypesShared.h; path = "User Tools/iSCSITypesShared.h"; sourceTree = "<group>"; };
 		2BCB2B1E1A70157200A81C80 /* Property List.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Property List.plist"; path = "User Tools/Property List.plist"; sourceTree = "<group>"; };
-		2BCB2B1F1A7015CF00A81C80 /* crc32c.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = crc32c.c; path = Kernel/crc32c.c; sourceTree = "<group>"; };
-		2BCB2B201A7015CF00A81C80 /* crc32c.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = crc32c.h; path = Kernel/crc32c.h; sourceTree = "<group>"; };
+		2BCB2B1F1A7015CF00A81C80 /* crc32c.c */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = crc32c.c; path = Kernel/crc32c.c; sourceTree = "<group>"; };
+		2BCB2B201A7015CF00A81C80 /* crc32c.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = crc32c.h; path = Kernel/crc32c.h; sourceTree = "<group>"; };
 		2BCB2B221A7015CF00A81C80 /* iSCSIInitiator-Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "iSCSIInitiator-Prefix.pch"; path = "Kernel/iSCSIInitiator-Prefix.pch"; sourceTree = "<group>"; };
 		2BCB2B231A7015CF00A81C80 /* iSCSIInitiator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = iSCSIInitiator.cpp; path = Kernel/iSCSIInitiator.cpp; sourceTree = "<group>"; };
 		2BCB2B241A7015CF00A81C80 /* iSCSIInitiator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iSCSIInitiator.h; path = Kernel/iSCSIInitiator.h; sourceTree = "<group>"; };
@@ -134,7 +133,7 @@
 		2BCB2B4B1A70195600A81C80 /* iSCSIPDUShared.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iSCSIPDUShared.h; path = Kernel/iSCSIPDUShared.h; sourceTree = "<group>"; };
 		2BDEA9401A715C7B00D5B48B /* iSCSIInitiator.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iSCSIInitiator.kext; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BDEA9411A715C7B00D5B48B /* iscsid */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iscsid; sourceTree = BUILT_PRODUCTS_DIR; };
-		2BDEA9421A715C7B00D5B48B /* iSCSICtl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iSCSICtl; sourceTree = BUILT_PRODUCTS_DIR; };
+		2BDEA9421A715C7B00D5B48B /* iscsictl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iscsictl; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BDEA9431A715C7B00D5B48B /* iSCSITest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iSCSITest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -181,7 +180,7 @@
 				2B5935631810D38E00FFC3D3 /* Frameworks */,
 				2BDEA9401A715C7B00D5B48B /* iSCSIInitiator.kext */,
 				2BDEA9411A715C7B00D5B48B /* iscsid */,
-				2BDEA9421A715C7B00D5B48B /* iSCSICtl */,
+				2BDEA9421A715C7B00D5B48B /* iscsictl */,
 				2BDEA9431A715C7B00D5B48B /* iSCSITest */,
 			);
 			sourceTree = "<group>";
@@ -310,7 +309,7 @@
 			);
 			name = iscsictl;
 			productName = iscsiadm;
-			productReference = 2BDEA9421A715C7B00D5B48B /* iSCSICtl */;
+			productReference = 2BDEA9421A715C7B00D5B48B /* iscsictl */;
 			productType = "com.apple.product-type.tool";
 		};
 		2B9519861810F852006CE7E5 /* iSCSIInitiator */ = {
@@ -372,7 +371,7 @@
 		2B5935551810CE6800FFC3D3 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0510;
+				LastUpgradeCheck = 0610;
 				TargetAttributes = {
 					2BB83CD61A3D493B0017212D = {
 						CreatedOnToolsVersion = 6.1.1;
@@ -405,7 +404,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2BCB2B491A70189200A81C80 /* iSCSIInitiator-Info.plist in Resources */,
+				2BC0A4A41A80C8540042105C /* iSCSIInitiator-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -439,8 +438,8 @@
 			files = (
 				2BCB2B3F1A7015CF00A81C80 /* iSCSIPDUKernel.cpp in Sources */,
 				2BCB2B431A7015CF00A81C80 /* iSCSIVirtualHBA.cpp in Sources */,
-				2BCB2B321A7015CF00A81C80 /* crc32c.c in Sources */,
 				2BCB2B411A7015CF00A81C80 /* iSCSITaskQueue.cpp in Sources */,
+				2BC0A4A21A80C6A60042105C /* crc32c.c in Sources */,
 				2BCB2B3A1A7015CF00A81C80 /* iSCSIIOEventSource.cpp in Sources */,
 				2BCB2B381A7015CF00A81C80 /* iSCSIInitiatorClient.cpp in Sources */,
 				2BCB2B361A7015CF00A81C80 /* iSCSIInitiator.cpp in Sources */,
@@ -470,7 +469,6 @@
 				2BCB2B5D1A7019F100A81C80 /* iSCSIDatabase.c in Sources */,
 				2BCB2B5A1A7019F100A81C80 /* iSCSIKernelInterface.c in Sources */,
 				2BCB2B5B1A7019F100A81C80 /* iSCSIAuth.c in Sources */,
-				2BCB2B5C1A7019F100A81C80 /* iSCSIDaemonInterface.c in Sources */,
 				2BCB2B5E1A7019F100A81C80 /* iSCSIPDUUser.c in Sources */,
 				2BCB2B5F1A7019F100A81C80 /* iSCSIQueryTarget.c in Sources */,
 				2BCB2B611A7019F100A81C80 /* iSCSITest.c in Sources */,

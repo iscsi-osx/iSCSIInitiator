@@ -11,10 +11,6 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreFoundation/CFPreferences.h>
 
-
-
-
-
 /*! Preference key name for iSCSI initiator settings dictionary. */
 CFStringRef kiSCSIPKInitiatorSettingsDict = CFSTR("InitiatorSettings");
 

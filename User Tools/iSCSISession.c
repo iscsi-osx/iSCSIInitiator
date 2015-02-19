@@ -20,13 +20,6 @@ CFStringRef kiSCSIInitiatorName = CFSTR("default");
 /*! Alias of the initiator. */
 CFStringRef kiSCSIInitiatorAlias = CFSTR("default");
 
-/*! The iSCSI error code that is set to a particular value if session management
- *  functions cannot be completed successfully.  This is distinct from errors
- *  associated with system function calls.  If no system error has occured
- *  (e.g., socket API calls) an iSCSI error may still have occured. */
-static UInt16 iSCSILoginResponseCode = 0;
-
-
 /*! Maximum number of key-value pairs supported by a dictionary that is used
  *  to produce the data section of text and login PDUs. */
 const unsigned int kiSCSISessionMaxTextKeyValuePairs = 100;
@@ -130,51 +123,6 @@ static const unsigned int kRFC3720_ErrorRecoveryLevel_Min = 0;
 /*! Maximum error recovery level per RFC3720. */
 static const unsigned int kRFC3720_ErrorRecoveryLevel_Max = 2;
 
-
-/////////// RFC3720 ALLOWED KEYS FOR SESSION & CONNECTION NEGOTIATION //////////
-
-
-CFStringRef kiSCSILKHeaderDigest = CFSTR("HeaderDigest");
-CFStringRef kiSCSILVHeaderDigestNone = CFSTR("None");
-CFStringRef kiSCSILVHeaderDigestCRC32C = CFSTR("CRC32C");
-
-CFStringRef kiSCSILKDataDigest = CFSTR("DataDigest");
-CFStringRef kiSCSILVDataDigestNone = CFSTR("None");
-CFStringRef kiSCSILVDataDigestCRC32C = CFSTR("CRC32C");
-
-CFStringRef kiSCSILKMaxConnections = CFSTR("MaxConnections");
-CFStringRef kiSCSILKTargetGroupPortalTag = CFSTR("TargetGroupPortalTag");
-
-CFStringRef kiSCSILKInitialR2T = CFSTR("InitialR2T");
-
-CFStringRef kiSCSILKImmediateData = CFSTR("ImmediateData");
-
-CFStringRef kiSCSILKMaxRecvDataSegmentLength = CFSTR("MaxRecvDataSegmentLength");
-CFStringRef kiSCSILKMaxBurstLength = CFSTR("MaxBurstLength");
-CFStringRef kiSCSILKFirstBurstLength = CFSTR("FirstBurstLength");
-CFStringRef kiSCSILKDefaultTime2Wait = CFSTR("DefaultTime2Wait");
-CFStringRef kiSCSILKDefaultTime2Retain = CFSTR("DefaultTime2Retain");
-CFStringRef kiSCSILKMaxOutstandingR2T = CFSTR("MaxOutstandingR2T");
-
-CFStringRef kiSCSILKDataPDUInOrder = CFSTR("DataPDUInOrder");
-
-CFStringRef kiSCSILKDataSequenceInOrder = CFSTR("DataSequenceInOrder");
-
-CFStringRef kiSCSILKErrorRecoveryLevel = CFSTR("ErrorRecoveryLevel");
-CFStringRef kiSCSILVErrorRecoveryLevelSession = CFSTR("0");
-CFStringRef kiSCSILVErrorRecoveryLevelDigest = CFSTR("1");
-CFStringRef kiSCSILVErrorRecoveryLevelConnection = CFSTR("2");
-
-CFStringRef kiSCSILKIFMarker = CFSTR("IFMarker");
-CFStringRef kiSCSILKOFMarker = CFSTR("OFMarker");
-
-/*! The following text commands  and corresponding possible values are used
- *  as key-value pairs during the full-feature phase of the connection. */
-CFStringRef kiSCSITKSendTargets = CFSTR("SendTargets");
-CFStringRef kiSCSITVSendTargetsAll = CFSTR("All");
-
-CFStringRef kiSCSILVYes = CFSTR("Yes");
-CFStringRef kiSCSILVNo = CFSTR("No");
 
 
 errno_t iSCSILogoutResponseToErrno(enum iSCSIPDULogoutRsp response)
@@ -556,11 +504,11 @@ errno_t iSCSINegotiateParseCWDict(CFDictionaryRef connCmd,
 }
 
 errno_t iSCSINegotiateSession(iSCSITargetRef target,
-                              UInt16 sessionId,
-                              UInt32 connectionId,
+                              SID sessionId,
+                              CID connectionId,
                               iSCSISessionOptions * sessionOptions,
                               iSCSIConnectionOptions * connectionOptions,
-                              enum iSCSIStatusCode * statusCode)
+                              enum iSCSILoginStatusCode * statusCode)
 {
     // Create a new dictionary for connection parameters we want to send
     CFMutableDictionaryRef sessCmd = CFDictionaryCreateMutable(
@@ -620,11 +568,11 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
 /*! Helper function.  Negotiates operational parameters for a connection
  *  as part of the login and connection instantiation process. */
 errno_t iSCSINegotiateConnection(iSCSITargetRef target,
-                                 UInt16 sessionId,
-                                 UInt32 connectionId,
+                                 SID sessionId,
+                                 CID connectionId,
                                  iSCSISessionOptions * sessionOptions,
                                  iSCSIConnectionOptions * connectionOptions,
-                                 enum iSCSIStatusCode * statusCode)
+                                 enum iSCSILoginStatusCode * statusCode)
 {
     // Create a dictionary to store query request
     CFMutableDictionaryRef connCmd = CFDictionaryCreateMutable(
@@ -679,8 +627,8 @@ errno_t iSCSINegotiateConnection(iSCSITargetRef target,
 }
 
 /*! Helper function used to log out of connections and sessions. */
-errno_t iSCSISessionLogoutCommon(UInt16 sessionId,
-                                 UInt32 connectionId,
+errno_t iSCSISessionLogoutCommon(SID sessionId,
+                                 CID connectionId,
                                  enum iSCSIPDULogoutReasons logoutReason)
 {
     if(sessionId >= kiSCSIInvalidSessionId || connectionId >= kiSCSIInvalidConnectionId)
@@ -792,12 +740,12 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIAddConnection(iSCSIPortalRef portal,
-                           iSCSITargetRef target,
-                           iSCSIAuthRef auth,
-                           UInt16 sessionId,
-                           UInt32 * connectionId,
-                           enum iSCSIStatusCode * statusCode)
+errno_t iSCSILoginConnection(iSCSIPortalRef portal,
+                             iSCSITargetRef target,
+                             iSCSIAuthRef auth,
+                             SID sessionId,
+                             CID * connectionId,
+                             enum iSCSILoginStatusCode * statusCode)
 {
     
     if(!portal || !target || sessionId == kiSCSIInvalidSessionId || !connectionId)
@@ -849,9 +797,9 @@ errno_t iSCSIAddConnection(iSCSIPortalRef portal,
     return error;
 }
 
-errno_t iSCSIRemoveConnection(UInt16 sessionId,
-                              UInt32 connectionId,
-                              enum iSCSIStatusCode * statusCode)
+errno_t iSCSILogoutConnection(SID sessionId,
+                              CID connectionId,
+                              enum iSCSILogoutStatusCode * statusCode)
 {
     if(sessionId >= kiSCSIInvalidSessionId || connectionId >= kiSCSIInvalidConnectionId)
         return EINVAL;
@@ -865,7 +813,7 @@ errno_t iSCSIRemoveConnection(UInt16 sessionId,
         return error;
     
     if(numConnections == 1)
-        return iSCSIReleaseSession(sessionId);
+        return iSCSILogoutSession(sessionId,statusCode);
     
     // Deactivate connection before we remove it (this is optional but good
     // practice, as the kernel will deactivate the connection for us).
@@ -890,12 +838,12 @@ errno_t iSCSIRemoveConnection(UInt16 sessionId,
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSICreateSession(iSCSIPortalRef portal,
-                           iSCSITargetRef target,
-                           iSCSIAuthRef auth,
-                           UInt16 * sessionId,
-                           UInt32 * connectionId,
-                           enum iSCSIStatusCode * statusCode)
+errno_t iSCSILoginSession(iSCSIPortalRef portal,
+                          iSCSITargetRef target,
+                          iSCSIAuthRef auth,
+                          SID * sessionId,
+                          CID * connectionId,
+                          enum iSCSILoginStatusCode * statusCode)
 {
     if(!portal || !target || !sessionId || !connectionId)
         return EINVAL;
@@ -971,7 +919,8 @@ errno_t iSCSICreateSession(iSCSIPortalRef portal,
  *  sessions the future.
  *  @param sessionId the session to release.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIReleaseSession(UInt16 sessionId)
+errno_t iSCSILogoutSession(SID sessionId,
+                           enum iSCSILogoutStatusCode * statusCode)
 {
     if(sessionId >= kiSCSIInvalidSessionId)
         return  EINVAL;
@@ -983,7 +932,7 @@ errno_t iSCSIReleaseSession(UInt16 sessionId)
         return error;
     
     // Grab a handle to any connection so we can logout of the session
-    UInt32 connectionId = kiSCSIInvalidConnectionId;
+    CID connectionId = kiSCSIInvalidConnectionId;
     if(!(error = iSCSIKernelGetConnection(sessionId,&connectionId)))
         iSCSISessionLogoutCommon(sessionId, connectionId, kiSCSIPDULogoutCloseSession);
 
@@ -993,32 +942,76 @@ errno_t iSCSIReleaseSession(UInt16 sessionId)
     return error;
 }
 
+
+
+/*! Callback function used by iSCSIQueryPortalForTargets to parse discovery
+ *  data into an iSCSIDiscoveryRec object. */
+void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key,
+                                             void * valContainer,CFStringRef val)
+{
+    static CFStringRef targetName = NULL;
+    static CFStringRef portalGroupTag = NULL;
+    
+    // If the discovery data has a "TargetName = xxx" field, we're starting
+    // a record for a new target
+    if(CFStringCompare(key,kiSCSILKTargetName,0) == kCFCompareEqualTo)
+    {
+        targetName = CFStringCreateCopy(kCFAllocatorDefault,val);
+    }
+    // Otherwise we're dealing with a portal entry. Per RFC3720, this is
+    // of the form "TargetAddress = <address>:<port>,<portalGroupTag>
+    else if(CFStringCompare(key,kiSCSILKTargetAddress,0) == kCFCompareEqualTo)
+    {
+        // Split the value string to extract the portal group tag
+        CFArrayRef targetAddress = CFStringCreateArrayBySeparatingStrings(kCFAllocatorDefault,val,CFSTR(","));
+        CFStringRef addressAndPort = CFArrayGetValueAtIndex(targetAddress,0);
+        CFStringRef portalGroupTag = CFArrayGetValueAtIndex(targetAddress,1);
+        
+        // Split the address and port, construct an iSCSIPortal object (do the
+        // search for a ":" backwards since IPv6 addresses use ":" as
+        // separators and the address can be IPv4/IPv6 or a domain name.
+        CFRange sepRange = CFStringFind(addressAndPort,CFSTR(":"),kCFCompareBackwards);
+        CFRange addressRange = CFRangeMake(0,sepRange.location);
+        CFRange portRange = CFRangeMake(sepRange.location+1,CFStringGetLength(addressAndPort)-(sepRange.location+1));
+        
+        CFStringRef address = CFStringCreateWithSubstring(kCFAllocatorDefault,addressAndPort,addressRange);
+        CFStringRef port = CFStringCreateWithSubstring(kCFAllocatorDefault,addressAndPort,portRange);
+        
+        iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
+        iSCSIPortalSetAddress(portal,address);
+        iSCSIPortalSetPort(portal,port);
+    
+        iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)(valContainer);
+        iSCSIDiscoveryRecAddPortal(discoveryRec,targetName,portalGroupTag,portal);
+    }
+}
+
+
 /*! Queries a portal for available targets.
  *  @param portal the iSCSI portal to query.
- *  @param targets an array of strings, where each string contains the name,
- *  alias, and portal associated with each target.
+ *  @param discoveryRec a discovery record, containing the query results.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
-                                   CFArrayRef * targets,
-                                   enum iSCSIStatusCode * statusCode)
+                                   iSCSIMutableDiscoveryRecRef * discoveryRec,
+                                   enum iSCSILoginStatusCode * statusCode)
 {
-    if(!portal || !targets)
+    if(!portal || !discoveryRec)
         return EINVAL;
     
     // Create a discovery session to the portal (empty target name is assuemd to
     // be a discovery session)
-    iSCSIMutableTargetRef target = iSCSITargetCreate();
+    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
     iSCSITargetSetName(target,CFSTR(""));
     
     iSCSIAuthRef auth = iSCSIAuthCreateNone();
     
-    UInt16 sessionId;
-    UInt32 connectionId;
+    SID sessionId;
+    CID connectionId;
     
     errno_t error;
 
-    if((error = iSCSICreateSession(portal,target,auth,&sessionId,&connectionId,statusCode)))
+    if((error = iSCSILoginSession(portal,target,auth,&sessionId,&connectionId,statusCode)))
        return error;
     
     // Place text commands to get target list into a dictionary
@@ -1046,24 +1039,32 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     iSCSIPDUDataRelease(&data);
      
     if(error)
+    {
+        enum iSCSILogoutStatusCode statusCode;
+        iSCSILogoutSession(sessionId,&statusCode);
         return error;
-     
-    // Create response arrays
-    CFMutableArrayRef targetsList = (CFMutableArrayRef)targets;
+    }
     
     // Get response from iSCSI portal, continue until response is complete
     iSCSIPDUTextRspBHS rsp;
+    
+    *discoveryRec = iSCSIMutableDiscoveryRecCreate();
 
     do {
         if((error = iSCSIKernelRecv(sessionId,connectionId,(iSCSIPDUTargetBHS *)&rsp,&data,&length)))
         {
             iSCSIPDUDataRelease(&data);
+
+            enum iSCSILogoutStatusCode statusCode;
+            iSCSILogoutSession(sessionId,&statusCode);
+
             return error;
         }
      
         if(rsp.opCode == kiSCSIPDUOpCodeTextRsp)
         {
-   //         iSCSIPDUDataParseToArrays(data,length,keys,values);
+            iSCSIPDUDataParseCommon(data,length,NULL,*discoveryRec,
+                                    &iSCSIPDUDataParseToDiscoveryRecCallback);
         }
         // For this case some other kind of PDU or invalid data was received
         else if(rsp.opCode == kiSCSIPDUOpCodeReject)
@@ -1075,30 +1076,33 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
      while(rsp.textReqStageBits & kiSCSIPDUTextReqContinueFlag);
      
      iSCSIPDUDataRelease(&data);
-     return error;
+    
+    enum iSCSILogoutStatusCode logoutStatusCode;
+    iSCSILogoutSession(sessionId,&logoutStatusCode);
+
+    return error;
 }
 
 /*! Retrieves a list of targets available from a give portal.
  *  @param portal the iSCSI portal to look for targets.
- *  @param authMethods a comma-separated list of authentication methods
- *  as defined in the RFC3720 standard (version 1).
+ *  @param authMethod the preferred authentication method.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIQueryTargetForAuthMethods(iSCSIPortalRef portal,
-                                       CFStringRef targetName,
-                                       CFStringRef * authMethods,
-                                       enum iSCSIStatusCode * statusCode)
+errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
+                                      CFStringRef targetName,
+                                      enum iSCSIAuthMethods * authMethod,
+                                      enum iSCSILoginStatusCode * statusCode)
 {
-    if(!portal || !authMethods)
+    if(!portal || !authMethod)
         return EINVAL;
     
     // Create a discovery session to the portal
-    iSCSIMutableTargetRef target = iSCSITargetCreate();
+    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
     iSCSITargetSetName(target,targetName);
     
     iSCSISessionOptions sessionOptions;
     
-    // Store errno from helpers and pass back to up the call chain
+    // Store errno from helpers and pass back up the call chain
     errno_t error = 0;
     
     // Resolve information about the target
@@ -1110,8 +1114,8 @@ errno_t iSCSIQueryTargetForAuthMethods(iSCSIPortalRef portal,
     
     // Create session (incl. qualifier) and a new connection (incl. Id)
     // Reset qualifier and connection ID by default
-    UInt16 sessionId;
-    UInt32 connectionId;
+    SID sessionId;
+    CID connectionId;
     error = iSCSIKernelCreateSession(CFStringGetCStringPtr(targetName,kCFStringEncodingASCII),
                                      ai_family,
                                      &sa_target,
@@ -1128,7 +1132,7 @@ errno_t iSCSIQueryTargetForAuthMethods(iSCSIPortalRef portal,
                                      sessionId,
                                      connectionId,
                                      &sessionOptions,
-                                     authMethods,
+                                     authMethod,
                                      statusCode);
 
     iSCSIKernelReleaseSession(sessionId);
@@ -1141,7 +1145,7 @@ errno_t iSCSIQueryTargetForAuthMethods(iSCSIPortalRef portal,
  *  @param sessionId the session identiifer.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIGetSessionIdForTarget(CFStringRef targetName,
-                                   UInt16 * sessionId)
+                                   SID * sessionId)
 {
     if(!targetName || !sessionId)
         return EINVAL;
@@ -1156,9 +1160,9 @@ errno_t iSCSIGetSessionIdForTarget(CFStringRef targetName,
  *  @param address the name used when adding the connection (e.g., IP or DNS).
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIGetConnectionIdFromAddress(UInt16 sessionId,
+errno_t iSCSIGetConnectionIdFromAddress(SID sessionId,
                                         CFStringRef address,
-                                        UInt32 * connectionId)
+                                        CID * connectionId)
 {
     if(sessionId == kiSCSIInvalidSessionId || !address || !connectionId)
         return EINVAL;
@@ -1171,7 +1175,7 @@ errno_t iSCSIGetConnectionIdFromAddress(UInt16 sessionId,
  *  @param sessionIds an array of session identifiers.
  *  @param sessionCount number of session identifiers.
  *  @return error code indicating result of operation. */
-errno_t iSCSIGetSessionIds(UInt16 ** sessionIds,UInt16 * sessionCount)
+errno_t iSCSIGetSessionIds(SID * sessionIds,UInt16 * sessionCount)
 {
     if(!sessionIds || !sessionCount)
         return EINVAL;
@@ -1184,14 +1188,42 @@ errno_t iSCSIGetSessionIds(UInt16 ** sessionIds,UInt16 * sessionCount)
  *  @param connectionIds an array of connection identifiers for the session.
  *  @param connectionCount number of connection identifiers.
  *  @return error code indicating result of operation. */
-errno_t iSCSIGetConnectionIds(UInt16 sessionId,
-                              UInt32 ** connectionIds,
+errno_t iSCSIGetConnectionIds(SID sessionId,
+                              UInt32 * connectionIds,
                               UInt32 * connectionCount)
 {
     if(sessionId == kiSCSIInvalidSessionId || !connectionIds || !connectionCount)
         return EINVAL;
     
     return iSCSIKernelGetConnectionIds(sessionId,connectionIds,connectionCount);
+}
+
+/*! Gets information about a particular session.
+ *  @param sessionId the session identifier.
+ *  @param options the optionts for the specified session.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIGetSessionInfo(SID sessionId,iSCSISessionOptions * options)
+{
+    if(sessionId == kiSCSIInvalidSessionId || !options)
+        return EINVAL;
+    
+    return iSCSIKernelGetSessionOptions(sessionId,options);
+}
+
+/*! Gets information about a particular session.
+ *  @param sessionId the session identifier.
+ *  @param connectionId the connection identifier.
+ *  @param options the optionts for the specified session.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIGetConnectionInfo(SID sessionId,
+                               CID connectionId,
+                               iSCSIConnectionOptions * options)
+{
+    if(sessionId    == kiSCSIInvalidSessionId ||
+       connectionId == kiSCSIInvalidConnectionId || !options)
+        return EINVAL;
+    
+    return iSCSIKernelGetConnectionOptions(sessionId,connectionId,options);
 }
 
 /*! Sets the name of this initiator.  This is the IQN-format name that is

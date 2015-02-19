@@ -71,7 +71,6 @@ UInt32 iSCSITaskQueue::completeCurrentTask()
 {
     UInt32 taskTag = 0;
     iSCSITask * task = NULL;
-    bool tasksRemaining = false;
     
     // Do nothing if the queue is empty
     if(queue_empty(&taskQueue))
@@ -114,10 +113,6 @@ bool iSCSITaskQueue::checkForWork()
     if(!newTask)
         return false;
     newTask = false;
-    
-    // First check to ensure that the reason we've been called is because
-    // actual data is available at the port (as opposed to other socket events)
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)owner;
 
     // Validate action & owner, then call action on our owner & pass in socket
     // this function will continue processing the task

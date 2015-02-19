@@ -328,8 +328,8 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
                                              IOExternalMethodArguments * args)
 {
     // Create a new session and return session ID
-    UInt16 sessionId;
-    UInt32 connectionId;
+    SID sessionId;
+    CID connectionId;
     
     // Create a connection
     args->scalarOutput[0] = target->provider->CreateSession(
@@ -389,7 +389,7 @@ IOReturn iSCSIInitiatorClient::CreateConnection(iSCSIInitiatorClient * target,
                                                 void * reference,
                                                 IOExternalMethodArguments * args)
 {
-    UInt32 connectionId;
+    CID connectionId;
     
     // Create a connection
     args->scalarOutput[0] = target->provider->CreateConnection(
@@ -565,7 +565,7 @@ IOReturn iSCSIInitiatorClient::GetConnection(iSCSIInitiatorClient * target,
                                              IOExternalMethodArguments * args)
 {
     // Grab a connection
-    UInt32 connectionId;
+    CID connectionId;
     
     args->scalarOutput[0] = target->provider->GetConnection(
         (UInt16)args->scalarInput[0],               // Session qualifier
@@ -598,7 +598,7 @@ IOReturn iSCSIInitiatorClient::GetSessionIdFromTargetName(iSCSIInitiatorClient *
                                                           void * reference,
                                                           IOExternalMethodArguments * args)
 {
-    UInt16 sessionId;
+    SID sessionId;
     
     args->scalarOutput[0] = target->provider->GetSessionIdFromTargetName((const char *)args->structureInput,
                                                                          &sessionId);
@@ -613,7 +613,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionIdFromAddress(iSCSIInitiatorClient *
                                                        void * reference,
                                                        IOExternalMethodArguments * args)
 {
-    UInt32 connectionId;
+    CID connectionId;
     
     args->scalarOutput[0] = target->provider->GetConnectionIdFromName(args->scalarInput[0],
                                                                       (const char *)args->structureInput,

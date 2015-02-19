@@ -22,7 +22,7 @@
 
 #include "iSCSISession.h"
 #include "iSCSIKernelInterface.h"
-
+#include "iSCSIDaemonInterfaceShared.h"
 
 #include <CoreFoundation/CFPreferences.h>
 
@@ -30,7 +30,6 @@ static const CFStringRef applicationId = CFSTR("com.NSinenian.iscsix");
 
 /*! Read target entry from .plist and construct target and portal information. */
 //errno_t BuildPortalFrom
-
 
 /*! Helper function.  Configures the iSCSI initiator based on parameters
  *  that are read from the preferences .plist file. */
@@ -53,6 +52,389 @@ void ConfigureiSCSIFromPreferences()
     if(initiatorAlias)
         iSCSISetInitiatorAlias(initiatorAlias);*/
     
+}
+
+const struct iSCSIDRspLoginSession iSCSIDRspLoginSessionInit  = {
+    .funcCode = kiSCSIDLoginSession,
+    .errorCode = 0,
+    .statusCode = (UInt8)kiSCSILoginInvalidStatusCode,
+    .sessionId = kiSCSIInvalidSessionId,
+    .connectionId   = kiSCSIInvalidConnectionId
+};
+
+const struct iSCSIDRspLogoutSession iSCSIDRspLogoutSessionInit = {
+    .funcCode = kiSCSIDLogoutSession,
+    .errorCode = 0,
+    .statusCode = (UInt8)kiSCSILoginInvalidStatusCode,
+};
+
+const struct iSCSIDRspLoginConnection iSCSIDRspLoginConnectionInit = {
+    .funcCode = kiSCSIDLoginConnection,
+    .errorCode = 0,
+    .statusCode = (UInt8)kiSCSILoginInvalidStatusCode,
+    .connectionId = kiSCSIInvalidConnectionId
+};
+
+const struct iSCSIDRspLogoutConnection iSCSIDRspLogoutConnectionInit = {
+    .funcCode = kiSCSIDLogoutConnection,
+    .errorCode = 0,
+    .statusCode = (UInt8) kiSCSILogoutInvalidStatusCode
+};
+
+const struct iSCSIDRspQueryPortalForTargets iSCSIDRspQueryPortalForTargetsInit = {
+    .funcCode = kiSCSIDQueryPortalForTargets,
+    .errorCode = 0,
+    .statusCode = (UInt8) kiSCSILogoutInvalidStatusCode,
+    .discoveryLength = 0
+};
+
+const struct iSCSIDRspQueryTargetForAuthMethod iSCSIDRspQueryTargetForAuthMethodInit = {
+    .funcCode = kiSCSIDQueryTargetForAuthMethods,
+    .errorCode = 0,
+    .statusCode = 0,
+    .authMethod = 0
+};
+
+const struct iSCSIDRspGetSessionIdForTarget iSCSIDRspGetSessionIdForTargetInit = {
+    .funcCode = kiSCSIDGetSessionIdForTarget,
+    .errorCode = 0,
+    .sessionId = kiSCSIInvalidSessionId
+};
+
+const struct iSCSIDRspGetConnectionIdForAddress iSCSIDRspGetConnectionIdForAddressInit = {
+    .funcCode = kiSCSIDGetConnectionIdForAddress,
+    .errorCode = 0,
+    .connectionId = kiSCSIInvalidConnectionId
+};
+
+const struct iSCSIDRspGetSessionIds iSCSIDRspGetSessionIdsInit = {
+    .funcCode = kiSCSIDGetSessionIds,
+    .errorCode = 0,
+    .sessionCount = 0
+};
+
+const struct iSCSIDRspGetConnectionIds iSCSIDRspGetConnectionIdsInit = {
+    .funcCode = kiSCSIDGetConnectionIds,
+    .errorCode = 0,
+    .connectionCount = 0
+};
+
+const struct iSCSIDRspGetSessionInfo iSCSIDRspGetSessionInfoInit = {
+    .funcCode = kiSCSIDGetSessionInfo,
+    .errorCode = 0,
+    .dataLength = 0
+};
+
+
+const struct iSCSIDRspGetConnectionInfo iSCSIDRspGetConnectionInfoInit = {
+    .funcCode = kiSCSIDGetConnectionInfo,
+    .errorCode = 0,
+    .dataLength = 0
+};
+
+/*! Helper function. Reads data from a socket of the specified length and 
+ *  calls a constructor function on the data to return an object of the
+ *  appropriate type. */
+void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)(CFDataRef))
+{
+    // Receive iSCSI object data from stream socket
+    UInt8 * bytes = (UInt8 *) malloc(length);
+    if(!bytes || (recv(fd,bytes,length,0) != length))
+        return NULL;
+    
+    // Build a CFData wrapper around the data
+    CFDataRef data = NULL;
+    
+    if(!CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,bytes,length,kCFAllocatorMalloc))
+        return NULL;
+    
+    // Create an iSCSI object from the data
+    void * object = objectCreator(data);
+    
+    CFRelease(data);
+    return object;
+}
+
+errno_t iSCSIDLoginSession(int fd,struct iSCSIDCmdLoginSession * cmd)
+{
+    // Grab objects from stream
+    iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
+                            (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+    iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
+                            (void *(* )(CFDataRef))&iSCSITargetCreateFromBytes);
+    iSCSIAuthRef auth = iSCSIDCreateObjectFromSocket(fd,cmd->authLength,
+                            (void *(* )(CFDataRef))&iSCSIAuthCreateFromBytes);
+    
+    if(!portal || !target || !auth)
+        return EAGAIN;
+    
+    SID sessionId;
+    CID connectionId;
+    enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
+    
+    // Login the session
+    errno_t error = iSCSILoginSession(portal,target,auth,&sessionId,&connectionId,&statusCode);
+    
+    iSCSIPortalRelease(portal);
+    iSCSITargetRelease(target);
+    iSCSIAuthRelease(auth);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspLoginSession rsp = iSCSIDRspLoginSessionInit;
+    rsp.errorCode = error;
+    rsp.statusCode = statusCode;
+    rsp.sessionId = sessionId;
+    rsp.connectionId = connectionId;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+
+    return 0;
+}
+
+errno_t iSCSIDLogoutSession(int fd,struct iSCSIDCmdLogoutSession * cmd)
+{
+    enum iSCSILogoutStatusCode statusCode = kiSCSILogoutInvalidStatusCode;
+    
+    errno_t error = iSCSILogoutSession(cmd->sessionId,&statusCode);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspLogoutSession rsp = iSCSIDRspLogoutSessionInit;
+    rsp.errorCode = error;
+    rsp.statusCode = statusCode;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    return 0;
+}
+
+errno_t iSCSIDLoginConnection(int fd,struct iSCSIDCmdLoginConnection * cmd)
+{
+    // Grab objects from stream
+    iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
+                            (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+    iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
+                            (void *(* )(CFDataRef))&iSCSITargetCreateFromBytes);
+    iSCSIAuthRef auth = iSCSIDCreateObjectFromSocket(fd,cmd->authLength,
+                            (void *(* )(CFDataRef))&iSCSIAuthCreateFromBytes);
+    
+    if(!portal || !target || !auth)
+        return EAGAIN;
+    
+    CID connectionId;
+    enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
+    
+    // Login the session
+    errno_t error = iSCSILoginConnection(portal,target,auth,cmd->sessionId,&connectionId,&statusCode);
+    
+    iSCSIPortalRelease(portal);
+    iSCSITargetRelease(target);
+    iSCSIAuthRelease(auth);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspLoginSession rsp = iSCSIDRspLoginSessionInit;
+    rsp.errorCode = error;
+    rsp.statusCode = statusCode;
+    rsp.connectionId = connectionId;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    return 0;
+}
+
+errno_t iSCSIDLogoutConnection(int fd,struct iSCSIDCmdLogoutConnection * cmd)
+{
+    enum iSCSILogoutStatusCode statusCode = kiSCSILogoutInvalidStatusCode;
+    
+    errno_t error = iSCSILogoutConnection(cmd->sessionId,cmd->connectionId,&statusCode);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspLogoutConnection rsp = iSCSIDRspLogoutConnectionInit;
+    rsp.errorCode = error;
+    rsp.statusCode = statusCode;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    return 0;
+}
+
+errno_t iSCSIDQueryPortalForTargets(int fd,struct iSCSIDCmdQueryPortalForTargets * cmd)
+{
+    // Grab objects from stream
+    iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
+                            (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+
+    enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
+
+    iSCSIMutableDiscoveryRecRef discoveryRec;
+    errno_t error = iSCSIQueryPortalForTargets(portal,&discoveryRec,&statusCode);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspQueryPortalForTargets rsp = iSCSIDRspQueryPortalForTargetsInit;
+    rsp.errorCode = error;
+    rsp.statusCode = statusCode;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+    {
+        iSCSIDiscoveryRecRelease(discoveryRec);
+        return EAGAIN;
+    }
+    
+    CFDataRef data = iSCSIDiscoveryRecCopyToBytes(discoveryRec);
+    
+    if(send(fd,CFDataGetBytePtr(data),CFDataGetLength(data),0) != CFDataGetLength(data))
+    {
+        CFRelease(data);
+        return EAGAIN;
+    }
+    
+    return 0;
+}
+
+errno_t iSCSIDQueryTargetForAuthMethod(int fd,struct iSCSIDCmdQueryTargetForAuthMethod * cmd)
+{
+    // Grab objects from stream
+    iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
+                            (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+    iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
+                            (void *(* )(CFDataRef))&iSCSITargetCreateFromBytes);
+
+    enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
+    enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
+    
+    errno_t error = iSCSIQueryTargetForAuthMethod(portal,iSCSITargetGetName(target),&authMethod,&statusCode);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspQueryTargetForAuthMethod rsp = iSCSIDRspQueryTargetForAuthMethodInit;
+    rsp.errorCode = error;
+    rsp.statusCode = statusCode;
+    rsp.authMethod = authMethod;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    return 0;
+}
+
+errno_t iSCSIDGetSessionIdForTarget(int fd,struct iSCSIDCmdGetSessionIdForTarget * cmd)
+{
+    // Grab objects from stream
+    iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
+                            (void *(* )(CFDataRef))&iSCSITargetCreateFromBytes);
+    
+    SID sessionId = kiSCSIInvalidSessionId;
+    errno_t error = iSCSIGetSessionIdForTarget(iSCSITargetGetName(target),&sessionId);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspGetSessionIdForTarget rsp = iSCSIDRspGetSessionIdForTargetInit;
+    rsp.errorCode = error;
+    rsp.sessionId = sessionId;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    return 0;
+}
+
+errno_t iSCSIDGetConnectionIdForAddress(int fd,struct iSCSIDCmdGetConnectionIdForAddress * cmd)
+{
+    // Grab objects from stream
+    iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
+                                (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+
+    CID connectionId;
+    errno_t error = iSCSIGetConnectionIdFromAddress(cmd->sessionId,iSCSIPortalGetAddress(portal),&connectionId);
+
+    // Compose a response to send back to the client
+    struct iSCSIDRspGetConnectionIdForAddress rsp = iSCSIDRspGetConnectionIdForAddressInit;
+    rsp.errorCode = error;
+    rsp.connectionId = connectionId;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    return 0;
+}
+
+errno_t iSCSIDGetSessionIds(int fd,struct iSCSIDCmdGetSessionIds * cmd)
+{
+    SID sessionIds[kiSCSIMaxSessions];
+    UInt16 sessionCount;
+    errno_t error = iSCSIGetSessionIds(sessionIds,&sessionCount);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspGetSessionIds rsp = iSCSIDRspGetSessionIdsInit;
+    rsp.errorCode = error;
+    rsp.sessionCount = sessionCount;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    if(send(fd,sessionIds,sizeof(sessionIds),0) != sizeof(sessionIds))
+        return EAGAIN;
+    
+    return 0;
+}
+
+errno_t iSCSIDGetConnectionIds(int fd,struct iSCSIDCmdGetConnectionIds * cmd)
+{
+    CID connectionIds[kiSCSIMaxConnectionsPerSession];
+    UInt32 connectionCount;
+    errno_t error = iSCSIGetConnectionIds(cmd->sessionId,connectionIds,&connectionCount);
+
+    // Compose a response to send back to the client
+    struct iSCSIDRspGetConnectionIds rsp = iSCSIDRspGetConnectionIdsInit;
+    rsp.errorCode = error;
+    rsp.connectionCount = connectionCount;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    if(send(fd,connectionIds,sizeof(connectionIds),0) != sizeof(connectionIds))
+        return EAGAIN;
+    
+    return 0;
+}
+
+errno_t iSCSIDGetSessionInfo(int fd,struct iSCSIDCmdGetSessionInfo * cmd)
+{
+    iSCSISessionOptions sessionOptions;
+    errno_t error = iSCSIGetSessionInfo(cmd->sessionId,&sessionOptions);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspGetSessionInfo rsp = iSCSIDRspGetSessionInfoInit;
+    rsp.errorCode = error;
+    rsp.dataLength = sizeof(sessionOptions);
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    if(send(fd,&sessionOptions,sizeof(sessionOptions),0) != sizeof(sessionOptions))
+        return EAGAIN;
+
+    return 0;
+}
+
+errno_t iSCSIDGetConnectionInfo(int fd,struct iSCSIDCmdGetConnectionInfo * cmd)
+{
+    iSCSIConnectionOptions connectionOptions;
+    errno_t error = iSCSIGetConnectionInfo(cmd->sessionId,cmd->connectionId,&connectionOptions);
+    
+    // Compose a response to send back to the client
+    struct iSCSIDRspGetConnectionInfo rsp = iSCSIDRspGetConnectionInfoInit;
+    rsp.errorCode = error;
+    rsp.dataLength = sizeof(connectionOptions);
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    if(send(fd,&connectionOptions,sizeof(connectionOptions),0) != sizeof(connectionOptions))
+        return EAGAIN;
+
+    return 0;
 }
 
 /*! iSCSI daemon entry point. */
@@ -126,11 +508,46 @@ int main(void)
         socklen_t sizeAddress = sizeof(peerAddress);
         int fd = accept((int)eventList.ident,(struct sockaddr *)&peerAddress,&sizeAddress);
         
-        // Receive data 
-        UInt8 buffer[10];
+        // Receive data
+        struct iSCSIDCmd cmd;
+        if(recv(fd,&cmd,sizeof(cmd),0) != sizeof(cmd))
+            goto ERROR_COMM_FAIL;
         
-        if(recv(fd,&buffer,1,0) != -1)
-            fprintf(stderr,"Message received");
+        errno_t error = 0;
+
+        switch(cmd.funcCode)
+        {
+            case kiSCSIDLoginSession:
+                error = iSCSIDLoginSession(fd,(iSCSIDCmdLoginSession*)&cmd); break;
+            case kiSCSIDLogoutSession:
+                error = iSCSIDLogoutSession(fd,(iSCSIDCmdLogoutSession*)&cmd); break;
+            case kiSCSIDLoginConnection:
+                error = iSCSIDLoginConnection(fd,(iSCSIDCmdLoginConnection*)&cmd); break;
+            case kiSCSIDLogoutConnection:
+                error = iSCSIDLogoutConnection(fd,(iSCSIDCmdLogoutConnection*)&cmd); break;
+            case kiSCSIDQueryPortalForTargets:
+                error = iSCSIDQueryPortalForTargets(fd,(iSCSIDCmdQueryPortalForTargets*)&cmd); break;
+            case kiSCSIDQueryTargetForAuthMethods:
+                error = iSCSIDQueryTargetForAuthMethod(fd,(iSCSIDCmdQueryTargetForAuthMethod*)&cmd); break;
+            case kiSCSIDGetSessionIdForTarget:
+                error = iSCSIDGetSessionIdForTarget(fd,(iSCSIDCmdGetSessionIdForTarget*)&cmd); break;
+            case kiSCSIDGetConnectionIdForAddress:
+                error = iSCSIDGetConnectionIdForAddress(fd,(iSCSIDCmdGetConnectionIdForAddress*)&cmd); break;
+            case kiSCSIDGetSessionIds:
+                error = iSCSIDGetSessionIds(fd,(iSCSIDCmdGetSessionIds*)&cmd); break;
+            case kiSCSIDGetConnectionIds:
+                error = iSCSIDGetConnectionIds(fd,(iSCSIDCmdGetConnectionIds*)&cmd); break;
+            case kiSCSIDGetSessionInfo:
+                error = iSCSIDGetSessionInfo(fd,(iSCSIDCmdGetSessionInfo*)&cmd); break;
+            case kiSCSIDGetConnectionInfo:
+                error = iSCSIDGetConnectionInfo(fd,(iSCSIDCmdGetConnectionInfo*)&cmd); break;
+        };
+        
+        if(error)
+        {
+            // Terminate connection to client (ill-behaved client)
+            close(fd);
+        }
     }
 
     // Close our connection to the iSCSI kernel extension
@@ -152,8 +569,11 @@ ERROR_NO_SOCKETS:
 ERROR_LAUNCH_DATA:
     fprintf(stderr,"Failed to checkin with launchd.\n");
     
+ERROR_COMM_FAIL:
+    
     // Close our connection to the iSCSI kernel extension
     iSCSIKernelCleanUp();
+    
     
     return ENOTSUP;
 }

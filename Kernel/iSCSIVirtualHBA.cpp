@@ -51,8 +51,6 @@ const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
  *  for the connection (1024^2 = 1048576). */
 const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 
-/*! Minimum */
-
 /*! Definition of a single connection that is associated with a particular
  *  iSCSI session. */
 struct iSCSIVirtualHBA::iSCSIConnection {
@@ -61,7 +59,7 @@ struct iSCSIVirtualHBA::iSCSIConnection {
     UInt32 expStatSN;
     
     /*! Connection ID. */
-    UInt32 CID; // Might need this for ErrorRecovery (otherwise have to search through list for it)
+    CID CID; // Might need this for ErrorRecovery (otherwise have to search through list for it)
     
     /*! Target tag for current transfer. */
 //    UInt32 targetTransferTag;  /// NEED THIS???
@@ -128,7 +126,7 @@ struct iSCSIVirtualHBA::iSCSISession {
     
     /*! The initiator session ID, which is also used as the target ID within
      *  this kernel extension since there is a 1-1 mapping. */
-    UInt16 sessionId;
+    SID sessionId;
         
     /*! Command sequence number to be used for the next initiator command. */
     UInt32 cmdSN;
@@ -385,7 +383,7 @@ void iSCSIVirtualHBA::TerminateController()
     
     // Go through every connection for each session, and close sockets,
     // remove event sources, etc
-    for(UInt16 index = 0; index < kMaxSessions; index++)
+    for(SID index = 0; index < kMaxSessions; index++)
     {
         if(!sessionList[index])
             continue;
@@ -420,8 +418,8 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
 {
     // Determine the target identifier (session identifier) and connection
     // associated with this task and remove the task from the task queue.
-    UInt16 sessionId = (UInt16)GetTargetIdentifier(task);
-    UInt32 connectionId = *((UInt32*)GetHBADataPointer(task));
+    SID sessionId = (UInt16)GetTargetIdentifier(task);
+    CID connectionId = *((UInt32*)GetHBADataPointer(task));
     
     if(connectionId >= kMaxConnectionsPerSession)
         return;
@@ -448,7 +446,7 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
 /*! Handles connection timeouts.
  *  @param sessionId the session associated with the timed-out connection.
  *  @param connectionId the connection that timed out. */
-void iSCSIVirtualHBA::HandleConnectionTimeout(UInt16 sessionId,UInt32 connectionId)
+void iSCSIVirtualHBA::HandleConnectionTimeout(SID sessionId,CID connectionId)
 {
     
     
@@ -524,7 +522,6 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     // Extract information about this SCSI task
     SCSILogicalUnitNumber LUN       = owner->GetLogicalUnitNumber(parallelTask);
     SCSITaskAttribute attribute     = owner->GetTaskAttribute(parallelTask);
-    SCSITaggedTaskIdentifier taskId = owner->GetTaggedTaskIdentifier(parallelTask);
     UInt8   transferDirection       = owner->GetDataTransferDirection(parallelTask);
     UInt32  transferSize            = (UInt32)owner->GetRequestedDataTransferCount(parallelTask);
     UInt8   cdbSize                 = owner->GetCommandDescriptorBlockSize(parallelTask);
@@ -1233,8 +1230,8 @@ errno_t iSCSIVirtualHBA::CreateSession(const char * targetName,
                                        int domain,
                                        const struct sockaddr * targetAddress,
                                        const struct sockaddr * hostAddress,
-                                       UInt16 * sessionId,
-                                       UInt32 * connectionId)
+                                       SID * sessionId,
+                                       CID * connectionId)
 {
     // Validate inputs
     if(!targetAddress || !hostAddress || !sessionId || !connectionId)
@@ -1250,7 +1247,7 @@ errno_t iSCSIVirtualHBA::CreateSession(const char * targetName,
 // LOCK SESSION LIST HERE
     
     // Find an open session slot
-    UInt16 sessionIdx;
+    SID sessionIdx;
     for(sessionIdx = 0; sessionIdx < kMaxSessions; sessionIdx++)
         if(!sessionList[sessionIdx])
             break;
@@ -1325,7 +1322,7 @@ SESSION_ID_ALLOC_FAILURE:
 /*! Releases an iSCSI session, including all connections associated with that
  *  session.
  *  @param sessionId the session qualifier part of the ISID. */
-void iSCSIVirtualHBA::ReleaseSession(UInt16 sessionId)
+void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
 {
     // Range-check inputs
     if(sessionId >= kMaxSessions)
@@ -1340,7 +1337,7 @@ void iSCSIVirtualHBA::ReleaseSession(UInt16 sessionId)
     DBLog("iSCSI: Releasing session...\n");
     
     // Disconnect all connections
-    for(UInt32 connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+    for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
     {
         if(theSession->connections[connectionId])
             ReleaseConnection(sessionId,connectionId);
@@ -1368,7 +1365,7 @@ void iSCSIVirtualHBA::ReleaseSession(UInt16 sessionId)
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param options the options to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::SetSessionOptions(UInt16 sessionId,
+errno_t iSCSIVirtualHBA::SetSessionOptions(SID sessionId,
                                            iSCSISessionOptions * options)
 {
     // Range-check inputs
@@ -1393,7 +1390,7 @@ errno_t iSCSIVirtualHBA::SetSessionOptions(UInt16 sessionId,
  *  @param options the options to get.  The user of this function is
  *  responsible for allocating and freeing the options struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetSessionOptions(UInt16 sessionId,
+errno_t iSCSIVirtualHBA::GetSessionOptions(SID sessionId,
                                            iSCSISessionOptions * options)
 {
     // Range-check inputs
@@ -1419,11 +1416,11 @@ errno_t iSCSIVirtualHBA::GetSessionOptions(UInt16 sessionId,
  *  @param hostaddress the BSD socket structure used to identify the host adapter.
  *  @param connectionId identifier for the new connection.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
+errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
                                           int domain,
                                           const struct sockaddr * targetAddress,
                                           const struct sockaddr * hostAddress,
-                                          UInt32 * connectionId)
+                                          CID * connectionId)
 {
     // Range-check inputs
     if(sessionId >= kMaxSessions || !targetAddress || !hostAddress || !connectionId)
@@ -1435,7 +1432,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(UInt16 sessionId,
         return EINVAL;
     
     // Find an empty connection slot to use for a new connection
-    UInt32 index;
+    CID index;
     for(index = 0; index < kMaxConnectionsPerSession; index++)
         if(!session->connections[index])
             break;
@@ -1545,8 +1542,8 @@ IOLOCK_ALLOC_FAILURE:
 
 /*! Frees a given iSCSI connection associated with a given session.
  *  The session should be logged out using the appropriate PDUs. */
-void iSCSIVirtualHBA::ReleaseConnection(UInt16 sessionId,
-                                        UInt32 connectionId)
+void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
+                                        CID connectionId)
 {
     // Range-check inputs
     if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession)
@@ -1600,7 +1597,7 @@ void iSCSIVirtualHBA::ReleaseConnection(UInt16 sessionId,
  *  @param sessionId the session to deactivate.
  *  @param connectionId the connection to deactivate.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::ActivateConnection(UInt16 sessionId,UInt32 connectionId)
+errno_t iSCSIVirtualHBA::ActivateConnection(SID sessionId,CID connectionId)
 {
     if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession)
         return EINVAL;
@@ -1641,7 +1638,7 @@ errno_t iSCSIVirtualHBA::ActivateConnection(UInt16 sessionId,UInt32 connectionId
  *  @param sessionId the session to deactivate.
  *  @param connectionId the connection to deactivate.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::ActivateAllConnections(UInt16 sessionId)
+errno_t iSCSIVirtualHBA::ActivateAllConnections(SID sessionId)
 {
     if(sessionId >= kMaxSessions)
         return EINVAL;
@@ -1653,7 +1650,7 @@ errno_t iSCSIVirtualHBA::ActivateAllConnections(UInt16 sessionId)
         return EINVAL;
     
     errno_t error = 0;
-    for(UInt32 connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+    for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
         if((error = ActivateConnection(sessionId,connectionId)))
             return error;
     
@@ -1665,7 +1662,7 @@ errno_t iSCSIVirtualHBA::ActivateAllConnections(UInt16 sessionId)
  *  @param sessionId the session to deactivate.
  *  @param connectionId the connection to deactivate.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::DeactivateConnection(UInt16 sessionId,UInt32 connectionId)
+errno_t iSCSIVirtualHBA::DeactivateConnection(SID sessionId,CID connectionId)
 {
     if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession)
         return EINVAL;
@@ -1721,7 +1718,7 @@ errno_t iSCSIVirtualHBA::DeactivateConnection(UInt16 sessionId,UInt32 connection
  *  negotiated by the iSCSI daemon.
  *  @param sessionId the session to deactivate.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::DeactivateAllConnections(UInt16 sessionId)
+errno_t iSCSIVirtualHBA::DeactivateAllConnections(SID sessionId)
 {
     if(sessionId >= kMaxSessions)
         return EINVAL;
@@ -1733,7 +1730,7 @@ errno_t iSCSIVirtualHBA::DeactivateAllConnections(UInt16 sessionId)
         return EINVAL;
     
     errno_t error = 0;
-    for(UInt32 connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+    for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
     {
         if(session->connections[connectionId])
         {
@@ -1750,7 +1747,7 @@ errno_t iSCSIVirtualHBA::DeactivateAllConnections(UInt16 sessionId)
  *  @param sessionId obtain an connectionId for this session.
  *  @param connectionId the identifier of the connection.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetConnection(UInt16 sessionId,UInt32 * connectionId)
+errno_t iSCSIVirtualHBA::GetConnection(SID sessionId,CID * connectionId)
 {
     if(sessionId >= kMaxSessions || !connectionId)
         return EINVAL;
@@ -1761,7 +1758,7 @@ errno_t iSCSIVirtualHBA::GetConnection(UInt16 sessionId,UInt32 * connectionId)
     if(!session)
         return EINVAL;
     
-    for(UInt32 connectionIdx = 0; connectionIdx < kMaxConnectionsPerSession; connectionIdx++)
+    for(CID connectionIdx = 0; connectionIdx < kMaxConnectionsPerSession; connectionIdx++)
     {
         if(session->connections[connectionIdx])
         {
@@ -1778,7 +1775,7 @@ errno_t iSCSIVirtualHBA::GetConnection(UInt16 sessionId,UInt32 * connectionId)
  *  @param sessionId obtain the connection count for this session.
  *  @param numConnections the connection count.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetNumConnections(UInt16 sessionId,UInt32 * numConnections)
+errno_t iSCSIVirtualHBA::GetNumConnections(SID sessionId,UInt32 * numConnections)
 {
     if(sessionId >= kMaxSessions || !numConnections)
         return EINVAL;
@@ -1792,7 +1789,7 @@ errno_t iSCSIVirtualHBA::GetNumConnections(UInt16 sessionId,UInt32 * numConnecti
         return EINVAL;
     
     *numConnections = 0;
-    for(UInt32 connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+    for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
         if(session->connections[connectionId])
             (*numConnections)++;
     
@@ -2109,8 +2106,8 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
  *  @param data the data segment to send.
  *  @param length the byte size of the data segment
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::SendPDUUser(UInt16 sessionId,
-                                     UInt32 connectionId,
+errno_t iSCSIVirtualHBA::SendPDUUser(SID sessionId,
+                                     CID connectionId,
                                      iSCSIPDUInitiatorBHS * bhs,
                                      void * data,
                                      size_t dataLength)
@@ -2139,8 +2136,8 @@ errno_t iSCSIVirtualHBA::SendPDUUser(UInt16 sessionId,
  *  @param connectionId the connection associated with the session.
  *  @param bhs the basic header segment received.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::RecvPDUHeaderUser(UInt16 sessionId,
-                                           UInt32 connectionId,
+errno_t iSCSIVirtualHBA::RecvPDUHeaderUser(SID sessionId,
+                                           CID connectionId,
                                            iSCSIPDUTargetBHS * bhs)
 {
     // Range-check inputs
@@ -2168,8 +2165,8 @@ errno_t iSCSIVirtualHBA::RecvPDUHeaderUser(UInt16 sessionId,
  *  @param data the data received.
  *  @param length the length of the data buffer.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::RecvPDUDataUser(UInt16 sessionId,
-                                         UInt32 connectionId,
+errno_t iSCSIVirtualHBA::RecvPDUDataUser(SID sessionId,
+                                         CID connectionId,
                                          void * data,
                                          size_t length)
 {
@@ -2196,8 +2193,8 @@ errno_t iSCSIVirtualHBA::RecvPDUDataUser(UInt16 sessionId,
  *  @param connectionId the connection associated with the session.
  *  @param options the options to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::SetConnectionOptions(UInt16 sessionId,
-                                              UInt32 connectionId,
+errno_t iSCSIVirtualHBA::SetConnectionOptions(SID sessionId,
+                                              CID connectionId,
                                               iSCSIConnectionOptions * options)
 {
     // Range-check inputs
@@ -2249,8 +2246,8 @@ errno_t iSCSIVirtualHBA::SetConnectionOptions(UInt16 sessionId,
  *  @param options the options to get.  The user of this function is
  *  responsible for allocating and freeing the options struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetConnectionOptions(UInt16 sessionId,
-                                              UInt32 connectionId,
+errno_t iSCSIVirtualHBA::GetConnectionOptions(SID sessionId,
+                                              CID connectionId,
                                               iSCSIConnectionOptions * options)
 {
     // Range-check inputs
@@ -2281,7 +2278,7 @@ errno_t iSCSIVirtualHBA::GetConnectionOptions(UInt16 sessionId,
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::GetSessionIdFromTargetName(const char * targetName,
-                                                    UInt16 * sessionId)
+                                                    SID * sessionId)
 {
     if(!targetName || !sessionId)
         return  EINVAL;
@@ -2301,9 +2298,9 @@ errno_t iSCSIVirtualHBA::GetSessionIdFromTargetName(const char * targetName,
  *  @param address the name used when adding the connection (e.g., IP or DNS).
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetConnectionIdFromName(UInt16 sessionId,
+errno_t iSCSIVirtualHBA::GetConnectionIdFromName(SID sessionId,
                                                  const char * address,
-                                                 UInt32 * connectionId)
+                                                 CID * connectionId)
 {
     if(sessionId == kiSCSIInvalidSessionId || !address || !connectionId)
         return EINVAL;
@@ -2316,7 +2313,7 @@ errno_t iSCSIVirtualHBA::GetConnectionIdFromName(UInt16 sessionId,
         return EINVAL;
     
     // Find an empty connection slot to use for a new connection
-    UInt32 index;
+    CID index;
     for(index = 0; index < kMaxConnectionsPerSession; index++)
         if(session->connections[index])
         {
@@ -2338,7 +2335,7 @@ errno_t iSCSIVirtualHBA::GetSessionIds(UInt16 ** sessionIds,UInt16 * sessionCoun
     
     *sessionCount = 0;
     
-    for(UInt16 sessionIdx = 0; sessionIdx < kMaxSessions; sessionIdx++)
+    for(SID sessionIdx = 0; sessionIdx < kMaxSessions; sessionIdx++)
         if(sessionList[sessionIdx])
         {
             (*sessionIds)[*sessionCount] = sessionIdx;
@@ -2352,7 +2349,7 @@ errno_t iSCSIVirtualHBA::GetSessionIds(UInt16 ** sessionIds,UInt16 * sessionCoun
  *  @param connectionIds an array of connection identifiers for the session.
  *  @param connectionCount number of connection identifiers.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetConnectionIds(UInt16 sessionId,
+errno_t iSCSIVirtualHBA::GetConnectionIds(SID sessionId,
                                           UInt32 ** connectionIds,
                                           UInt32 * connectionCount)
 {
@@ -2367,7 +2364,7 @@ errno_t iSCSIVirtualHBA::GetConnectionIds(UInt16 sessionId,
     *connectionCount = 0;
     
     // Find an empty connection slot to use for a new connection
-    for(UInt32 index = 0; index < kMaxConnectionsPerSession; index++)
+    for(CID index = 0; index < kMaxConnectionsPerSession; index++)
         if(session->connections[index])
         {
 //            (*connectionIds)[*connectionCount] = index;

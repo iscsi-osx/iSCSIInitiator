@@ -10,6 +10,12 @@
 #ifndef __ISCSI_TYPES_SHARED_H__
 #define __ISCSI_TYPES_SHARED_H__
 
+/*! Session identifier. */
+typedef UInt16 SID;
+
+/*! Connection identifier. */
+typedef UInt32 CID;
+
 /*! Session qualifier value for an invalid session. */
 static const UInt16 kiSCSIInvalidSessionId = 0xFFFF;
 

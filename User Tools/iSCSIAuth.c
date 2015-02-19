@@ -22,34 +22,7 @@ extern unsigned int kiSCSISessionMaxTextKeyValuePairs;
 extern CFStringRef kiSCSIInitiatorName;
 extern CFStringRef kiSCSIInitiatorAlias;
 
-// Literals used for initial authentication step
-CFStringRef kiSCSILKInitiatorName = CFSTR("InitiatorName");
-CFStringRef kiSCSILKInitiatorAlias = CFSTR("InitiatorAlias");
-CFStringRef kiSCSILKTargetName = CFSTR("TargetName");
-CFStringRef kiSCSILKTargetAlias = CFSTR("TargetAlias");
 
-// Literals used to indicate session type
-CFStringRef kiSCSILKSessionType = CFSTR("SessionType");
-CFStringRef kiSCSILVSessionTypeDiscovery = CFSTR("Discovery");
-CFStringRef kiSCSILVSessionTypeNormal = CFSTR("Normal");
-
-// Literals used to indicate different authentication methods
-CFStringRef kiSCSILKAuthMethod = CFSTR("AuthMethod");
-CFStringRef kiSCSILVAuthMethodAll = CFSTR("None,CHAP,KRB5,SPKM1,SPKM2,SRP");
-CFStringRef kiSCSILVAuthMethodNone = CFSTR("None");
-CFStringRef kiSCSILVAuthMethodCHAP = CFSTR("CHAP");
-
-// Literals used during CHAP authentication
-CFStringRef kiSCSILKAuthCHAPDigest = CFSTR("CHAP_A");
-CFStringRef kiSCSILVAuthCHAPDigestMD5 = CFSTR("5");
-CFStringRef kiSCSILKAuthCHAPId = CFSTR("CHAP_I");
-CFStringRef kiSCSILKAuthCHAPChallenge = CFSTR("CHAP_C");
-CFStringRef kiSCSILKAuthCHAPResponse = CFSTR("CHAP_R");
-CFStringRef kiSCSILKAuthCHAPName = CFSTR("CHAP_N");
-
-// Used for grouping connections together (multiple connections must have the
-// same group tag or authentication will fail).
-CFStringRef kiSCSILKTargetPortalGroupTag = CFSTR("TargetPortalGroupTag");
 
 
 /*! Helper function.  Create a null-terminated byte array that holds the
@@ -188,10 +161,10 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateId()
  *  the CHAP authentication. */
 errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
                                iSCSIAuthRef auth,
-                               UInt16 sessionId,
-                               UInt32 connectionId,
+                               SID sessionId,
+                               CID connectionId,
                                iSCSISessionOptions * sessionOptions,
-                               enum iSCSIStatusCode * statusCode)
+                               enum iSCSILoginStatusCode * statusCode)
 {
     if(!target || !sessionOptions || sessionId == kiSCSIInvalidConnectionId ||
        connectionId == kiSCSIInvalidConnectionId)
@@ -245,18 +218,10 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     
     // Get CHAP parameters
     CFStringRef initiatorUser,initiatorSecret,targetUser,targetSecret;
-    error = iSCSIAuthGetCHAPValues(auth,&initiatorUser,&initiatorSecret,&targetUser,&targetSecret);
-    
-    if(error)
-    {
-        CFRelease(authCmd);
-        CFRelease(authRsp);
-        return error;
-    }
-    
+    iSCSIAuthGetCHAPValues(auth,&initiatorUser,&initiatorSecret,&targetUser,&targetSecret);
     
     // Get identifier and challenge & calculate the response
-    CFStringRef identifier, challenge;
+    CFStringRef identifier = NULL, challenge = NULL;
     
     if(CFDictionaryGetValueIfPresent(authRsp,kiSCSILKAuthCHAPId,(void*)&identifier) &&
        CFDictionaryGetValueIfPresent(authRsp,kiSCSILKAuthCHAPChallenge,(void*)&challenge))
@@ -322,16 +287,18 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
                                  iSCSIAuthRef auth,
                                  CFMutableDictionaryRef authCmd)
 {
-    if(iSCSITargetGetName(target) == NULL)
+    CFStringRef targetName = iSCSITargetGetName(target);
+    
+    if(targetName == NULL)
         CFDictionaryAddValue(authCmd,kiSCSILKSessionType,kiSCSILVSessionTypeDiscovery);
     else {
         CFDictionaryAddValue(authCmd,kiSCSILKSessionType,kiSCSILVSessionTypeNormal);
         CFDictionaryAddValue(authCmd,kiSCSILKTargetName,iSCSITargetGetName(target));
     }
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Read global variables for initiator name & alias and add them to dict.
     CFDictionaryAddValue(authCmd,kiSCSILKInitiatorName,kiSCSIInitiatorName);
     CFDictionaryAddValue(authCmd,kiSCSILKInitiatorAlias,kiSCSIInitiatorAlias);
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Determine authentication method used and add to dictionary
     enum iSCSIAuthMethods authMethod = iSCSIAuthGetMethod(auth);
@@ -346,13 +313,15 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
 }
 
 /*! Helper function.  Called by session or connection creation functions to
- *  begin authentication between the initiator and a selected target. */
+ *  begin authentication between the initiator and a selected target.  If the
+ *  target name is set to blank (e.g., by a call to iSCSITargetSetName()) or 
+ *  never set at all, a discovery session is assumed for authentication. */
 errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                            iSCSIAuthRef auth,
-                           UInt16 sessionId,
-                           UInt32 connectionId,
+                           SID sessionId,
+                           CID connectionId,
                            iSCSISessionOptions * sessionOptions,
-                           enum iSCSIStatusCode * statusCode)
+                           enum iSCSILoginStatusCode * statusCode)
 {
     if(!target || !auth || !sessionOptions ||
        sessionId    == kiSCSIInvalidConnectionId ||
@@ -463,15 +432,17 @@ ERROR_GENERIC:
 /*! Helper function.  Called by session or connection creation functions to
  *  determine available authentication options for a given target. */
 errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
-                             UInt16 sessionId,
-                             UInt32 connectionId,
+                             SID sessionId,
+                             CID connectionId,
                              iSCSISessionOptions * sessionOptions,
-                             CFStringRef * authMethods,
-                             enum iSCSIStatusCode * statusCode)
+                             enum iSCSIAuthMethods * authMethod,
+                             enum iSCSILoginStatusCode * statusCode)
 {
     if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId ||
-       !target || !sessionOptions || !authMethods)
+       !target || !sessionOptions || !authMethod)
         return EINVAL;
+    
+    *authMethod = kiSCSIAuthMethodInvalid;
     
     // Setup dictionary with target and initiator info for authentication
     CFMutableDictionaryRef authCmd = CFDictionaryCreateMutable(
@@ -511,13 +482,14 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
         // Grab authentication method that the target chose, if available
         if(CFDictionaryContainsKey(authRsp, kiSCSILKAuthMethod))
         {
-            *authMethods = CFDictionaryGetValue(authRsp,kiSCSILKAuthMethod);
-            CFRetain(*authMethods);
+            CFStringRef method = CFDictionaryGetValue(authRsp,kiSCSILKAuthMethod);
+            if(CFStringCompare(method,kiSCSILVAuthMethodCHAP,0) == kCFCompareEqualTo)
+                *authMethod = kiSCSIAuthMethodCHAP;
         }
         // Otherwise the target didn't return an "AuthMethod" key, this means
         // that it doesn't require authentication
         else
-            *authMethods = CFStringCreateCopy(kCFAllocatorDefault,kiSCSILVAuthMethodNone);
+            *authMethod = kiSCSIAuthMethodNone;
     }
     
     CFRelease(authCmd);

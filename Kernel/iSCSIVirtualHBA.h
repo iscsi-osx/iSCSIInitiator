@@ -131,7 +131,7 @@ public:
     /*! Handles connection timeouts.
      *  @param sessionId the session associated with the timed-out connection.
      *  @param connectionId the connection that timed out. */
-    void HandleConnectionTimeout(UInt16 sessionId,UInt32 connectionId);
+    void HandleConnectionTimeout(SID sessionId,CID connectionId);
 
 	/*! Processes a task passed down by SCSI target devices in driver stack.
      *  @param parallelTask the task to process.
@@ -185,20 +185,20 @@ public:
                           int domain,
                           const struct sockaddr * targetAddress,
                           const struct sockaddr * hostAddress,
-                          UInt16 * sessionId,
-                          UInt32 * connectionId);
+                          SID * sessionId,
+                          CID * connectionId);
     
     /*! Releases an iSCSI session, including all connections associated with that
      *  session.  Connections may be active or inactive when this function is
      *  called.
      *  @param sessionId the session qualifier part of the ISID. */
-    void ReleaseSession(UInt16 sessionId);
+    void ReleaseSession(SID sessionId);
         
     /*! Sets options associated with a particular session.
      *  @param sessionId the qualifier part of the ISID (see RFC3720).
      *  @param options the options to set.
      *  @return error code indicating result of operation. */
-    errno_t SetSessionOptions(UInt16 sessionId,
+    errno_t SetSessionOptions(SID sessionId,
                               iSCSISessionOptions * options);
     
     /*! Gets options associated with a particular session.
@@ -206,7 +206,7 @@ public:
      *  @param options the options to get.  The user of this function is
      *  responsible for allocating and freeing the options struct.
      *  @return error code indicating result of operation. */
-    errno_t GetSessionOptions(UInt16 sessionId,
+    errno_t GetSessionOptions(SID sessionId,
                               iSCSISessionOptions * options);
         
     /*! Allocates a new iSCSI connection associated with the particular session.
@@ -216,15 +216,15 @@ public:
      *  @param hostaddress the BSD socket structure used to identify the host adapter.
      *  @param connectionId identifier for the new connection.
      *  @return error code indicating result of operation. */
-    errno_t CreateConnection(UInt16 sessionId,
+    errno_t CreateConnection(SID sessionId,
                              int domain,
                              const struct sockaddr * targetAddress,
                              const struct sockaddr * hostAddress,
-                             UInt32 * connectionId);
+                             CID * connectionId);
     
     /*! Frees a given iSCSI connection associated with a given session.
      *  The session should be logged out using the appropriate PDUs. */
-    void ReleaseConnection(UInt16 sessionId,UInt32 connectionId);
+    void ReleaseConnection(SID sessionId,CID connectionId);
     
     /*! Activates an iSCSI connection, indicating to the kernel that the iSCSI
      *  daemon has negotiated security and operational parameters and that the
@@ -232,7 +232,7 @@ public:
      *  @param sessionId the session to deactivate.
      *  @param connectionId the connection to deactivate.
      *  @return error code indicating result of operation. */
-    errno_t ActivateConnection(UInt16 sessionId,UInt32 connectionId);
+    errno_t ActivateConnection(SID sessionId,CID connectionId);
 
     /*! Activates all iSCSI connections for the session, indicating to the 
      *  kernel that the iSCSI daemon has negotiated security and operational 
@@ -240,32 +240,32 @@ public:
      *  @param sessionId the session to deactivate.
      *  @param connectionId the connection to deactivate.
      *  @return error code indicating result of operation. */
-    errno_t ActivateAllConnections(UInt16 sessionId);
+    errno_t ActivateAllConnections(SID sessionId);
 
     /*! Deactivates an iSCSI connection so that parameters can be adjusted or
      *  negotiated by the iSCSI daemon.
      *  @param sessionId the session to deactivate.
      *  @return error code indicating result of operation. */
-    errno_t DeactivateConnection(UInt16 sessionId,UInt32 connectionId);
+    errno_t DeactivateConnection(SID sessionId,CID connectionId);
 
     /*! Deactivates all iSCSI connections so that parameters can be adjusted or
      *  negotiated by the iSCSI daemon.
      *  @param sessionId the session to deactivate.
      *  @return error code indicating result of operation. */
-    errno_t DeactivateAllConnections(UInt16 sessionId);
+    errno_t DeactivateAllConnections(SID sessionId);
 
     /*! Gets the first connection (the lowest connectionId) for the
      *  specified session.
      *  @param sessionId obtain an connectionId for this session.
      *  @param connectionId the identifier of the connection.
      *  @return error code indicating result of operation. */
-    errno_t GetConnection(UInt16 sessionId,UInt32 * connectionId);
+    errno_t GetConnection(SID sessionId,CID * connectionId);
 
     /*! Gets the connection count for the specified session.
      *  @param sessionId obtain the connection count for this session.
      *  @param numConnections the connection count.
      *  @return error code indicating result of operation. */
-    errno_t GetNumConnections(UInt16 sessionId,UInt32 * numConnections);
+    errno_t GetNumConnections(SID sessionId,UInt32 * numConnections);
     
     /*! Sends data over a kernel socket associated with iSCSI.  If the specified
      *  data segment length is not a multiple of 4-bytes, padding bytes will be
@@ -330,8 +330,8 @@ public:
      *  @param data the data segment to send.
      *  @param length the byte size of the data segment
      *  @return error code indicating result of operation. */
-    errno_t SendPDUUser(UInt16 sessionId,
-                        UInt32 connectionId,
+    errno_t SendPDUUser(SID sessionId,
+                        CID connectionId,
                         iSCSIPDUInitiatorBHS * bhs,
                         void * data,
                         size_t dataLength);
@@ -342,8 +342,8 @@ public:
      *  @param connectionId the connection associated with the session.
      *  @param bhs the basic header segment received.
      *  @return error code indicating result of operation. */
-    errno_t RecvPDUHeaderUser(UInt16 sessionId,
-                              UInt32 connectionId,
+    errno_t RecvPDUHeaderUser(SID sessionId,
+                              CID connectionId,
                               iSCSIPDUTargetBHS * bhs);
     
     /*! Wrapper around RecvPDUData for user-space calls.
@@ -353,8 +353,8 @@ public:
      *  @param data the data received.
      *  @param length the length of the data buffer.
      *  @return error code indicating result of operation. */
-    errno_t RecvPDUDataUser(UInt16 sessionId,
-                            UInt32 connectionId,
+    errno_t RecvPDUDataUser(SID sessionId,
+                            CID connectionId,
                             void * data,
                             size_t length);
     
@@ -363,8 +363,8 @@ public:
      *  @param connectionId the connection associated with the session.
      *  @param options the options to set.
      *  @return error code indicating result of operation. */
-    errno_t SetConnectionOptions(UInt16 sessionId,
-                                 UInt32 connectionId,
+    errno_t SetConnectionOptions(SID sessionId,
+                                 CID connectionId,
                                  iSCSIConnectionOptions * options);
     
     /*! Gets options associated with a particular connection.
@@ -373,24 +373,24 @@ public:
      *  @param options the options to get.  The user of this function is
      *  responsible for allocating and freeing the options struct.
      *  @return error code indicating result of operation. */
-    errno_t GetConnectionOptions(UInt16 sessionId,
-                                 UInt32 connectionId,
+    errno_t GetConnectionOptions(SID sessionId,
+                                 CID connectionId,
                                  iSCSIConnectionOptions * options);
     
     /*! Looks up the session identifier associated with a particular target name.
      *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
      *  @param sessionId the session identifier.
      *  @return error code indicating result of operation. */
-    errno_t GetSessionIdFromTargetName(const char * targetName,UInt16 * sessionId);
+    errno_t GetSessionIdFromTargetName(const char * targetName,SID * sessionId);
     
     /*! Looks up the connection identifier associated with a particular connection address.
      *  @param sessionId the session identifier.
      *  @param address the name used when adding the connection (e.g., IP or DNS).
      *  @param connectionId the associated connection identifier.
      *  @return error code indicating result of operation. */
-    errno_t GetConnectionIdFromName(UInt16 sessionId,
+    errno_t GetConnectionIdFromName(SID sessionId,
                                     const char * address,
-                                    UInt32 * connectionId);
+                                    CID * connectionId);
     
     /*! Gets an array of session identifiers for each session.
      *  @param sessionIds an array of session identifiers.
@@ -403,7 +403,7 @@ public:
      *  @param connectionIds an array of connection identifiers for the session.
      *  @param connectionCount number of connection identifiers.
      *  @return error code indicating result of operation. */
-    errno_t GetConnectionIds(UInt16 sessionId,
+    errno_t GetConnectionIds(SID sessionId,
                              UInt32 ** connectionIds,
                              UInt32 * connectionCount);
                                               

@@ -17,6 +17,83 @@
 #include "iSCSIPDUShared.h"
 #include <CoreFoundation/CoreFoundation.h>
 
+
+/////////// RFC3720 ALLOWED KEYS FOR SESSION & CONNECTION NEGOTIATION //////////
+
+// Literals used for initial authentication step
+static CFStringRef kiSCSILKInitiatorName = CFSTR("InitiatorName");
+static CFStringRef kiSCSILKInitiatorAlias = CFSTR("InitiatorAlias");
+static CFStringRef kiSCSILKTargetName = CFSTR("TargetName");
+static CFStringRef kiSCSILKTargetAlias = CFSTR("TargetAlias");
+static CFStringRef kiSCSILKTargetAddress = CFSTR("TargetAddress");
+
+// Literals used to indicate session type
+static CFStringRef kiSCSILKSessionType = CFSTR("SessionType");
+static CFStringRef kiSCSILVSessionTypeDiscovery = CFSTR("Discovery");
+static CFStringRef kiSCSILVSessionTypeNormal = CFSTR("Normal");
+
+// Literals used to indicate different authentication methods
+static CFStringRef kiSCSILKAuthMethod = CFSTR("AuthMethod");
+static CFStringRef kiSCSILVAuthMethodAll = CFSTR("None,CHAP,KRB5,SPKM1,SPKM2,SRP");
+static CFStringRef kiSCSILVAuthMethodNone = CFSTR("None");
+static CFStringRef kiSCSILVAuthMethodCHAP = CFSTR("CHAP");
+
+// Literals used during CHAP authentication
+static CFStringRef kiSCSILKAuthCHAPDigest = CFSTR("CHAP_A");
+static CFStringRef kiSCSILVAuthCHAPDigestMD5 = CFSTR("5");
+static CFStringRef kiSCSILKAuthCHAPId = CFSTR("CHAP_I");
+static CFStringRef kiSCSILKAuthCHAPChallenge = CFSTR("CHAP_C");
+static CFStringRef kiSCSILKAuthCHAPResponse = CFSTR("CHAP_R");
+static CFStringRef kiSCSILKAuthCHAPName = CFSTR("CHAP_N");
+
+// Used for grouping connections together (multiple connections must have the
+// same group tag or authentication will fail).
+static CFStringRef kiSCSILKTargetPortalGroupTag = CFSTR("TargetPortalGroupTag");
+
+
+static CFStringRef kiSCSILKHeaderDigest = CFSTR("HeaderDigest");
+static CFStringRef kiSCSILVHeaderDigestNone = CFSTR("None");
+static CFStringRef kiSCSILVHeaderDigestCRC32C = CFSTR("CRC32C");
+
+static CFStringRef kiSCSILKDataDigest = CFSTR("DataDigest");
+static CFStringRef kiSCSILVDataDigestNone = CFSTR("None");
+static CFStringRef kiSCSILVDataDigestCRC32C = CFSTR("CRC32C");
+
+static CFStringRef kiSCSILKMaxConnections = CFSTR("MaxConnections");
+static CFStringRef kiSCSILKTargetGroupPortalTag = CFSTR("TargetGroupPortalTag");
+
+static CFStringRef kiSCSILKInitialR2T = CFSTR("InitialR2T");
+
+static CFStringRef kiSCSILKImmediateData = CFSTR("ImmediateData");
+
+static CFStringRef kiSCSILKMaxRecvDataSegmentLength = CFSTR("MaxRecvDataSegmentLength");
+static CFStringRef kiSCSILKMaxBurstLength = CFSTR("MaxBurstLength");
+static CFStringRef kiSCSILKFirstBurstLength = CFSTR("FirstBurstLength");
+static CFStringRef kiSCSILKDefaultTime2Wait = CFSTR("DefaultTime2Wait");
+static CFStringRef kiSCSILKDefaultTime2Retain = CFSTR("DefaultTime2Retain");
+static CFStringRef kiSCSILKMaxOutstandingR2T = CFSTR("MaxOutstandingR2T");
+
+static CFStringRef kiSCSILKDataPDUInOrder = CFSTR("DataPDUInOrder");
+
+static CFStringRef kiSCSILKDataSequenceInOrder = CFSTR("DataSequenceInOrder");
+
+static CFStringRef kiSCSILKErrorRecoveryLevel = CFSTR("ErrorRecoveryLevel");
+static CFStringRef kiSCSILVErrorRecoveryLevelSession = CFSTR("0");
+static CFStringRef kiSCSILVErrorRecoveryLevelDigest = CFSTR("1");
+static CFStringRef kiSCSILVErrorRecoveryLevelConnection = CFSTR("2");
+
+static CFStringRef kiSCSILKIFMarker = CFSTR("IFMarker");
+static CFStringRef kiSCSILKOFMarker = CFSTR("OFMarker");
+
+/*! The following text commands  and corresponding possible values are used
+ *  as key-value pairs during the full-feature phase of the connection. */
+static CFStringRef kiSCSITKSendTargets = CFSTR("SendTargets");
+static CFStringRef kiSCSITVSendTargetsAll = CFSTR("All");
+
+static CFStringRef kiSCSILVYes = CFSTR("Yes");
+static CFStringRef kiSCSILVNo = CFSTR("No");
+
+
 /*! Basic header segment for a login request PDU. */
 typedef struct __iSCSIPDULoginReqBHS {
     const UInt8 opCodeAndDeliveryMarker;
@@ -280,5 +357,21 @@ void iSCSIPDUDataParseToDict(void * data,size_t length,CFMutableDictionaryRef te
  *  @param keys an array of key values.
  *  @param values an array of corresponding values for each key. */
 void iSCSIPDUDataParseToArrays(void * data,size_t length,CFMutableArrayRef keys,CFMutableArrayRef values);
+
+
+/*! Parses key-value pairs using a user-specified function.
+ *  @param data the data segmetn (from a PDU) to parse.
+ *  @param length the length of the data segment.
+ *  @param keyContainer the container to use for storing key strings (optional).
+ *  @param valContainer the container to use for storing value strings (optional).
+ *  @param callback a user-specified function that accepts key and value 
+ *  containers and key and value strings (i.e. the specific parse functions
+ *  defined above specify a particular callback that places the keys and values
+ *  into a dictionary or into two separate arrays. */
+void iSCSIPDUDataParseCommon(void * data,size_t length,
+                             void * keyContainer,
+                             void * valContainer,
+                             void (*callback)(void * keyContainer,CFStringRef key,
+                                              void * valContainer,CFStringRef val));
 
 #endif

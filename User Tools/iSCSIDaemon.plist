@@ -10,8 +10,8 @@
 	<dict>
 		<key>iscsid</key>
 		<dict>
-			<key>SockServiceName</key>
-			<string>12345</string>
+			<key>SockPathName</key>
+			<string>/tmp/iscsid_local</string>
 		</dict>
 	</dict>
 	<key>Program</key>
