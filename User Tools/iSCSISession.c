@@ -696,7 +696,6 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
 
     freeaddrinfo(aiTarget);
     
-    
     // Grab a list of interfaces on this system, iterate over them and
     // find the requested interface.
     struct ifaddrs * interfaceList;
@@ -1219,8 +1218,7 @@ errno_t iSCSIGetConnectionInfo(SID sessionId,
                                CID connectionId,
                                iSCSIConnectionOptions * options)
 {
-    if(sessionId    == kiSCSIInvalidSessionId ||
-       connectionId == kiSCSIInvalidConnectionId || !options)
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !options)
         return EINVAL;
     
     return iSCSIKernelGetConnectionOptions(sessionId,connectionId,options);

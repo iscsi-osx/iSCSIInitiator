@@ -228,12 +228,12 @@ errno_t iSCSICtlAddSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
         return EINVAL;
     }
     
-    iSCSIMutableTargetRef target = iSCSITargetCreate();
+    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
     iSCSITargetSetName(target,CFDictionaryGetValue(options,&kOptTarget));
     iSCSITargetSetDataDigest(target,false);
     iSCSITargetSetHeaderDigest(target,false);
 
-    iSCSIMutablePortalRef portal = iSCSIPortalCreate();
+    iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
     CFArrayRef portalParts = CreateArrayBySeparatingPortalParts(portalAddress);
     
     if(!portalParts)
@@ -251,7 +251,7 @@ errno_t iSCSICtlAddSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
     CFRelease(portalParts);
     
     if(!CFDictionaryGetValueIfPresent(options,&kOptInterface,(const void **)&hostInterface))
-        iSCSIPortalSetHostInterface(portal,NULL);
+        iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
     else
         iSCSIPortalSetHostInterface(portal,hostInterface);
     
@@ -300,6 +300,24 @@ errno_t iSCSICtlAddSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
 errno_t iSCSICtlRemoveSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
+    // Get either session identifier if supplied, or the session identifier
+    // from the target name if the latter was provided instead
+    CFStringRef sessionIdString = CFDictionaryGetValue(options,&kOptSessionId);
+    SID sessionId = kiSCSIInvalidSessionId;
+    
+    if(sessionIdString) {
+        sessionId = CFStringGetIntValue(sessionIdString);
+    }
+    else
+    {
+        // Get identifier from target name
+        
+        
+    }
+
+    enum iSCSILogoutStatusCode statusCode = kiSCSILogoutInvalidStatusCode;
+    iSCSIDaemonLogoutSession(handle,sessionId,&statusCode);
+    
     return 0;
 }
 
@@ -310,6 +328,9 @@ errno_t iSCSICtlModifySession(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
 errno_t iSCSICtlListSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
+    
+    
+    
     return 0;
 }
 
@@ -325,13 +346,15 @@ Boolean compareOptions( const void * value1, const void * value2 )
 int main(int argc, char * argv[])
 {
     iSCSIDaemonHandle handle = iSCSIDaemonConnect();
+    
+
     /*
-    iSCSIMutablePortalRef portal = iSCSIPortalCreate();
+    iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
     iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
     iSCSIPortalSetPort(portal,CFSTR("3260"));
     iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
     
-    iSCSIMutableTargetRef target = iSCSITargetCreate();
+    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
     iSCSITargetSetName(target,CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi55"));
     iSCSITargetSetDataDigest(target,false);
     iSCSITargetSetHeaderDigest(target,false);
@@ -343,8 +366,17 @@ int main(int argc, char * argv[])
     enum iSCSILoginStatusCode statusCode;
     
     iSCSIDaemonLoginSession(handle,portal,target,auth,&sessionId,&connectionId,&statusCode);
-  */
-    
+*/
+/*    CID connIds[kiSCSIMaxConnectionsPerSession];
+    UInt32 connCount;
+    connIds[0] = 10;
+    iSCSIDaemonGetConnectionIds(handle,0,connIds,&connCount);
+    int b =10;
+ 
+    SID b = 10;
+    b = iSCSIDaemonGetSessionIdForTarget(handle,CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi55"), &b);
+    int c = 10;
+ */
     
     // Save command line executable name for later use
     executableName = argv[0];
@@ -402,7 +434,6 @@ int main(int argc, char * argv[])
             case kOptAll:
                 CFDictionaryAddValue(options,&kOptAll,optArgString);
                 break;
-            
             case '?':
                 break;
 
@@ -422,7 +453,3 @@ int main(int argc, char * argv[])
   
     return 0;
 }
-
-
-
-

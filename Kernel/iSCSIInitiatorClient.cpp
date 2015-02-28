@@ -168,7 +168,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
     {
         (IOExternalMethodAction) &iSCSIInitiatorClient::GetConnectionIdFromAddress,
         1,                                  // Session ID
-        kIOUCVariableStructureSize,         // Connection name
+        kIOUCVariableStructureSize,         // Connection address structure
         2,                                  // Return values
         0
     },
@@ -615,9 +615,9 @@ IOReturn iSCSIInitiatorClient::GetConnectionIdFromAddress(iSCSIInitiatorClient *
 {
     CID connectionId;
     
-    args->scalarOutput[0] = target->provider->GetConnectionIdFromName(args->scalarInput[0],
-                                                                      (const char *)args->structureInput,
-                                                                      &connectionId);
+    args->scalarOutput[0] = target->provider->GetConnectionIdFromAddress(args->scalarInput[0],
+                                                                         (sockaddr *)args->structureInput,
+                                                                         &connectionId);
     args->scalarOutput[1] = connectionId;
     args->scalarOutputCount = 2;
     

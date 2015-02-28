@@ -13,6 +13,7 @@
 #include "iSCSIPDUShared.h"
 #include <sys/socket.h>
 #include <sys/errno.h>
+#include <netinet/in.h>
 
 #include <IOKit/IOKitLib.h>
 #include <stdint.h>

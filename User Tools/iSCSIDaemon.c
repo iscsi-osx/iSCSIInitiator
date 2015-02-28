@@ -89,7 +89,7 @@ const struct iSCSIDRspQueryPortalForTargets iSCSIDRspQueryPortalForTargetsInit =
 };
 
 const struct iSCSIDRspQueryTargetForAuthMethod iSCSIDRspQueryTargetForAuthMethodInit = {
-    .funcCode = kiSCSIDQueryTargetForAuthMethods,
+    .funcCode = kiSCSIDQueryTargetForAuthMethod,
     .errorCode = 0,
     .statusCode = 0,
     .authMethod = 0
@@ -137,17 +137,24 @@ const struct iSCSIDRspGetConnectionInfo iSCSIDRspGetConnectionInfoInit = {
  *  appropriate type. */
 void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)(CFDataRef))
 {
+                    fprintf(stderr,"Check 1.\n");
     // Receive iSCSI object data from stream socket
     UInt8 * bytes = (UInt8 *) malloc(length);
     if(!bytes || (recv(fd,bytes,length,0) != length))
+    {
+        free(bytes);
         return NULL;
-    
+    }
+                    fprintf(stderr,"Check 2.\n");
     // Build a CFData wrapper around the data
     CFDataRef data = NULL;
     
-    if(!CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,bytes,length,kCFAllocatorMalloc))
+    if(!(data = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,bytes,length,kCFAllocatorMalloc)))
+    {
+        free(bytes);
         return NULL;
-    
+    }
+                        fprintf(stderr,"Check 3.\n");
     // Create an iSCSI object from the data
     void * object = objectCreator(data);
     
@@ -157,16 +164,20 @@ void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)
 
 errno_t iSCSIDLoginSession(int fd,struct iSCSIDCmdLoginSession * cmd)
 {
+            fprintf(stderr,"Login session.\n");
+    
     // Grab objects from stream
     iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
-                            (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
     iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
-                            (void *(* )(CFDataRef))&iSCSITargetCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSITargetCreateWithData);
     iSCSIAuthRef auth = iSCSIDCreateObjectFromSocket(fd,cmd->authLength,
-                            (void *(* )(CFDataRef))&iSCSIAuthCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSIAuthCreateWithData);
     
     if(!portal || !target || !auth)
         return EAGAIN;
+    
+                fprintf(stderr,"Passed input check.\n");
     
     SID sessionId;
     CID connectionId;
@@ -213,11 +224,11 @@ errno_t iSCSIDLoginConnection(int fd,struct iSCSIDCmdLoginConnection * cmd)
 {
     // Grab objects from stream
     iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
-                            (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
     iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
-                            (void *(* )(CFDataRef))&iSCSITargetCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSITargetCreateWithData);
     iSCSIAuthRef auth = iSCSIDCreateObjectFromSocket(fd,cmd->authLength,
-                            (void *(* )(CFDataRef))&iSCSIAuthCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSIAuthCreateWithData);
     
     if(!portal || !target || !auth)
         return EAGAIN;
@@ -265,7 +276,7 @@ errno_t iSCSIDQueryPortalForTargets(int fd,struct iSCSIDCmdQueryPortalForTargets
 {
     // Grab objects from stream
     iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
-                            (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
 
     enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
 
@@ -283,7 +294,7 @@ errno_t iSCSIDQueryPortalForTargets(int fd,struct iSCSIDCmdQueryPortalForTargets
         return EAGAIN;
     }
     
-    CFDataRef data = iSCSIDiscoveryRecCopyToBytes(discoveryRec);
+    CFDataRef data = iSCSIDiscoveryRecCreateData(discoveryRec);
     
     if(send(fd,CFDataGetBytePtr(data),CFDataGetLength(data),0) != CFDataGetLength(data))
     {
@@ -291,6 +302,7 @@ errno_t iSCSIDQueryPortalForTargets(int fd,struct iSCSIDCmdQueryPortalForTargets
         return EAGAIN;
     }
     
+    CFRelease(data);
     return 0;
 }
 
@@ -298,9 +310,9 @@ errno_t iSCSIDQueryTargetForAuthMethod(int fd,struct iSCSIDCmdQueryTargetForAuth
 {
     // Grab objects from stream
     iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
-                            (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
     iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
-                            (void *(* )(CFDataRef))&iSCSITargetCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSITargetCreateWithData);
 
     enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
     enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
@@ -323,7 +335,7 @@ errno_t iSCSIDGetSessionIdForTarget(int fd,struct iSCSIDCmdGetSessionIdForTarget
 {
     // Grab objects from stream
     iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
-                            (void *(* )(CFDataRef))&iSCSITargetCreateFromBytes);
+                            (void *(* )(CFDataRef))&iSCSITargetCreateWithData);
     
     SID sessionId = kiSCSIInvalidSessionId;
     errno_t error = iSCSIGetSessionIdForTarget(iSCSITargetGetName(target),&sessionId);
@@ -343,7 +355,7 @@ errno_t iSCSIDGetConnectionIdForAddress(int fd,struct iSCSIDCmdGetConnectionIdFo
 {
     // Grab objects from stream
     iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
-                                (void *(* )(CFDataRef))&iSCSIPortalCreateFromBytes);
+                                (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
 
     CID connectionId;
     errno_t error = iSCSIGetConnectionIdFromAddress(cmd->sessionId,iSCSIPortalGetAddress(portal),&connectionId);
@@ -447,7 +459,6 @@ int main(void)
     // Configure the initiator by reading preferences file
     ConfigureiSCSIFromPreferences();
     
-    
     // Register with launchd so it can manage this daemon
     launch_data_t reg_request = launch_data_new_string(LAUNCH_KEY_CHECKIN);
     
@@ -527,7 +538,7 @@ int main(void)
                 error = iSCSIDLogoutConnection(fd,(iSCSIDCmdLogoutConnection*)&cmd); break;
             case kiSCSIDQueryPortalForTargets:
                 error = iSCSIDQueryPortalForTargets(fd,(iSCSIDCmdQueryPortalForTargets*)&cmd); break;
-            case kiSCSIDQueryTargetForAuthMethods:
+            case kiSCSIDQueryTargetForAuthMethod:
                 error = iSCSIDQueryTargetForAuthMethod(fd,(iSCSIDCmdQueryTargetForAuthMethod*)&cmd); break;
             case kiSCSIDGetSessionIdForTarget:
                 error = iSCSIDGetSessionIdForTarget(fd,(iSCSIDCmdGetSessionIdForTarget*)&cmd); break;

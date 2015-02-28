@@ -385,12 +385,12 @@ public:
     
     /*! Looks up the connection identifier associated with a particular connection address.
      *  @param sessionId the session identifier.
-     *  @param address the name used when adding the connection (e.g., IP or DNS).
+     *  @param address the socket address associated with the connection.
      *  @param connectionId the associated connection identifier.
      *  @return error code indicating result of operation. */
-    errno_t GetConnectionIdFromName(SID sessionId,
-                                    const char * address,
-                                    CID * connectionId);
+    errno_t GetConnectionIdFromAddress(SID sessionId,
+                                       const struct sockaddr * address,
+                                       CID * connectionId);
     
     /*! Gets an array of session identifiers for each session.
      *  @param sessionIds an array of session identifiers.
@@ -551,6 +551,8 @@ private:
     
     /*! Lookup table mapping target names (IQN names) to session identifiers. */
     OSDictionary * targetList;
+    
+    friend class iSCSIInitiatorClient;
 };
 
 

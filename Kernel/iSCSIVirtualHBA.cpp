@@ -145,12 +145,14 @@ struct iSCSIVirtualHBA::iSCSISession {
     
     /*! Number of active connections. */
     UInt32 numActiveConnections;
+
     
+//////// CONSIDER REMOVING THIS BELOW.....
     /*! Total number of connections (either active or inactive). */
-    UInt32 numConnections;
+//    UInt32 numConnections; NEED THIS?? COMPUTED BY ITERATING IN ONE INSTANCE....
     
     /*! Initiator tag for the newest task. */
-    UInt32 initiatorTaskTag;
+ //   UInt32 initiatorTaskTag;  NEED THIS????
     
     /*! Indicates whether session is active, which means that a SCSI target
      *  exists and is backing the the iSCSI session. */
@@ -703,9 +705,8 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         DBLog("iSCSI: Failed to get PDU header\n");
         return true;
     }
-    else {
+    else
         DBLog("iSCSI: Received PDU\n");
-    }
 
     // Determine the kind of PDU that was received and process accordingly
     enum iSCSIPDUTargetOpCodes opCode = (iSCSIPDUTargetOpCodes)bhs.opCode;
@@ -899,9 +900,7 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
         bhsRsp.targetTransferTag = bhs->targetTransferTag;
         
         if(SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsRsp,NULL,data,length))
-        {
             DBLog("iSCSI: Failed to send NOP response\n");
-        }
     }
 }
 
@@ -1277,7 +1276,7 @@ errno_t iSCSIVirtualHBA::CreateSession(const char * targetName,
     newSession->cmdSN = 0;
     newSession->expCmdSN = 0;
     newSession->maxCmdSN = 0;
-    newSession->initiatorTaskTag = 0;
+//    newSession->initiatorTaskTag = 0;
 
     // Retain new session
     sessionList[sessionIdx] = newSession;
@@ -1501,7 +1500,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
 
     
     // Keep track of connection count
-    OSIncrementAtomic(&session->numConnections);
+//    OSIncrementAtomic(&session->numConnections);
     
     // Initialize queue that keeps track of connection speed
     memset(newConn->bytesPerSecondHistory,0,sizeof(UInt8)*newConn->kBytesPerSecAvgWindowSize);
@@ -1561,7 +1560,7 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
         return;
     
     // Keep track of connection count
-    OSDecrementAtomic(&session->numConnections);
+//    OSDecrementAtomic(&session->numConnections);
     
     IOLockLock(connection->PDUIOLock);
     
@@ -1569,7 +1568,6 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
     if(connection->taskQueue->isEnabled())
         DeactivateConnection(sessionId,connectionId);
 
-    
     sock_close(connection->socket);
 
     DBLog("iSCSI: Deactivated connection.\n");
@@ -1788,6 +1786,7 @@ errno_t iSCSIVirtualHBA::GetNumConnections(SID sessionId,UInt32 * numConnections
     if(!session)
         return EINVAL;
     
+    // Iterate over list of connections to see how many are valid
     *numConnections = 0;
     for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
         if(session->connections[connectionId])
@@ -2295,12 +2294,12 @@ errno_t iSCSIVirtualHBA::GetSessionIdFromTargetName(const char * targetName,
 
 /*! Looks up the connection identifier associated with a particular connection address.
  *  @param sessionId the session identifier.
- *  @param address the name used when adding the connection (e.g., IP or DNS).
+ *  @param address the socket address associated with the connection.
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetConnectionIdFromName(SID sessionId,
-                                                 const char * address,
-                                                 CID * connectionId)
+errno_t iSCSIVirtualHBA::GetConnectionIdFromAddress(SID sessionId,
+                                                    const struct sockaddr * address,
+                                                    CID * connectionId)
 {
     if(sessionId == kiSCSIInvalidSessionId || !address || !connectionId)
         return EINVAL;
@@ -2315,12 +2314,27 @@ errno_t iSCSIVirtualHBA::GetConnectionIdFromName(SID sessionId,
     // Find an empty connection slot to use for a new connection
     CID index;
     for(index = 0; index < kMaxConnectionsPerSession; index++)
+    {
         if(session->connections[index])
         {
+            iSCSIConnection * connection = session->connections[index];
+
             // Check address for a match...
-//////TODO.....
+            struct sockaddr peername;
+            errno_t error = 0;
+            
+            if((error = sock_getpeername(connection->socket,&peername,sizeof(peername))))
+                return error;
+
+            if(peername.sa_family == address->sa_family &&
+               strcmp(peername.sa_data,address->sa_data) == 0)
+            {
+                *connectionId = index;
+                break;
+            }
         }
-    
+    }
+
     return 0;
 }
 

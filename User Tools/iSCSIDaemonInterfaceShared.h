@@ -48,6 +48,7 @@ typedef struct iSCSIDCmd {
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
+    UInt32 reserved6;
     
 } __attribute__((packed)) iSCSIDCmd;
 
@@ -60,6 +61,7 @@ typedef struct iSCSIDRsp {
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
+    UInt32 reserved6;
     
 } __attribute__((packed)) iSCSIDRsp;
 
@@ -454,7 +456,7 @@ enum iSCSIDFunctionCodes {
     kiSCSIDLoginConnection = 2,
     kiSCSIDLogoutConnection = 3,
     kiSCSIDQueryPortalForTargets = 4,
-    kiSCSIDQueryTargetForAuthMethods = 5,
+    kiSCSIDQueryTargetForAuthMethod = 5,
     kiSCSIDGetSessionIdForTarget = 6,
     kiSCSIDGetConnectionIdForAddress = 7,
     kiSCSIDGetSessionIds = 8,

@@ -28,12 +28,6 @@ kern_return_t iSCSIKernelInitialize()
 	// Check to see if the driver was found in the I/O registry
 	if(service == IO_OBJECT_NULL)
 	{
-/*		NSAlert * alert = [[NSAlert alloc] init];
-		
-		
-		[alert setMessageText:@"iSCSI driver has not been loaded"];
-		[alert runModal];
-*/
 		return kIOReturnNotFound;
 	}
     
@@ -41,13 +35,9 @@ kern_return_t iSCSIKernelInitialize()
 	kernResult = IOServiceOpen(service,mach_task_self(),0,&connection);
 	
 	if(kernResult != kIOReturnSuccess) {
-/*		NSAlert * alert = [[NSAlert alloc] init];
-		
-		
-		[alert setMessageText:@"Couldnt open handle to service"];
-		[alert runModal];
-*/
-	}
+        IOObjectRelease(service);
+        return kIOReturnNotFound;
+    }
     return IOConnectCallScalarMethod(connection,kiSCSIOpenInitiator,0,0,0,0);
 }
 
@@ -617,6 +607,9 @@ errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
     if(!address || !sessionId || !connectionId)
         return EINVAL;
     
+    // Convert address string to an address structure
+    struct sockaddr addr;
+    
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
@@ -635,6 +628,7 @@ errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
         }
     }
     
+    inet_addr
     return EINVAL;
 }
 

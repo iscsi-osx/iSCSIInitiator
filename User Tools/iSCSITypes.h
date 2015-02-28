@@ -20,7 +20,9 @@ typedef CFDictionaryRef iSCSITargetRef;
 typedef CFMutableDictionaryRef iSCSIMutableTargetRef;
 
 typedef CFDictionaryRef iSCSIAuthRef;
+typedef CFMutableDictionaryRef iSCSIMutableAuthRef;
 
+typedef CFDictionaryRef iSCSIDiscoveryRecRef;
 typedef CFMutableDictionaryRef iSCSIMutableDiscoveryRecRef;
 
 /*! Valid iSCSI authentication methods. */
@@ -69,10 +71,10 @@ enum iSCSILogoutStatusCode {
 };
 
 
-/*! Creates a new portal object from byte representation.
- *  @param bytes data sued to construct a portal object.
+/*! Creates a new portal object from an external data representation.
+ *  @param data data sued to construct a portal object.
  *  @return an iSCSI portal object or NULL if object creation failed. */
-iSCSIPortalRef iSCSIPortalCreateFromBytes(CFDataRef bytes);
+iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIPortal object with empty portal parameters.
  *  @return a new portal object. */
@@ -124,27 +126,27 @@ void iSCSIPortalRetain(iSCSITargetRef portal);
 /*! Creates a new portal object from a dictionary representation.
  * @param dict a dictionary used to construct an iSCSI portal object.
  * @return an iSCSI portal object or NULL if object creation failed. */
-iSCSIPortalRef iSCSIPortalCreateFromDictionary(CFDictionaryRef dict);
+iSCSIPortalRef iSCSIPortalCreateWithDictionary(CFDictionaryRef dict);
 
 /*! Copies a target object to a dictionary representation.
  *  @param portal an iSCSI portal object.
  *  @return a dictionary representation of the portal or
  *  NULL if portal is invalid. */
-CFDictionaryRef iSCSIPortalCopyToDictionary(iSCSIPortalRef portal);
+CFDictionaryRef iSCSIPortalCreateDictionary(iSCSIPortalRef portal);
 
 /*! Copies the portal object to a byte array representation.
  *  @param portal an iSCSI poratl object.
  *  @return data representing the portal or NULL if the portal is invalid. */
-CFDataRef iSCSIPortalCopyToBytes(iSCSIPortalRef portal);
+CFDataRef iSCSIPortalCreateData(iSCSIPortalRef portal);
 
 
 
 
 
-/*! Creates a new target object from byte representation.
- * @param bytes data used to construct an iSCSI target object.
+/*! Creates a new target object from an external data representation.
+ * @param data data used to construct an iSCSI target object.
  * @return an iSCSI target object or NULL if object creation failed */
-iSCSITargetRef iSCSITargetCreateFromBytes(CFDataRef bytes);
+iSCSITargetRef iSCSITargetCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSITarget object with empty target parameters.
  *  @return an iSCSI target object. */
@@ -192,26 +194,26 @@ void iSCSITargetRetain(iSCSITargetRef target);
 /*! Creates a new target object from a dictionary representation.
  * @param dict a dictionary used to construct an iSCSI target object.
  * @return an iSCSI target object or NULL if object creation failed. */
-iSCSITargetRef iSCSITargetCreateFromDictionary(CFDictionaryRef dict);
+iSCSITargetRef iSCSITargetCreateWithDictionary(CFDictionaryRef dict);
 
 /*! Copies a target object to a dictionary representation.
  *  @param target an iSCSI target object.
  *  @return a dictionary representation of the target or 
  *  NULL if target is invalid. */
-CFDictionaryRef iSCSITargetCopyToDictionary(iSCSITargetRef target);
+CFDictionaryRef iSCSITargetCreateDictionary(iSCSITargetRef target);
 
 /*! Copies the target object to a byte array representation.
  *  @param target an iSCSI target object.
  *  @return data representing the target or NULL if the target is invalid. */
-CFDataRef iSCSITargetCopyToBytes(iSCSITargetRef target);
+CFDataRef iSCSITargetCreateData(iSCSITargetRef target);
 
 
 
 
-/*! Creates a new authentication object from byte representation.
- * @param bytes data used to construct an iSCSI authentication object.
+/*! Creates a new authentication object from an external data representation.
+ * @param data data used to construct an iSCSI authentication object.
  * @return an iSCSI authentication object or NULL if object creation failed */
-iSCSIAuthRef iSCSIAuthCreateFromBytes(CFDataRef bytes);
+iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIAuth object with empty authentication parameters
  *  (defaults to no authentication).
@@ -266,26 +268,31 @@ void iSCSIAuthRetain(iSCSIAuthRef auth);
 
 /*! Creates a new authentication object from a dictionary representation.
  * @return an iSCSI authentication object or NULL if object creation failed. */
-iSCSIAuthRef iSCSIAuthCreateFromDictionary(CFDictionaryRef dict);
+iSCSIAuthRef iSCSIAuthCreateWithDictionary(CFDictionaryRef dict);
 
 /*! Copies an authentication object to a dictionary representation.
  *  @param auth an iSCSI authentication object.
  *  @return a dictionary representation of the authentication object or
  *  NULL if authentication object is invalid. */
-CFDictionaryRef iSCSIAuthCopyToDictionary(iSCSIAuthRef auth);
+CFDictionaryRef iSCSIAuthCreateDictionary(iSCSIAuthRef auth);
 
 /*! Copies the authentication object to a byte array representation.
  *  @param auth an iSCSI authentication object.
  *  @return data representing the authentication object 
  *  or NULL if the authenticaiton object is invalid. */
-CFDataRef iSCSIAuthCopyToBytes(iSCSIAuthRef auth);
+CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth);
 
 
 
 
 
-/*! Creates a discovery record from data obtained from a send targets operation. */
+/*! Creates a discovery record object. */
 iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreate();
+
+/*! Creates a discovery record from an external data representation.
+ * @param data data used to construct an iSCSI discovery object.
+ * @return an iSCSI discovery object or NULL if object creation failed */
+iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreateWithData(CFDataRef data);
 
 /*! Add a portal to a specified portal group tag for a given target.
  *  @param discoveryRec the discovery record.
@@ -337,13 +344,13 @@ void iSCSIDiscoveryRecRetain(iSCSIMutableDiscoveryRecRef discoveryRec);
  *  @param auth an iSCSI discovery record object.
  *  @return a dictionary representation of the discovery record object or
  *  NULL if the discovery record object is invalid. */
-CFDictionaryRef iSCSIDiscoveryRecCopyToDictionary(iSCSIMutableDiscoveryRecRef discoveryRec);
+CFDictionaryRef iSCSIDiscoveryRecCreateDictionary(iSCSIMutableDiscoveryRecRef discoveryRec);
 
 /*! Copies the discovery record object to a byte array representation.
  *  @param auth an iSCSI discovery record object.
  *  @return data representing the discovery record object
  *  or NULL if the discovery record object is invalid. */
-CFDataRef iSCSIDiscoveryRecCopyToBytes(iSCSIMutableDiscoveryRecRef discoveryRec);
+CFDataRef iSCSIDiscoveryRecCreateData(iSCSIMutableDiscoveryRecRef discoveryRec);
 
 
 

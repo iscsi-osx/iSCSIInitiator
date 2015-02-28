@@ -26,16 +26,14 @@ const int kMaxPortalGroupsPerTarget = 10;
 const int kMaxPortalsPerGroup = 10;
 
 /*! Creates a new portal object from byte representation. */
-iSCSIPortalRef iSCSIPortalCreateFromBytes(CFDataRef bytes)
+iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data)
 {
     CFPropertyListFormat format;
-    
-    iSCSIPortalRef portal = CFPropertyListCreateWithData(kCFAllocatorDefault,bytes,0,&format,NULL);
+    iSCSIPortalRef portal = CFPropertyListCreateWithData(kCFAllocatorDefault,data,kCFPropertyListImmutable,&format,NULL);
     
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return portal;
-    
-    iSCSIPortalRelease(portal);
+
     return NULL;
 }
 
@@ -101,35 +99,35 @@ void iSCSIPortalRetain(iSCSIPortalRef portal)
 }
 
 /*! Creates a new portal object from a dictionary representation. */
-iSCSIPortalRef iSCSIPortalCreateFromDictionary(CFDictionaryRef dict)
+iSCSIPortalRef iSCSIPortalCreateWithDictionary(CFDictionaryRef dict)
 {
     return CFDictionaryCreateCopy(kCFAllocatorDefault,dict);
 }
 
 /*! Copies a target object to a dictionary representation. */
-CFDictionaryRef iSCSIPortalCopyToDictionary(iSCSIPortalRef portal)
+CFDictionaryRef iSCSIPortalCreateDictionary(iSCSIPortalRef portal)
 {
     return CFDictionaryCreateCopy(kCFAllocatorDefault,portal);
 }
 
 /*! Copies the portal object to a byte array representation. */
-CFDataRef iSCSIPortalCopyToBytes(iSCSIPortalRef portal)
+CFDataRef iSCSIPortalCreateData(iSCSIPortalRef portal)
 {
-    return CFPropertyListCreateData(kCFAllocatorDefault,portal,kCFPropertyListBinaryFormat_v1_0,0,NULL);
+    CFPropertyListRef plist = portal;
+    return CFPropertyListCreateData(kCFAllocatorDefault,plist,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
 
 
 /*! Creates a new target object from byte representation. */
-iSCSITargetRef iSCSITargetCreateFromBytes(CFDataRef bytes)
+iSCSITargetRef iSCSITargetCreateWithData(CFDataRef data)
 {
     CFPropertyListFormat format;
     
-    iSCSITargetRef target = CFPropertyListCreateWithData(kCFAllocatorDefault,bytes,0,&format,NULL);
-    
+    iSCSITargetRef target = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return target;
-    
-    iSCSITargetRelease(target);
+
     return NULL;
 }
 
@@ -214,19 +212,19 @@ void iSCSITargetRetain(iSCSITargetRef target)
 }
 
 /*! Creates a new target object from a dictionary representation. */
-iSCSITargetRef iSCSITargetCreateFromDictionary(CFDictionaryRef dict)
+iSCSITargetRef iSCSITargetCreateWithDictionary(CFDictionaryRef dict)
 {
     return CFDictionaryCreateCopy(kCFAllocatorDefault,dict);
 }
 
 /*! Copies a target object to a dictionary representation. */
-CFDictionaryRef iSCSITargetCopyToDictionary(iSCSITargetRef target)
+CFDictionaryRef iSCSITargetCreateDictionary(iSCSITargetRef target)
 {
     return CFDictionaryCreateCopy(kCFAllocatorDefault,target);
 }
 
 /*! Copies the target object to a byte array representation. */
-CFDataRef iSCSITargetCopyToBytes(iSCSITargetRef target)
+CFDataRef iSCSITargetCreateData(iSCSITargetRef target)
 {
     return CFPropertyListCreateData(kCFAllocatorDefault,target,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
@@ -234,18 +232,16 @@ CFDataRef iSCSITargetCopyToBytes(iSCSITargetRef target)
 
 
 
-
 /*! Creates a new authentication object from byte representation. */
-iSCSIAuthRef iSCSIAuthCreateFromBytes(CFDataRef bytes)
+iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data)
 {
     CFPropertyListFormat format;
     
-    iSCSIAuthRef auth = CFPropertyListCreateWithData(kCFAllocatorDefault,bytes,0,&format,NULL);
+    iSCSIAuthRef auth = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
 
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return auth;
     
-    iSCSIAuthRelease(auth);
     return NULL;
 }
 
@@ -344,19 +340,19 @@ void iSCSIAuthRetain(iSCSIAuthRef auth)
 }
 
 /*! Creates a new authentication object from a dictionary representation. */
-iSCSIAuthRef iSCSIAuthCreateFromDictionary(CFDictionaryRef dict)
+iSCSIAuthRef iSCSIAuthCreateWithDictionary(CFDictionaryRef dict)
 {
     return CFDictionaryCreateCopy(kCFAllocatorDefault,dict);
 }
 
 /*! Copies an authentication object to a dictionary representation. */
-CFDictionaryRef iSCSIAuthCopyToDictionary(iSCSIAuthRef auth)
+CFDictionaryRef iSCSIAuthCreateDictionary(iSCSIAuthRef auth)
 {
     return CFDictionaryCreateCopy(kCFAllocatorDefault,auth);
 }
 
 /*! Copies the authentication object to a byte array representation. */
-CFDataRef iSCSIAuthCopyToBytes(iSCSIAuthRef auth)
+CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth)
 {
     return CFPropertyListCreateData(kCFAllocatorDefault,auth,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
@@ -366,7 +362,7 @@ CFDataRef iSCSIAuthCopyToBytes(iSCSIAuthRef auth)
 
 
 
-/*! Creates a discovery record from data obtained from a send targets operation. */
+/*! Creates a discovery record object. */
 iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreate()
 {
     return CFDictionaryCreateMutable(kCFAllocatorDefault,
@@ -374,6 +370,22 @@ iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreate()
                                      &kCFTypeDictionaryKeyCallBacks,
                                      &kCFTypeDictionaryValueCallBacks);
 }
+
+/*! Creates a discovery record from an external data representation.
+ * @param data data used to construct an iSCSI discovery object.
+ * @return an iSCSI discovery object or NULL if object creation failed */
+iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreateWithData(CFDataRef data)
+{
+    CFPropertyListFormat format;
+    iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)
+        CFPropertyListCreateWithData(kCFAllocatorDefault,data,kCFPropertyListImmutable,&format,NULL);
+    
+    if(format == kCFPropertyListBinaryFormat_v1_0)
+        return discoveryRec;
+    
+    return NULL;
+}
+
 
 /*! Add a portal to a specified portal group tag for a given target.
  *  @param discoveryRec the discovery record.
@@ -519,7 +531,7 @@ void iSCSIDiscoveryRecRetain(iSCSIMutableDiscoveryRecRef discoveryRec)
  *  @param auth an iSCSI discovery record object.
  *  @return a dictionary representation of the discovery record object or
  *  NULL if the discovery record object is invalid. */
-CFDictionaryRef iSCSIDiscoveryRecCopyToDictionary(iSCSIMutableDiscoveryRecRef discoveryRec)
+CFDictionaryRef iSCSIDiscoveryRecCreateDictionary(iSCSIMutableDiscoveryRecRef discoveryRec)
 {
     return CFDictionaryCreateCopy(kCFAllocatorDefault,discoveryRec);
 }
@@ -528,7 +540,7 @@ CFDictionaryRef iSCSIDiscoveryRecCopyToDictionary(iSCSIMutableDiscoveryRecRef di
  *  @param auth an iSCSI discovery record object.
  *  @return data representing the discovery record object
  *  or NULL if the discovery record object is invalid. */
-CFDataRef iSCSIDiscoveryRecCopyToBytes(iSCSIMutableDiscoveryRecRef discoveryRec)
+CFDataRef iSCSIDiscoveryRecCreateData(iSCSIMutableDiscoveryRecRef discoveryRec)
 {
     return CFPropertyListCreateData(kCFAllocatorDefault,discoveryRec,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
