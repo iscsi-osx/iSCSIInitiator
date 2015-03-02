@@ -14,16 +14,16 @@
 
 #include <libkern/c++/OSArray.h>
 
+#include "iSCSIKernelClasses.h"
+#include "iSCSITypesKernel.h"
+#include "iSCSITypesShared.h"
 #include "iSCSIKernelInterfaceShared.h"
 #include "iSCSIPDUKernel.h"
-#include "iSCSITypesShared.h"
 
 // BSD Socket Includes
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/signal.h>
-
-#define iSCSIVirtualHBA		com_NSinenian_iSCSIVirtualHBA
 
 /*! This class implements the iSCSI virtual host bus adapter (HBA).  The HBA
  *	creates and removes targets and processes SCSI requested by the operating
@@ -34,17 +34,11 @@
  *  and then returned to the OS. */
 class iSCSIVirtualHBA : public IOSCSIParallelInterfaceController
 {
+    friend class iSCSIInitiatorClient;
+    
 	OSDeclareDefaultStructors(iSCSIVirtualHBA);
 
 public:
-    
-    /*! Forward delcaration of an iSCSI session. */
-    struct iSCSISession;
-    
-    /*! Forward delcaration of an iSCSI connection. */
-    struct iSCSIConnection;
-	
-	/////////  FUNCTIONS REQUIRED BY IOSCSIPARALLELINTERFACECONTROLLER  ////////
 
 	/*! Gets the highest logical unit number that the HBA can address.
 	 *	@return highest addressable LUN. */
@@ -175,16 +169,14 @@ public:
     
     /*! Allocates a new iSCSI session and returns a session qualifier ID.
      *  @param targetName the name of the target, or NULL if discovery session.
-     *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
      *  @param targetaddress the BSD socket structure used to identify the target.
      *  @param hostaddress the BSD socket structure used to identify the host adapter.
      *  @param sessionId identifier for the new session.
      *  @param connectionId identifier for the new connection.
      *  @return error code indicating result of operation. */
     errno_t CreateSession(const char * targetName,
-                          int domain,
-                          const struct sockaddr * targetAddress,
-                          const struct sockaddr * hostAddress,
+                          const struct sockaddr_storage * targetAddress,
+                          const struct sockaddr_storage * hostAddress,
                           SID * sessionId,
                           CID * connectionId);
     
@@ -194,32 +186,15 @@ public:
      *  @param sessionId the session qualifier part of the ISID. */
     void ReleaseSession(SID sessionId);
         
-    /*! Sets options associated with a particular session.
-     *  @param sessionId the qualifier part of the ISID (see RFC3720).
-     *  @param options the options to set.
-     *  @return error code indicating result of operation. */
-    errno_t SetSessionOptions(SID sessionId,
-                              iSCSISessionOptions * options);
-    
-    /*! Gets options associated with a particular session.
-     *  @param sessionId the qualifier part of the ISID (see RFC3720).
-     *  @param options the options to get.  The user of this function is
-     *  responsible for allocating and freeing the options struct.
-     *  @return error code indicating result of operation. */
-    errno_t GetSessionOptions(SID sessionId,
-                              iSCSISessionOptions * options);
-        
     /*! Allocates a new iSCSI connection associated with the particular session.
      *  @param sessionId the session to create a new connection for.
-     *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
      *  @param targetaddress the BSD socket structure used to identify the target.
      *  @param hostaddress the BSD socket structure used to identify the host adapter.
      *  @param connectionId identifier for the new connection.
      *  @return error code indicating result of operation. */
     errno_t CreateConnection(SID sessionId,
-                             int domain,
-                             const struct sockaddr * targetAddress,
-                             const struct sockaddr * hostAddress,
+                             const struct sockaddr_storage * targetAddress,
+                             const struct sockaddr_storage * hostAddress,
                              CID * connectionId);
     
     /*! Frees a given iSCSI connection associated with a given session.
@@ -253,19 +228,6 @@ public:
      *  @param sessionId the session to deactivate.
      *  @return error code indicating result of operation. */
     errno_t DeactivateAllConnections(SID sessionId);
-
-    /*! Gets the first connection (the lowest connectionId) for the
-     *  specified session.
-     *  @param sessionId obtain an connectionId for this session.
-     *  @param connectionId the identifier of the connection.
-     *  @return error code indicating result of operation. */
-    errno_t GetConnection(SID sessionId,CID * connectionId);
-
-    /*! Gets the connection count for the specified session.
-     *  @param sessionId obtain the connection count for this session.
-     *  @param numConnections the connection count.
-     *  @return error code indicating result of operation. */
-    errno_t GetNumConnections(SID sessionId,UInt32 * numConnections);
     
     /*! Sends data over a kernel socket associated with iSCSI.  If the specified
      *  data segment length is not a multiple of 4-bytes, padding bytes will be
@@ -286,7 +248,7 @@ public:
                     iSCSIConnection * connection,
                     iSCSIPDUInitiatorBHS * bhs,
                     iSCSIPDU::iSCSIPDUCommonAHS * ahs,
-                    void * data,
+                    const void * data,
                     size_t length);
 
     /*! Gets whether a PDU is available for receiption on a particular
@@ -322,91 +284,6 @@ public:
                         size_t length,
                         int flags);
     
-    /*! Wrapper around SendPDU for user-space calls.
-     *  Sends data over a kernel socket associated with iSCSI.
-     *  @param sessionId the qualifier part of the ISID (see RFC3720).
-     *  @param connectionId the connection associated with the session.
-     *  @param bhs the basic header segment to send.
-     *  @param data the data segment to send.
-     *  @param length the byte size of the data segment
-     *  @return error code indicating result of operation. */
-    errno_t SendPDUUser(SID sessionId,
-                        CID connectionId,
-                        iSCSIPDUInitiatorBHS * bhs,
-                        void * data,
-                        size_t dataLength);
-    
-    /*! Wrapper around RecvPDUHeader for user-space calls.
-     *  Receives a basic header segment over a kernel socket.
-     *  @param sessionId the qualifier part of the ISID (see RFC3720).
-     *  @param connectionId the connection associated with the session.
-     *  @param bhs the basic header segment received.
-     *  @return error code indicating result of operation. */
-    errno_t RecvPDUHeaderUser(SID sessionId,
-                              CID connectionId,
-                              iSCSIPDUTargetBHS * bhs);
-    
-    /*! Wrapper around RecvPDUData for user-space calls.
-     *  Receives a data segment over a kernel socket.
-     *  @param sessionId the qualifier part of the ISID (see RFC3720).
-     *  @param connectionId the connection associated with the session.
-     *  @param data the data received.
-     *  @param length the length of the data buffer.
-     *  @return error code indicating result of operation. */
-    errno_t RecvPDUDataUser(SID sessionId,
-                            CID connectionId,
-                            void * data,
-                            size_t length);
-    
-    /*! Sets options associated with a particular connection.
-     *  @param sessionId the qualifier part of the ISID (see RFC3720).
-     *  @param connectionId the connection associated with the session.
-     *  @param options the options to set.
-     *  @return error code indicating result of operation. */
-    errno_t SetConnectionOptions(SID sessionId,
-                                 CID connectionId,
-                                 iSCSIConnectionOptions * options);
-    
-    /*! Gets options associated with a particular connection.
-     *  @param sessionId the qualifier part of the ISID (see RFC3720).
-     *  @param connectionId the connection associated with the session.
-     *  @param options the options to get.  The user of this function is
-     *  responsible for allocating and freeing the options struct.
-     *  @return error code indicating result of operation. */
-    errno_t GetConnectionOptions(SID sessionId,
-                                 CID connectionId,
-                                 iSCSIConnectionOptions * options);
-    
-    /*! Looks up the session identifier associated with a particular target name.
-     *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
-     *  @param sessionId the session identifier.
-     *  @return error code indicating result of operation. */
-    errno_t GetSessionIdFromTargetName(const char * targetName,SID * sessionId);
-    
-    /*! Looks up the connection identifier associated with a particular connection address.
-     *  @param sessionId the session identifier.
-     *  @param address the socket address associated with the connection.
-     *  @param connectionId the associated connection identifier.
-     *  @return error code indicating result of operation. */
-    errno_t GetConnectionIdFromAddress(SID sessionId,
-                                       const struct sockaddr * address,
-                                       CID * connectionId);
-    
-    /*! Gets an array of session identifiers for each session.
-     *  @param sessionIds an array of session identifiers.
-     *  @param sessionCount number of session identifiers.
-     *  @return error code indicating result of operation. */
-    errno_t GetSessionIds(UInt16 ** sessionIds,UInt16 * sessionCount);
-
-    /*! Gets an array of connection identifiers for each session.
-     *  @param sessionId session identifier.
-     *  @param connectionIds an array of connection identifiers for the session.
-     *  @param connectionCount number of connection identifiers.
-     *  @return error code indicating result of operation. */
-    errno_t GetConnectionIds(SID sessionId,
-                             UInt32 ** connectionIds,
-                             UInt32 * connectionCount);
-                                              
 private:
     
     /*! Process an incoming task management response PDU.
@@ -552,7 +429,6 @@ private:
     /*! Lookup table mapping target names (IQN names) to session identifiers. */
     OSDictionary * targetList;
     
-    friend class iSCSIInitiatorClient;
 };
 
 

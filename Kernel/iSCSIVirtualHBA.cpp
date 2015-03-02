@@ -8,6 +8,7 @@
 #include "iSCSIVirtualHBA.h"
 #include "iSCSIIOEventSource.h"
 #include "iSCSITaskQueue.h"
+#include "iSCSITypesKernel.h"
 #include "crc32c.h"
 
 #include <sys/ioctl.h>
@@ -41,124 +42,17 @@ const UInt16 iSCSIVirtualHBA::kMaxSessions = kiSCSIMaxSessions;
  *  contraints, this number should never exceed 2**8 - 1 or 255 (8-bits). */
 const SCSILogicalUnitNumber iSCSIVirtualHBA::kHighestLun = 63;
 
-/*! Highest SCSI device ID supported by the HBA. */
+/*! Highest SCSI device ID supported by the HBA.  SCSI device identifiers are
+ *  just the session identifiers. */
 const SCSIDeviceIdentifier iSCSIVirtualHBA::kHighestSupportedDeviceId = kMaxSessions - 1;
 
-/*! Maximum number of SCSI tasks the HBA can handle. */
+/*! Maximum number of SCSI tasks the HBA can handle.  Increasing this number will
+ *  increase the wired memory consumed by this kernel extension. */
 const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
 
 /*! Number of PDUs that are transmitted before we calculate an average speed
  *  for the connection (1024^2 = 1048576). */
 const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
-
-/*! Definition of a single connection that is associated with a particular
- *  iSCSI session. */
-struct iSCSIVirtualHBA::iSCSIConnection {
-    
-    /*! Status sequence number expected by the initiator. */
-    UInt32 expStatSN;
-    
-    /*! Connection ID. */
-    CID CID; // Might need this for ErrorRecovery (otherwise have to search through list for it)
-    
-    /*! Target tag for current transfer. */
-//    UInt32 targetTransferTag;  /// NEED THIS???
-    
-    /*! Socket used for communication. */
-    socket_t socket;
-    
-    /*! Used to keep track of R2T PDUs. */
-    UInt32 R2TSN;
-    
-    /*! Mutex lock used to prevent simultaneous Send/Recv from different
-     *  threads (e.g., workloop thread and other threads). */
-    IOLock * PDUIOLock;
-    
-    /*! Event source used to signal the Virtual HBA that data has been
-     *  received and needs to be processed. */
-    iSCSIIOEventSource * dataRecvEventSource;
-    
-    /*! iSCSI task queue used to manage tasks for this connection. */
-    iSCSITaskQueue * taskQueue;
-    
-    /*! Options associated with this connection. */
-    iSCSIConnectionOptions opts;
-    
-    /*! Amount of data, in bytes, that this connection has been requested
-     *  to transfer.  This is used for bitrate-based load balancing. */
-    UInt32 dataToTransfer;
-    
-    /*! The maximum length of data allowed for immediate data (data sent as part
-     *  of a command PDU).  This parameter is derived by taking the lesser of
-     *  the FirstBurstLength and the maxSendDataSegmentLength.  The former
-     *  is a session option while the latter is a connection option. */
-    UInt32 immediateDataLength;
-    
-    /*! Keeps track of when processing began for a particualr task, as
-     *  represented by the system uptime (seconds component). */
-    clock_sec_t taskStartTimeSec;
-    
-    /*! Keeps track of when processing began for a particualr task, as
-     *  represented by the system uptime (microseconds component). */
-    clock_usec_t taskStartTimeUSec;
-    
-    /*! Keeps track of the iSCSI data transfer rate of this connection,
-     *  in units of bytes per second.  This number is obtained by averaging
-     *  over 5 tasks. */
-    UInt32 bytesPerSecond;
-    
-    /*! Size of moving average (# points) to use to compute average speed. */
-    static const UInt8 kBytesPerSecAvgWindowSize = 30;
-    
-    /*! Last few measurements of bytes per second on this connection. */
-    UInt32 bytesPerSecondHistory[kBytesPerSecAvgWindowSize];
-    
-    /*! Keeps track of the index in the above array should be populated next. */
-    UInt8 bytesPerSecHistoryIdx;
-};
-
-
-/*! Definition of a single iSCSI session.  Each session is comprised of one
- *  or more connections as defined by the struct iSCSIConnection.  Each session
- *  is further associated with an initiator session ID (ISID), a target session
- *  ID (TSIH), a target IP address, a target name, and a target alias. */
-struct iSCSIVirtualHBA::iSCSISession {
-    
-    /*! The initiator session ID, which is also used as the target ID within
-     *  this kernel extension since there is a 1-1 mapping. */
-    SID sessionId;
-        
-    /*! Command sequence number to be used for the next initiator command. */
-    UInt32 cmdSN;
-    
-    /*! Command seqeuence number expected by the target. */
-    UInt32 expCmdSN;
-    
-    /*! Maximum command seqeuence number allowed. */
-    UInt32 maxCmdSN;
-    
-    /*! Connections associated with this session. */
-    iSCSIConnection * * connections;
-    
-    /*! Options associated with this session. */
-    iSCSISessionOptions opts;
-    
-    /*! Number of active connections. */
-    UInt32 numActiveConnections;
-
-    
-//////// CONSIDER REMOVING THIS BELOW.....
-    /*! Total number of connections (either active or inactive). */
-//    UInt32 numConnections; NEED THIS?? COMPUTED BY ITERATING IN ONE INSTANCE....
-    
-    /*! Initiator tag for the newest task. */
- //   UInt32 initiatorTaskTag;  NEED THIS????
-    
-    /*! Indicates whether session is active, which means that a SCSI target
-     *  exists and is backing the the iSCSI session. */
-    bool active;
-    
-};
 
 OSDefineMetaClassAndStructors(iSCSIVirtualHBA,IOSCSIParallelInterfaceController);
 
@@ -1219,16 +1113,14 @@ void iSCSIVirtualHBA::MeasureConnectionLatency(iSCSISession * session,
 
 /*! Allocates a new iSCSI session and returns a session qualifier ID.
  *  @param targetName the name of the target, or NULL if discovery session.
- *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
  *  @param targetaddress the BSD socket structure used to identify the target.
  *  @param hostaddress the BSD socket structure used to identify the host adapter.
  *  @param sessionId identifier for the new session.
  *  @param connectionId identifier for the new connection.
  *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::CreateSession(const char * targetName,
-                                       int domain,
-                                       const struct sockaddr * targetAddress,
-                                       const struct sockaddr * hostAddress,
+                                       const struct sockaddr_storage * targetAddress,
+                                       const struct sockaddr_storage * hostAddress,
                                        SID * sessionId,
                                        CID * connectionId)
 {
@@ -1286,7 +1178,7 @@ errno_t iSCSIVirtualHBA::CreateSession(const char * targetName,
     targetList->setObject(targetName,OSNumber::withNumber(sessionIdx,sizeof(sessionIdx)*8));
 
     // Create a connection associated with this session
-    if((error = CreateConnection(*sessionId,domain,targetAddress,hostAddress,connectionId)))
+    if((error = CreateConnection(*sessionId,targetAddress,hostAddress,connectionId)))
         goto SESSION_CREATE_CONNECTION_FAILURE;
     
     
@@ -1360,65 +1252,15 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
     sessionList[sessionId] = NULL;
 }
 
-/*! Sets options associated with a particular session.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param options the options to set.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::SetSessionOptions(SID sessionId,
-                                           iSCSISessionOptions * options)
-{
-    // Range-check inputs
-    if(sessionId >= kMaxSessions || !options)
-        return EINVAL;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * theSession;
-    if(!(theSession = sessionList[sessionId]))
-       return EINVAL;
-    
-    // Copy options into the session struct; nearly all of these options can
-    // only be set once - upon the leading login and session instantiation
-    theSession->opts = *options;
-
-    // Success
-    return 0;
-}
-
-/*! Gets options associated with a particular session.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param options the options to get.  The user of this function is
- *  responsible for allocating and freeing the options struct.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetSessionOptions(SID sessionId,
-                                           iSCSISessionOptions * options)
-{
-    // Range-check inputs
-    if(sessionId >= kMaxSessions || !options)
-        return EINVAL;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * theSession;
-    if(!(theSession = sessionList[sessionId]))
-        return EINVAL;
-    
-    // Copy session options to options struct
-    *options = theSession->opts;
-    
-    // Success
-    return 0;
-}
-
 /*! Allocates a new iSCSI connection associated with the particular session.
  *  @param sessionId the session to create a new connection for.
- *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
  *  @param targetaddress the BSD socket structure used to identify the target.
  *  @param hostaddress the BSD socket structure used to identify the host adapter.
  *  @param connectionId identifier for the new connection.
  *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
-                                          int domain,
-                                          const struct sockaddr * targetAddress,
-                                          const struct sockaddr * hostAddress,
+                                          const struct sockaddr_storage * targetAddress,
+                                          const struct sockaddr_storage * hostAddress,
                                           CID * connectionId)
 {
     // Range-check inputs
@@ -1486,16 +1328,20 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
         
     // Create a new socket (per RFC3720, only TCP sockets are used.
     // Domain can vary between IPv4 or IPv6.
-    if((error = sock_socket(domain,SOCK_STREAM,IPPROTO_TCP,(sock_upcall)&iSCSIIOEventSource::socketCallback,
-                        newConn->dataRecvEventSource,&newConn->socket)))
+    error = sock_socket(targetAddress->ss_family,
+                        SOCK_STREAM,IPPROTO_TCP,
+                        (sock_upcall)&iSCSIIOEventSource::socketCallback,
+                        newConn->dataRecvEventSource,
+                        &newConn->socket);
+    if(error)
         goto SOCKET_CREATE_FAILURE;
     
     // Bind socket to a particular host connection
-    if((error = sock_bind(newConn->socket,hostAddress)))
+    if((error = sock_bind(newConn->socket,(sockaddr*)hostAddress)))
         goto SOCKET_BIND_FAILURE;
 
     // Connect the socket to the target node
-    if((error = sock_connect(newConn->socket,targetAddress,0)))
+    if((error = sock_connect(newConn->socket,(sockaddr*)targetAddress,0)))
         goto SOCKET_CONNECT_FAILURE;
 
     
@@ -1740,61 +1586,6 @@ errno_t iSCSIVirtualHBA::DeactivateAllConnections(SID sessionId)
     return 0;
 }
 
-/*! Gets the first connection (the lowest connectionId) for the
- *  specified session.
- *  @param sessionId obtain an connectionId for this session.
- *  @param connectionId the identifier of the connection.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetConnection(SID sessionId,CID * connectionId)
-{
-    if(sessionId >= kMaxSessions || !connectionId)
-        return EINVAL;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * session = sessionList[sessionId];
-    
-    if(!session)
-        return EINVAL;
-    
-    for(CID connectionIdx = 0; connectionIdx < kMaxConnectionsPerSession; connectionIdx++)
-    {
-        if(session->connections[connectionIdx])
-        {
-            *connectionId = connectionIdx;
-            return 0;
-        }
-    }
-
-    *connectionId = kiSCSIInvalidConnectionId;
-    return 0;
-}
-
-/*! Gets the connection count for the specified session.
- *  @param sessionId obtain the connection count for this session.
- *  @param numConnections the connection count.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetNumConnections(SID sessionId,UInt32 * numConnections)
-{
-    if(sessionId >= kMaxSessions || !numConnections)
-        return EINVAL;
-    
-    *numConnections = 0;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * session = sessionList[sessionId];
-    
-    if(!session)
-        return EINVAL;
-    
-    // Iterate over list of connections to see how many are valid
-    *numConnections = 0;
-    for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
-        if(session->connections[connectionId])
-            (*numConnections)++;
-    
-    return 0;
-}
-
 /*! Sends data over a kernel socket associated with iSCSI.  If the specified
  *  data segment length is not a multiple of 4-bytes, padding bytes will be 
  *  added to the data segment of the PDU per RF3720 specification.
@@ -1814,7 +1605,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
                                  iSCSIConnection * connection,
                                  iSCSIPDUInitiatorBHS * bhs,
                                  iSCSIPDUCommonAHS * ahs,
-                                 void * data,
+                                 const void * data,
                                  size_t length)
 {
     // Range-check inputs
@@ -1871,7 +1662,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     if(length)
     {
         // Add data segment
-        iovec[iovecCnt].iov_base = data;
+        iovec[iovecCnt].iov_base = (void*)data;
         iovec[iovecCnt].iov_len  = length;
         iovecCnt++;
         
@@ -2095,295 +1886,4 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     }
 
     return result;
-}
-
-/*! Wrapper around SendPDU for user-space calls.
- *  Sends data over a kernel socket associated with iSCSI.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param connectionId the connection associated with the session.
- *  @param bhs the basic header segment to send.
- *  @param data the data segment to send.
- *  @param length the byte size of the data segment
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::SendPDUUser(SID sessionId,
-                                     CID connectionId,
-                                     iSCSIPDUInitiatorBHS * bhs,
-                                     void * data,
-                                     size_t dataLength)
-{
-    // Range-check inputs
-    if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession)
-        return EINVAL;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * theSession = sessionList[sessionId];
-    
-    if(!theSession)
-        return EINVAL;
-    
-    iSCSIConnection * theConn = theSession->connections[connectionId];
-    
-    if(!theConn)
-        return EINVAL;
-    
-    return SendPDU(theSession,theConn,bhs,NULL,data,dataLength);
-}
-
-/*! Wrapper around RecvPDUHeader for user-space calls.
- *  Receives a basic header segment over a kernel socket.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param connectionId the connection associated with the session.
- *  @param bhs the basic header segment received.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::RecvPDUHeaderUser(SID sessionId,
-                                           CID connectionId,
-                                           iSCSIPDUTargetBHS * bhs)
-{
-    // Range-check inputs
-    if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession)
-        return EINVAL;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * session = sessionList[sessionId];
-    
-    if(!session)
-        return EINVAL;
-    
-    iSCSIConnection * theConn = session->connections[connectionId];
-    
-    if(!theConn)
-        return EINVAL;
-    
-    return RecvPDUHeader(session,theConn,bhs,MSG_WAITALL);
-}
-
-/*! Wrapper around RecvPDUData for user-space calls.
- *  Receives a data segment over a kernel socket.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param connectionId the connection associated with the session.
- *  @param data the data received.
- *  @param length the length of the data buffer.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::RecvPDUDataUser(SID sessionId,
-                                         CID connectionId,
-                                         void * data,
-                                         size_t length)
-{
-    // Range-check inputs
-    if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession)
-        return EINVAL;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * session = sessionList[sessionId];
-    
-    if(!session)
-        return EINVAL;
-    
-    iSCSIConnection * theConn = session->connections[connectionId];
-    
-    if(!theConn)
-        return EINVAL;
-    
-    return RecvPDUData(session,theConn,data,length,MSG_WAITALL);
-}
-
-/*! Sets options associated with a particular connection.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param connectionId the connection associated with the session.
- *  @param options the options to set.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::SetConnectionOptions(SID sessionId,
-                                              CID connectionId,
-                                              iSCSIConnectionOptions * options)
-{
-    // Range-check inputs
-    if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession || !options)
-        return EINVAL;
-    
-    // Grab handle to session
-    iSCSISession * session = sessionList[sessionId];
-    
-    if(!session)
-        return EINVAL;
-    
-    // Grab handle to connection
-    iSCSIConnection * connection = session->connections[connectionId];
-    
-    if(!connection)
-        return EINVAL;
-    
-    // Copy options into the connection struct
-    connection->opts = *options;
-/*
-    UInt32 sendBufferSize = theConn->opts.maxSendDataSegmentLength * 2;
-    UInt32 recvBufferSize = theConn->opts.maxRecvDataSegmentLength * 2;
-    
-    sock_setsockopt(theConn->socket,
-                    SOL_SOCKET,
-                    SO_SNDBUF,
-                    &sendBufferSize,
-                    sizeof(sendBufferSize));
-    
-    sock_setsockopt(theConn->socket,
-                    SOL_SOCKET,
-                    SO_RCVBUF,
-                    &recvBufferSize,
-                    sizeof(recvBufferSize));
-*/
-
-    // Set the maximum amount of immediate data we can send on this connection
-    connection->immediateDataLength = min(options->maxSendDataSegmentLength,
-                                          session->opts.firstBurstLength);
-    
-    // Success
-    return 0;
-}
-
-/*! Gets options associated with a particular connection.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param connectionId the connection associated with the session.
- *  @param options the options to get.  The user of this function is
- *  responsible for allocating and freeing the options struct.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetConnectionOptions(SID sessionId,
-                                              CID connectionId,
-                                              iSCSIConnectionOptions * options)
-{
-    // Range-check inputs
-    if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession || !options)
-        return EINVAL;
-    
-    // Grab handle to session
-    iSCSISession * session = sessionList[sessionId];
-    
-    if(!session)
-        return EINVAL;
-    
-    // Grab handle to connection
-    iSCSIConnection * connection = session->connections[connectionId];
-    
-    if(!connection)
-        return EINVAL;
-    
-    // Copy connection options to options struct
-    *options = connection->opts;
-    
-    // Success
-    return 0;
-}
-
-/*! Looks up the session identifier associated with a particular target name.
- *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
- *  @param sessionId the session identifier.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetSessionIdFromTargetName(const char * targetName,
-                                                    SID * sessionId)
-{
-    if(!targetName || !sessionId)
-        return  EINVAL;
-    
-    OSNumber * identifier = (OSNumber*)targetList->getObject(targetName);
-    
-    if(!identifier)
-        return EINVAL;
-    
-    *sessionId = identifier->unsigned16BitValue();
-    
-    return 0;
-}
-
-/*! Looks up the connection identifier associated with a particular connection address.
- *  @param sessionId the session identifier.
- *  @param address the socket address associated with the connection.
- *  @param connectionId the associated connection identifier.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetConnectionIdFromAddress(SID sessionId,
-                                                    const struct sockaddr * address,
-                                                    CID * connectionId)
-{
-    if(sessionId == kiSCSIInvalidSessionId || !address || !connectionId)
-        return EINVAL;
-
-    *connectionId = kiSCSIInvalidConnectionId;
-    
-    // Retrieve the session from the session list, validate
-    iSCSISession * session = sessionList[sessionId];
-    if(!session)
-        return EINVAL;
-    
-    // Find an empty connection slot to use for a new connection
-    CID index;
-    for(index = 0; index < kMaxConnectionsPerSession; index++)
-    {
-        if(session->connections[index])
-        {
-            iSCSIConnection * connection = session->connections[index];
-
-            // Check address for a match...
-            struct sockaddr peername;
-            errno_t error = 0;
-            
-            if((error = sock_getpeername(connection->socket,&peername,sizeof(peername))))
-                return error;
-
-            if(peername.sa_family == address->sa_family &&
-               strcmp(peername.sa_data,address->sa_data) == 0)
-            {
-                *connectionId = index;
-                break;
-            }
-        }
-    }
-
-    return 0;
-}
-
-/*! Gets an array of session identifiers for each session.
- *  @param sessionIds an array of session identifiers.
- *  @param sessionCount number of session identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetSessionIds(UInt16 ** sessionIds,UInt16 * sessionCount)
-{
-    if(!sessionIds || !sessionCount)
-        return EINVAL;
-    
-    *sessionCount = 0;
-    
-    for(SID sessionIdx = 0; sessionIdx < kMaxSessions; sessionIdx++)
-        if(sessionList[sessionIdx])
-        {
-            (*sessionIds)[*sessionCount] = sessionIdx;
-            (*sessionCount)++;
-        }
-    return 0;
-}
-
-/*! Gets an array of connection identifiers for each session.
- *  @param sessionId session identifier.
- *  @param connectionIds an array of connection identifiers for the session.
- *  @param connectionCount number of connection identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::GetConnectionIds(SID sessionId,
-                                          UInt32 ** connectionIds,
-                                          UInt32 * connectionCount)
-{
-    if(sessionId == kiSCSIInvalidSessionId || !connectionIds || !connectionCount)
-        return EINVAL;
-    
-    // Retrieve the session from the session list, validate
-    iSCSISession * session = sessionList[sessionId];
-    if(!session)
-        return EINVAL;
-    
-    *connectionCount = 0;
-    
-    // Find an empty connection slot to use for a new connection
-    for(CID index = 0; index < kMaxConnectionsPerSession; index++)
-        if(session->connections[index])
-        {
-//            (*connectionIds)[*connectionCount] = index;
-            (*connectionCount)++;
-        }
-
-    return 0;
 }

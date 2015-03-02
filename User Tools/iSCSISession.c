@@ -672,11 +672,10 @@ errno_t iSCSISessionLogoutCommon(SID sessionId,
  *  The target nodes specified in connInfo may be a DNS name, an IPv4 or
  *  IPv6 address. */
 errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
-                                int * ai_family,
-                                struct sockaddr * sa_target,
-                                struct sockaddr * sa_host)
+                                struct sockaddr_storage * ss_target,
+                                struct sockaddr_storage * ss_host)
 {
-    if (!portal || !ai_family || !sa_target || !sa_host)
+    if (!portal || !ss_target || !ss_host)
         return EINVAL;
     
     errno_t error = 0;
@@ -691,8 +690,9 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
     if((error = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget)))
         return error;
     
-    *ai_family = aiTarget->ai_family;
-    *sa_target = *aiTarget->ai_addr;
+    // Copy the sock_addr structure into a sockaddr_storage structure (this
+    // may be either an IPv4 or IPv6 sockaddr structure)
+    memcpy(ss_target,aiTarget->ai_addr,aiTarget->ai_addrlen);
 
     freeaddrinfo(aiTarget);
     
@@ -705,6 +705,7 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
     
     error = EAFNOSUPPORT;
     struct ifaddrs * interface = interfaceList;
+    
     while(interface)
     {
         CFStringRef interfaceName = CFStringCreateWithCString(kCFAllocatorDefault,
@@ -716,9 +717,10 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
         {
             // Check if the interface supports the target's
             // address family (e.g., IPv4 vs IPv6)
-            if(interface->ifa_addr->sa_family == *ai_family)
+            if(interface->ifa_addr->sa_family == ss_target->ss_family)
             {
-                *sa_host = *interface->ifa_addr;
+                // Copy the IPv4 or IPv6 structure into a sockaddr_storage
+                memcpy(ss_host,interface->ifa_addr,interface->ifa_addr->sa_len);
                 error = 0;
                 break;
             }
@@ -756,14 +758,13 @@ errno_t iSCSILoginConnection(iSCSIPortalRef portal,
     errno_t error = 0;
     
     // Resolve information about the target
-    int ai_family;
-    struct sockaddr sa_target, sa_host;
+    struct sockaddr_storage ss_target, ss_host;
     
-    if((error = iSCSISessionResolveNode(portal,&ai_family,&sa_target,&sa_host)))
+    if((error = iSCSISessionResolveNode(portal,&ss_target,&ss_host)))
        return error;
     
     // If both target and host were resolved, grab a session
-    error = iSCSIKernelCreateConnection(sessionId,ai_family,&sa_target,&sa_host,connectionId);
+    error = iSCSIKernelCreateConnection(sessionId,&ss_target,&ss_host,connectionId);
     
     // Perform authentication and negotiate connection-level parameters
     iSCSIConnectionOptions connectionOptions;
@@ -852,17 +853,16 @@ errno_t iSCSILoginSession(iSCSIPortalRef portal,
     
     // Resolve information about the target
     int ai_family;
-    struct sockaddr sa_target, sa_host;
+    struct sockaddr_storage ss_target, ss_host;
     
-    if((error = iSCSISessionResolveNode(portal,&ai_family,&sa_target,&sa_host)))
+    if((error = iSCSISessionResolveNode(portal,&ss_target,&ss_host)))
         return error;
     
     // Create session (incl. qualifier) and a new connection (incl. Id)
     // Reset qualifier and connection ID by default
     const char * targetName = CFStringGetCStringPtr(iSCSITargetGetName(target),
                                                     kCFStringEncodingASCII);
-    error = iSCSIKernelCreateSession(targetName,
-                                     ai_family,&sa_target,&sa_host,
+    error = iSCSIKernelCreateSession(targetName,&ss_target,&ss_host,
                                      sessionId,connectionId);
     
     iSCSISessionOptions sessionOptions;
@@ -1105,10 +1105,9 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
     errno_t error = 0;
     
     // Resolve information about the target
-    int ai_family;
-    struct sockaddr sa_target, sa_host;
+    struct sockaddr_storage ss_target, ss_host;
     
-    if((error = iSCSISessionResolveNode(portal,&ai_family,&sa_target,&sa_host)))
+    if((error = iSCSISessionResolveNode(portal,&ss_target,&ss_host)))
         return error;
     
     // Create session (incl. qualifier) and a new connection (incl. Id)
@@ -1116,9 +1115,8 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
     SID sessionId;
     CID connectionId;
     error = iSCSIKernelCreateSession(CFStringGetCStringPtr(targetName,kCFStringEncodingASCII),
-                                     ai_family,
-                                     &sa_target,
-                                     &sa_host,
+                                     &ss_target,
+                                     &ss_host,
                                      &sessionId,
                                      &connectionId);
 

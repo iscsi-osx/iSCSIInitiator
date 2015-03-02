@@ -18,8 +18,8 @@ OSDefineMetaClassAndStructors(iSCSITaskQueue,IOEventSource);
 
 bool iSCSITaskQueue::init(iSCSIVirtualHBA * owner,
                           iSCSITaskQueue::Action action,
-                          iSCSIVirtualHBA::iSCSISession * session,
-                          iSCSIVirtualHBA::iSCSIConnection * connection)
+                          iSCSISession * session,
+                          iSCSIConnection * connection)
 {
 	// Initialize superclass, check validity and store socket handle
 	if(!super::init(owner,(IOEventSource::Action) action))

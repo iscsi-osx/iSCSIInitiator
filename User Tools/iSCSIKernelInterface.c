@@ -8,16 +8,38 @@
 #include "iSCSIKernelInterface.h"
 #include "iSCSIPDUUser.h"
 #include <IOKit/IOKitLib.h>
+#include <IOKit/IOReturn.h>
 
 static io_service_t service;
 static io_connect_t connection;
+
+/*! Select error codes used by the iSCSI user client. */
+errno_t IOReturnToErrno(kern_return_t result)
+{
+    switch(result)
+    {
+        case kIOReturnSuccess: return 0;
+        case kIOReturnBadArgument: return EINVAL;
+        case kIOReturnBusy: return EBUSY;
+        case kIOReturnIOError: return EIO;
+        case kIOReturnUnsupported: return ENOTSUP;
+        case kIOReturnNotPermitted: return EAUTH;
+        case kIOReturnNoMemory: return ENOMEM;
+        case kIOReturnNotFound: return ENODEV;
+        case kIOReturnDeviceError: return EIO;
+        case kIOReturnTimeout: return ETIME;
+        case kIOReturnNotResponding: return EBUSY;
+        case kIOReturnNoResources: return EAGAIN;
+    };
+    return EIO;
+}
 
 /*! Opens a connection to the iSCSI initiator.  A connection must be
  *  successfully opened before any of the supporting functions below can be
  *  called. */
 kern_return_t iSCSIKernelInitialize()
 {
-    kern_return_t kernResult;
+    kern_return_t result;
      	
 	// Create a dictionary to match iSCSIkext
 	CFMutableDictionaryRef matchingDict = NULL;
@@ -32,9 +54,9 @@ kern_return_t iSCSIKernelInitialize()
 	}
     
 	// Using the service handle, open a connection
-	kernResult = IOServiceOpen(service,mach_task_self(),0,&connection);
+    result = IOServiceOpen(service,mach_task_self(),0,&connection);
 	
-	if(kernResult != kIOReturnSuccess) {
+	if(result != kIOReturnSuccess) {
         IOObjectRelease(service);
         return kIOReturnNotFound;
     }
@@ -58,7 +80,6 @@ kern_return_t iSCSIKernelCleanUp()
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
  *  @param targetName the name of the target, or NULL if discovery session.
- *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
@@ -66,9 +87,8 @@ kern_return_t iSCSIKernelCleanUp()
  *  @param connectionId the identifier of the new connection (returned).
  *  @return An error code if a valid session could not be created. */
 errno_t iSCSIKernelCreateSession(const char * targetName,
-                                 int domain,
-                                 const struct sockaddr * targetAddress,
-                                 const struct sockaddr * hostAddress,
+                                 const struct sockaddr_storage * targetAddress,
+                                 const struct sockaddr_storage * hostAddress,
                                  SID * sessionId,
                                  CID * connectionId)
 {
@@ -76,63 +96,56 @@ errno_t iSCSIKernelCreateSession(const char * targetName,
     if(!targetAddress || !hostAddress || !sessionId || !connectionId)
         return EINVAL;
     
-    // Tell the kernel to drop this session and all of its related resources
-    const UInt32 inputCnt = 1;
-    const UInt64 input = domain;
-    
     const UInt32 inputStructCnt = 2;
     
-    size_t sockaddr_len = sizeof(struct sockaddr);
+    size_t ss_len = sizeof(struct sockaddr_storage);
     size_t targetNameSize = sizeof(targetName)/sizeof(char);
 
-    size_t inputBufferSize = inputStructCnt*sockaddr_len + targetNameSize;
+    size_t inputBufferSize = inputStructCnt*ss_len + targetNameSize;
 
     // Pack the targetAddress, hostAddress, targetName and connectionName into
     // a single buffer in that order.  The strings targetName and connectionName
     // are NULL-terminated C strings (the NULL character is copied)
     void * inputBuffer = malloc(inputBufferSize);
 
-    memcpy(inputBuffer,targetAddress,sockaddr_len);
-    memcpy(inputBuffer+sockaddr_len,hostAddress,sockaddr_len);
+    memcpy(inputBuffer,targetAddress,ss_len);
+    memcpy(inputBuffer+ss_len,hostAddress,ss_len);
     
     // For discovery sessions target name is left blank (NULL)
     if(targetName)
-        memcpy(inputBuffer+2*sockaddr_len,targetName,targetNameSize);
+        memcpy(inputBuffer+2*ss_len,targetName,targetNameSize);
     
-    const UInt32 expOutputCnt = 3;
+    const UInt32 expOutputCnt = 2;
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
     
-    if(IOConnectCallMethod(connection,kiSCSICreateSession,&input,inputCnt,
-                           inputBuffer,inputBufferSize,
-                           output,&outputCnt,0,0) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-        {
-            *sessionId    = (UInt16)output[1];
-            *connectionId = (UInt32)output[2];
-            return (UInt32)output[0];
-        }
+    kern_return_t result =
+        IOConnectCallMethod(connection,kiSCSICreateSession,NULL,0,
+                            inputBuffer,inputBufferSize,output,&outputCnt,0,0);
+    
+    if(result == kIOReturnSuccess && outputCnt == expOutputCnt) {
+            *sessionId    = (UInt16)output[0];
+            *connectionId = (UInt32)output[1];
     }
     
-    // Else we couldn't allocate a connection; quit
-    return EINVAL;
+    return IOReturnToErrno(result);
 }
 
 /*! Releases an iSCSI session, including all connections associated with that
  *  session.
- *  @param sessionId the session qualifier part of the ISID. */
-void iSCSIKernelReleaseSession(SID sessionId)
+ *  @param sessionId the session qualifier part of the ISID.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIKernelReleaseSession(SID sessionId)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId)
-        return;
+        return EINVAL;
 
     // Tell the kernel to drop this session and all of its related resources
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    IOConnectCallScalarMethod(connection,kiSCSIReleaseSession,&input,inputCnt,0,0);
+    return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSIReleaseSession,&input,inputCnt,0,0));
 }
 
 /*! Sets options associated with a particular connection.
@@ -149,12 +162,8 @@ errno_t iSCSIKernelSetSessionOptions(SID sessionId,
     const UInt32 inputCnt = 1;
     const UInt64 input = sessionId;
     
-    if(IOConnectCallMethod(connection,kiSCSISetSessionOptions,&input,inputCnt,
-                           options,sizeof(struct iSCSISessionOptions),0,0,0,0) == kIOReturnSuccess)
-    {
-        return 0;
-    }
-    return EIO;
+    return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSISetSessionOptions,&input,inputCnt,
+                                               options,sizeof(struct iSCSISessionOptions),0,0,0,0));
 }
 
 /*! Gets options associated with a particular connection.
@@ -173,12 +182,8 @@ errno_t iSCSIKernelGetSessionOptions(SID sessionId,
     const UInt64 input = sessionId;
     size_t optionsSize = sizeof(struct iSCSISessionOptions);
 
-    if(IOConnectCallMethod(connection,kiSCSIGetSessionOptions,&input,inputCnt,0,0,0,0,
-                           options,&optionsSize) == kIOReturnSuccess)
-    {
-        return 0;
-    }
-    return EIO;
+    return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSIGetSessionOptions,&input,inputCnt,
+                                               0,0,0,0,options,&optionsSize));
 }
 
 /*! Allocates an additional iSCSI connection for a particular session.
@@ -190,9 +195,8 @@ errno_t iSCSIKernelGetSessionOptions(SID sessionId,
  *  @param connectionId the identifier of the new connection (returned).
  *  @return An error code if a valid connection could not be created. */
 errno_t iSCSIKernelCreateConnection(SID sessionId,
-                                    int domain,
-                                    const struct sockaddr * targetAddress,
-                                    const struct sockaddr * hostAddress,
+                                    const struct sockaddr_storage * targetAddress,
+                                    const struct sockaddr_storage * hostAddress,
                                     CID * connectionId)
 {
     // Check parameters
@@ -200,45 +204,41 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
         return kiSCSIInvalidConnectionId;
     
     // Tell the kernel to drop this session and all of its related resources
-    const UInt32 inputCnt = 2;
-    const UInt64 inputs[] = {sessionId,domain};
+    const UInt32 inputCnt = 1;
+    const UInt64 inputs[] = {sessionId};
     
     const UInt32 inputStructCnt = 2;
-    const struct sockaddr addresses[] = {*targetAddress,*hostAddress};
+    const struct sockaddr_storage addresses[] = {*targetAddress,*hostAddress};
     
-    const UInt32 expOutputCnt = 2;
+    const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
-    
-    if(IOConnectCallMethod(connection,kiSCSICreateConnection,inputs,inputCnt,
-                           addresses,inputStructCnt*sizeof(struct sockaddr),
-                           output,&outputCnt,0,0) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-        {
-            *connectionId = (UInt32)output[1];
-            return (UInt32)output[0];
-        }
-    }
 
-    // Else we couldn't allocate a connection; quit
-    return EINVAL;
+    
+    kern_return_t result =
+        IOConnectCallMethod(connection,kiSCSICreateConnection,inputs,inputCnt,addresses,
+                            inputStructCnt*sizeof(struct sockaddr_storage),output,&outputCnt,0,0);
+    
+    if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
+        *connectionId = (UInt32)output[0];
+
+    return IOReturnToErrno(result);
 }
 
-/*! Frees a given
- iSCSI connection associated with a given session.
- *  The session should be logged out using the appropriate PDUs. */
-void iSCSIKernelReleaseConnection(SID sessionId,CID connectionId)
+/*! Frees a given iSCSI connection associated with a given session.
+ *  The session should be logged out using the appropriate PDUs.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIKernelReleaseConnection(SID sessionId,CID connectionId)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
-        return;
+        return EINVAL;
 
     // Tell kernel to drop this connection
     const UInt32 inputCnt = 2;
     UInt64 inputs[] = {sessionId,connectionId};
     
-    IOConnectCallScalarMethod(connection,kiSCSIReleaseConnection,inputs,inputCnt,0,0);
+    return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSIReleaseConnection,inputs,inputCnt,0,0));
 }
 
 
@@ -264,26 +264,16 @@ errno_t iSCSIKernelSend(SID sessionId,
     const UInt32 inputCnt = 2;
     const UInt64 inputs[] = {sessionId, connectionId};
     
-    const UInt32 expOutputCnt = 1;
-    UInt32 outputCnt = 1;
-    UInt64 output;
-    
     // Call kernel method to send (buffer) bhs and then data
-    if(IOConnectCallStructMethod(connection,kiSCSISendBHS,bhs,
-            sizeof(iSCSIPDUInitiatorBHS),NULL,NULL) != kIOReturnSuccess)
-    {
-        return EINVAL;
-    }
+    kern_return_t result;
+    result = IOConnectCallStructMethod(connection,kiSCSISendBHS,bhs,
+                                       sizeof(iSCSIPDUInitiatorBHS),NULL,NULL);
     
-    if(IOConnectCallMethod(connection,kiSCSISendData,inputs,inputCnt,
-            data,length,&output,&outputCnt,NULL,NULL) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-            return (errno_t)output;
-    }
+    if(result != kIOReturnSuccess)
+        return IOReturnToErrno(result);
     
-    // Return -1 as the BSD socket API normally would if the kernel call fails
-    return EINVAL;
+    return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSISendData,inputs,inputCnt,
+                                               data,length,NULL,NULL,NULL,NULL));
 }
 
 /*! Receives data over a kernel socket associated with iSCSI.
@@ -296,7 +286,7 @@ errno_t iSCSIKernelSend(SID sessionId,
 errno_t iSCSIKernelRecv(SID sessionId,
                         CID connectionId,
                         iSCSIPDUTargetBHS * bhs,
-                        void * * data,
+                        void ** data,
                         size_t * length)
 {
     // Check parameters
@@ -307,22 +297,17 @@ errno_t iSCSIKernelRecv(SID sessionId,
     const UInt32 inputCnt = 2;
     UInt64 inputs[] = {sessionId,connectionId};
     
-    const UInt32 expOutputCnt = 1;
-    UInt32 outputCnt = 1;
-    UInt64 output;
-    
     size_t bhsLength = sizeof(iSCSIPDUTargetBHS);
 
     // Call kernel method to determine how much data there is to receive
     // The inputs are the sesssion qualifier and connection ID
     // The output is the size of the buffer we need to allocate to hold the data
-    kern_return_t kernResult;
+    kern_return_t result;
+    result = IOConnectCallMethod(connection,kiSCSIRecvBHS,inputs,inputCnt,NULL,0,
+                                 NULL,NULL,bhs,&bhsLength);
     
-    kernResult = IOConnectCallMethod(connection,kiSCSIRecvBHS,inputs,inputCnt,NULL,0,
-                                     &output,&outputCnt,bhs,&bhsLength);
-    
-    if(kernResult != kIOReturnSuccess || outputCnt != expOutputCnt || output != 0)
-        return EIO;
+    if(result != kIOReturnSuccess)
+        return IOReturnToErrno(result);
     
     // Determine how much data to allocate for the data buffer
     *length = iSCSIPDUGetDataSegmentLength((iSCSIPDUCommonBHS *)bhs);
@@ -337,16 +322,14 @@ errno_t iSCSIKernelRecv(SID sessionId,
         return EIO;
     
     // Call kernel method to get data from a receive buffer
-    if(IOConnectCallMethod(connection,kiSCSIRecvData,inputs,inputCnt,NULL,0,
-                           &output,&outputCnt,*data,length) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt && output == 0)
-            return 0;
-    }
+    result = IOConnectCallMethod(connection,kiSCSIRecvData,inputs,inputCnt,NULL,0,
+                                 NULL,NULL,*data,length);
+
+    // If we failed, free the temporary buffer and quit with error
+    if(result != kIOReturnSuccess)
+        iSCSIPDUDataRelease(data);
     
-    // At this point we failed, free the temporary buffer and quit with error
-    iSCSIPDUDataRelease(data);
-    return EIO;
+    return IOReturnToErrno(result);
 }
 
 
@@ -360,19 +343,14 @@ errno_t iSCSIKernelSetConnectionOptions(SID sessionId,
                                         iSCSIConnectionOptions * options)
 {
     // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId ||
-       connectionId == kiSCSIInvalidConnectionId || !options)
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !options)
         return EINVAL;
     
     const UInt32 inputCnt = 2;
     const UInt64 inputs[] = {sessionId,connectionId};
     
-    if(IOConnectCallMethod(connection,kiSCSISetConnectionOptions,inputs,inputCnt,
-                           options,sizeof(struct iSCSIConnectionOptions),0,0,0,0) == kIOReturnSuccess)
-    {
-        return 0;
-    }
-    return EIO;
+    return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSISetConnectionOptions,inputs,inputCnt,
+                                               options,sizeof(struct iSCSIConnectionOptions),0,0,0,0));
 }
 
 /*! Gets options associated with a particular connection.
@@ -395,12 +373,8 @@ errno_t iSCSIKernelGetConnectionOptions(SID sessionId,
 
     size_t optionsSize = sizeof(struct iSCSIConnectionOptions);
     
-    if(IOConnectCallMethod(connection,kiSCSIGetConnectionOptions,inputs,inputCnt,0,0,0,0,
-                           options,&optionsSize) == kIOReturnSuccess)
-    {
-        return 0;
-    }
-    return EIO;
+    return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSIGetConnectionOptions,inputs,inputCnt,
+                                               0,0,0,0,options,&optionsSize));
 }
 
 /*! Activates an iSCSI connection associated with a session.
@@ -417,17 +391,8 @@ errno_t iSCSIKernelActivateConnection(SID sessionId,CID connectionId)
     const UInt32 inputCnt = 2;
     UInt64 inputs[] = {sessionId,connectionId};
     
-    UInt64 output;
-    UInt32 outputCnt = 1;
-    const UInt32 expOutputCnt = 1;
-    
-    if(IOConnectCallScalarMethod(connection,kiSCSIActivateConnection,
-                                 inputs,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-            return (errno_t)output;
-    }
-    return EINVAL;
+    return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSIActivateConnection,
+                                                     inputs,inputCnt,NULL,NULL));
 }
 
 /*! Activates all iSCSI connections associated with a session.
@@ -442,17 +407,8 @@ errno_t iSCSIKernelActivateAllConnections(SID sessionId)
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    UInt64 output;
-    UInt32 outputCnt = 1;
-    const UInt32 expOutputCnt = 1;
-    
-    if(IOConnectCallScalarMethod(connection,kiSCSIActivateAllConnections,
-                                 &input,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-            return (errno_t)output;
-    }
-    return EINVAL;
+    return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSIActivateAllConnections,
+                                                     &input,inputCnt,NULL,NULL));
 }
 
 
@@ -470,17 +426,8 @@ errno_t iSCSIKernelDeactivateConnection(SID sessionId,CID connectionId)
     const UInt32 inputCnt = 2;
     UInt64 inputs[] = {sessionId,connectionId};
     
-    UInt64 output;
-    UInt32 outputCnt = 1;
-    const UInt32 expOutputCnt = 1;
-    
-    if(IOConnectCallScalarMethod(connection,kiSCSIDeactivateConnection,
-                                 inputs,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-            return (errno_t)output;
-    }
-    return EINVAL;
+    return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSIDeactivateConnection,
+                                                     inputs,inputCnt,NULL,NULL));
 }
 
 /*! Dectivates all iSCSI sessions associated with a session.
@@ -495,17 +442,8 @@ errno_t iSCSIKernelDeactivateAllConnections(SID sessionId)
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    UInt64 output;
-    UInt32 outputCnt = 1;
-    const UInt32 expOutputCnt = 1;
-    
-    if(IOConnectCallScalarMethod(connection,kiSCSIDeactivateAllConnections,
-                                 &input,inputCnt,&output,&outputCnt) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-            return (errno_t)output;
-    }
-    return EINVAL;
+    return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSIDeactivateAllConnections,
+                                                     &input,inputCnt,NULL,NULL));
 }
 
 /*! Gets the first connection (the lowest connectionId) for the
@@ -524,19 +462,16 @@ errno_t iSCSIKernelGetConnection(SID sessionId,CID * connectionId)
     
     const UInt32 expOutputCnt = 2;
     UInt64 output[expOutputCnt];
-    UInt32 outputCnt = expOutputCnt;
+    UInt32 outputCnt = 0;
     
-    if(IOConnectCallScalarMethod(connection,kiSCSIGetConnection,
-                                 &input,inputCnt,output,&outputCnt) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-        {
-            *connectionId = (UInt32)output[1];
-            return (errno_t)output[0];
-        }
-    }
-    return EINVAL;
+    kern_return_t result =
+        IOConnectCallScalarMethod(connection,kiSCSIGetConnection,&input,inputCnt,
+                                  output,&outputCnt);
+    
+    if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
+        *connectionId = (UInt32)output[0];
 
+    return IOReturnToErrno(result);
 }
 
 /*! Gets the connection count for the specified session.
@@ -552,20 +487,18 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections)
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    const UInt32 expOutputCnt = 2;
+    const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
-    UInt32 outputCnt = expOutputCnt;
+    UInt32 outputCnt = 0;
     
-    if(IOConnectCallScalarMethod(connection,kiSCSIGetNumConnections,
-                                 &input,inputCnt,output,&outputCnt) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-        {
-            *numConnections = (UInt32)output[1];
-            return (errno_t)output;
-        }
-    }
-    return EINVAL;
+    kern_return_t result =
+        IOConnectCallScalarMethod(connection,kiSCSIGetNumConnections,&input,inputCnt,
+                                  output,&outputCnt);
+    
+    if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
+        *numConnections = (UInt32)output[0];
+
+    return IOReturnToErrno(result);
 }
 
 /*! Looks up the session identifier associated with a particular target name.
@@ -577,22 +510,18 @@ errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,SID * sess
     if(!targetName || !sessionId)
         return EINVAL;
     
-    const UInt32 expOutputCnt = 2;
+    const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
-    UInt32 outputCnt = expOutputCnt;
+    UInt32 outputCnt = 0;
     
-    if(IOConnectCallMethod(connection,kiSCSIGetSessionIdFromTargetName,0,0,
-                           targetName,sizeof(targetName)/sizeof(char),
-                           output,&outputCnt,0,0) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-        {
-            *sessionId = (UInt16)output[1];
-            return (errno_t)output[0];
-        }
-    }
+    kern_return_t result =
+        IOConnectCallMethod(connection,kiSCSIGetSessionIdFromTargetName,0,0,targetName,
+                            sizeof(targetName)/sizeof(char),output,&outputCnt,0,0);
     
-    return EINVAL;
+    if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
+        *sessionId = (UInt16)output[0];
+
+    return IOReturnToErrno(result);
 }
 
 /*! Looks up the connection identifier associated with a particular connection address.
@@ -608,28 +537,25 @@ errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
         return EINVAL;
     
     // Convert address string to an address structure
-    struct sockaddr addr;
+    struct sockaddr_storage ss;
+    
+    
     
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    const UInt32 expOutputCnt = 2;
+    const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
-    UInt32 outputCnt = expOutputCnt;
+    UInt32 outputCnt = 0;
     
-    if(IOConnectCallMethod(connection,kiSCSIGetConnectionIdFromAddress,&input,inputCnt,
-                           address,sizeof(address)/sizeof(char),
-                           output,&outputCnt,0,0) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-        {
-            *connectionId = (UInt16)output[1];
-            return (errno_t)output[0];
-        }
-    }
+    kern_return_t result =
+        IOConnectCallMethod(connection,kiSCSIGetConnectionIdFromAddress,&input,inputCnt,
+                           address,sizeof(address)/sizeof(char),output,&outputCnt,0,0);
     
-    inet_addr
-    return EINVAL;
+    if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
+        *connectionId = (UInt16)output[0];
+
+    return IOReturnToErrno(result);
 }
 
 /*! Gets an array of session identifiers for each session.
@@ -643,24 +569,21 @@ errno_t iSCSIKernelGetSessionIds(UInt16 * sessionIds,
     if(!sessionIds || !sessionCount)
         return EINVAL;
     
-    const UInt32 expOutputCnt = 2;
+    const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
-    UInt32 outputCnt = expOutputCnt;
+    UInt32 outputCnt = 0;
     
     *sessionCount = 0;
     size_t outputStructSize = sizeof(UInt16)*kiSCSIMaxSessions;;
     
-    if(IOConnectCallMethod(connection,kiSCSIGetSessionIds,0,0,0,0,
-                           output,&outputCnt,sessionIds,&outputStructSize) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-        {
-            *sessionCount = (UInt32)output[1];
-            return (errno_t)output[0];
-        }
-    }
+    kern_return_t result =
+        IOConnectCallMethod(connection,kiSCSIGetSessionIds,0,0,0,0,
+                            output,&outputCnt,sessionIds,&outputStructSize);
     
-    return EINVAL;
+    if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
+        *sessionCount = (UInt32)output[0];
+
+    return IOReturnToErrno(result);
 }
 
 /*! Gets an array of connection identifiers for each session.
@@ -678,24 +601,21 @@ errno_t iSCSIKernelGetConnectionIds(SID sessionId,
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    const UInt32 expOutputCnt = 2;
+    const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
-    UInt32 outputCnt = expOutputCnt;
+    UInt32 outputCnt = 0;
     
     *connectionCount = 0;
     size_t outputStructSize = sizeof(UInt32)*kiSCSIMaxConnectionsPerSession;
 
-    if(IOConnectCallMethod(connection,kiSCSIGetConnectionIds,&input,inputCnt,0,0,
-                           output,&outputCnt,connectionIds,&outputStructSize) == kIOReturnSuccess)
-    {
-        if(outputCnt == expOutputCnt)
-        {
-            *connectionCount = (UInt32)output[1];
-            return (errno_t)output[0];
-        }
-    }
+    kern_return_t result =
+        IOConnectCallMethod(connection,kiSCSIGetConnectionIds,&input,inputCnt,0,0,
+                            output,&outputCnt,connectionIds,&outputStructSize);
     
-    return EINVAL;
+    if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
+        *connectionCount = (UInt32)output[0];
+    
+    return IOReturnToErrno(result);
 }
 
 

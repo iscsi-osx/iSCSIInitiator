@@ -14,16 +14,11 @@
 #include <sys/kpi_socket.h>
 #include <kern/queue.h>
 
-#include "iSCSIVirtualHBA.h"
-
-
-#define iSCSIIOEventSource	com_NSinenian_iSCSIIOEventSource
-
-
-struct iSCSISession;
-struct iSCSIConnection;
+#include "iSCSIKernelClasses.h"
+#include "iSCSITypesKernel.h"
 
 struct iSCSITask;
+class iSCSIVirtualHBA;
 
 /*! This event source wraps around a network socket and provides a software
  *	interrupt when data becomes available at a the socket. It is used to wake
@@ -44,8 +39,8 @@ public:
     
 	/*! Pointer to the method that is called (within the driver's workloop)
 	 *	when data becomes available at a network socket. */
-    typedef bool (*Action) (iSCSIVirtualHBA::iSCSISession * session,
-                            iSCSIVirtualHBA::iSCSIConnection * connection);
+    typedef bool (*Action) (iSCSISession * session,
+                            iSCSIConnection * connection);
 	
 	/*! Initializes the event source with an owner and an action.
 	 *	@param owner the owner that this event source will be attached to.
@@ -57,8 +52,8 @@ public:
 	 *	@return true if the event source was successfully initialized. */
 	virtual bool init(iSCSIVirtualHBA * owner,
                       iSCSIIOEventSource::Action action,
-                      iSCSIVirtualHBA::iSCSISession * session,
-                      iSCSIVirtualHBA::iSCSIConnection * connection);
+                      iSCSISession * session,
+                      iSCSIConnection * connection);
 
 	/*! Callback function for BSD sockets. Assign this function as the
 	 *	call back when opening a socket using sock_socket(). Note that the
@@ -68,8 +63,6 @@ public:
 							   iSCSIIOEventSource * eventSource,
 							   int waitf);
 
-	
-    
 protected:
 	
 	/*! Called by the attached work loop to check if there is any processing
@@ -81,10 +74,10 @@ protected:
 private:
 				
     /*! The iSCSI session associated with this event source. */
-    iSCSIVirtualHBA::iSCSISession * session;
+    iSCSISession * session;
     
     /*! The iSCSI connection associated with this event source. */
-    iSCSIVirtualHBA::iSCSIConnection * connection;
+    iSCSIConnection * connection;
     
     queue_head_t taskQueue;
     

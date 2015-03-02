@@ -9,8 +9,7 @@
 #define __ISCSI_INITIATOR_H__
 
 #include <IOKit/IOService.h>
-
-#define iSCSIInitiator com_NSinenian_iSCSIInitiator
+#include "iSCSIKernelClasses.h"
 
 /*! This class defines the iSCSI driver entry point. This driver is a virtual
  *	device and does control hardware directly. The class iSCSIInitiator acts

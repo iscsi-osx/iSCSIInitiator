@@ -9,11 +9,12 @@
 #define __ISCSI_INITIATOR_CLIENT_H__
 
 #include <IOKit/IOUserClient.h>
+
+#include "iSCSIKernelClasses.h"
 #include "iSCSIKernelInterfaceShared.h"
 #include "iSCSIPDUShared.h"
 #include "iSCSIVirtualHBA.h"
-
-#define iSCSIInitiatorClient com_NSinenian_iSCSIInitiatorClient
+#include "iSCSITypesShared.h"
 
 class iSCSIInitiatorClient : public IOUserClient
 {

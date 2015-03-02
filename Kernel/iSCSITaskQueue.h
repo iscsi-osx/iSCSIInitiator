@@ -11,10 +11,10 @@
 #include <IOKit/IOService.h>
 #include <IOKit/IOEventSource.h>
 #include <kern/queue.h>
+
+#include "iSCSIKernelClasses.h"
+#include "iSCSITypesKernel.h"
 #include "iSCSIVirtualHBA.h"
-
-#define iSCSITaskQueue		com_NSinenian_iSCSITaskQueue
-
 
 struct iSCSITask;
 
@@ -33,8 +33,8 @@ public:
     /*! Pointer to the method that is called (within the driver's workloop)
 	 *	when data becomes available at a network socket. */
     typedef bool (*Action) (iSCSIVirtualHBA * owner,
-                            iSCSIVirtualHBA::iSCSISession * session,
-                            iSCSIVirtualHBA::iSCSIConnection * connection,
+                            iSCSISession * session,
+                            iSCSIConnection * connection,
                             UInt32 initiatorTaskTag);
 	
 	/*! Initializes the event source with an owner and an action.
@@ -47,8 +47,8 @@ public:
 	 *	@return true if the event source was successfully initialized. */
 	virtual bool init(iSCSIVirtualHBA * owner,
                       iSCSITaskQueue::Action action,
-                      iSCSIVirtualHBA::iSCSISession * session,
-                      iSCSIVirtualHBA::iSCSIConnection * connection);
+                      iSCSISession * session,
+                      iSCSIConnection * connection);
     
     /*! Queues a new iSCSI task for delayed processing. 
      *  @param initiatorTaskTag the iSCSI task tag associated with the task. */
@@ -77,10 +77,10 @@ protected:
 private:
     
     /*! The iSCSI session associated with this event source. */
-    iSCSIVirtualHBA::iSCSISession * session;
+    iSCSISession * session;
     
     /*! The iSCSI connection associated with this event source. */
-    iSCSIVirtualHBA::iSCSIConnection * connection;
+    iSCSIConnection * connection;
     
     queue_head_t taskQueue;
     

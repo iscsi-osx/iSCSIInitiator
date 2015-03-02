@@ -191,16 +191,7 @@ CFArrayRef iSCSIDACreateIOMediaCFPropertyForSession(SID sessionId)
     return IOMediaProperties;
 }
 
-CFArrayRef createIOMediaObjectsForTarget(io_object_t target)
-{
-    if(target == IO_OBJECT_NULL)
-        return NULL;
-    
-    // For each IOSCSITargetDevice, iterate over the LUNs and find
-    // Find target IOObject, then search for all media objects in its
-    // children...
-    return NULL;
-}
+
 
 int main(int argc, const char * argv[]) {
 
@@ -261,15 +252,15 @@ int main(int argc, const char * argv[]) {
     
     
 
- /*
+ 
   //       iSCSILogoutSession(0);
-    /*
+  
     
     iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
     iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
     iSCSIPortalSetPort(portal,CFSTR("3260"));
     iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
- /*
+ 
     CFArrayRef targets;
     enum iSCSILoginStatusCode statusCode;
     iSCSIMutableDiscoveryRecRef discoveryRec = iSCSIMutableDiscoveryRecCreate();
@@ -288,7 +279,7 @@ int main(int argc, const char * argv[]) {
     iSCSIPortalRef por = CFArrayGetValueAtIndex(portals,0);
     CFShow(iSCSIPortalGetAddress(por));
     
-*/
+
     
   /*
     iSCSIMutableTargetRef target = iSCSITargetCreate();

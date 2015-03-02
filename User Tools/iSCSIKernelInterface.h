@@ -30,7 +30,6 @@ kern_return_t iSCSIKernelCleanUp();
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
  *  @param targetName the name of the target, or NULL if discovery session.
- *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
@@ -38,16 +37,16 @@ kern_return_t iSCSIKernelCleanUp();
  *  @param connectionId the identifier of the new connection (returned).
  *  @return An error code if a valid session could not be created. */
 errno_t iSCSIKernelCreateSession(const char * targetName,
-                                 int domain,
-                                 const struct sockaddr * targetAddress,
-                                 const struct sockaddr * hostAddress,
+                                 const struct sockaddr_storage * targetAddress,
+                                 const struct sockaddr_storage * hostAddress,
                                  SID * sessionId,
                                  CID * connectionId);
 
 /*! Releases an iSCSI session, including all connections associated with that
  *  session (there is no requirement to release connections individually).
- *  @param sessionId the session qualifier part of the ISID. */
-void iSCSIKernelReleaseSession(SID sessionId);
+ *  @param sessionId the session qualifier part of the ISID.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIKernelReleaseSession(SID sessionId);
 
 /*! Sets options associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
@@ -65,23 +64,20 @@ errno_t iSCSIKernelGetSessionOptions(SID sessionId,
                                      iSCSISessionOptions * options);
 
 /*! Allocates an additional iSCSI connection for a particular session.
- *  @param sessionId the session to create a new connection for. 
- *  @param domain the IP domain (e.g., AF_INET or AF_INET6). 
+ *  @param sessionId the session to create a new connection for.
  *  @param targetAddress the BSD socket structure used to identify the target. 
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
  *  @param connectionId the identifier of the new connection.
- *  @return a connection identifier using the last parameter, or an error code
- *  if a valid connection could not be created. */
+ *  @return error code indicating result of operation. */
 errno_t iSCSIKernelCreateConnection(SID sessionId,
-                                    int domain,
-                                    const struct sockaddr * targetAddress,
-                                    const struct sockaddr * hostAddress,
+                                    const struct sockaddr_storage * targetAddress,
+                                    const struct sockaddr_storage * hostAddress,
                                     CID * connectionId);
 
 /*! Frees a given iSCSI connection associated with a given session.
  *  The session should be logged out using the appropriate PDUs. */
-void iSCSIKernelReleaseConnection(SID sessionId,CID connectionId);
+errno_t iSCSIKernelReleaseConnection(SID sessionId,CID connectionId);
 
 /*! Sends data over a kernel socket associated with iSCSI. The data sent should
  *  be specified by the buffer pointer to by data, with a length given by 
@@ -174,7 +170,7 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections);
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,
-                                              SID * sessionId);
+                                            SID * sessionId);
 
 /*! Looks up the connection identifier associated with a particular connection address.
  *  @param sessionId the session identifier.
@@ -182,15 +178,15 @@ errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
-                                              const char * address,
-                                              CID * connectionId);
+                                            const char * address,
+                                            CID * connectionId);
 
 /*! Gets an array of session identifiers for each session.
  *  @param sessionIds an array of session identifiers.
  *  @param sessionCount number of session identifiers.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetSessionIds(UInt16 * sessionIds,
-                                 UInt16 * sessionCount);
+                                UInt16 * sessionCount);
 
 /*! Gets an array of connection identifiers for each session.
  *  @param sessionId session identifier.

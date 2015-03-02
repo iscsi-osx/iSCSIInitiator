@@ -5,8 +5,9 @@
  * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
  */
 
-#include "iSCSIIOEventSource.h"
 #include <sys/ioctl.h>
+
+#include "iSCSIIOEventSource.h"
 #include "iSCSIVirtualHBA.h"
 
 #define super IOEventSource
@@ -20,8 +21,8 @@ OSDefineMetaClassAndStructors(iSCSIIOEventSource,IOEventSource);
 
 bool iSCSIIOEventSource::init(iSCSIVirtualHBA * owner,
                               iSCSIIOEventSource::Action action,
-                              iSCSIVirtualHBA::iSCSISession * session,
-                              iSCSIVirtualHBA::iSCSIConnection * connection)
+                              iSCSISession * session,
+                              iSCSIConnection * connection)
 {
 	// Initialize superclass, check validity and store socket handle
 	if(!super::init(owner,(IOEventSource::Action) action))
