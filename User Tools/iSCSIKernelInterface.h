@@ -14,6 +14,8 @@
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <netinet/in.h>
+#include <netdb.h>
+#include <ifaddrs.h>
 
 #include <IOKit/IOKitLib.h>
 #include <stdint.h>
@@ -170,23 +172,25 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections);
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,
-                                            SID * sessionId);
+                                              SID * sessionId);
 
 /*! Looks up the connection identifier associated with a particular connection address.
  *  @param sessionId the session identifier.
  *  @param address the name used when adding the connection (e.g., IP or DNS).
+ *  @param port the port used when adding the connection.
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
-                                            const char * address,
-                                            CID * connectionId);
+                                              const char * targetAddr,
+                                              const char * targetPort,
+                                              CID * connectionId);
 
 /*! Gets an array of session identifiers for each session.
  *  @param sessionIds an array of session identifiers.
  *  @param sessionCount number of session identifiers.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetSessionIds(UInt16 * sessionIds,
-                                UInt16 * sessionCount);
+                                 UInt16 * sessionCount);
 
 /*! Gets an array of connection identifiers for each session.
  *  @param sessionId session identifier.

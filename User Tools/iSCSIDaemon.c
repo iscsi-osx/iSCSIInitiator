@@ -164,8 +164,6 @@ void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)
 
 errno_t iSCSIDLoginSession(int fd,struct iSCSIDCmdLoginSession * cmd)
 {
-            fprintf(stderr,"Login session.\n");
-    
     // Grab objects from stream
     iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
                             (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
@@ -176,8 +174,6 @@ errno_t iSCSIDLoginSession(int fd,struct iSCSIDCmdLoginSession * cmd)
     
     if(!portal || !target || !auth)
         return EAGAIN;
-    
-                fprintf(stderr,"Passed input check.\n");
     
     SID sessionId;
     CID connectionId;
@@ -502,7 +498,7 @@ int main(void)
     
     launch_data_free(reg_response);
     
-    while(true)
+    do
     {
         int numEvents = 0;
 
@@ -552,14 +548,14 @@ int main(void)
                 error = iSCSIDGetSessionInfo(fd,(iSCSIDCmdGetSessionInfo*)&cmd); break;
             case kiSCSIDGetConnectionInfo:
                 error = iSCSIDGetConnectionInfo(fd,(iSCSIDCmdGetConnectionInfo*)&cmd); break;
-        };
+        }
         
         if(error)
         {
             // Terminate connection to client (ill-behaved client)
             close(fd);
         }
-    }
+    } while(false);
 
     // Close our connection to the iSCSI kernel extension
     iSCSIKernelCleanUp();

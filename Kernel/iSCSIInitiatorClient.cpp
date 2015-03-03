@@ -364,7 +364,7 @@ IOReturn iSCSIInitiatorClient::SetSessionOptions(iSCSIInitiatorClient * target,
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
+    SID sessionId = (SID)args->scalarInput[0];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions)
@@ -392,7 +392,7 @@ IOReturn iSCSIInitiatorClient::GetSessionOptions(iSCSIInitiatorClient * target,
     
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
+    SID sessionId = (SID)args->scalarInput[0];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions)
@@ -419,7 +419,7 @@ IOReturn iSCSIInitiatorClient::CreateConnection(iSCSIInitiatorClient * target,
     
     // Create a connection
     target->provider->CreateConnection(
-            (UInt16)args->scalarInput[0],       // Session qualifier
+            (SID)args->scalarInput[0],       // Session qualifier
             (const sockaddr_storage *)args->structureInput,
             (const sockaddr_storage *)args->structureInput+1,
             &connectionId);
@@ -435,8 +435,8 @@ IOReturn iSCSIInitiatorClient::ReleaseConnection(iSCSIInitiatorClient * target,
                                                  void * reference,
                                                  IOExternalMethodArguments * args)
 {
-    target->provider->ReleaseConnection((UInt16)args->scalarInput[0],
-                                        (UInt32)args->scalarInput[1]);
+    target->provider->ReleaseConnection((SID)args->scalarInput[0],
+                                        (CID)args->scalarInput[1]);
     return kIOReturnSuccess;
 }
 
@@ -445,8 +445,8 @@ IOReturn iSCSIInitiatorClient::ActivateConnection(iSCSIInitiatorClient * target,
                                                   IOExternalMethodArguments * args)
 {
     *args->scalarOutput =
-        target->provider->ActivateConnection((UInt16)args->scalarInput[0],
-                                             (UInt32)args->scalarInput[1]);
+        target->provider->ActivateConnection((SID)args->scalarInput[0],
+                                             (CID)args->scalarInput[1]);
     return kIOReturnSuccess;
 }
 
@@ -455,7 +455,7 @@ IOReturn iSCSIInitiatorClient::ActivateAllConnections(iSCSIInitiatorClient * tar
                                                       IOExternalMethodArguments * args)
 {
     *args->scalarOutput =
-        target->provider->ActivateAllConnections((UInt16)args->scalarInput[0]);
+        target->provider->ActivateAllConnections((SID)args->scalarInput[0]);
     return kIOReturnSuccess;
 }
 
@@ -464,8 +464,8 @@ IOReturn iSCSIInitiatorClient::DeactivateConnection(iSCSIInitiatorClient * targe
                                                     IOExternalMethodArguments * args)
 {
     *args->scalarOutput =
-        target->provider->DeactivateConnection((UInt16)args->scalarInput[0],
-                                               (UInt32)args->scalarInput[1]);
+        target->provider->DeactivateConnection((SID)args->scalarInput[0],
+                                               (CID)args->scalarInput[1]);
 
     return kIOReturnSuccess;
 }
@@ -475,7 +475,7 @@ IOReturn iSCSIInitiatorClient::DeactivateAllConnections(iSCSIInitiatorClient * t
                                                         IOExternalMethodArguments * args)
 {
     *args->scalarOutput =
-        target->provider->DeactivateAllConnections((UInt16)args->scalarInput[0]);
+        target->provider->DeactivateAllConnections((SID)args->scalarInput[0]);
     
     return kIOReturnSuccess;
 }
@@ -503,8 +503,8 @@ IOReturn iSCSIInitiatorClient::SendData(iSCSIInitiatorClient * target,
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
-    CID connectionId = (UInt32)args->scalarInput[1];
+    SID sessionId = (SID)args->scalarInput[0];
+    CID connectionId = (CID)args->scalarInput[1];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
@@ -544,8 +544,8 @@ IOReturn iSCSIInitiatorClient::RecvBHS(iSCSIInitiatorClient * target,
     
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
-    CID connectionId = (UInt32)args->scalarInput[1];
+    SID sessionId = (SID)args->scalarInput[0];
+    CID connectionId = (CID)args->scalarInput[1];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
@@ -581,8 +581,8 @@ IOReturn iSCSIInitiatorClient::RecvData(iSCSIInitiatorClient * target,
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
-    CID connectionId = (UInt32)args->scalarInput[1];
+    SID sessionId = (SID)args->scalarInput[0];
+    CID connectionId = (CID)args->scalarInput[1];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
@@ -617,8 +617,8 @@ IOReturn iSCSIInitiatorClient::SetConnectionOptions(iSCSIInitiatorClient * targe
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
-    CID connectionId = (UInt32)args->scalarInput[1];
+    SID sessionId = (SID)args->scalarInput[0];
+    CID connectionId = (CID)args->scalarInput[1];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
@@ -655,8 +655,8 @@ IOReturn iSCSIInitiatorClient::GetConnectionOptions(iSCSIInitiatorClient * targe
     
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
-    CID connectionId = (UInt32)args->scalarInput[1];
+    SID sessionId = (SID)args->scalarInput[0];
+    CID connectionId = (CID)args->scalarInput[1];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
@@ -685,7 +685,7 @@ IOReturn iSCSIInitiatorClient::GetConnection(iSCSIInitiatorClient * target,
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
+    SID sessionId = (SID)args->scalarInput[0];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions)
@@ -720,7 +720,7 @@ IOReturn iSCSIInitiatorClient::GetNumConnections(iSCSIInitiatorClient * target,
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
+    SID sessionId = (SID)args->scalarInput[0];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions)
@@ -750,7 +750,7 @@ IOReturn iSCSIInitiatorClient::GetSessionIdFromTargetName(iSCSIInitiatorClient *
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
+    SID sessionId = (SID)args->scalarInput[0];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions)
@@ -776,26 +776,32 @@ IOReturn iSCSIInitiatorClient::GetSessionIdFromTargetName(iSCSIInitiatorClient *
 }
 
 IOReturn iSCSIInitiatorClient::GetConnectionIdFromAddress(iSCSIInitiatorClient * target,
-                                                       void * reference,
-                                                       IOExternalMethodArguments * args)
+                                                          void * reference,
+                                                          IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
-    
+    SID sessionId = (SID)args->scalarInput[0];
+            IOLog("iSCSI: point 1\n");
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions)
         return kIOReturnBadArgument;
     
     // Do nothing if session doesn't exist
     iSCSISession * session = hba->sessionList[sessionId];
+            IOLog("iSCSI: point 2\n");
     
     if(!session)
         return kIOReturnNotFound;
     
+                IOLog("iSCSI: point 2.2\n");
+    
     sockaddr_storage * address = (sockaddr_storage*)args->structureInput;
+    
     if(!address)
         return kIOReturnBadArgument;
+    
+            IOLog("iSCSI: point 3\n");
     
     iSCSIConnection * connection = NULL;
     
@@ -803,30 +809,35 @@ IOReturn iSCSIInitiatorClient::GetConnectionIdFromAddress(iSCSIInitiatorClient *
     for(CID connectionId = 0; connectionId < kiSCSIMaxConnectionsPerSession; connectionId++)
     {
         if(!(connection = session->connections[connectionId]))
+        {
+                        IOLog("iSCSI: point continue\n");
             continue;
+        }
         
         sockaddr_storage peername;
-        int peernamelen = sizeof(peername);
+        socklen_t peernamelen = sizeof(peername);
         sock_getpeername(connection->socket,(sockaddr*)&peername,peernamelen);
         
         // Ensure family matches (IPv4/IPv6)
         if(peername.ss_family != address->ss_family)
             continue;
         
-        // Next, see if IPs match
-     //   peername.
+        IOLog("iSCSI: found a match\n");
         
-        
-        
-        
-        
-        
-
-        
+        // Next, see if IP and port data match
+        if(memcmp(address,&peername,address->ss_len) == 0)
+        {
+            *args->scalarOutput = connectionId;
+            args->scalarOutputCount = 1;
+                    IOLog("iSCSI: validated addr\n");
+            return kIOReturnSuccess;
+        }
     }
     
     *args->scalarOutput = kiSCSIInvalidConnectionId;
     args->scalarOutputCount = 1;
+    
+    return kIOReturnNotFound;
 
 
 /*
@@ -861,7 +872,6 @@ IOReturn iSCSIInitiatorClient::GetConnectionIdFromAddress(iSCSIInitiatorClient *
         }
     }
     */
-    return kIOReturnSuccess;
 }
 
 IOReturn iSCSIInitiatorClient::GetSessionIds(iSCSIInitiatorClient * target,
@@ -892,7 +902,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionIds(iSCSIInitiatorClient * target,
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (UInt16)args->scalarInput[0];
+    SID sessionId = (SID)args->scalarInput[0];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions)

@@ -90,11 +90,11 @@ errno_t iSCSIGetSessionIdForTarget(CFStringRef targetName,
 
 /*! Looks up the connection identifier associated with a particular connection address.
  *  @param sessionId the session identifier.
- *  @param address the name used when adding the connection (e.g., IP or DNS).
+ *  @param portal the portal connected on the specified session.
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIGetConnectionIdFromAddress(SID sessionId,
-                                        CFStringRef address,
+                                        iSCSIPortalRef portal,
                                         CID * connectionId);
 
 /*! Gets an array of session identifiers for each session.

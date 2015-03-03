@@ -188,7 +188,6 @@ errno_t iSCSIKernelGetSessionOptions(SID sessionId,
 
 /*! Allocates an additional iSCSI connection for a particular session.
  *  @param sessionId the session to create a new connection for.
- *  @param domain the IP domain (e.g., AF_INET or AF_INET6).
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
@@ -411,7 +410,6 @@ errno_t iSCSIKernelActivateAllConnections(SID sessionId)
                                                      &input,inputCnt,NULL,NULL));
 }
 
-
 /*! Dectivates an iSCSI connection associated with a session.
  *  @param sessionId session associated with connection to deactivate.
  *  @param connectionId  connection to deactivate.
@@ -527,30 +525,42 @@ errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,SID * sess
 /*! Looks up the connection identifier associated with a particular connection address.
  *  @param sessionId the session identifier.
  *  @param address the name used when adding the connection (e.g., IP or DNS).
+ *  @param port the port used when adding the connection.
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
-                                              const char * address,
+                                              const char * targetAddr,
+                                              const char * targetPort,
                                               CID * connectionId)
 {
-    if(!address || !sessionId || !connectionId)
+    if(!targetAddr || !targetPort || !connectionId)
         return EINVAL;
     
     // Convert address string to an address structure
-    struct sockaddr_storage ss;
+    errno_t error = 0;
     
+    struct addrinfo * aiTarget = NULL;
+    if((error = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget)))
+        return error;
     
+    struct sockaddr_storage ss_target;
     
+    // Copy the sock_addr structure into a sockaddr_storage structure (this
+    // may be either an IPv4 or IPv6 sockaddr structure)
+    memcpy(&ss_target,aiTarget->ai_addr,aiTarget->ai_addrlen);
+    
+    freeaddrinfo(aiTarget);
+
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
     const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
-    UInt32 outputCnt = 0;
+    UInt32 outputCnt = 1;
     
     kern_return_t result =
         IOConnectCallMethod(connection,kiSCSIGetConnectionIdFromAddress,&input,inputCnt,
-                           address,sizeof(address)/sizeof(char),output,&outputCnt,0,0);
+                           &ss_target,ss_target.ss_len,output,&outputCnt,0,0);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
         *connectionId = (UInt16)output[0];

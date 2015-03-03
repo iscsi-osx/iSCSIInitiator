@@ -852,7 +852,6 @@ errno_t iSCSILoginSession(iSCSIPortalRef portal,
     errno_t error = 0;
     
     // Resolve information about the target
-    int ai_family;
     struct sockaddr_storage ss_target, ss_host;
     
     if((error = iSCSISessionResolveNode(portal,&ss_target,&ss_host)))
@@ -862,6 +861,7 @@ errno_t iSCSILoginSession(iSCSIPortalRef portal,
     // Reset qualifier and connection ID by default
     const char * targetName = CFStringGetCStringPtr(iSCSITargetGetName(target),
                                                     kCFStringEncodingASCII);
+
     error = iSCSIKernelCreateSession(targetName,&ss_target,&ss_host,
                                      sessionId,connectionId);
     
@@ -1154,18 +1154,20 @@ errno_t iSCSIGetSessionIdForTarget(CFStringRef targetName,
 
 /*! Looks up the connection identifier associated with a particular connection address.
  *  @param sessionId the session identifier.
- *  @param address the name used when adding the connection (e.g., IP or DNS).
+ *  @param portal the portal connected on the specified session.
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIGetConnectionIdFromAddress(SID sessionId,
-                                        CFStringRef address,
+                                        iSCSIPortalRef portal,
                                         CID * connectionId)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !address || !connectionId)
+    if(sessionId == kiSCSIInvalidSessionId || !portal || !connectionId)
         return EINVAL;
     
-    const char * addr = CFStringGetCStringPtr(address,kCFStringEncodingASCII);
-    return iSCSIKernelGetConnectionIdFromAddress(sessionId,addr,connectionId);
+    const char * address = CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingASCII);
+    const char * port = CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII);
+    
+    return iSCSIKernelGetConnectionIdFromAddress(sessionId,address,port,connectionId);
 }
 
 /*! Gets an array of session identifiers for each session.
