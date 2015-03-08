@@ -222,19 +222,22 @@ void iSCSINegotiateBuildSWDictNormal(iSCSISessionConfigRef sessCfg,
     else
         value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxConnections);
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxConnections,value);
-    
+    CFRelease(value);
     
     CFDictionaryAddValue(sessCmd,kiSCSILKInitialR2T,kiSCSILVNo);
     CFDictionaryAddValue(sessCmd,kiSCSILKImmediateData,kiSCSILVYes);
     
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxBurstLength);
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxBurstLength,value);
+    CFRelease(value);
     
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_FirstBurstLength);
     CFDictionaryAddValue(sessCmd,kiSCSILKFirstBurstLength,value);
+    CFRelease(value);
     
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxOutstandingR2T);
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxOutstandingR2T,value);
+    CFRelease(value);
     
     CFDictionaryAddValue(sessCmd,kiSCSILKDataPDUInOrder,kiSCSILVYes);
     CFDictionaryAddValue(sessCmd,kiSCSILKDataSequenceInOrder,kiSCSILVYes);
@@ -253,9 +256,11 @@ void iSCSINegotiateBuildSWDictCommon(iSCSISessionConfigRef sessCfg,
     // Add key-value pair for time to retain and time to wait
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_DefaultTime2Wait);
     CFDictionaryAddValue(sessCmd,kiSCSILKDefaultTime2Wait,value);
+    CFRelease(value);
     
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_DefaultTime2Retain);
     CFDictionaryAddValue(sessCmd,kiSCSILKDefaultTime2Retain,value);
+    CFRelease(value);
     
     // Add key-value pair for supported error recovery level.  Use the error
     // recovery level specified by the target.  If the value was invalid, then
@@ -276,7 +281,7 @@ void iSCSINegotiateBuildSWDictCommon(iSCSISessionConfigRef sessCfg,
             value = kiSCSILVErrorRecoveryLevelSession;
             break;
     }
-    CFDictionaryAddValue(sessCmd,kiSCSILKErrorRecoveryLevel,kiSCSILVErrorRecoveryLevelDigest);
+    CFDictionaryAddValue(sessCmd,kiSCSILKErrorRecoveryLevel,value);
 }
 
 errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
@@ -464,6 +469,8 @@ void iSCSINegotiateBuildCWDict(iSCSIConnectionConfigRef connCfg,
         kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxRecvDataSegmentLength);
     
     CFDictionaryAddValue(connCmd,kiSCSILKMaxRecvDataSegmentLength,maxRecvLength);
+    
+    CFRelease(maxRecvLength);
 }
 
 /*! Helper function used by iSCSISessionNegotiateCW to parse a dictionary
@@ -748,10 +755,9 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
     
     while(interface)
     {
-        CFStringRef interfaceName = CFStringCreateWithCString(kCFAllocatorDefault,
-                                                              interface->ifa_name,
-                                                              kCFStringEncodingUTF8);
-        
+        CFStringRef interfaceName = CFStringCreateWithCStringNoCopy(
+            kCFAllocatorDefault,interface->ifa_name,kCFStringEncodingUTF8,kCFAllocatorNull);
+
         // Check if interface names match...
         if(CFStringCompare(interfaceName,iSCSIPortalGetHostInterface(portal),kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         {
@@ -765,6 +771,7 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
                 break;
             }
         }
+        
         interface = interface->ifa_next;
     }
         
@@ -996,12 +1003,19 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
         iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
         iSCSIPortalSetAddress(portal,address);
         iSCSIPortalSetPort(portal,port);
+        
+        CFRelease(port);
+        CFRelease(address);
+        CFRelease(targetAddress);
     
         iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)(valContainer);
         iSCSIDiscoveryRecAddPortal(discoveryRec,targetName,portalGroupTag,portal);
+        
+        CFRelease(targetName);
+        CFRelease(portalGroupTag);
+        iSCSIPortalRelease(portal);
     }
 }
-
 
 /*! Queries a portal for available targets.
  *  @param portal the iSCSI portal to query.
@@ -1031,7 +1045,14 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     iSCSIMutableConnectionConfigRef connCfg = iSCSIMutableConnectionConfigCreate();
 
     if((error = iSCSILoginSession(target,portal,auth,sessCfg,connCfg,&sessionId,&connectionId,statusCode)))
-       return error;
+    {
+        iSCSITargetRelease(target);
+        iSCSIAuthRelease(auth);
+        iSCSISessionConfigRelease(sessCfg);
+        iSCSIConnectionConfigRelease(connCfg);
+        iSCSIPortalRelease(portal);
+        return error;
+    }
     
     
     // Place text commands to get target list into a dictionary
@@ -1116,12 +1137,6 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
     if(!portal || !authMethod)
         return EINVAL;
     
-    // Create a discovery session to the portal
-    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
-    iSCSITargetSetName(target,targetName);
-    
-    iSCSIKernelSessionCfg sessCfgKernel;
-    
     // Store errno from helpers and pass back up the call chain
     errno_t error = 0;
     
@@ -1130,6 +1145,12 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
     
     if((error = iSCSISessionResolveNode(portal,&ss_target,&ss_host)))
         return error;
+    
+    // Create a discovery session to the portal
+    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
+    iSCSITargetSetName(target,targetName);
+    
+    iSCSIKernelSessionCfg sessCfgKernel;
     
     // Create session (incl. qualifier) and a new connection (incl. Id)
     // Reset qualifier and connection ID by default
@@ -1153,8 +1174,9 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
                                      statusCode);
 
     iSCSIKernelReleaseSession(sessionId);
+    iSCSITargetRelease(target);
     
-    return 0;
+    return error;
 }
 
 /*! Gets the session identifier associated with the specified target.
@@ -1192,29 +1214,33 @@ errno_t iSCSIGetConnectionIdForPortal(SID sessionId,
 
 /*! Gets an array of session identifiers for each session.
  *  @param sessionIds an array of session identifiers.
- *  @param sessionCount number of session identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIGetSessionIds(SID * sessionIds,UInt16 * sessionCount)
+ *  @return an array of session identifiers. */
+CFArrayRef iSCSICreateArrayOfSessionIds()
 {
-    if(!sessionIds || !sessionCount)
-        return EINVAL;
+    SID sessionIds[kiSCSIMaxSessions];
+    UInt16 sessionCount = 0;
     
-    return iSCSIKernelGetSessionIds(sessionIds,sessionCount);
+    if(iSCSIKernelGetSessionIds(sessionIds,&sessionCount))
+        return NULL;
+    
+    return CFArrayCreate(kCFAllocatorDefault,(const void **)&sessionIds,sessionCount,&kCFTypeArrayCallBacks);
 }
 
 /*! Gets an array of connection identifiers for each session.
  *  @param sessionId session identifier.
- *  @param connectionIds an array of connection identifiers for the session.
- *  @param connectionCount number of connection identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIGetConnectionIds(SID sessionId,
-                              UInt32 * connectionIds,
-                              UInt32 * connectionCount)
+ *  @return an array of connection identifiers. */
+CFArrayRef iSCSICreateArrayOfConnectionsIds(SID sessionId)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !connectionIds || !connectionCount)
-        return EINVAL;
+    if(sessionId == kiSCSIInvalidSessionId)
+        return NULL;
     
-    return iSCSIKernelGetConnectionIds(sessionId,connectionIds,connectionCount);
+    CID connectionIds[kiSCSIMaxConnectionsPerSession];
+    UInt32 connectionCount = 0;
+    
+    if(iSCSIKernelGetConnectionIds(sessionId,connectionIds,&connectionCount))
+        return NULL;
+    
+    return CFArrayCreate(kCFAllocatorDefault,(const void **)&connectionIds,connectionCount,&kCFTypeArrayCallBacks);
 }
 
 /*! Gets the target object associated with the specified session.

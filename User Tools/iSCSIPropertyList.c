@@ -60,9 +60,6 @@ CFStringRef kiSCSIPKInitiatorName = CFSTR("Name");
 /*! Preference key name for iSCSI initiator alias. */
 CFStringRef kiSCSIPKInitiatorAlias = CFSTR("Alias");
 
-
-
-
 /*! Retrieves a mutable dictionary for the specified key. 
  *  @param key the name of the key, which can be either kiSCSIPKTargetsKey,
  *  kiSCSIPKDiscoveryKey, or kiSCSIPKInitiatorKey.
@@ -101,8 +98,8 @@ CFMutableDictionaryRef iSCSIPLCreateInitiatorDict()
     CFStringRef kInitiatorName = CFSTR("");
     CFStringRef kInitiatorAlias = CFSTR("");
     
-    CFStringRef keys[] = {kiSCSIPKInitiatorName,kiSCSIPKInitiatorAlias};
-    CFStringRef values[] = {kInitiatorName,kInitiatorAlias};
+    CFStringRef keys[] = {kiSCSIPKInitiatorAlias,kiSCSIPKInitiatorName};
+    CFStringRef values[] = {kInitiatorAlias,kInitiatorName};
     
     CFDictionaryRef initiatorPropertylist = CFDictionaryCreate(kCFAllocatorDefault,
                                                                (const void **)keys,
@@ -134,9 +131,9 @@ CFMutableDictionaryRef iSCSIPLGetTargetInfo(CFStringRef targetName,
         {
             CFMutableDictionaryRef targetInfo = CFDictionaryCreateMutable(
                 kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
-            
-            CFDictionarySetValue(targetInfo,kiSCSIPKPortalsKey,CFSTR(""));
+
             CFDictionarySetValue(targetInfo,kiSCSIPKSessionCfgKey,CFSTR(""));
+            CFDictionarySetValue(targetInfo,kiSCSIPKPortalsKey,CFSTR(""));
             
             CFDictionarySetValue(targetsList,targetName,targetInfo);
             CFRelease(targetInfo);
@@ -187,9 +184,9 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetName,
            CFMutableDictionaryRef portalInfo = CFDictionaryCreateMutable(
                 kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
            
-           CFDictionarySetValue(portalInfo,kiSCSIPKPortalKey,CFSTR(""));
-           CFDictionarySetValue(portalInfo,kiSCSIPKConnectionCfgKey,CFSTR(""));
            CFDictionarySetValue(portalInfo,kiSCSIPKAuthKey,CFSTR(""));
+           CFDictionarySetValue(portalInfo,kiSCSIPKConnectionCfgKey,CFSTR(""));
+           CFDictionarySetValue(portalInfo,kiSCSIPKPortalKey,CFSTR(""));
            
            CFDictionarySetValue(portalsList,portalName,portalInfo);
            CFRelease(portalInfo);
@@ -218,6 +215,7 @@ void iSCSIPLSetSessionConfig(CFStringRef targetName,iSCSISessionConfigRef sessCf
     CFDictionaryRef sessCfgDict = iSCSISessionConfigCreateDictionary(sessCfg);
     
     CFDictionarySetValue(targetInfo,kiSCSIPKSessionCfgKey,sessCfgDict);
+    CFRelease(sessCfgDict);
 }
 
 iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetName,CFStringRef portalName)
@@ -352,6 +350,39 @@ void iSCSIPLSetInitiatorAlias(CFStringRef initiatorAlias)
     CFDictionarySetValue(initiatorCache,kiSCSIPKInitiatorAlias,initiatorAlias);
     
     initiatorCacheModified = true;
+}
+
+
+/*! Creates an array of target names (fully qualified IQN or EUI names)
+ *  defined in the property list.
+ *  @return an array of target names. */
+CFArrayRef iSCSIPLCreateArrayOfTargets()
+{
+    CFMutableDictionaryRef targetsList = iSCSIPLGetTargetsList(false);
+    
+    if(!targetsList)
+        return NULL;
+
+    const void * keys, * values;
+    CFDictionaryGetKeysAndValues(targetsList,&keys,&values);
+    
+    return CFArrayCreate(kCFAllocatorDefault,&keys,CFDictionaryGetCount(targetsList),&kCFTypeArrayCallBacks);
+}
+
+/*! Creates an array of portal names for a given target.
+ *  @param targetName the name of the target (fully qualified IQN or EUI name).
+ *  @return an array of portal names for the specified target. */
+CFArrayRef iSCSIPLCreateArrayOfPortals(CFStringRef targetName)
+{
+    CFMutableDictionaryRef portalsList = iSCSIPLGetPortalsList(targetName,false);
+    
+    if(!portalsList)
+        return NULL;
+    
+    const void * keys, * values;
+    CFDictionaryGetKeysAndValues(portalsList,&keys,&values);
+    
+    return CFArrayCreate(kCFAllocatorDefault,&keys,CFDictionaryGetCount(portalsList),&kCFTypeArrayCallBacks);
 }
 
 /*! Synchronizes the intitiator and target settings cache with the property

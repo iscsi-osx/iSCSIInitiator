@@ -103,20 +103,13 @@ errno_t iSCSIGetConnectionIdForPortal(SID sessionId,
 
 /*! Gets an array of session identifiers for each session.
  *  @param sessionIds an array of session identifiers.
- *  This array must be user-allocated with a capacity defined by kiSCSIMaxSessions.
- *  @param sessionCount number of session identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIGetSessionIds(SID * sessionIds,UInt16 * sessionCount);
+ *  @return an array of session identifiers. */
+CFArrayRef iSCSICreateArrayOfSessionIds();
 
 /*! Gets an array of connection identifiers for each session.
  *  @param sessionId session identifier.
- *  @param connectionIds an array of connection identifiers for the session.  
- *  This array must be user-allocated with a capacity defined by kiSCSIMaxConnectionsPerSession.
- *  @param connectionCount number of connection identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIGetConnectionIds(SID sessionId,
-                              UInt32 * connectionIds,
-                              UInt32 * connectionCount);
+ *  @return an array of connection identifiers. */
+ CFArrayRef iSCSICreateArrayOfConnectionsIds(SID sessionId);
 
 /*! Gets the target object associated with the specified session.
  *  @param sessionId the session identifier.

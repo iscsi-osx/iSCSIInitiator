@@ -329,12 +329,12 @@ errno_t iSCSICtlModifySession(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
 errno_t iSCSICtlListSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
-    
+    // Get a list of all active sessions identifiers from the kernel
+
     
     
     return 0;
 }
-
 
 Boolean compareOptions( const void * value1, const void * value2 )
 {

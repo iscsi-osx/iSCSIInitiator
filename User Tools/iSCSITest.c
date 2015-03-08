@@ -129,6 +129,7 @@ int c = 100;
     iSCSIPLSetPortal(CFSTR("iqn.test.blah.com"),portal);
     
     iSCSIPortalRef portal2 = iSCSIPLCopyPortal(CFSTR("iqn.test.blah.com"),CFSTR("192.168.1.115"));
+  
     
     iSCSIPLSynchronize();
 

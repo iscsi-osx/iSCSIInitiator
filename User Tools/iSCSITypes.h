@@ -211,8 +211,6 @@ CFDictionaryRef iSCSITargetCreateDictionary(iSCSITargetRef target);
 CFDataRef iSCSITargetCreateData(iSCSITargetRef target);
 
 
-
-
 /*! Creates a new authentication object from an external data representation.
  * @param data data used to construct an iSCSI authentication object.
  * @return an iSCSI authentication object or NULL if object creation failed */

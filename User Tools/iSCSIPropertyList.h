@@ -11,10 +11,8 @@
 #define __ISCSI_PROPERTY_LIST_H__
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <errno.h>
 
 #include "iSCSITypes.h"
-
 
 /*! Copies the initiator name from the property list into a CFString object.
  *  @return the initiator name. */
@@ -87,6 +85,19 @@ void iSCSIPLSetAuthentication(CFStringRef targetName,
                               CFStringRef portalName,
                               iSCSIAuthRef auth);
 
+/*! Creates an array of target names (fully qualified IQN or EUI names)
+ *  defined in the property list.
+ *  @return an array of target names. */
+CFArrayRef iSCSIPLCreateArrayOfTargets();
+
+/*! Creates an array of portal names for a given target.
+ *  @param targetName the name of the target (fully qualified IQN or EUI name).
+ *  @return an array of portal names for the specified target. */
+CFArrayRef iSCSIPLCreateArrayOfPortals(CFStringRef targetName);
+
+
+/*! Synchronizes the intitiator and target settings cache with the property
+ *  list on the disk. */
 void iSCSIPLSynchronize();
 
 
