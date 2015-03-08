@@ -148,42 +148,42 @@ errno_t iSCSIKernelReleaseSession(SID sessionId)
     return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSIReleaseSession,&input,inputCnt,0,0));
 }
 
-/*! Sets options associated with a particular connection.
+/*! Sets configuration associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param options the options to set.
+ *  @param config the configuration to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetSessionOptions(SID sessionId,
-                                     iSCSISessionOptions * options)
+errno_t iSCSIKernelSetSessionConfig(SID sessionId,
+                                    iSCSIKernelSessionCfg * config)
 {
     // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId || !options)
+    if(sessionId == kiSCSIInvalidSessionId || !config)
         return EINVAL;
     
     const UInt32 inputCnt = 1;
     const UInt64 input = sessionId;
     
     return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSISetSessionOptions,&input,inputCnt,
-                                               options,sizeof(struct iSCSISessionOptions),0,0,0,0));
+                                               config,sizeof(struct iSCSIKernelSessionCfg),0,0,0,0));
 }
 
-/*! Gets options associated with a particular connection.
+/*! Gets configuration associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param options the options to get.  The user of this function is
- *  responsible for allocating and freeing the options struct.
+ *  @param config the configuration to get.  The user of this function is
+ *  responsible for allocating and freeing the configuration struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionOptions(SID sessionId,
-                                     iSCSISessionOptions * options)
+errno_t iSCSIKernelGetSessionConfig(SID sessionId,
+                                    iSCSIKernelSessionCfg * config)
 {
     // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId || !options)
+    if(sessionId == kiSCSIInvalidSessionId || !config)
         return EINVAL;
     
     const UInt32 inputCnt = 1;
     const UInt64 input = sessionId;
-    size_t optionsSize = sizeof(struct iSCSISessionOptions);
+    size_t configSize = sizeof(struct iSCSIKernelSessionCfg);
 
     return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSIGetSessionOptions,&input,inputCnt,
-                                               0,0,0,0,options,&optionsSize));
+                                               0,0,0,0,config,&configSize));
 }
 
 /*! Allocates an additional iSCSI connection for a particular session.
@@ -332,48 +332,48 @@ errno_t iSCSIKernelRecv(SID sessionId,
 }
 
 
-/*! Sets options associated with a particular connection.
+/*! Sets configuration associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
- *  @param options the options to set.
+ *  @param config the configuration to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetConnectionOptions(SID sessionId,
-                                        CID connectionId,
-                                        iSCSIConnectionOptions * options)
+errno_t iSCSIKernelSetConnectionConfig(SID sessionId,
+                                       CID connectionId,
+                                       iSCSIKernelConnectionCfg * config)
 {
     // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !options)
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !config)
         return EINVAL;
     
     const UInt32 inputCnt = 2;
     const UInt64 inputs[] = {sessionId,connectionId};
     
     return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSISetConnectionOptions,inputs,inputCnt,
-                                               options,sizeof(struct iSCSIConnectionOptions),0,0,0,0));
+                                               config,sizeof(struct iSCSIKernelConnectionCfg),0,0,0,0));
 }
 
-/*! Gets options associated with a particular connection.
+/*! Gets configuration associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
- *  @param options the options to get.  The user of this function is
- *  responsible for allocating and freeing the options struct.
+ *  @param config the configurations to get.  The user of this function is
+ *  responsible for allocating and freeing the configuration struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionOptions(SID sessionId,
-                                        CID connectionId,
-                                        iSCSIConnectionOptions * options)
+errno_t iSCSIKernelGetConnectionConfig(SID sessionId,
+                                       CID connectionId,
+                                       iSCSIKernelConnectionCfg * config)
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId ||
-       connectionId     == kiSCSIInvalidConnectionId || !options)
+       connectionId     == kiSCSIInvalidConnectionId || !config)
         return EINVAL;
     
     const UInt32 inputCnt = 2;
     const UInt64 inputs[] = {sessionId,connectionId};
 
-    size_t optionsSize = sizeof(struct iSCSIConnectionOptions);
+    size_t optionsSize = sizeof(struct iSCSIKernelConnectionCfg);
     
     return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSIGetConnectionOptions,inputs,inputCnt,
-                                               0,0,0,0,options,&optionsSize));
+                                               0,0,0,0,config,&optionsSize));
 }
 
 /*! Activates an iSCSI connection associated with a session.

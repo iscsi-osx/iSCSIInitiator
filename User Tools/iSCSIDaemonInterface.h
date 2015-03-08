@@ -126,7 +126,7 @@ errno_t iSCSIDaemonGetSessionIdForTarget(iSCSIDaemonHandle handle,
  *  @param address the name used when adding the connection (e.g., IP or DNS).
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionIdFromAddress(iSCSIDaemonHandle handle,
+errno_t iSCSIDaemonGetConnectionIdForPortal(iSCSIDaemonHandle handle,
                                               SID sessionId,
                                               CFStringRef address,
                                               CID * connectionId);
@@ -158,9 +158,9 @@ errno_t iSCSIDaemonGetConnectionIds(iSCSIDaemonHandle handle,
  *  @param sessionId the session identifier.
  *  @param options the optionts for the specified session.
  *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetSessionInfo(iSCSIDaemonHandle handle,
+errno_t iSCSIDaemonGetSessionConfig(iSCSIDaemonHandle handle,
                                   SID sessionId,
-                                  iSCSISessionOptions * options);
+                                  iSCSIKernelSessionCfg * options);
 
 /*! Gets information about a particular session.
  *  @param handle a handle to a daemon connection.
@@ -168,9 +168,9 @@ errno_t iSCSIDaemonGetSessionInfo(iSCSIDaemonHandle handle,
  *  @param connectionId the connection identifier.
  *  @param options the optionts for the specified session.
  *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionInfo(iSCSIDaemonHandle handle,
+errno_t iSCSIDaemonGetConnectionConfig(iSCSIDaemonHandle handle,
                                      SID sessionId,
                                      CID connectionId,
-                                     iSCSIConnectionOptions * options);
+                                     iSCSIKernelConnectionCfg * options);
 
 #endif /* defined(__ISCSI_DAEMON_INTERFACE__) */

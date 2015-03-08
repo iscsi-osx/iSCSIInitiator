@@ -50,20 +50,18 @@ errno_t iSCSIKernelCreateSession(const char * targetName,
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelReleaseSession(SID sessionId);
 
-/*! Sets options associated with a particular connection.
+/*! Sets configuration associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param options the options to set.
+ *  @param config the configuration to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetSessionOptions(SID sessionId,
-                                     iSCSISessionOptions * options);
+errno_t iSCSIKernelSetSessionConfig(SID sessionId,iSCSIKernelSessionCfg * config);
 
-/*! Gets options associated with a particular connection.
+/*! Gets configuration associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param options the options to get.  The user of this function is
- *  responsible for allocating and freeing the options struct.
+ *  @param config the configuration to get.  The user of this function is
+ *  responsible for allocating and freeing the configuration struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionOptions(SID sessionId,
-                                     iSCSISessionOptions * options);
+errno_t iSCSIKernelGetSessionConfig(SID sessionId,iSCSIKernelSessionCfg * config);
 
 /*! Allocates an additional iSCSI connection for a particular session.
  *  @param sessionId the session to create a new connection for.
@@ -113,24 +111,24 @@ errno_t iSCSIKernelRecv(SID sessionId,
                         void * * data,
                         size_t * length);
 
-/*! Sets options associated with a particular connection.
+/*! Sets configuration associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
- *  @param options the options to set.
+ *  @param config the configuration to set.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetConnectionOptions(SID sessionId,
-                                        CID connectionId,
-                                        iSCSIConnectionOptions * options);
+errno_t iSCSIKernelSetConnectionConfig(SID sessionId,
+                                       CID connectionId,
+                                       iSCSIKernelConnectionCfg * config);
 
-/*! Gets options associated with a particular connection.
+/*! Gets configuration associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
- *  @param options the options to get.  The user of this function is
- *  responsible for allocating and freeing the options struct.
+ *  @param config the configurations to get.  The user of this function is
+ *  responsible for allocating and freeing the configuration struct.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionOptions(SID sessionId,
-                                        CID connectionId,
-                                        iSCSIConnectionOptions * options);
+errno_t iSCSIKernelGetConnectionConfig(SID sessionId,
+                                       CID connectionId,
+                                       iSCSIKernelConnectionCfg * config);
 
 /*! Activates an iSCSI connection associated with a session.
  *  @param sessionId session associated with connection to activate.

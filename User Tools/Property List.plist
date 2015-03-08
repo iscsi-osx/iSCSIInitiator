@@ -4,43 +4,117 @@
 <dict>
 	<key>Targets</key>
 	<dict>
-		<key>&lt;targetname&gt;</key>
+		<key>iqn.test.com</key>
 		<dict>
-			<key>Settings</key>
+			<key>Configuration</key>
+			<dict>
+				<key>ErrorRecoveryLevel</key>
+				<string>0</string>
+				<key>New item</key>
+				<string></string>
+				<key>MaxConnections</key>
+				<integer>0</integer>
+			</dict>
+			<key>Portals</key>
+			<dict>
+				<key>192.168.1.114</key>
+				<dict>
+					<key>Portal</key>
+					<dict>
+						<key>Address</key>
+						<string></string>
+						<key>Port</key>
+						<string></string>
+						<key>Host Interface</key>
+						<string></string>
+					</dict>
+					<key>Configuration</key>
+					<dict>
+						<key>Header Digest</key>
+						<string></string>
+						<key>Data Digest</key>
+						<string></string>
+					</dict>
+					<key>Authentication</key>
+					<dict/>
+				</dict>
+				<key>192.168.1.115</key>
+				<dict>
+					<key>Portal</key>
+					<dict>
+						<key>Address</key>
+						<string></string>
+						<key>Port</key>
+						<string></string>
+						<key>Host Interface</key>
+						<string></string>
+					</dict>
+					<key>Configuration</key>
+					<dict>
+						<key>Header Digest</key>
+						<string></string>
+						<key>Data Digest</key>
+						<string></string>
+					</dict>
+					<key>Authentication</key>
+					<dict/>
+				</dict>
+			</dict>
+		</dict>
+		<key>iqn.test2.com</key>
+		<dict>
+			<key>Configuration</key>
 			<dict>
 				<key>DefaultPortalGroup</key>
 				<string>0</string>
 				<key>MaxConnections</key>
 				<integer>0</integer>
-				<key>UseHeaderDigest</key>
-				<false/>
-				<key>UseDataDigest</key>
-				<false/>
-				<key>Authentication</key>
-				<dict>
-					<key>AuthMethod</key>
-					<string>CHAP</string>
-					<key>InitiatorUser</key>
-					<string></string>
-					<key>InitiatorSecret</key>
-					<data></data>
-					<key>TargetUser</key>
-					<string></string>
-					<key>TargetSecret</key>
-					<data></data>
-				</dict>
 			</dict>
 			<key>Portals</key>
-			<array>
+			<dict>
+				<key>192.168.1.115</key>
 				<dict>
-					<key>Address</key>
-					<string></string>
-					<key>Port</key>
-					<string></string>
-					<key>HostInterface</key>
-					<string></string>
+					<key>Portal</key>
+					<dict>
+						<key>Address</key>
+						<string></string>
+						<key>Port</key>
+						<string></string>
+						<key>Host Interface</key>
+						<string></string>
+					</dict>
+					<key>Configuration</key>
+					<dict>
+						<key>Header Digest</key>
+						<string></string>
+						<key>Data Digest</key>
+						<string></string>
+					</dict>
+					<key>Authentication</key>
+					<dict/>
 				</dict>
-			</array>
+				<key>192.168.1.1</key>
+				<dict>
+					<key>Portal</key>
+					<dict>
+						<key>Address</key>
+						<string></string>
+						<key>Port</key>
+						<string></string>
+						<key>Host Interface</key>
+						<string></string>
+					</dict>
+					<key>Configuration</key>
+					<dict>
+						<key>Header Digest</key>
+						<string></string>
+						<key>Data Digest</key>
+						<string></string>
+					</dict>
+					<key>Authentication</key>
+					<dict/>
+				</dict>
+			</dict>
 		</dict>
 	</dict>
 	<key>Initiator</key>
@@ -48,7 +122,7 @@
 		<key>Name</key>
 		<string>iqn.localhost.com</string>
 		<key>Alias</key>
-		<string></string>
+		<string>Initiator</string>
 	</dict>
 	<key>Discovery</key>
 	<dict>

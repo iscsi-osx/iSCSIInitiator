@@ -50,7 +50,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::SetSessionOptions,
 		1,                                  // Session ID
-        sizeof(iSCSISessionOptions),        // Options to set
+        sizeof(iSCSIKernelSessionCfg),        // Options to set
 		0,
 		0
 	},
@@ -59,7 +59,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 		1,                                  // Session ID
 		0,
 		0,
-		sizeof(iSCSISessionOptions)         // Options to get
+		sizeof(iSCSIKernelSessionCfg)         // Options to get
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateConnection,
@@ -134,7 +134,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::SetConnectionOptions,
 		2,                                  // Session ID, connection ID
-        sizeof(iSCSIConnectionOptions),     // Options to set
+        sizeof(iSCSIKernelConnectionCfg),     // Options to set
 		0,
 		0
 	},
@@ -143,7 +143,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 		2,                                  // Session ID, connection ID
 		0,
 		0,
-		sizeof(iSCSIConnectionOptions)      // Options to get
+		sizeof(iSCSIKernelConnectionCfg)      // Options to get
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::GetConnection,
@@ -376,7 +376,7 @@ IOReturn iSCSIInitiatorClient::SetSessionOptions(iSCSIInitiatorClient * target,
     if(!session)
         return kIOReturnNotFound;
     
-    iSCSISessionOptions * options = (iSCSISessionOptions*)args->structureOutput;
+    iSCSIKernelSessionCfg * options = (iSCSIKernelSessionCfg*)args->structureOutput;
     session->opts = *options;
     
     return kIOReturnError;
@@ -387,7 +387,7 @@ IOReturn iSCSIInitiatorClient::GetSessionOptions(iSCSIInitiatorClient * target,
                                                  IOExternalMethodArguments * args)
 {
     // Validate buffer is large enough to hold options
-    if(args->structureOutputSize < sizeof(iSCSISessionOptions))
+    if(args->structureOutputSize < sizeof(iSCSIKernelSessionCfg))
         return kIOReturnMessageTooLarge;
     
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
@@ -404,7 +404,7 @@ IOReturn iSCSIInitiatorClient::GetSessionOptions(iSCSIInitiatorClient * target,
     if(!session)
         return kIOReturnNotFound;
     
-    iSCSISessionOptions * options = (iSCSISessionOptions*)args->structureOutput;
+    iSCSIKernelSessionCfg * options = (iSCSIKernelSessionCfg*)args->structureOutput;
     *options = session->opts;
     
     return kIOReturnError;
@@ -635,7 +635,7 @@ IOReturn iSCSIInitiatorClient::SetConnectionOptions(iSCSIInitiatorClient * targe
     if(!connection)
         return kIOReturnNotFound;
     
-    iSCSIConnectionOptions * options = (iSCSIConnectionOptions*)args->structureInput;
+    iSCSIKernelConnectionCfg * options = (iSCSIKernelConnectionCfg*)args->structureInput;
     connection->opts = *options;
     
     // Set the maximum amount of immediate data we can send on this connection
@@ -650,7 +650,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionOptions(iSCSIInitiatorClient * targe
                                                     IOExternalMethodArguments * args)
 {
     // Validate buffer is large enough to hold options
-    if(args->structureOutputSize < sizeof(iSCSIConnectionOptions))
+    if(args->structureOutputSize < sizeof(iSCSIKernelConnectionCfg))
         return kIOReturnMessageTooLarge;
     
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
@@ -673,7 +673,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionOptions(iSCSIInitiatorClient * targe
     if(!connection)
         return kIOReturnNotFound;
 
-    iSCSIConnectionOptions * options = (iSCSIConnectionOptions*)args->structureOutput;
+    iSCSIKernelConnectionCfg * options = (iSCSIKernelConnectionCfg*)args->structureOutput;
     *options = connection->opts;
     
     return kIOReturnSuccess;

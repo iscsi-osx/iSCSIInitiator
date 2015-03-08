@@ -19,16 +19,20 @@
 
 /*! Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionClose to close this session and free resources.
- *  @param portal specifies the portal to use for the new session.
  *  @param target specifies the target and connection parameters to use.
+ *  @param portal specifies the portal to use for the new session.
  *  @param auth specifies the authentication parameters to use.
+ *  @param sessCfg the session configuration parameters to use.
+ *  @param connCfg the connection configuration parameters to use.
  *  @param sessionId the new session identifier.
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSILoginSession(iSCSIPortalRef portal,
-                          iSCSITargetRef target,
+errno_t iSCSILoginSession(iSCSITargetRef target,
+                          iSCSIPortalRef portal,
                           iSCSIAuthRef auth,
+                          iSCSISessionConfigRef sessCfg,
+                          iSCSIConnectionConfigRef connCfg,
                           SID * sessionId,
                           CID * connectionId,
                           enum iSCSILoginStatusCode * statusCode);
@@ -39,17 +43,17 @@ errno_t iSCSILogoutSession(SID sessionId,
                            enum iSCSILogoutStatusCode * statusCode);
 
 /*! Adds a new connection to an iSCSI session.
- *  @param portal specifies the portal to use for the connection.
- *  @param target specifies the target and connection parameters to use.
- *  @param auth specifies the authentication parameters to use.
  *  @param sessionId the new session identifier.
+ *  @param portal specifies the portal to use for the connection.
+ *  @param auth specifies the authentication parameters to use.
+ *  @param connCfg the connection configuration parameters to use.
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSILoginConnection(iSCSIPortalRef portal,
-                             iSCSITargetRef target,
+errno_t iSCSILoginConnection(SID sessionId,
+                             iSCSIPortalRef portal,
                              iSCSIAuthRef auth,
-                             SID sessionId,
+                             iSCSIConnectionConfigRef connCfg,
                              CID * connectionId,
                              enum iSCSILoginStatusCode * statusCode);
 
@@ -81,21 +85,21 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
                                       enum iSCSIAuthMethods * authMethod,
                                       enum iSCSILoginStatusCode * statusCode);
 
-/*! Retreives the initiator session identifier associated with this target.
+/*! Gets the session identifier associated with the specified target.
  *  @param targetName the name of the target.
  *  @param sessionId the session identiifer.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIGetSessionIdForTarget(CFStringRef targetName,
                                    SID * sessionId);
 
-/*! Looks up the connection identifier associated with a particular connection address.
+/*! Gets the connection identifier associated with the specified portal.
  *  @param sessionId the session identifier.
  *  @param portal the portal connected on the specified session.
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIGetConnectionIdFromAddress(SID sessionId,
-                                        iSCSIPortalRef portal,
-                                        CID * connectionId);
+errno_t iSCSIGetConnectionIdForPortal(SID sessionId,
+                                      iSCSIPortalRef portal,
+                                      CID * connectionId);
 
 /*! Gets an array of session identifiers for each session.
  *  @param sessionIds an array of session identifiers.
@@ -114,20 +118,37 @@ errno_t iSCSIGetConnectionIds(SID sessionId,
                               UInt32 * connectionIds,
                               UInt32 * connectionCount);
 
-/*! Gets information about a particular session.
+/*! Gets the target object associated with the specified session.
  *  @param sessionId the session identifier.
- *  @param options the optionts for the specified session.
+ *  @param target the target object.
  *  @return error code indicating result of operation. */
-errno_t iSCSIGetSessionInfo(SID sessionId,iSCSISessionOptions * options);
+errno_t iSCSIGetTargetForSessionId(SID sessionId,iSCSITargetRef * target);
 
-/*! Gets information about a particular session.
+/*! Gets the portal object associated with a particular connection.
  *  @param sessionId the session identifier.
  *  @param connectionId the connection identifier.
- *  @param options the optionts for the specified session.
+ *  @param portal information about the portal.
  *  @return error code indicating result of operation. */
-errno_t iSCSIGetConnectionInfo(SID sessionId,
-                               CID connectionId,
-                               iSCSIConnectionOptions * options);
+errno_t iSCSIGetPortalForConnectionId(SID sessionId,
+                                      CID connectionId,
+                                      iSCSIPortalRef * portal);
+
+/*! Gets configuration associated with a particular connection.
+ *  @param sessionId the qualifier part of the ISID (see RFC3720).
+ *  @param config the configuration to get.  The user of this function is
+ *  responsible for allocating and freeing the configuration struct.
+ *  @return error code indicating result of operation. */
+errno_t iSCSICopySessionConfig(SID sessionId,iSCSISessionConfigRef * config);
+
+/*! Gets configuration associated with a particular connection.
+ *  @param sessionId the qualifier part of the ISID (see RFC3720).
+ *  @param connectionId the connection associated with the session.
+ *  @param config the configurations to get.  The user of this function is
+ *  responsible for allocating and freeing the configuration struct.
+ *  @return error code indicating result of operation. */
+errno_t iSCSICopyConnectionConfig(SID sessionId,
+                                  CID connectionId,
+                                  iSCSIConnectionConfigRef * config);
 
 /*! Sets the name of this initiator.  This is the IQN-format name that is
  *  exchanged with a target during negotiation.
@@ -140,5 +161,6 @@ errno_t iSCSISetInitiatiorName(CFStringRef initiatorName);
  *  @param initiatorAlias the initiator alias.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSISetInitiatorAlias(CFStringRef initiatorAlias);
+
 
 #endif

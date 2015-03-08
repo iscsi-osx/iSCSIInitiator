@@ -32,7 +32,7 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
 {
     // Create a new login request basic header segment
     iSCSIPDULoginReqBHS cmd = iSCSIPDULoginReqBHSInit;
-    cmd.TSIH  = CFSwapInt16HostToBig(context->TSIH);
+    cmd.TSIH  = CFSwapInt16HostToBig(context->targetSessionId);
     cmd.CID   = CFSwapInt32HostToBig(context->connectionId);
     cmd.ISIDd = CFSwapInt16HostToBig(context->sessionId);
     cmd.loginStage  = (context->nextStage << kiSCSIPDULoginNSGBitOffset);

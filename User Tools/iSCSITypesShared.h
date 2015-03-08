@@ -16,6 +16,12 @@ typedef UInt16 SID;
 /*! Connection identifier. */
 typedef UInt32 CID;
 
+/*! Target portal group tag. */
+typedef UInt16 TPGT;
+
+/*! Target session identifier. */
+typedef UInt32 TSIH;
+
 /*! Session qualifier value for an invalid session. */
 static const UInt16 kiSCSIInvalidSessionId = 0xFFFF;
 
@@ -29,7 +35,7 @@ static const UInt16 kiSCSIMaxSessions = 16;
 static const UInt32 kiSCSIMaxConnectionsPerSession = 2;
 
 /*! Struct used to set session-wide options in the kernel. */
-typedef struct iSCSISessionOptions
+typedef struct iSCSIKernelSessionCfg
 {
     /*! Time to retain. */
     UInt16 defaultTime2Retain;
@@ -65,15 +71,15 @@ typedef struct iSCSISessionOptions
     UInt32 firstBurstLength;
     
     /*! Target session identifying handle. */
-    UInt32 TSIH;
+    TSIH targetSessionId;
     
     /*! Target portal group tag. */
-    UInt32 TPGT;
+    TPGT targetPortalGroupTag;
     
-} iSCSISessionOptions;
+} iSCSIKernelSessionCfg;
 
 /*! Struct used to set connection-wide options in the kernel. */
-typedef struct iSCSIConnectionOptions
+typedef struct iSCSIKernelConnectionCfg
 {
     /*! Flag that indicates if this connection uses header digests. */
     bool useHeaderDigest;
@@ -99,7 +105,9 @@ typedef struct iSCSIConnectionOptions
     /*! Maximum data segment length initiator can receive. */
     UInt32 maxRecvDataSegmentLength;
     
-} iSCSIConnectionOptions;
+} iSCSIKernelConnectionCfg;
+
+
 
 
 #endif

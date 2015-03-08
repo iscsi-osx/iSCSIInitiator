@@ -24,7 +24,6 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                            iSCSIAuthRef auth,
                            SID sessionId,
                            CID connectionId,
-                           iSCSISessionOptions * sessionOptions,
                            enum iSCSILoginStatusCode * statusCode);
 
 /*! Authentication function defined in the authentication module
@@ -32,7 +31,6 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
 errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
                              SID sessionId,
                              CID connectionId,
-                             iSCSISessionOptions * sessionOptions,
                              enum iSCSIAuthMethods * authMethod,
                              enum iSCSILoginStatusCode * statusCode);
 

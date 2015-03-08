@@ -119,7 +119,7 @@ CFDataRef iSCSIPortalCreateData(iSCSIPortalRef portal)
 
 
 /*! Creates a new target object from byte representation. */
-iSCSITargetRef iSCSITargetCreateWithData(CFDataRef data)
+iSCSISessionConfigRef iSCSITargetCreateWithData(CFDataRef data)
 {
     CFPropertyListFormat format;
     
@@ -131,21 +131,14 @@ iSCSITargetRef iSCSITargetCreateWithData(CFDataRef data)
     return NULL;
 }
 
-/*! iSCSI portal records are dictionaries with three keys with string values
- *  that specify the address (DNS name or IP address), the port, and the
- *  host interface to use when connecting to the portal. */
+/*! iSCSI target records are dictionaries with keys with string values
+ *  that specify the target name and other parameters. */
 CFStringRef kiSCSITargetNameKey = CFSTR("TargetName");
-CFStringRef kiSCSITargetHeaderDigestKey = CFSTR("HeaderDigest");
-CFStringRef kiSCSITargetDataDigestKey = CFSTR("DataDigest");
 
 /*! Convenience function.  Creates a new iSCSITargetRef with the above keys. */
 iSCSIMutableTargetRef iSCSIMutableTargetCreate()
 {
     iSCSIMutableTargetRef target = CFDictionaryCreateMutable(kCFAllocatorDefault,5,NULL,NULL);
-
-    CFDictionaryAddValue(target,kiSCSITargetHeaderDigestKey,kCFBooleanFalse);
-    CFDictionaryAddValue(target,kiSCSITargetDataDigestKey,kCFBooleanFalse);
-    
     return target;
 }
 
@@ -163,40 +156,6 @@ void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name)
         return;
     
     CFDictionarySetValue(target,kiSCSITargetNameKey,name);
-}
-
-/*! Gets whether a header digest is enabled in the target object. */
-bool iSCSITargetGetHeaderDigest(iSCSITargetRef target)
-{
-    CFBooleanRef headerDigest = CFDictionaryGetValue(target,kiSCSITargetHeaderDigestKey);
-    return CFBooleanGetValue(headerDigest);
-}
-
-/*! Sets whether a header digest is enabled in the target object. */
-void iSCSITargetSetHeaderDigest(iSCSIMutableTargetRef target,bool enable)
-{
-    CFBooleanRef headerDigest = kCFBooleanFalse;
-    if(enable)
-        headerDigest = kCFBooleanTrue;
-    
-    CFDictionarySetValue(target,kiSCSITargetDataDigestKey,headerDigest);
-}
-
-/*! Gets whether a data digest is enabled in the target object. */
-bool iSCSITargetGetDataDigest(iSCSITargetRef target)
-{
-    CFBooleanRef dataDigest = CFDictionaryGetValue(target,kiSCSITargetDataDigestKey);
-    return CFBooleanGetValue(dataDigest);
-}
-
-/*! Sets whether a data digest is enabled in the target object. */
-void iSCSITargetSetDataDigest(iSCSIMutableTargetRef target,bool enable)
-{
-    CFBooleanRef dataDigest = kCFBooleanFalse;
-    if(enable)
-        dataDigest = kCFBooleanTrue;
-    
-    CFDictionarySetValue(target,kiSCSITargetDataDigestKey,dataDigest);
 }
 
 /*! Releases memory associated with iSCSI targets. */
@@ -414,12 +373,11 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
         CFDictionaryAddValue(discoveryRec,targetName,targetDict);
     }
     
-    // If the group tag doesn't exist do nothing
+    // If the group tag doesn't exist add it
     CFMutableArrayRef portalsArray;
     
     if(!CFDictionaryGetValueIfPresent(targetDict,portalGroupTag,(void *)&portalsArray))
     {
-        // Add a new portal group
         portalsArray = CFArrayCreateMutable(kCFAllocatorDefault,
                                             kMaxPortalsPerGroup,
                                             &kCFTypeArrayCallBacks);
@@ -545,3 +503,200 @@ CFDataRef iSCSIDiscoveryRecCreateData(iSCSIMutableDiscoveryRecRef discoveryRec)
     return CFPropertyListCreateData(kCFAllocatorDefault,discoveryRec,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
 
+
+
+
+
+CFStringRef kiSCSISessionConfigErrorRecoveryKey = CFSTR("ErrorRecoveryLevel");
+CFStringRef kiSCSISessionConfigPortalGroupTagKey = CFSTR("TargetPortalGroupTag");
+CFStringRef kiSCSISessionConfigMaxConnectionsKey = CFSTR("MaxConnections");
+
+/*! Convenience function.  Creates a new iSCSISessionConfigRef with the above keys. */
+iSCSIMutableSessionConfigRef iSCSIMutableSessionConfigCreate()
+{
+    iSCSIMutableSessionConfigRef config = CFDictionaryCreateMutable(kCFAllocatorDefault,5,NULL,NULL);
+    iSCSISessionConfigSetErrorRecoveryLevel(config,kiSCSIErrorRecoverySession);
+    iSCSISessionConfigSetMaxConnections(config,0);
+    iSCSISessionConfigSetTargetPortalGroupTag(config,0);
+    return config;
+}
+
+/*! Gets the error recovery level associated with a target (session). */
+enum iSCSIErrorRecoveryLevels iSCSISessionConfigGetErrorRecoveryLevel(iSCSISessionConfigRef target)
+{
+    UInt8 errorRecoveryLevel = 0;
+    CFNumberRef errorRecLevelNum = CFDictionaryGetValue(target,kiSCSISessionConfigErrorRecoveryKey);
+    CFNumberGetValue(errorRecLevelNum,kCFNumberIntType,&errorRecoveryLevel);
+    return (enum iSCSIErrorRecoveryLevels)errorRecoveryLevel;
+}
+
+/*! Sets the desired recovery level associated with a target (session). */
+void iSCSISessionConfigSetErrorRecoveryLevel(iSCSIMutableSessionConfigRef target,
+                                             enum iSCSIErrorRecoveryLevels errorRecoveryLevel)
+{
+    CFNumberRef errorRecoveryLevelNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&errorRecoveryLevel);
+    CFDictionarySetValue(target,kiSCSISessionConfigErrorRecoveryKey,&errorRecoveryLevelNum);
+}
+
+/*! Gets the target portal group tag. */
+TPGT iSCSISessionConfigGetTargetPortalGroupTag(iSCSISessionConfigRef target)
+{
+    TPGT targetPortalGroupTag = 0;
+    CFNumberRef targetPortalGroupTagNum = CFDictionaryGetValue(target,kiSCSISessionConfigPortalGroupTagKey);
+    CFNumberGetValue(targetPortalGroupTagNum,kCFNumberIntType,&targetPortalGroupTag);
+    return (TPGT)targetPortalGroupTag;
+}
+
+/*! Sets the target portal group tag. */
+void iSCSISessionConfigSetTargetPortalGroupTag(iSCSIMutableSessionConfigRef target,
+                                               TPGT targetPortalGroupTag)
+{
+    CFNumberRef targetPortalGroupTagNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&targetPortalGroupTag);
+    CFDictionarySetValue(target,kiSCSISessionConfigPortalGroupTagKey,&targetPortalGroupTagNum);
+}
+
+/*! Gets the maximum number of connections. */
+UInt32 iSCSISessionConfigGetMaxConnections(iSCSISessionConfigRef target)
+{
+    UInt32 maxConnections = 0;
+    CFNumberRef maxConnectionsNum = CFDictionaryGetValue(target,kiSCSISessionConfigMaxConnectionsKey);
+    CFNumberGetValue(maxConnectionsNum,kCFNumberIntType,&maxConnections);
+    return (UInt32)maxConnections;
+}
+
+/*! Sets the maximum number of connections. */
+void iSCSISessionConfigSetMaxConnections(iSCSIMutableSessionConfigRef target,
+                                         UInt32 maxConnections)
+{
+    CFNumberRef maxConnectionsNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&maxConnections);
+    CFDictionarySetValue(target,kiSCSISessionConfigMaxConnectionsKey,&maxConnectionsNum);
+}
+
+/*! Releases memory associated with an iSCSI session configuration object.
+ *  @param config an iSCSI session configuration object. */
+void iSCSISessionConfigRelease(iSCSISessionConfigRef config)
+{
+    CFRelease(config);
+}
+
+/*! Retains memory associated with an iSCSI session configuration object.
+ *  @param config an iSCSI session configuration object. */
+void iSCSISessionConfigRetain(iSCSISessionConfigRef config)
+{
+    CFRetain(config);
+}
+
+/*! Creates a new configuration object object from a dictionary representation.
+ *  @return an iSCSI session configuration object or
+ *  NULL if object creation failed. */
+iSCSISessionConfigRef iSCSISessionConfigCreateWithDictionary(CFDictionaryRef dict)
+{
+    return CFDictionaryCreateCopy(kCFAllocatorDefault,dict);
+}
+
+/*! Copies an configuration object to a dictionary representation.
+ *  @param config an iSCSI configuration object.
+ *  @return a dictionary representation of the configuration object or
+ *  NULL if configuration object is invalid. */
+CFDictionaryRef iSCSISessionConfigCreateDictionary(iSCSISessionConfigRef config)
+{
+    return CFDictionaryCreateCopy(kCFAllocatorDefault,config);
+}
+
+/*! Copies the configuration object to a byte array representation.
+ *  @param config an iSCSI configuration object.
+ *  @return data representing the configuration object
+ *  or NULL if the configuration object is invalid. */
+CFDataRef iSCSISessionConfigCreateData(iSCSISessionConfigRef config)
+{
+    return CFPropertyListCreateData(kCFAllocatorDefault,config,kCFPropertyListBinaryFormat_v1_0,0,NULL);
+}
+
+
+CFStringRef kiSCSIConnectionConfigHeaderDigestKey = CFSTR("HeaderDigest");
+CFStringRef kiSCSIConnectionConfigDataDigestKey = CFSTR("DataDigest");
+
+
+/*! Convenience function.  Creates a new iSCSIConnectionConfigRef with the above keys. */
+iSCSIMutableConnectionConfigRef iSCSIMutableConnectionConfigCreate()
+{
+    iSCSIMutableConnectionConfigRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,NULL,NULL);
+    CFDictionaryAddValue(portal,kiSCSIConnectionConfigHeaderDigestKey,kCFBooleanFalse);
+    CFDictionaryAddValue(portal,kiSCSIConnectionConfigDataDigestKey,kCFBooleanFalse);
+    
+    return portal;
+}
+
+/*! Gets whether a header digest is enabled in the portal object. */
+bool iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef portal)
+{
+    CFBooleanRef headerDigest = CFDictionaryGetValue(portal,kiSCSIConnectionConfigHeaderDigestKey);
+    return CFBooleanGetValue(headerDigest);
+}
+
+/*! Sets whether a header digest is enabled in the portal object. */
+void iSCSIConnectionConfigSetHeaderDigest(iSCSIMutableConnectionConfigRef portal,bool enable)
+{
+    CFBooleanRef headerDigest = kCFBooleanFalse;
+    if(enable)
+        headerDigest = kCFBooleanTrue;
+    
+    CFDictionarySetValue(portal,kiSCSIConnectionConfigDataDigestKey,headerDigest);
+}
+
+/*! Gets whether a data digest is enabled in the portal object. */
+bool iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef portal)
+{
+    CFBooleanRef dataDigest = CFDictionaryGetValue(portal,kiSCSIConnectionConfigDataDigestKey);
+    return CFBooleanGetValue(dataDigest);
+}
+
+/*! Sets whether a data digest is enabled in the portal object. */
+void iSCSIConnectionConfigSetDataDigest(iSCSIMutableConnectionConfigRef portal,bool enable)
+{
+    CFBooleanRef dataDigest = kCFBooleanFalse;
+    if(enable)
+        dataDigest = kCFBooleanTrue;
+    
+    CFDictionarySetValue(portal,kiSCSIConnectionConfigDataDigestKey,dataDigest);
+}
+
+/*! Releases memory associated with an iSCSI connection configuration object.
+ *  @param config an iSCSI connection configuration object. */
+void iSCSIConnectionConfigRelease(iSCSIConnectionConfigRef config)
+{
+    CFRelease(config);
+}
+
+/*! Retains memory associated with an iSCSI connection configuration object.
+ *  @param config an iSCSI connection configuration object. */
+void iSCSIConnectionConfigRetain(iSCSIConnectionConfigRef config)
+{
+    CFRetain(config);
+}
+
+/*! Creates a new configuration object object from a dictionary representation.
+ *  @return an iSCSI connection configuration object or
+ *  NULL if object creation failed. */
+iSCSIConnectionConfigRef iSCSIConnectionConfigCreateWithDictionary(CFDictionaryRef dict)
+{
+    return CFDictionaryCreateCopy(kCFAllocatorDefault,dict);
+}
+
+/*! Copies an configuration object to a dictionary representation.
+ *  @param config an iSCSI configuration object.
+ *  @return a dictionary representation of the configuration object or
+ *  NULL if configuration object is invalid. */
+CFDictionaryRef iSCSIConnectionConfigCreateDictionary(iSCSIConnectionConfigRef config)
+{
+     return CFDictionaryCreateCopy(kCFAllocatorDefault,config);
+}
+
+/*! Copies the configuration object to a byte array representation.
+ *  @param config an iSCSI configuration object.
+ *  @return data representing the configuration object
+ *  or NULL if the configuration object is invalid. */
+CFDataRef iSCSIConnectionConfigCreateData(iSCSIConnectionConfigRef config)
+{
+    return CFPropertyListCreateData(kCFAllocatorDefault,config,kCFPropertyListBinaryFormat_v1_0,0,NULL);
+}

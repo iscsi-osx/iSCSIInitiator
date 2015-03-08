@@ -163,11 +163,10 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
                                iSCSIAuthRef auth,
                                SID sessionId,
                                CID connectionId,
-                               iSCSISessionOptions * sessionOptions,
+                               TSIH targetSessionId,
                                enum iSCSILoginStatusCode * statusCode)
 {
-    if(!target || !sessionOptions || sessionId == kiSCSIInvalidConnectionId ||
-       connectionId == kiSCSIInvalidConnectionId)
+    if(!target || !auth || sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
         return EINVAL;
     
     // Setup dictionary CHAP authentication information
@@ -194,11 +193,11 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
 
     
     struct iSCSILoginQueryContext context;
-    context.sessionId    = sessionId;
-    context.connectionId = connectionId;
-    context.TSIH         = sessionOptions->TSIH;
-    context.nextStage    = kiSCSIPDUSecurityNegotiation;
-    context.currentStage = kiSCSIPDUSecurityNegotiation;
+    context.sessionId       = sessionId;
+    context.connectionId    = connectionId;
+    context.targetSessionId = targetSessionId;
+    context.nextStage       = kiSCSIPDUSecurityNegotiation;
+    context.currentStage    = kiSCSIPDUSecurityNegotiation;
     
     enum iSCSIRejectCode rejectCode;
 
@@ -320,12 +319,9 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                            iSCSIAuthRef auth,
                            SID sessionId,
                            CID connectionId,
-                           iSCSISessionOptions * sessionOptions,
                            enum iSCSILoginStatusCode * statusCode)
 {
-    if(!target || !auth || !sessionOptions ||
-       sessionId    == kiSCSIInvalidConnectionId ||
-       connectionId == kiSCSIInvalidConnectionId)
+    if(!target || !auth || sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
         return EINVAL;
 
     // Setup dictionary with target and initiator info for authentication
@@ -345,7 +341,11 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     context.connectionId = connectionId;
     context.currentStage = kiSCSIPDUSecurityNegotiation;
     context.nextStage    = kiSCSIPDUSecurityNegotiation;
-    context.TSIH         = sessionOptions->TSIH;
+    
+    // Retrieve the TSIH from the kernel
+    iSCSIKernelSessionCfg sessCfgKernel;
+    iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel);
+    context.targetSessionId = sessCfgKernel.targetSessionId;
     
     enum iSCSIRejectCode rejectCode;
     
@@ -386,11 +386,15 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     CFStringRef TPGT = (CFStringRef)CFDictionaryGetValue(authRsp,kiSCSILKTargetPortalGroupTag);
     
     // If this is leading login (TSIH = 0 for leading login), store TPGT
-    if(sessionOptions->TSIH == 0)
-        sessionOptions->TPGT = CFStringGetIntValue(TPGT);
+    if(sessCfgKernel.targetSessionId == 0) {
+        sessCfgKernel.targetPortalGroupTag = CFStringGetIntValue(TPGT);
+        
+        // Save the configuration since we've updated the TSIH
+        iSCSIKernelSetSessionConfig(sessionId,&sessCfgKernel);
+    }
     // Otherwise compare TPGT...
     else {
-        if(sessionOptions->TPGT != CFStringGetIntValue(TPGT))
+        if(sessCfgKernel.targetPortalGroupTag != CFStringGetIntValue(TPGT))
             goto ERROR_AUTHENTICATION;
     }
     
@@ -402,7 +406,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                                        auth,
                                        sessionId,
                                        connectionId,
-                                       sessionOptions,
+                                       sessCfgKernel.targetSessionId,
                                        statusCode);
         
         if(error)
@@ -434,12 +438,10 @@ ERROR_GENERIC:
 errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
                              SID sessionId,
                              CID connectionId,
-                             iSCSISessionOptions * sessionOptions,
                              enum iSCSIAuthMethods * authMethod,
                              enum iSCSILoginStatusCode * statusCode)
 {
-    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId ||
-       !target || !sessionOptions || !authMethod)
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !target || !authMethod)
         return EINVAL;
     
     *authMethod = kiSCSIAuthMethodInvalid;
@@ -467,7 +469,7 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
     context.connectionId = connectionId;
     context.currentStage = kiSCSIPDUSecurityNegotiation;
     context.nextStage    = kiSCSIPDUSecurityNegotiation;
-    context.TSIH         = sessionOptions->TSIH;
+    context.targetSessionId = 0;
     
     enum iSCSIRejectCode rejectCode;
     

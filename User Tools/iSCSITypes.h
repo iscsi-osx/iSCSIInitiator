@@ -25,6 +25,29 @@ typedef CFMutableDictionaryRef iSCSIMutableAuthRef;
 typedef CFDictionaryRef iSCSIDiscoveryRecRef;
 typedef CFMutableDictionaryRef iSCSIMutableDiscoveryRecRef;
 
+typedef CFDictionaryRef iSCSISessionConfigRef;
+typedef CFMutableDictionaryRef iSCSIMutableSessionConfigRef;
+
+typedef CFDictionaryRef iSCSIConnectionConfigRef;
+typedef CFMutableDictionaryRef iSCSIMutableConnectionConfigRef;
+
+
+/*! Error recovery levels. */
+enum iSCSIErrorRecoveryLevels {
+    
+    /*! Recovery of a session. */
+    kiSCSIErrorRecoverySession = 0,
+    
+    /*! Recovery of a digest. */
+    kiSCSIErrorRecoveryDigest = 1,
+    
+    /*! Recovery of a connection. */
+    kiSCSIErrorRecoveryConnection = 2,
+    
+    /*! Invalid error recovery level. */
+    kiSCSIErrorRecoveryInvalid
+};
+
 /*! Valid iSCSI authentication methods. */
 enum iSCSIAuthMethods {
     
@@ -162,26 +185,6 @@ CFStringRef iSCSITargetGetName(iSCSITargetRef target);
  *  @param target the target object.
  *  @param name the name to set. */
 void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name);
-
-/*! Gets whether a header digest is enabled in the target object.
- *  @param target the iSCSI target object.
- *  @return true if header digest is enabled, false otherwise. */
-bool iSCSITargetGetHeaderDigest(iSCSITargetRef target);
-
-/*! Sets whether a header digest is enabled in the target object.
-  * @param target the iSCSI target object. 
-  * @param enable true to enable header digest. */
-void iSCSITargetSetHeaderDigest(iSCSIMutableTargetRef target,bool enable);
-
-/*! Gets whether a data digest is enabled in the target object.
- *  @param target the iSCSI target object.
- *  @return true if data digest is enabled, false otherwise. */
-bool iSCSITargetGetDataDigest(iSCSITargetRef target);
-
-/*! Sets whether a data digest is enabled in the target object.
-  * @param target the iSCSI target object. 
-  * @param enable true to enable data digest. */
-void iSCSITargetSetDataDigest(iSCSIMutableTargetRef target,bool enable);
 
 /*! Releases memory associated with an iSCSI target object.
  * @param target the iSCSI target object. */
@@ -351,6 +354,120 @@ CFDictionaryRef iSCSIDiscoveryRecCreateDictionary(iSCSIMutableDiscoveryRecRef di
  *  @return data representing the discovery record object
  *  or NULL if the discovery record object is invalid. */
 CFDataRef iSCSIDiscoveryRecCreateData(iSCSIMutableDiscoveryRecRef discoveryRec);
+
+
+
+
+/*! Creates a new session config object from an external data representation.
+ *  @param data data used to construct an iSCSI session config object.
+ *  @return an iSCSI session configuration object
+ *  or NULL if object creation failed */
+iSCSISessionConfigRef iSCSISessionConfigCreateWithData(CFDataRef data);
+
+/*! Creates a new iSCSISessionConfigRef with default values. */
+iSCSIMutableSessionConfigRef iSCSIMutableSessionConfigCreate();
+
+/*! Gets the error recovery level associated with a  session. */
+enum iSCSIErrorRecoveryLevels iSCSISessionConfigGetErrorRecoveryLevel(iSCSISessionConfigRef config);
+
+/*! Sets the desired recovery level associated with a session. */
+void iSCSISessionConfigSetErrorRecoveryLevel(iSCSIMutableSessionConfigRef config,
+                                             enum iSCSIErrorRecoveryLevels errorRecoveryLevel);
+
+/*! Gets the target portal group tag for the session. */
+TPGT iSCSISessionConfigGetTargetPortalGroupTag(iSCSISessionConfigRef config);
+
+/*! Sets the target portal group tag for the session. */
+void iSCSISessionConfigSetTargetPortalGroupTag(iSCSIMutableSessionConfigRef config,
+                                               TPGT targetPortalGroupTag);
+
+/*! Gets the maximum number of connections. */
+UInt32 iSCSISessionConfigGetMaxConnections(iSCSISessionConfigRef config);
+
+/*! Sets the maximum number of connections. */
+void iSCSISessionConfigSetMaxConnections(iSCSIMutableSessionConfigRef config,
+                                         UInt32 maxConnections);
+
+/*! Releases memory associated with an iSCSI session configuration object.
+ *  @param config an iSCSI session configuration object. */
+void iSCSISessionConfigRelease(iSCSISessionConfigRef config);
+
+/*! Retains memory associated with an iSCSI session configuration object.
+ *  @param config an iSCSI session configuration object. */
+void iSCSISessionConfigRetain(iSCSISessionConfigRef config);
+
+/*! Creates a new configuration object object from a dictionary representation.
+ *  @return an iSCSI session configuration object or
+ *  NULL if object creation failed. */
+iSCSISessionConfigRef iSCSISessionConfigCreateWithDictionary(CFDictionaryRef dict);
+
+/*! Copies an configuration object to a dictionary representation.
+ *  @param config an iSCSI configuration object.
+ *  @return a dictionary representation of the configuration object or
+ *  NULL if configuration object is invalid. */
+CFDictionaryRef iSCSISessionConfigCreateDictionary(iSCSISessionConfigRef config);
+
+/*! Copies the configuration object to a byte array representation.
+ *  @param config an iSCSI configuration object.
+ *  @return data representing the configuration object
+ *  or NULL if the configuration object is invalid. */
+CFDataRef iSCSISessionConfigCreateData(iSCSISessionConfigRef config);
+
+
+
+/*! Creates a new connection config object from an external data representation.
+ *  @param data data used to construct an iSCSI connection config object.
+ *  @return an iSCSI connection configuration object
+ *  or NULL if object creation failed */
+iSCSIConnectionConfigRef iSCSIConnectionConfigCreateWithData(CFDataRef data);
+
+/*! Creates a new iSCSIConnectionConfigRef with default values. */
+iSCSIMutableConnectionConfigRef iSCSIMutableConnectionConfigCreate();
+
+/*! Gets whether a header digest is enabled in the config object.
+ *  @param config the iSCSI config object.
+ *  @return true if header digest is enabled, false otherwise. */
+bool iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config);
+
+/*! Sets whether a header digest is enabled in the config object.
+ * @param config the iSCSI config object.
+ * @param enable true to enable header digest. */
+void iSCSIConnectionConfigSetHeaderDigest(iSCSIMutablePortalRef config,bool enable);
+
+/*! Gets whether a data digest is enabled in the config object.
+ *  @param config the iSCSI config object.
+ *  @return true if data digest is enabled, false otherwise. */
+bool iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config);
+
+/*! Sets whether a data digest is enabled in the config object.
+ *  @param config the iSCSI config object.
+ *  @param enable true to enable data digest. */
+void iSCSIConnectionConfigSetDataDigest(iSCSIMutablePortalRef config,bool enable);
+
+/*! Releases memory associated with an iSCSI connection configuration object.
+ *  @param config an iSCSI connection configuration object. */
+void iSCSIConnectionConfigRelease(iSCSIConnectionConfigRef config);
+
+/*! Retains memory associated with an iSCSI connection configuration object.
+ *  @param config an iSCSI connection configuration object. */
+void iSCSIConnectionConfigRetain(iSCSIConnectionConfigRef config);
+
+/*! Creates a new configuration object object from a dictionary representation.
+ *  @return an iSCSI connection configuration object or
+ *  NULL if object creation failed. */
+iSCSIConnectionConfigRef iSCSIConnectionConfigCreateWithDictionary(CFDictionaryRef dict);
+
+/*! Copies an configuration object to a dictionary representation.
+ *  @param config an iSCSI configuration object.
+ *  @return a dictionary representation of the configuration object or
+ *  NULL if configuration object is invalid. */
+CFDictionaryRef iSCSIConnectionConfigCreateDictionary(iSCSIConnectionConfigRef config);
+
+/*! Copies the configuration object to a byte array representation.
+ *  @param config an iSCSI configuration object.
+ *  @return data representing the configuration object
+ *  or NULL if the configuration object is invalid. */
+CFDataRef iSCSIConnectionConfigCreateData(iSCSIConnectionConfigRef config);
 
 
 

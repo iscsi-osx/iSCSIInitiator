@@ -10,6 +10,7 @@
 #ifndef __ISCSI_DA_H__
 #define __ISCSI_DA_H__
 
+#include <CoreFoundation/CoreFoundation.h>
 #include <DiskArbitration/DiskArbitration.h>
 #include "iSCSITypesShared.h"
 

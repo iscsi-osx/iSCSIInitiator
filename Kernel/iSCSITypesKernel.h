@@ -50,7 +50,7 @@ typedef struct iSCSIConnection {
     iSCSIIOEventSource * dataRecvEventSource;
     
     /*! Options associated with this connection. */
-    iSCSIConnectionOptions opts;
+    iSCSIKernelConnectionCfg opts;
     
     /*! Amount of data, in bytes, that this connection has been requested
      *  to transfer.  This is used for bitrate-based load balancing. */
@@ -109,11 +109,10 @@ typedef struct iSCSISession {
     iSCSIConnection * * connections;
     
     /*! Options associated with this session. */
-    iSCSISessionOptions opts;
+    iSCSIKernelSessionCfg opts;
     
     /*! Number of active connections. */
     UInt32 numActiveConnections;
-    
     
     //////// CONSIDER REMOVING THIS BELOW.....
     /*! Total number of connections (either active or inactive). */

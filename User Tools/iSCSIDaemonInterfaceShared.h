@@ -290,7 +290,7 @@ typedef struct iSCSIDRspGetSessionIdForTarget {
 
 
 /*! Command to get connection identifier for a session (using address). */
-typedef struct iSCSIDCmdGetConnectionIdForAddress {
+typedef struct iSCSIDCmdGetConnectionIdForPortal {
     
     const UInt16 funcCode;
     UInt16  reserved;
@@ -299,13 +299,13 @@ typedef struct iSCSIDCmdGetConnectionIdForAddress {
     UInt32  portalLength;
     UInt32  reserved3;
     UInt32  reserved4;
-} __attribute__((packed)) iSCSIDCmdGetConnectionIdForAddress;
+} __attribute__((packed)) iSCSIDCmdGetConnectionIdForPortal;
 
 /*! Default initialization for command to get connection ID for a session. */
-extern const iSCSIDCmdGetConnectionIdForAddress iSCSIDCmdGetConnectionIdForAddressInit;
+extern const iSCSIDCmdGetConnectionIdForPortal iSCSIDCmdGetConnectionIdForPortalInit;
 
 /*! Response to get connection identifier for a session (using address). */
-typedef struct iSCSIDRspGetConnectionIdForAddress {
+typedef struct iSCSIDRspGetConnectionIdForPortal {
     
     const UInt8 funcCode;
     UInt16 reserved;
@@ -316,7 +316,7 @@ typedef struct iSCSIDRspGetConnectionIdForAddress {
     UInt32 reserved4;
     UInt32 reserved5;
 
-} __attribute__((packed)) iSCSIDRspGetConnectionIdForAddress;
+} __attribute__((packed)) iSCSIDRspGetConnectionIdForPortal;
 
 /*! Command to get all session identifiers. */
 typedef struct iSCSIDCmdGetSessionIds {
@@ -385,7 +385,7 @@ typedef struct iSCSIDRspGetConnectionIds {
 
 
 /*! Command to get information about a session. */
-typedef struct iSCSIDCmdGetSessionInfo {
+typedef struct iSCSIDCmdGetSessionConfig {
     
     const UInt16 funcCode;
     UInt16  reserved;
@@ -395,13 +395,13 @@ typedef struct iSCSIDCmdGetSessionInfo {
     UInt32  reserved4;
     UInt32  reserved5;
     
-} __attribute__((packed)) iSCSIDCmdGetSessionInfo;
+} __attribute__((packed)) iSCSIDCmdGetSessionConfig;
 
 /*! Default initialization for a get session information command. */
-extern const iSCSIDCmdGetSessionInfo iSCSIDCmdGetSessionInfoInit;
+extern const iSCSIDCmdGetSessionConfig iSCSIDCmdGetSessionConfigInit;
 
 /*! Response to command to get information about a session. */
-typedef struct iSCSIDRspGetSessionInfo {
+typedef struct iSCSIDRspGetSessionConfig {
     
     const UInt8 funcCode;
     UInt16 reserved;
@@ -412,12 +412,12 @@ typedef struct iSCSIDRspGetSessionInfo {
     UInt32 dataLength;
     UInt32 reserved5;
     
-} __attribute__((packed)) iSCSIDRspGetSessionInfo;
+} __attribute__((packed)) iSCSIDRspGetSessionConfig;
 
 
 
 /*! Command to get information about a connection. */
-typedef struct iSCSIDCmdGetConnectionInfo {
+typedef struct iSCSIDCmdGetConnectionConfig {
     
     const UInt16 funcCode;
     UInt16  reserved;
@@ -427,13 +427,13 @@ typedef struct iSCSIDCmdGetConnectionInfo {
     UInt32  reserved3;
     UInt32  reserved4;
     
-} __attribute__((packed)) iSCSIDCmdGetConnectionInfo;
+} __attribute__((packed)) iSCSIDCmdGetConnectionConfig;
 
 /*! Default initialization for a get connection information command. */
-extern const iSCSIDCmdGetConnectionInfo iSCSIDCmdGetConnectionInfoInit;
+extern const iSCSIDCmdGetConnectionConfig iSCSIDCmdGetConnectionConfigInit;
 
 /*! Response to command to get information about a connection. */
-typedef struct iSCSIDRspGetConnectionInfo {
+typedef struct iSCSIDRspGetConnectionConfig {
     
     const UInt8 funcCode;
     UInt16 reserved;
@@ -444,7 +444,7 @@ typedef struct iSCSIDRspGetConnectionInfo {
     UInt32 dataLength;
     UInt32 reserved5;
 
-} __attribute__((packed)) iSCSIDRspGetConnectionInfo;
+} __attribute__((packed)) iSCSIDRspGetConnectionConfig;
 
 
 ////////////////////////////// DAEMON FUNCTIONS ////////////////////////////////
@@ -458,11 +458,11 @@ enum iSCSIDFunctionCodes {
     kiSCSIDQueryPortalForTargets = 4,
     kiSCSIDQueryTargetForAuthMethod = 5,
     kiSCSIDGetSessionIdForTarget = 6,
-    kiSCSIDGetConnectionIdForAddress = 7,
+    kiSCSIDGetConnectionIdForPortal = 7,
     kiSCSIDGetSessionIds = 8,
     kiSCSIDGetConnectionIds = 9,
-    kiSCSIDGetSessionInfo = 10,
-    kiSCSIDGetConnectionInfo = 11,
+    kiSCSIDGetSessionConfig = 10,
+    kiSCSIDGetConnectionConfig = 11,
     kiSCSIDSetInitiatorName = 12,
     kiSCSIDSetInitiatorAlias = 13
 };

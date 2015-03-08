@@ -230,8 +230,6 @@ errno_t iSCSICtlAddSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
     
     iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
     iSCSITargetSetName(target,CFDictionaryGetValue(options,&kOptTarget));
-    iSCSITargetSetDataDigest(target,false);
-    iSCSITargetSetHeaderDigest(target,false);
 
     iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
     CFArrayRef portalParts = CreateArrayBySeparatingPortalParts(portalAddress);
@@ -244,6 +242,9 @@ errno_t iSCSICtlAddSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
     
     iSCSIPortalSetAddress(portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,0));
     iSCSIPortalSetPort(portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,1));
+//    iSCSIPortalSetDataDigest(portal,false);
+//    iSCSIPortalSetHeaderDigest(portal,false);
+
 
     CFShow((CFStringRef)CFArrayGetValueAtIndex(portalParts,0));
     CFShow((CFStringRef)CFArrayGetValueAtIndex(portalParts,1));

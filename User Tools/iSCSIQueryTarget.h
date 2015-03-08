@@ -17,7 +17,7 @@
 struct iSCSILoginQueryContext {
     SID sessionId;
     CID connectionId;
-    UInt32 TSIH;
+    TSIH targetSessionId;
     enum iSCSIPDULoginStages currentStage;
     enum iSCSIPDULoginStages nextStage;
 };

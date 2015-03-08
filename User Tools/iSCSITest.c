@@ -1,3 +1,4 @@
+
 //
 //  main.c
 //  iSCSITest
@@ -25,13 +26,32 @@
 
 #include <stdio.h>
 #include <IOKit/IOKitLib.h>
+#include "iSCSIPropertyList.h"
 
 
 
 
 int main(int argc, const char * argv[]) {
 
+   iSCSIPLSetInitiatorName(CFSTR("iqn.test.com"));
     
+
+    
+    CFStringRef blah = iSCSIPLCopyInitiatorName();
+    
+    CFShow(blah);
+    
+    iSCSIPLSetInitiatorAlias(CFSTR("SOME ALIAS"));
+    CFShow(iSCSIPLCopyInitiatorAlias());
+    
+
+    iSCSIPLSynchronize();
+    
+
+    
+int c = 100;
+
+/*
     // Iterate over sessions
     for(SID sessionId = 0; sessionId < kiSCSIMaxSessions; sessionId++)
     {
@@ -39,7 +59,7 @@ int main(int argc, const char * argv[]) {
         {
             CFShow(")
         }
-    }
+    }*/
 
 //    CFArrayRef BSDNames = iSCSIDACreateBSDDiskNamesForSession(0);
 //    CFShow(CFArrayGetValueAtIndex(BSDNames,0));
@@ -89,7 +109,7 @@ int main(int argc, const char * argv[]) {
    */
     
     
-    /*
+    
     
     if(iSCSIKernelInitialize() == kIOReturnSuccess)
         printf("Connected");
@@ -105,8 +125,17 @@ int main(int argc, const char * argv[]) {
     iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
     iSCSIPortalSetPort(portal,CFSTR("3260"));
     iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
-  
-*/
+    
+    iSCSIPLSetPortal(CFSTR("iqn.test.blah.com"),portal);
+    
+    iSCSIPortalRef portal2 = iSCSIPLCopyPortal(CFSTR("iqn.test.blah.com"),CFSTR("192.168.1.115"));
+    
+    iSCSIPLSynchronize();
+
+
+  //  iSCSIAuthRef auth = iSCSIAuthCreateNone();
+  //  iSCSIDBSetAuthentication(CFSTR("test2"),CFSTR("192.168.1.115"),auth);
+
  /*
     CFArrayRef targets;
     enum iSCSILoginStatusCode statusCode;
@@ -130,14 +159,14 @@ int main(int argc, const char * argv[]) {
     CID connectionId = 100;
     iSCSIGetConnectionIdFromAddress(0,portal,&connectionId);
     int c = 100;
-  
   */
-    /*********
+ 
+/*
     iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
     iSCSITargetSetName(target,CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi58"));
 
-    iSCSITargetSetHeaderDigest(target,false);
-    iSCSITargetSetDataDigest(target,false);
+ //   iSCSITargetSetHeaderDigest(target,false);
+//    iSCSITargetSetDataDigest(target,false);
     
     iSCSIAuthRef auth = iSCSIAuthCreateNone();
 
@@ -149,6 +178,7 @@ int main(int argc, const char * argv[]) {
 
     enum iSCSILoginStatusCode statusCode;
     iSCSILoginSession(portal,target,auth,&sessionId,&connectionId,&statusCode);
+    iSCSILoginSession(target,portal,auth,
     
     */
  /*

@@ -42,8 +42,8 @@ const struct iSCSIDCmdGetSessionIdForTarget iSCSIDCmdGetSessionIdForTargetInit  
     .funcCode = kiSCSIDGetSessionIdForTarget,
 };
 
-const struct iSCSIDCmdGetConnectionIdForAddress iSCSIDCmdGetConnectionIdForAddressInit  = {
-    .funcCode = kiSCSIDGetConnectionIdForAddress,
+const struct iSCSIDCmdGetConnectionIdForPortal iSCSIDCmdGetConnectionIdForPortalInit  = {
+    .funcCode = kiSCSIDGetConnectionIdForPortal,
 };
 
 const struct iSCSIDCmdGetSessionIds iSCSIDCmdGetSessionIdsInit  = {
@@ -54,13 +54,13 @@ const struct iSCSIDCmdGetConnectionIds iSCSIDCmdGetConnectionIdsInit  = {
     .funcCode = kiSCSIDGetConnectionIds,
 };
 
-const struct iSCSIDCmdGetSessionInfo iSCSIDCmdGetSessionInfoInit  = {
-    .funcCode = kiSCSIDGetSessionInfo,
+const struct iSCSIDCmdGetSessionConfig iSCSIDCmdGetSessionConfigInit  = {
+    .funcCode = kiSCSIDGetSessionConfig,
     .sessionId = kiSCSIInvalidSessionId
 };
 
-const struct iSCSIDCmdGetConnectionInfo iSCSIDCmdGetConnectionInfoInit  = {
-    .funcCode = kiSCSIDGetConnectionInfo,
+const struct iSCSIDCmdGetConnectionConfig iSCSIDCmdGetConnectionConfigInit  = {
+    .funcCode = kiSCSIDGetConnectionConfig,
     .sessionId = kiSCSIInvalidSessionId,
     .connectionId = kiSCSIInvalidConnectionId
 };
@@ -167,7 +167,7 @@ errno_t iSCSIDaemonLoginSession(iSCSIDaemonHandle handle,
     *statusCode = rsp.statusCode;
     *sessionId  = rsp.sessionId;
     
-    return 0;
+    return rsp.errorCode;
 }
 
 /*! Closes the iSCSI connection and frees the session qualifier.
@@ -409,7 +409,7 @@ errno_t iSCSIDaemonGetConnectionIdFromAddress(iSCSIDaemonHandle handle,
     iSCSIPortalRelease(portal);
     
     // Create command header to transmit
-    iSCSIDCmdGetConnectionIdForAddress cmd = iSCSIDCmdGetConnectionIdForAddressInit;
+    iSCSIDCmdGetConnectionIdForPortal cmd = iSCSIDCmdGetConnectionIdForPortalInit;
     cmd.sessionId = sessionId;
     cmd.portalLength = (UInt32)CFDataGetLength(portalData);
     
@@ -420,7 +420,7 @@ errno_t iSCSIDaemonGetConnectionIdFromAddress(iSCSIDaemonHandle handle,
     }
     
     CFRelease(portalData);
-    iSCSIDRspGetConnectionIdForAddress rsp;
+    iSCSIDRspGetConnectionIdForPortal rsp;
     
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EAGAIN;
@@ -509,32 +509,32 @@ errno_t iSCSIDaemonGetConnectionIds(iSCSIDaemonHandle handle,
  *  @param sessionId the session identifier.
  *  @param options the optionts for the specified session.
  *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetSessionInfo(iSCSIDaemonHandle handle,
+errno_t iSCSIDaemonGetSessionConfig(iSCSIDaemonHandle handle,
                                   SID sessionId,
-                                  iSCSISessionOptions * options)
+                                  iSCSIKernelSessionCfg * options)
 {
     // Validate inputs
     if(handle < 0 || sessionId == kiSCSIInvalidSessionId || !options)
         return EINVAL;
     
     // Send command to daemon
-    iSCSIDCmdGetSessionInfo cmd = iSCSIDCmdGetSessionInfoInit;
+    iSCSIDCmdGetSessionConfig cmd = iSCSIDCmdGetSessionConfigInit;
     cmd.sessionId = sessionId;
     
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
         return EAGAIN;
     
     // Receive daemon response header
-    iSCSIDRspGetSessionInfo rsp;
+    iSCSIDRspGetSessionConfig rsp;
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EAGAIN;
     
     // We expect the data payload that follows the header to be an struct
-    if(rsp.dataLength != sizeof(iSCSISessionOptions))
+    if(rsp.dataLength != sizeof(iSCSIKernelSessionCfg))
         return rsp.errorCode;
     
     // Get the session information struct
-    if(recv(handle,options,sizeof(iSCSISessionOptions),0) != sizeof(iSCSISessionOptions))
+    if(recv(handle,options,sizeof(iSCSIKernelSessionCfg),0) != sizeof(iSCSIKernelSessionCfg))
         return EAGAIN;
     
     return rsp.errorCode;
@@ -547,17 +547,17 @@ errno_t iSCSIDaemonGetSessionInfo(iSCSIDaemonHandle handle,
  *  @param connectionId the connection identifier.
  *  @param options the optionts for the specified session.
  *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionInfo(iSCSIDaemonHandle handle,
+errno_t iSCSIDaemonGetConnectionConfig(iSCSIDaemonHandle handle,
                                      SID sessionId,
                                      CID connectionId,
-                                     iSCSIConnectionOptions * options)
+                                     iSCSIKernelConnectionCfg * options)
 {
     // Validate inputs
     if(handle < 0 || sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !options)
         return EINVAL;
     
     // Send command to daemon
-    iSCSIDCmdGetConnectionInfo cmd = iSCSIDCmdGetConnectionInfoInit;
+    iSCSIDCmdGetConnectionConfig cmd = iSCSIDCmdGetConnectionConfigInit;
     cmd.sessionId = sessionId;
     cmd.connectionId = connectionId;
     
@@ -565,16 +565,16 @@ errno_t iSCSIDaemonGetConnectionInfo(iSCSIDaemonHandle handle,
         return EAGAIN;
     
     // Receive daemon response header
-    iSCSIDRspGetSessionInfo rsp;
+    iSCSIDRspGetSessionConfig rsp;
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EAGAIN;
     
     // We expect the data payload that follows the header to be an struct
-    if(rsp.dataLength != sizeof(iSCSIConnectionOptions))
+    if(rsp.dataLength != sizeof(iSCSIKernelConnectionCfg))
         return rsp.errorCode;
     
     // Get the session information struct
-    if(recv(handle,options,sizeof(iSCSIConnectionOptions),0) != sizeof(iSCSIConnectionOptions))
+    if(recv(handle,options,sizeof(iSCSIKernelConnectionCfg),0) != sizeof(iSCSIKernelConnectionCfg))
         return EAGAIN;
     
     return rsp.errorCode;

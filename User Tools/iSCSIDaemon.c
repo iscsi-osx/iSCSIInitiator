@@ -101,8 +101,8 @@ const struct iSCSIDRspGetSessionIdForTarget iSCSIDRspGetSessionIdForTargetInit =
     .sessionId = kiSCSIInvalidSessionId
 };
 
-const struct iSCSIDRspGetConnectionIdForAddress iSCSIDRspGetConnectionIdForAddressInit = {
-    .funcCode = kiSCSIDGetConnectionIdForAddress,
+const struct iSCSIDRspGetConnectionIdForPortal iSCSIDRspGetConnectionIdForPortalInit = {
+    .funcCode = kiSCSIDGetConnectionIdForPortal,
     .errorCode = 0,
     .connectionId = kiSCSIInvalidConnectionId
 };
@@ -119,15 +119,15 @@ const struct iSCSIDRspGetConnectionIds iSCSIDRspGetConnectionIdsInit = {
     .connectionCount = 0
 };
 
-const struct iSCSIDRspGetSessionInfo iSCSIDRspGetSessionInfoInit = {
-    .funcCode = kiSCSIDGetSessionInfo,
+const struct iSCSIDRspGetSessionConfig iSCSIDRspGetSessionConfigInit = {
+    .funcCode = kiSCSIDGetSessionConfig,
     .errorCode = 0,
     .dataLength = 0
 };
 
 
-const struct iSCSIDRspGetConnectionInfo iSCSIDRspGetConnectionInfoInit = {
-    .funcCode = kiSCSIDGetConnectionInfo,
+const struct iSCSIDRspGetConnectionConfig iSCSIDRspGetConnectionConfigInit = {
+    .funcCode = kiSCSIDGetConnectionConfig,
     .errorCode = 0,
     .dataLength = 0
 };
@@ -137,7 +137,6 @@ const struct iSCSIDRspGetConnectionInfo iSCSIDRspGetConnectionInfoInit = {
  *  appropriate type. */
 void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)(CFDataRef))
 {
-                    fprintf(stderr,"Check 1.\n");
     // Receive iSCSI object data from stream socket
     UInt8 * bytes = (UInt8 *) malloc(length);
     if(!bytes || (recv(fd,bytes,length,0) != length))
@@ -145,7 +144,7 @@ void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)
         free(bytes);
         return NULL;
     }
-                    fprintf(stderr,"Check 2.\n");
+    
     // Build a CFData wrapper around the data
     CFDataRef data = NULL;
     
@@ -154,7 +153,7 @@ void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)
         free(bytes);
         return NULL;
     }
-                        fprintf(stderr,"Check 3.\n");
+
     // Create an iSCSI object from the data
     void * object = objectCreator(data);
     
@@ -180,7 +179,9 @@ errno_t iSCSIDLoginSession(int fd,struct iSCSIDCmdLoginSession * cmd)
     enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
     
     // Login the session
-    errno_t error = iSCSILoginSession(portal,target,auth,&sessionId,&connectionId,&statusCode);
+    iSCSISessionConfigRef sessCfg = iSCSIMutableSessionConfigCreate();
+    iSCSIConnectionConfigRef connCfg = iSCSIMutableConnectionConfigCreate();
+    errno_t error = iSCSILoginSession(target,portal,auth,sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
     
     iSCSIPortalRelease(portal);
     iSCSITargetRelease(target);
@@ -347,17 +348,17 @@ errno_t iSCSIDGetSessionIdForTarget(int fd,struct iSCSIDCmdGetSessionIdForTarget
     return 0;
 }
 
-errno_t iSCSIDGetConnectionIdForAddress(int fd,struct iSCSIDCmdGetConnectionIdForAddress * cmd)
+errno_t iSCSIDGetConnectionIdForPortal(int fd,struct iSCSIDCmdGetConnectionIdForPortal * cmd)
 {
     // Grab objects from stream
     iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
                                 (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
 
     CID connectionId;
-    errno_t error = iSCSIGetConnectionIdFromAddress(cmd->sessionId,iSCSIPortalGetAddress(portal),&connectionId);
+    errno_t error = iSCSIGetConnectionIdForPortal(cmd->sessionId,iSCSIPortalGetAddress(portal),&connectionId);
 
     // Compose a response to send back to the client
-    struct iSCSIDRspGetConnectionIdForAddress rsp = iSCSIDRspGetConnectionIdForAddressInit;
+    struct iSCSIDRspGetConnectionIdForPortal rsp = iSCSIDRspGetConnectionIdForPortalInit;
     rsp.errorCode = error;
     rsp.connectionId = connectionId;
     
@@ -407,41 +408,63 @@ errno_t iSCSIDGetConnectionIds(int fd,struct iSCSIDCmdGetConnectionIds * cmd)
     return 0;
 }
 
-errno_t iSCSIDGetSessionInfo(int fd,struct iSCSIDCmdGetSessionInfo * cmd)
+errno_t iSCSIDGetSessionConfig(int fd,struct iSCSIDCmdGetSessionConfig * cmd)
 {
-    iSCSISessionOptions sessionOptions;
-    errno_t error = iSCSIGetSessionInfo(cmd->sessionId,&sessionOptions);
+    iSCSISessionConfigRef sessCfg;
+    errno_t error = iSCSICopySessionConfig(cmd->sessionId,&sessCfg);
+    
+    // Convert session config object to data and free it
+    CFDataRef data = iSCSISessionConfigCreateData(sessCfg);
+    iSCSISessionConfigRelease(sessCfg);
     
     // Compose a response to send back to the client
-    struct iSCSIDRspGetSessionInfo rsp = iSCSIDRspGetSessionInfoInit;
+    struct iSCSIDRspGetSessionConfig rsp = iSCSIDRspGetSessionConfigInit;
     rsp.errorCode = error;
-    rsp.dataLength = sizeof(sessionOptions);
+    rsp.dataLength = (UInt32)CFDataGetLength(data);
     
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+    {
+        CFRelease(data);
         return EAGAIN;
+    }
     
-    if(send(fd,&sessionOptions,sizeof(sessionOptions),0) != sizeof(sessionOptions))
+    if(send(fd,CFDataGetBytePtr(data),CFDataGetLength(data),0) != CFDataGetLength(data))
+    {
+        CFRelease(data);
         return EAGAIN;
+    }
 
+    CFRelease(data);
     return 0;
 }
 
-errno_t iSCSIDGetConnectionInfo(int fd,struct iSCSIDCmdGetConnectionInfo * cmd)
+errno_t iSCSIDGetConnectionConfig(int fd,struct iSCSIDCmdGetConnectionConfig * cmd)
 {
-    iSCSIConnectionOptions connectionOptions;
-    errno_t error = iSCSIGetConnectionInfo(cmd->sessionId,cmd->connectionId,&connectionOptions);
+    iSCSIConnectionConfigRef connCfg;
+    errno_t error = iSCSICopyConnectionConfig(cmd->sessionId,cmd->connectionId,&connCfg);
+    
+    // Convert connection config object to data and free it
+    CFDataRef data = iSCSIConnectionConfigCreateData(connCfg);
+    iSCSIConnectionConfigRelease(connCfg);
     
     // Compose a response to send back to the client
-    struct iSCSIDRspGetConnectionInfo rsp = iSCSIDRspGetConnectionInfoInit;
+    struct iSCSIDRspGetConnectionConfig rsp = iSCSIDRspGetConnectionConfigInit;
     rsp.errorCode = error;
-    rsp.dataLength = sizeof(connectionOptions);
+    rsp.dataLength = (UInt32)CFDataGetLength(data);
     
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+    {
+        CFRelease(data);
         return EAGAIN;
+    }
     
-    if(send(fd,&connectionOptions,sizeof(connectionOptions),0) != sizeof(connectionOptions))
+    if(send(fd,CFDataGetBytePtr(data),CFDataGetLength(data),0) != CFDataGetLength(data))
+    {
+        CFRelease(data);
         return EAGAIN;
-
+    }
+    
+    CFRelease(data);
     return 0;
 }
 
@@ -538,16 +561,16 @@ int main(void)
                 error = iSCSIDQueryTargetForAuthMethod(fd,(iSCSIDCmdQueryTargetForAuthMethod*)&cmd); break;
             case kiSCSIDGetSessionIdForTarget:
                 error = iSCSIDGetSessionIdForTarget(fd,(iSCSIDCmdGetSessionIdForTarget*)&cmd); break;
-            case kiSCSIDGetConnectionIdForAddress:
-                error = iSCSIDGetConnectionIdForAddress(fd,(iSCSIDCmdGetConnectionIdForAddress*)&cmd); break;
+            case kiSCSIDGetConnectionIdForPortal:
+                error = iSCSIDGetConnectionIdForPortal(fd,(iSCSIDCmdGetConnectionIdForPortal*)&cmd); break;
             case kiSCSIDGetSessionIds:
                 error = iSCSIDGetSessionIds(fd,(iSCSIDCmdGetSessionIds*)&cmd); break;
             case kiSCSIDGetConnectionIds:
                 error = iSCSIDGetConnectionIds(fd,(iSCSIDCmdGetConnectionIds*)&cmd); break;
-            case kiSCSIDGetSessionInfo:
-                error = iSCSIDGetSessionInfo(fd,(iSCSIDCmdGetSessionInfo*)&cmd); break;
-            case kiSCSIDGetConnectionInfo:
-                error = iSCSIDGetConnectionInfo(fd,(iSCSIDCmdGetConnectionInfo*)&cmd); break;
+            case kiSCSIDGetSessionConfig:
+                error = iSCSIDGetSessionConfig(fd,(iSCSIDCmdGetSessionConfig*)&cmd); break;
+            case kiSCSIDGetConnectionConfig:
+                error = iSCSIDGetConnectionConfig(fd,(iSCSIDCmdGetConnectionConfig*)&cmd); break;
         }
         
         if(error)
