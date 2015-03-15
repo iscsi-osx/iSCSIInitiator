@@ -65,6 +65,22 @@ typedef struct iSCSIDRsp {
     
 } __attribute__((packed)) iSCSIDRsp;
 
+/*! Command to shutdown the daemon. */
+typedef struct iSCSIDCmdShutdown {
+
+    UInt16 funcCode;
+    UInt16 reserved;
+    UInt32 reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    UInt32 reserved6;
+    
+} __attribute__((packed)) iSCSIDCmdShutdown;
+
+/*! Default initialization for a shutdown command. */
+extern const iSCSIDCmdShutdown iSCSIDCmdShutdownInit;
+
 /*! Command to login a particular session. */
 typedef struct iSCSIDCmdLoginSession {
     
@@ -345,7 +361,7 @@ typedef struct iSCSIDRspGetSessionIds {
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
-    UInt32 sessionCount;
+    UInt32 dataLength;
 
 } __attribute__((packed)) iSCSIDRspGetSessionIds;
 
@@ -378,10 +394,74 @@ typedef struct iSCSIDRspGetConnectionIds {
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
-    UInt32 connectionCount;
+    UInt32 dataLength;
 
 } __attribute__((packed)) iSCSIDRspGetConnectionIds;
 
+/*! Command to create a target object for a session identifier. */
+typedef struct iSCSIDCmdCreateTargetForSessionId {
+    
+    const UInt16 funcCode;
+    UInt16  reserved;
+    UInt32  sessionId;
+    UInt32  reserved2;
+    UInt32  reserved3;
+    UInt32  reserved4;
+    UInt32  reserved5;
+    
+} __attribute__((packed)) iSCSIDCmdCreateTargetForSessionId;
+
+/*! Default initialization for command to create a target object 
+ *  for a session identifier . */
+extern const iSCSIDCmdCreateTargetForSessionId iSCSIDCmdCreateTargetForSessionIdInit;
+
+/*! Response to to create a target object for a session identifier.   
+ *  This typedef struct is followed by a target object. */
+typedef struct iSCSIDRspCreateTargetForSessionId {
+    
+    const UInt8 funcCode;
+    UInt16 reserved;
+    UInt32 reserved1;
+    UInt8  reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    UInt32 targetLength;
+    
+} __attribute__((packed)) iSCSIDRspCreateTargetForSessionId;
+
+
+/*! Command to create a portal object for a connection identifier. */
+typedef struct iSCSIDCmdCreatePortalForConnectionId {
+    
+    const UInt16 funcCode;
+    UInt16  reserved;
+    UInt32  sessionId;
+    UInt32  connectionId;
+    UInt32  reserved2;
+    UInt32  reserved3;
+    UInt32  reserved4;
+    
+} __attribute__((packed)) iSCSIDCmdCreatePortalForConnectionId;
+
+/*! Default initialization for command to create a portal object
+ *  for a connection identifier . */
+extern const iSCSIDCmdCreatePortalForConnectionId iSCSIDCmdCreatePortalForConnectionIdInit;
+
+/*! Response to to create a portal object for a connection identifier.
+ *  This typedef struct is followed by a target object. */
+typedef struct iSCSIDRspCreatePortalForConnectionId {
+    
+    const UInt8 funcCode;
+    UInt16 reserved;
+    UInt32 reserved1;
+    UInt8  reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    UInt32 portalLength;
+    
+} __attribute__((packed)) iSCSIDRspCreatePortalForConnectionId;
 
 
 /*! Command to get information about a session. */
@@ -461,11 +541,44 @@ enum iSCSIDFunctionCodes {
     kiSCSIDGetConnectionIdForPortal = 7,
     kiSCSIDGetSessionIds = 8,
     kiSCSIDGetConnectionIds = 9,
-    kiSCSIDGetSessionConfig = 10,
-    kiSCSIDGetConnectionConfig = 11,
-    kiSCSIDSetInitiatorName = 12,
-    kiSCSIDSetInitiatorAlias = 13
+    kiSCSIDCreateTargetForSessionId = 10,
+    kiSCSIDCreatePortalForConnectionId = 11,
+    kiSCSIDGetSessionConfig = 12,
+    kiSCSIDGetConnectionConfig = 13,
+    kiSCSIDSetInitiatorName = 14,
+    kiSCSIDSetInitiatorAlias = 15,
+    kiSCSIDInvalidFunctionCode
 };
+
+
+/*! Helper function. Reads data from a socket of the specified length and
+ *  calls a constructor function on the data to return an object of the
+ *  appropriate type. */
+void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)(CFDataRef))
+{
+    // Receive iSCSI object data from stream socket
+    UInt8 * bytes = (UInt8 *) malloc(length);
+    if(!bytes || (recv(fd,bytes,length,0) != length))
+    {
+        free(bytes);
+        return NULL;
+    }
+    
+    // Build a CFData wrapper around the data
+    CFDataRef data = NULL;
+    
+    if(!(data = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,bytes,length,kCFAllocatorMalloc)))
+    {
+        free(bytes);
+        return NULL;
+    }
+    
+    // Create an iSCSI object from the data
+    void * object = objectCreator(data);
+    
+    CFRelease(data);
+    return object;
+}
 
 
 #endif /* defined(__ISCSI_DAEMON_INTERFACE_SHARED_H__) */

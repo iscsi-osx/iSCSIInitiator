@@ -1118,7 +1118,7 @@ void iSCSIVirtualHBA::MeasureConnectionLatency(iSCSISession * session,
  *  @param sessionId identifier for the new session.
  *  @param connectionId identifier for the new connection.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::CreateSession(const char * targetName,
+errno_t iSCSIVirtualHBA::CreateSession(OSString * targetName,
                                        const struct sockaddr_storage * targetAddress,
                                        const struct sockaddr_storage * hostAddress,
                                        SID * sessionId,
@@ -1175,7 +1175,12 @@ errno_t iSCSIVirtualHBA::CreateSession(const char * targetName,
     *sessionId = sessionIdx;
     
     // Add target to lookup table...
-    targetList->setObject(targetName,OSNumber::withNumber(sessionIdx,sizeof(sessionIdx)*8));
+    targetList->setObject(targetName->getCStringNoCopy(),OSNumber::withNumber(sessionIdx,sizeof(sessionIdx)*8));
+
+    
+    IOLog("\nConnected: ");
+    IOLog(targetName->getCStringNoCopy());
+    IOLog("\n");
 
     // Create a connection associated with this session
     if((error = CreateConnection(*sessionId,targetAddress,hostAddress,connectionId)))
@@ -1241,7 +1246,9 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
     // Remove target name from dictionary
     OSCollectionIterator * iter = OSCollectionIterator::withCollection(targetList);
     OSString * targetName;
-    while((targetName = (OSString *)iter->getNextObject())) {
+    
+    while((targetName = (OSString *)iter->getNextObject()))
+    {
         OSNumber * targetId = (OSNumber*)targetList->getObject(targetName);
         if(targetId->unsigned16BitValue() == sessionId)
         {
@@ -1344,7 +1351,6 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     if((error = sock_connect(newConn->socket,(sockaddr*)targetAddress,0)))
         goto SOCKET_CONNECT_FAILURE;
 
-    
     // Keep track of connection count
 //    OSIncrementAtomic(&session->numConnections);
     

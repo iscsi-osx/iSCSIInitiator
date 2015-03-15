@@ -56,17 +56,17 @@ void iSCSIPLSetPortal(CFStringRef targetName,iSCSIPortalRef portal);
  *  @param targetName the target name.
  *  @param poralName the portal name (IPv4, IPv6 or DNS name).
  *  @return the connection configuration object to copy. */
-iSCSIConnectionConfigRef iSCSIPLCopyConnectionCfg(CFStringRef targetName,
-                                                  CFStringRef portalName);
+iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetName,
+                                                     CFStringRef portalName);
 
 /*! Sets a connection configuration object associated with a particualr portal
  *  for the specified target.
  *  @param targetName the target name.
  *  @param poralName the portal name (IPv4, IPv6 or DNS name).
  *  @param connCfg the connection configuration object to set. */
-void iSCSIPLSetConnectionCfg(CFStringRef targetName,
-                             CFStringRef portalName,
-                             iSCSIConnectionConfigRef connCfg);
+void iSCSIPLSetConnectionConfig(CFStringRef targetName,
+                                CFStringRef portalName,
+                                iSCSIConnectionConfigRef connCfg);
 
 /*! Copies an authentication object associated with a particular
  *  portal for the specified target.

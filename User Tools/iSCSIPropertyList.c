@@ -107,7 +107,7 @@ CFMutableDictionaryRef iSCSIPLCreateInitiatorDict()
                                                                sizeof(keys)/sizeof(CFStringRef),
                                                                &kCFTypeDictionaryKeyCallBacks,
                                                                &kCFTypeDictionaryValueCallBacks);
-    
+//// TODO: fix memory leak
     return CFDictionaryCreateMutableCopy(kCFAllocatorDefault,0,initiatorPropertylist);
 }
 
@@ -127,7 +127,7 @@ CFMutableDictionaryRef iSCSIPLGetTargetInfo(CFStringRef targetName,
     
     if(targetsList)
     {
-        if(createIfMissing)
+        if(createIfMissing && CFDictionaryGetCountOfKey(targetsList,targetName) == 0)
         {
             CFMutableDictionaryRef targetInfo = CFDictionaryCreateMutable(
                 kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
@@ -149,10 +149,11 @@ CFMutableDictionaryRef iSCSIPLGetPortalsList(CFStringRef targetName,
 {
     // Get the target information dictionary
     CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetName,createIfMissing);
+
     
     if(targetInfo)
     {
-        if(createIfMissing)
+        if(createIfMissing && CFDictionaryGetCountOfKey(targetInfo,kiSCSIPKPortalsKey) == 0)
         {
             CFMutableDictionaryRef portalsList = CFDictionaryCreateMutable(kCFAllocatorDefault,
                                                                            0,
@@ -179,7 +180,7 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetName,
     // and authentication sub-dictionaries
     if(portalsList)
     {
-       if(createIfMissing)
+       if(createIfMissing && CFDictionaryGetCountOfKey(portalsList,portalName) == 0)
        {
            CFMutableDictionaryRef portalInfo = CFDictionaryCreateMutable(
                 kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
@@ -216,42 +217,41 @@ void iSCSIPLSetSessionConfig(CFStringRef targetName,iSCSISessionConfigRef sessCf
     
     CFDictionarySetValue(targetInfo,kiSCSIPKSessionCfgKey,sessCfgDict);
     CFRelease(sessCfgDict);
+    
+    targetsCacheModified = true;
 }
 
 iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetName,CFStringRef portalName)
 {
     // Get the dictionary containing information about the portal
     CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalName,false);
-    iSCSIPortalRef portal = NULL;
     
     if(portalInfo)
         return iSCSIPortalCreateWithDictionary(CFDictionaryGetValue(portalInfo,kiSCSIPKPortalKey));
     
-    return portal;
+    return NULL;
 }
 
 iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetName,CFStringRef portalName)
 {
     // Get the dictionary containing information about the portal
     CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalName,false);
-    iSCSIPortalRef portal = NULL;
     
     if(portalInfo)
-        return iSCSIConnectionConfigCreateWithDictionary(CFDictionaryGetValue(portal,kiSCSIPKConnectionCfgKey));
+        return iSCSIConnectionConfigCreateWithDictionary(CFDictionaryGetValue(portalInfo,kiSCSIPKConnectionCfgKey));
 
-    return portal;
+    return NULL;
 }
 
 iSCSIAuthRef iSCSIPLCopyAuth(CFStringRef targetName,CFStringRef portalName)
 {
     // Get the dictionary containing information about the portal
     CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalName,false);
-    iSCSIPortalRef portal = NULL;
     
     if(portalInfo)
-        return iSCSIAuthCreateWithDictionary(CFDictionaryGetValue(portal,kiSCSIPKAuthKey));
+        return iSCSIAuthCreateWithDictionary(CFDictionaryGetValue(portalInfo,kiSCSIPKAuthKey));
     
-    return portal;
+    return NULL;
 }
 
 void iSCSIPLSetAuth(CFStringRef targetName,CFStringRef portalName,iSCSIAuthRef auth)
@@ -288,13 +288,11 @@ void iSCSIPLSetPortal(CFStringRef targetName,
     // Get the dictionary containing information about the portal
     CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,iSCSIPortalGetAddress(portal),true);
     
-    
-    
     // Set the authentication object
     CFDictionaryRef portalDict = iSCSIPortalCreateDictionary(portal);
     CFDictionarySetValue(portalInfo,kiSCSIPKPortalKey,portalDict);
     CFRelease(portalDict);
-
+    
     targetsCacheModified = true;
 }
 

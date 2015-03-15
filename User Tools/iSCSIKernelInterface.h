@@ -32,6 +32,7 @@ kern_return_t iSCSIKernelCleanUp();
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
  *  @param targetName the name of the target, or NULL if discovery session.
+ *  @param targetNameLen the length of the targetName string (excluding null terminators)
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
@@ -39,6 +40,7 @@ kern_return_t iSCSIKernelCleanUp();
  *  @param connectionId the identifier of the new connection (returned).
  *  @return An error code if a valid session could not be created. */
 errno_t iSCSIKernelCreateSession(const char * targetName,
+                                 size_t targetNameLen,
                                  const struct sockaddr_storage * targetAddress,
                                  const struct sockaddr_storage * hostAddress,
                                  SID * sessionId,
@@ -169,7 +171,7 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections);
  *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,
+errno_t iSCSIKernelGetSessionIdForTargetName(const char * targetName,
                                               SID * sessionId);
 
 /*! Looks up the connection identifier associated with a particular connection address.
@@ -178,7 +180,7 @@ errno_t iSCSIKernelGetSessionIdFromTargetName(const char * targetName,
  *  @param port the port used when adding the connection.
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
+errno_t iSCSIKernelGetConnectionIdForAddress(SID sessionId,
                                               const char * targetAddr,
                                               const char * targetPort,
                                               CID * connectionId);
@@ -187,7 +189,7 @@ errno_t iSCSIKernelGetConnectionIdFromAddress(SID sessionId,
  *  @param sessionIds an array of session identifiers.
  *  @param sessionCount number of session identifiers.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIds(UInt16 * sessionIds,
+errno_t iSCSIKernelGetSessionIds(SID * sessionIds,
                                  UInt16 * sessionCount);
 
 /*! Gets an array of connection identifiers for each session.
@@ -196,11 +198,28 @@ errno_t iSCSIKernelGetSessionIds(UInt16 * sessionIds,
  *  @param connectionCount number of connection identifiers.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetConnectionIds(SID sessionId,
-                                    UInt32 * connectionIds,
+                                    CID * connectionIds,
                                     UInt32 * connectionCount);
 
+/*! Gets the name of the target associated with a particular session.
+ *  @param sessionId session identifier.
+ *  @param targetName the name of the target.
+ *  @param size the size of the targetName buffer.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIKernelGetTargetNameForSessionId(SID sessionId,
+                                             char * targetName,
+                                             size_t * size);
 
-
+/*! Gets the target and host address associated with a particular connection.
+ *  @param sessionId session identifier.
+ *  @param connectionId connection identifier.
+ *  @param targetAddress the target address.
+ *  @param hostAddress the host address.
+ *  @return error code indicating result of operation. */
+errno_t iSCSIKernelGetAddressForConnectionId(SID sessionId,
+                                             CID connectionId,
+                                             struct sockaddr_storage * targetAddress,
+                                             struct sockaddr_storage * hostAddress);
 
 
 #endif /* defined(__ISCSI_KERNEL_INTERFACE_H__) */

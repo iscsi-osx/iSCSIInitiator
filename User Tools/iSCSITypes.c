@@ -14,7 +14,7 @@
  *  host interface to use when connecting to the portal. */
 CFStringRef kiSCSIPortalAddresssKey = CFSTR("Address");
 CFStringRef kiSCSIPortalPortKey = CFSTR("Port");
-CFStringRef kiSCSIPortalHostInterfaceKey = CFSTR("HostInterface");
+CFStringRef kiSCSIPortalHostInterfaceKey = CFSTR("Host Interface");
 
 /*! Maximum number of discovery record entries (targets). */
 const int kMaxDiscoveryRecEntries = 50;
@@ -40,7 +40,7 @@ iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data)
 /*! Convenience function.  Creates a new iSCSIPortalRef with the above keys. */
 iSCSIMutablePortalRef iSCSIMutablePortalCreate()
 {
-    iSCSIMutablePortalRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,NULL,NULL);
+    iSCSIMutablePortalRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     CFDictionaryAddValue(portal,kiSCSIPortalAddresssKey,CFSTR(""));
     CFDictionaryAddValue(portal,kiSCSIPortalPortKey,CFSTR(""));
     CFDictionaryAddValue(portal,kiSCSIPortalHostInterfaceKey,CFSTR(""));
@@ -133,12 +133,12 @@ iSCSISessionConfigRef iSCSITargetCreateWithData(CFDataRef data)
 
 /*! iSCSI target records are dictionaries with keys with string values
  *  that specify the target name and other parameters. */
-CFStringRef kiSCSITargetNameKey = CFSTR("TargetName");
+CFStringRef kiSCSITargetNameKey = CFSTR("Target Name");
 
 /*! Convenience function.  Creates a new iSCSITargetRef with the above keys. */
 iSCSIMutableTargetRef iSCSIMutableTargetCreate()
 {
-    iSCSIMutableTargetRef target = CFDictionaryCreateMutable(kCFAllocatorDefault,5,NULL,NULL);
+    iSCSIMutableTargetRef target = CFDictionaryCreateMutable(kCFAllocatorDefault,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     return target;
 }
 
@@ -208,13 +208,13 @@ iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data)
  *  (defaults to no authentication). */
 iSCSIAuthRef iSCSIAuthCreateNone()
 {
-    UInt8 authMethod = kiSCSIAuthMethodNone;
+    UInt32 authMethod = kiSCSIAuthMethodNone;
     CFNumberRef authNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&authMethod);
     
-    const void * keys[] = {CFSTR("AuthMethod")};
+    const void * keys[] = {CFSTR("Authentication Method")};
     const void * values[] = {authNum};
 
-    return CFDictionaryCreate(kCFAllocatorDefault,keys,values,1,NULL,NULL);
+    return CFDictionaryCreate(kCFAllocatorDefault,keys,values,1,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
 }
 
 /*! Creates a new iSCSIAuth object with empty authentication parameters
@@ -228,7 +228,7 @@ iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef initiatorUser,
     if(!initiatorUser || !initiatorSecret)
         return NULL;
     
-    UInt8 authMethod = kiSCSIAuthMethodCHAP;
+    UInt32 authMethod = kiSCSIAuthMethodCHAP;
     CFNumberRef authNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&authMethod);
     
     const void * keys[] = {
@@ -271,17 +271,17 @@ void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
     if(!auth || !initiatorUser || !initiatorSecret || !targetUser || !targetSecret)
         return;
     
-    *initiatorUser = CFDictionaryGetValue(auth,CFSTR("InitiatorUser"));
-    *initiatorUser = CFDictionaryGetValue(auth,CFSTR("InitiatorSecret"));
-    *targetUser = CFDictionaryGetValue(auth,CFSTR("TargetUser"));
-    *targetSecret = CFDictionaryGetValue(auth,CFSTR("TargetSecret"));
+    *initiatorUser = CFDictionaryGetValue(auth,CFSTR("Initiator User"));
+    *initiatorUser = CFDictionaryGetValue(auth,CFSTR("Initiator Secret"));
+    *targetUser = CFDictionaryGetValue(auth,CFSTR("Target User"));
+    *targetSecret = CFDictionaryGetValue(auth,CFSTR("Target Secret"));
 }
 
 /*! Gets the authentication method used. */
 enum iSCSIAuthMethods iSCSIAuthGetMethod(iSCSIAuthRef auth)
 {
     UInt8 authMethod = 0;
-    CFNumberRef authNum = CFDictionaryGetValue(auth,CFSTR("AuthMethod"));
+    CFNumberRef authNum = CFDictionaryGetValue(auth,CFSTR("Authentication Method"));
     CFNumberGetValue(authNum,kCFNumberIntType,&authMethod);
     return (enum iSCSIAuthMethods)authMethod;
 }
@@ -341,6 +341,9 @@ iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreateWithData(CFDataRef dat
     
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return discoveryRec;
+    
+    if(discoveryRec)
+        CFRelease(discoveryRec);
     
     return NULL;
 }
@@ -507,14 +510,14 @@ CFDataRef iSCSIDiscoveryRecCreateData(iSCSIMutableDiscoveryRecRef discoveryRec)
 
 
 
-CFStringRef kiSCSISessionConfigErrorRecoveryKey = CFSTR("ErrorRecoveryLevel");
-CFStringRef kiSCSISessionConfigPortalGroupTagKey = CFSTR("TargetPortalGroupTag");
-CFStringRef kiSCSISessionConfigMaxConnectionsKey = CFSTR("MaxConnections");
+CFStringRef kiSCSISessionConfigErrorRecoveryKey = CFSTR("Error Recovery Level");
+CFStringRef kiSCSISessionConfigPortalGroupTagKey = CFSTR("Target Portal Group Tag");
+CFStringRef kiSCSISessionConfigMaxConnectionsKey = CFSTR("Maximum Connections");
 
 /*! Convenience function.  Creates a new iSCSISessionConfigRef with the above keys. */
 iSCSIMutableSessionConfigRef iSCSIMutableSessionConfigCreate()
 {
-    iSCSIMutableSessionConfigRef config = CFDictionaryCreateMutable(kCFAllocatorDefault,5,NULL,NULL);
+    iSCSIMutableSessionConfigRef config = CFDictionaryCreateMutable(kCFAllocatorDefault,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     iSCSISessionConfigSetErrorRecoveryLevel(config,kiSCSIErrorRecoverySession);
     iSCSISessionConfigSetMaxConnections(config,0);
     iSCSISessionConfigSetTargetPortalGroupTag(config,0);
@@ -535,7 +538,8 @@ void iSCSISessionConfigSetErrorRecoveryLevel(iSCSIMutableSessionConfigRef target
                                              enum iSCSIErrorRecoveryLevels errorRecoveryLevel)
 {
     CFNumberRef errorRecoveryLevelNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&errorRecoveryLevel);
-    CFDictionarySetValue(target,kiSCSISessionConfigErrorRecoveryKey,&errorRecoveryLevelNum);
+    CFDictionarySetValue(target,kiSCSISessionConfigErrorRecoveryKey,errorRecoveryLevelNum);
+    CFRelease(errorRecoveryLevelNum);
 }
 
 /*! Gets the target portal group tag. */
@@ -552,7 +556,8 @@ void iSCSISessionConfigSetTargetPortalGroupTag(iSCSIMutableSessionConfigRef targ
                                                TPGT targetPortalGroupTag)
 {
     CFNumberRef targetPortalGroupTagNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&targetPortalGroupTag);
-    CFDictionarySetValue(target,kiSCSISessionConfigPortalGroupTagKey,&targetPortalGroupTagNum);
+    CFDictionarySetValue(target,kiSCSISessionConfigPortalGroupTagKey,targetPortalGroupTagNum);
+    CFRelease(targetPortalGroupTagNum);
 }
 
 /*! Gets the maximum number of connections. */
@@ -569,7 +574,8 @@ void iSCSISessionConfigSetMaxConnections(iSCSIMutableSessionConfigRef target,
                                          UInt32 maxConnections)
 {
     CFNumberRef maxConnectionsNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&maxConnections);
-    CFDictionarySetValue(target,kiSCSISessionConfigMaxConnectionsKey,&maxConnectionsNum);
+    CFDictionarySetValue(target,kiSCSISessionConfigMaxConnectionsKey,maxConnectionsNum);
+    CFRelease(maxConnectionsNum);
 }
 
 /*! Releases memory associated with an iSCSI session configuration object.
@@ -613,14 +619,14 @@ CFDataRef iSCSISessionConfigCreateData(iSCSISessionConfigRef config)
 }
 
 
-CFStringRef kiSCSIConnectionConfigHeaderDigestKey = CFSTR("HeaderDigest");
-CFStringRef kiSCSIConnectionConfigDataDigestKey = CFSTR("DataDigest");
+CFStringRef kiSCSIConnectionConfigHeaderDigestKey = CFSTR("Header Digest");
+CFStringRef kiSCSIConnectionConfigDataDigestKey = CFSTR("Data Digest");
 
 
 /*! Convenience function.  Creates a new iSCSIConnectionConfigRef with the above keys. */
 iSCSIMutableConnectionConfigRef iSCSIMutableConnectionConfigCreate()
 {
-    iSCSIMutableConnectionConfigRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,NULL,NULL);
+    iSCSIMutableConnectionConfigRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     CFDictionaryAddValue(portal,kiSCSIConnectionConfigHeaderDigestKey,kCFBooleanFalse);
     CFDictionaryAddValue(portal,kiSCSIConnectionConfigDataDigestKey,kCFBooleanFalse);
     

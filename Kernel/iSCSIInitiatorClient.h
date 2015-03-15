@@ -100,11 +100,11 @@ public:
                                       void * reference,
                                       IOExternalMethodArguments * args);
     
-    static IOReturn GetSessionIdFromTargetName(iSCSIInitiatorClient * target,
+    static IOReturn GetSessionIdForTargetName(iSCSIInitiatorClient * target,
                                                void * reference,
                                                IOExternalMethodArguments * args);
     
-    static IOReturn GetConnectionIdFromAddress(iSCSIInitiatorClient * target,
+    static IOReturn GetConnectionIdForAddress(iSCSIInitiatorClient * target,
                                             void * reference,
                                             IOExternalMethodArguments * args);
     
@@ -115,7 +115,16 @@ public:
     static IOReturn GetConnectionIds(iSCSIInitiatorClient * target,
                                      void * reference,
                                      IOExternalMethodArguments * args);
+    
+    static IOReturn GetTargetNameForSessionId(iSCSIInitiatorClient * target,
+                                              void * reference,
+                                              IOExternalMethodArguments * args);
+    
 
+    static IOReturn GetAddressForConnectionId(iSCSIInitiatorClient * target,
+                                              void * reference,
+                                              IOExternalMethodArguments * args);
+    
 
     /*! Dispatched function invoked from user-space to send data
      *  over an existing, active connection. */

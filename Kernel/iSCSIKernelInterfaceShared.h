@@ -46,10 +46,12 @@ enum functionNames {
     kiSCSIGetConnectionOptions,
     kiSCSIGetConnection,
     kiSCSIGetNumConnections,
-    kiSCSIGetSessionIdFromTargetName,
-    kiSCSIGetConnectionIdFromAddress,
+    kiSCSIGetSessionIdForTargetName,
+    kiSCSIGetConnectionIdForAddress,
     kiSCSIGetSessionIds,
     kiSCSIGetConnectionIds,
+    kiSCSIGetTargetNameForSessionId,
+    kiSCSIGetAddressForConnectionId,
 	kiSCSIInitiatorNumMethods
 };
 

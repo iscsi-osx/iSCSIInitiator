@@ -11,6 +11,10 @@
 #include "iSCSIDaemonInterface.h"
 #include "iSCSIDaemonInterfaceShared.h"
 
+const struct iSCSIDCmdShutdown iSCSIDCmdShutdownInit = {
+    .funcCode = kiSCSIDInvalidFunctionCode
+};
+
 const struct iSCSIDCmdLoginSession iSCSIDCmdLoginSessionInit  = {
     .funcCode = kiSCSIDLoginSession,
     .portalLength = 0,
@@ -54,6 +58,17 @@ const struct iSCSIDCmdGetConnectionIds iSCSIDCmdGetConnectionIdsInit  = {
     .funcCode = kiSCSIDGetConnectionIds,
 };
 
+const struct iSCSIDCmdCreateTargetForSessionId iSCSIDCmdCreateTargetForSessionIdInit = {
+    .funcCode = kiSCSIDCreateTargetForSessionId,
+    .sessionId = kiSCSIInvalidSessionId,
+};
+
+const struct iSCSIDCmdCreatePortalForConnectionId iSCSIDCmdCreatePortalForConnectionIdInit = {
+    .funcCode = kiSCSIDCreatePortalForConnectionId,
+    .sessionId = kiSCSIInvalidSessionId,
+    .connectionId = kiSCSIInvalidConnectionId
+};
+
 const struct iSCSIDCmdGetSessionConfig iSCSIDCmdGetSessionConfigInit  = {
     .funcCode = kiSCSIDGetSessionConfig,
     .sessionId = kiSCSIInvalidSessionId
@@ -85,6 +100,10 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
 
 void iSCSIDaemonDisconnect(iSCSIDaemonHandle handle)
 {
+    // Tell daemon to shut down
+    iSCSIDCmdShutdown cmd = iSCSIDCmdShutdownInit;
+    send(handle,&cmd,sizeof(iSCSIDCmd),0);
+    
     if(handle >= 0)
         close(handle);
 }
@@ -391,7 +410,7 @@ errno_t iSCSIDaemonGetSessionIdForTarget(iSCSIDaemonHandle handle,
  *  @param address the name used when adding the connection (e.g., IP or DNS).
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionIdFromAddress(iSCSIDaemonHandle handle,
+errno_t iSCSIDaemonGetConnectionIdForAddress(iSCSIDaemonHandle handle,
                                               SID sessionId,
                                               CFStringRef address,
                                               CID * connectionId)
@@ -433,74 +452,143 @@ errno_t iSCSIDaemonGetConnectionIdFromAddress(iSCSIDaemonHandle handle,
 
 /*! Gets an array of session identifiers for each session.
  *  @param handle a handle to a daemon connection.
- *  @param sessionIds an array of session identifiers.
- *  This array must be user-allocated with a capacity defined by kiSCSIMaxSessions.
- *  @param sessionCount number of session identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetSessionIds(iSCSIDaemonHandle handle,
-                                 SID * sessionIds,
-                                 UInt16 * sessionCount)
+ *  @return an array of session identifiers. */
+CFArrayRef iSCSIDaemonCreateArrayOfSessionIds(iSCSIDaemonHandle handle)
 {
     // Validate inputs
-    if(handle < 0 || !sessionIds || !sessionCount)
-        return EINVAL;
+    if(handle < 0)
+        return NULL;
     
     // Send command to daemon
     iSCSIDCmdGetSessionIds cmd = iSCSIDCmdGetSessionIdsInit;
-    
+
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return EAGAIN;
+        return NULL;
     
     // Receive daemon response header
     iSCSIDRspGetSessionIds rsp;
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return NULL;
     
-    *sessionCount = rsp.sessionCount;
-    size_t dataLength = sizeof(SID)*kiSCSIMaxSessions;
+    if(rsp.errorCode || rsp.dataLength == 0)
+        return NULL;
     
-    if(recv(handle,sessionIds,dataLength,0) != dataLength)
-        return EAGAIN;
+    void * bytes = malloc(rsp.dataLength);
     
-    return rsp.errorCode;
-}
+    if(recv(handle,bytes,rsp.dataLength,0) != rsp.dataLength)
+    {
+        free(bytes);
+        return NULL;
+    }
 
+    CFArrayRef sessionIds = CFArrayCreate(kCFAllocatorDefault,bytes,rsp.dataLength/sizeof(void *),NULL);
+    free(bytes);
+    return sessionIds;
+}
 
 /*! Gets an array of connection identifiers for each session.
  *  @param handle a handle to a daemon connection.
  *  @param sessionId session identifier.
- *  @param connectionIds an array of connection identifiers for the session.
- *  This array must be user-allocated with a capacity defined by kiSCSIMaxConnectionsPerSession.
- *  @param connectionCount number of connection identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionIds(iSCSIDaemonHandle handle,
-                                    SID sessionId,
-                                    UInt32 * connectionIds,
-                                    UInt32 * connectionCount)
+ *  @return an array of connection identifiers. */
+CFArrayRef iSCSIDaemonCreateArrayOfConnectionsIds(iSCSIDaemonHandle handle,SID sessionId)
 {
     // Validate inputs
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId || !connectionIds || !connectionCount)
-        return EINVAL;
+    if(handle < 0 || sessionId == kiSCSIInvalidSessionId)
+        return NULL;
     
     // Send command to daemon
     iSCSIDCmdGetConnectionIds cmd = iSCSIDCmdGetConnectionIdsInit;
     cmd.sessionId = sessionId;
     
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return EAGAIN;
+        return NULL;
     
     // Receive daemon response header
     iSCSIDRspGetConnectionIds rsp;
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return NULL;
     
-    *connectionCount = rsp.connectionCount;
-    size_t dataLength = sizeof(CID)*kiSCSIMaxConnectionsPerSession;
+    if(rsp.errorCode || rsp.dataLength == 0)
+        return NULL;
     
-    if(recv(handle,connectionIds,dataLength,0) != dataLength)
-        return EAGAIN;
+    void * bytes = malloc(rsp.dataLength);
     
-    return rsp.errorCode;
+    if(recv(handle,bytes,rsp.dataLength,0) != rsp.dataLength)
+    {
+        free(bytes);
+        return NULL;
+    }
+    
+    CFArrayRef connectionIds = CFArrayCreate(kCFAllocatorDefault,bytes,rsp.dataLength/sizeof(void *),NULL);
+    free(bytes);
+    return connectionIds;
+}
+
+/*! Creates a target object for the specified session.
+ *  @param handle a handle to a daemon connection.
+ *  @param sessionId the session identifier.
+ *  @return target the target object. */
+iSCSITargetRef iSCSIDaemonCreateTargetForSessionId(iSCSIDaemonHandle handle,
+                                                   SID sessionId)
+{
+    // Validate inputs
+    if(handle < 0 || sessionId == kiSCSIInvalidSessionId)
+        return NULL;
+    
+    // Send command to daemon
+    iSCSIDCmdCreateTargetForSessionId cmd = iSCSIDCmdCreateTargetForSessionIdInit;
+    cmd.sessionId = sessionId;
+    
+    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
+        return NULL;
+    
+    // Receive daemon response header
+    iSCSIDRspCreateTargetForSessionId rsp;
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return NULL;
+    
+    if(rsp.funcCode != kiSCSIDCreateTargetForSessionId || rsp.targetLength == 0)
+        return NULL;
+    
+    iSCSITargetRef target = iSCSIDCreateObjectFromSocket(handle,rsp.targetLength,
+                            (void *(* )(CFDataRef))&iSCSITargetCreateWithData);
+    
+    return target;
+}
+
+/*! Creates a connection object for the specified connection.
+ *  @param handle a handle to a daemon connection.
+ *  @param sessionId the session identifier.
+ *  @param connectionId the connection identifier.
+ *  @return portal information about the portal. */
+iSCSIPortalRef iSCSIDaemonCreatePortalForConnectionId(iSCSIDaemonHandle handle,
+                                                      SID sessionId,
+                                                      CID connectionId)
+{
+    // Validate inputs
+    if(handle < 0 || sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+        return NULL;
+    
+    // Send command to daemon
+    iSCSIDCmdCreatePortalForConnectionId cmd = iSCSIDCmdCreatePortalForConnectionIdInit;
+    cmd.sessionId = sessionId;
+    cmd.connectionId = connectionId;
+    
+    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
+        return NULL;
+    
+    // Receive daemon response header
+    iSCSIDRspCreatePortalForConnectionId rsp;
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return NULL;
+    
+    if(rsp.funcCode != kiSCSIDCreatePortalForConnectionId || rsp.portalLength == 0)
+        return NULL;
+    
+    iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(handle,rsp.portalLength,
+                            (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
+    
+    return portal;
 }
 
 
@@ -579,3 +667,4 @@ errno_t iSCSIDaemonGetConnectionConfig(iSCSIDaemonHandle handle,
     
     return rsp.errorCode;
 }
+

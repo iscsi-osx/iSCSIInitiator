@@ -134,33 +134,31 @@ errno_t iSCSIDaemonGetConnectionIdForPortal(iSCSIDaemonHandle handle,
 /*! Gets an array of session identifiers for each session.
  *  @param handle a handle to a daemon connection.
  *  @param sessionIds an array of session identifiers.
- *  This array must be user-allocated with a capacity defined by kiSCSIMaxSessions.
- *  @param sessionCount number of session identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetSessionIds(iSCSIDaemonHandle handle,
-                                 SID * sessionIds,
-                                 UInt16 * sessionCount);
+ *  @return an array of session identifiers. */
+CFArrayRef iSCSIDaemonCreateArrayOfSessionIds(iSCSIDaemonHandle handle);
 
 /*! Gets an array of connection identifiers for each session.
  *  @param handle a handle to a daemon connection.
  *  @param sessionId session identifier.
- *  @param connectionIds an array of connection identifiers for the session.
- *  This array must be user-allocated with a capacity defined by kiSCSIMaxConnectionsPerSession.
- *  @param connectionCount number of connection identifiers.
- *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionIds(iSCSIDaemonHandle handle,
-                                    SID sessionId,
-                                    UInt32 * connectionIds,
-                                    UInt32 * connectionCount);
+ *  @return an array of connection identifiers. */
+CFArrayRef iSCSIDaemonCreateArrayOfConnectionsIds(iSCSIDaemonHandle handle,
+                                                  SID sessionId);
 
-/*! Gets information about a particular session.
+/*! Creates a target object for the specified session.
  *  @param handle a handle to a daemon connection.
  *  @param sessionId the session identifier.
- *  @param options the optionts for the specified session.
- *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetSessionConfig(iSCSIDaemonHandle handle,
-                                  SID sessionId,
-                                  iSCSIKernelSessionCfg * options);
+ *  @return target the target object. */
+iSCSITargetRef iSCSIDaemonCreateTargetForSessionId(iSCSIDaemonHandle handle,
+                                                   SID sessionId);
+
+/*! Creates a connection object for the specified connection.
+ *  @param handle a handle to a daemon connection.
+ *  @param sessionId the session identifier.
+ *  @param connectionId the connection identifier.
+ *  @return portal information about the portal. */
+iSCSIPortalRef iSCSIDaemonCreatePortalForConnectionId(iSCSIDaemonHandle handle,
+                                                      SID sessionId,
+                                                      CID connectionId);
 
 /*! Gets information about a particular session.
  *  @param handle a handle to a daemon connection.
@@ -172,5 +170,23 @@ errno_t iSCSIDaemonGetConnectionConfig(iSCSIDaemonHandle handle,
                                      SID sessionId,
                                      CID connectionId,
                                      iSCSIKernelConnectionCfg * options);
+
+/*! Copies the configuration object associated with a particular session.
+ *  @param handle a handle to a daemon connection.
+ *  @param sessionId the qualifier part of the ISID (see RFC3720).
+ *  @return the session configuration object.
+ *  @return  the configuration object associated with the specified session. */
+iSCSISessionConfigRef iSCSICopySessionConfig(iSCSIDaemonHandle handle,SID sessionId);
+
+/*! Copies the configuration object associated with a particular connection.
+ *  @param handle a handle to a daemon connection.
+ *  @param sessionId the qualifier part of the ISID (see RFC3720).
+ *  @param connectionId the connection associated with the session.
+ *  @return  the configuration object associated with the specified connection. */
+iSCSIConnectionConfigRef iSCSICopyConnectionConfig(iSCSIDaemonHandle handle,
+                                                   SID sessionId,
+                                                   CID connectionId);
+
+
 
 #endif /* defined(__ISCSI_DAEMON_INTERFACE__) */

@@ -285,8 +285,6 @@ CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth);
 
 
 
-
-
 /*! Creates a discovery record object. */
 iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreate();
 

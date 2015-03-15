@@ -169,12 +169,13 @@ public:
     
     /*! Allocates a new iSCSI session and returns a session qualifier ID.
      *  @param targetName the name of the target, or NULL if discovery session.
+     *  @param targetNameLen the length of the target name.
      *  @param targetaddress the BSD socket structure used to identify the target.
      *  @param hostaddress the BSD socket structure used to identify the host adapter.
      *  @param sessionId identifier for the new session.
      *  @param connectionId identifier for the new connection.
      *  @return error code indicating result of operation. */
-    errno_t CreateSession(const char * targetName,
+    errno_t CreateSession(OSString * targetName,
                           const struct sockaddr_storage * targetAddress,
                           const struct sockaddr_storage * hostAddress,
                           SID * sessionId,

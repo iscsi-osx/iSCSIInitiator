@@ -910,11 +910,14 @@ errno_t iSCSILoginSession(iSCSITargetRef target,
     
     const char * targetName = CFStringGetCStringPtr(iSCSITargetGetName(target),
                                                     kCFStringEncodingASCII);
+    
+    // (CFStringGetLength doesn't include the the null terminator)
+    size_t targetNameLen = CFStringGetLength(iSCSITargetGetName(target))+1;
 
     // Create a new session in the kernel.  This allocates session and
     // connection identifiers
-    error = iSCSIKernelCreateSession(targetName,&ss_target,&ss_host,
-                                     sessionId,connectionId);
+    error = iSCSIKernelCreateSession(targetName,targetNameLen,
+                                     &ss_target,&ss_host,sessionId,connectionId);
     
     // If session couldn't be allocated were maxed out; try again later
     if(!error && (*sessionId == kiSCSIInvalidSessionId || *connectionId == kiSCSIInvalidConnectionId))
@@ -1157,6 +1160,7 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
     SID sessionId;
     CID connectionId;
     error = iSCSIKernelCreateSession(CFStringGetCStringPtr(targetName,kCFStringEncodingASCII),
+                                     CFStringGetLength(targetName),
                                      &ss_target,
                                      &ss_host,
                                      &sessionId,
@@ -1181,35 +1185,39 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
 
 /*! Gets the session identifier associated with the specified target.
  *  @param targetName the name of the target.
- *  @param sessionId the session identiifer.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIGetSessionIdForTarget(CFStringRef targetName,
-                                   SID * sessionId)
+ *  @return the session identiifer. */
+SID iSCSIGetSessionIdForTarget(CFStringRef targetName)
 {
-    if(!targetName || !sessionId)
-        return EINVAL;
+    if(!targetName)
+        return kiSCSIInvalidSessionId;
     
     const char * targetCName = CFStringGetCStringPtr(targetName, kCFStringEncodingASCII);
     
-    return iSCSIKernelGetSessionIdFromTargetName(targetCName,sessionId);
+    SID sessionId = kiSCSIInvalidSessionId;
+    if(iSCSIKernelGetSessionIdForTargetName(targetCName,&sessionId))
+        return kiSCSIInvalidSessionId;
+
+    return sessionId;
 }
 
 /*! Gets the connection identifier associated with the specified portal.
  *  @param sessionId the session identifier.
  *  @param portal the portal connected on the specified session.
- *  @param connectionId the associated connection identifier.
- *  @return error code indicating result of operation. */
-errno_t iSCSIGetConnectionIdForPortal(SID sessionId,
-                                      iSCSIPortalRef portal,
-                                      CID * connectionId)
+ *  @return the associated connection identifier. */
+CID iSCSIGetConnectionIdForPortal(SID sessionId,iSCSIPortalRef portal)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !portal || !connectionId)
-        return EINVAL;
+    if(sessionId == kiSCSIInvalidSessionId || !portal)
+        return kiSCSIInvalidConnectionId;
     
     const char * address = CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingASCII);
     const char * port = CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII);
     
-    return iSCSIKernelGetConnectionIdFromAddress(sessionId,address,port,connectionId);
+    CID connectionId = kiSCSIInvalidConnectionId;
+    
+    if(iSCSIKernelGetConnectionIdForAddress(sessionId,address,port,&connectionId))
+        return kiSCSIInvalidConnectionId;
+    
+    return connectionId;
 }
 
 /*! Gets an array of session identifiers for each session.
@@ -1218,12 +1226,17 @@ errno_t iSCSIGetConnectionIdForPortal(SID sessionId,
 CFArrayRef iSCSICreateArrayOfSessionIds()
 {
     SID sessionIds[kiSCSIMaxSessions];
-    UInt16 sessionCount = 0;
+    UInt16 sessionCount;
     
     if(iSCSIKernelGetSessionIds(sessionIds,&sessionCount))
         return NULL;
     
-    return CFArrayCreate(kCFAllocatorDefault,(const void **)&sessionIds,sessionCount,&kCFTypeArrayCallBacks);
+    CFMutableArrayRef sessionIdArray = CFArrayCreateMutable(kCFAllocatorDefault,sessionCount,NULL);
+    
+    for(int index = 0; index < sessionCount; index++)
+        CFArrayAppendValue(sessionIdArray,(const void *)(sessionIds[index]));
+
+    return sessionIdArray;
 }
 
 /*! Gets an array of connection identifiers for each session.
@@ -1235,123 +1248,185 @@ CFArrayRef iSCSICreateArrayOfConnectionsIds(SID sessionId)
         return NULL;
     
     CID connectionIds[kiSCSIMaxConnectionsPerSession];
-    UInt32 connectionCount = 0;
+    UInt32 connectionCount;
     
     if(iSCSIKernelGetConnectionIds(sessionId,connectionIds,&connectionCount))
         return NULL;
-    
-    return CFArrayCreate(kCFAllocatorDefault,(const void **)&connectionIds,connectionCount,&kCFTypeArrayCallBacks);
+
+    return CFArrayCreate(kCFAllocatorDefault,(const void **)&connectionIds,connectionCount,NULL);
 }
 
-/*! Gets the target object associated with the specified session.
+/*! Creates a target object for the specified session.
  *  @param sessionId the session identifier.
- *  @param target the target object.
- *  @return error code indicating result of operation. */
-errno_t iSCSIGetTargetForSessionId(SID sessionId,iSCSITargetRef * target)
+ *  @return target the target object. */
+iSCSITargetRef iSCSICreateTargetForSessionId(SID sessionId)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !target)
-        return EINVAL;
+    if(sessionId == kiSCSIInvalidSessionId)
+        return NULL;
+
+    char targetNameCString[NI_MAXHOST];
+    size_t length = NI_MAXHOST;
+
+    if(iSCSIKernelGetTargetNameForSessionId(sessionId,targetNameCString,&length))
+        return NULL;
     
-// TODO:    return iSCSIKernelGetSessionConfig(sessionId,options);
-    return 0;
+    CFStringRef targetName = CFStringCreateWithCString(kCFAllocatorDefault,targetNameCString,kCFStringEncodingASCII);
+    
+    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
+    iSCSITargetSetName(target,targetName);
+
+    CFRelease(targetName);
+    
+    return target;
 }
 
-/*! Gets the portal object associated with a particular connection.
+/*! Creates a connection object for the specified connection.
  *  @param sessionId the session identifier.
  *  @param connectionId the connection identifier.
- *  @param portal information about the portal.
- *  @return error code indicating result of operation. */
-errno_t iSCSIGetPortalForConnectionId(SID sessionId,
-                                      CID connectionId,
-                                      iSCSIPortalRef * portal)
+ *  @return portal information about the portal. */
+iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId)
+                                      
 {
-    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !portal)
-        return EINVAL;
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+        return NULL;
     
+    struct sockaddr_storage targetAddress, hostAddress;
+    iSCSIKernelGetAddressForConnectionId(sessionId,connectionId,&targetAddress,&hostAddress);
 
-// TODO: ...
-    return 0;
+    char targetCAddress[NI_MAXHOST], hostCAddress[NI_MAXHOST];
+    char targetCPort[NI_MAXSERV], hostCPort[NI_MAXSERV];
+    
+    // Get name information for the peer (target)
+    if(getnameinfo((const struct sockaddr*)&targetAddress,sizeof(struct sockaddr_storage),
+                        targetCAddress,NI_MAXHOST,targetCPort,NI_MAXSERV,NI_NUMERICSERV))
+        return NULL;
+ 
+    // Get name information for the host (initiator) so that we can back out
+    // the interface that's being used
+    if(getnameinfo((const struct sockaddr*)&hostAddress,sizeof(struct sockaddr_storage),
+                        hostCAddress,NI_MAXHOST,hostCPort,NI_MAXSERV,NI_NUMERICSERV))
+        return NULL;
+
+    
+    // Iterate over all interfaces and find the interface name that matches
+    // the host address (sockaddr_storage)
+    // Grab a list of interfaces on this system, iterate over them and
+    // find the requested interface.
+    struct ifaddrs * interfaceList;
+    
+    if(getifaddrs(&interfaceList))
+        return NULL;
+    
+    struct ifaddrs * interface = interfaceList;
+    CFStringRef interfaceName = NULL;
+    
+    while(interface)
+    {
+        // Check if the interface's address matches the host address
+        if(interface->ifa_addr->sa_family == hostAddress.ss_family)
+        {
+            char ifCAddress[NI_MAXHOST], ifCPort[NI_MAXSERV];
+            
+            // Get the interface address (in a protocol agnostic way)
+            getnameinfo((const struct sockaddr*)interface->ifa_addr,sizeof(struct sockaddr),
+                        ifCAddress,NI_MAXHOST,ifCPort,NI_MAXSERV,NI_NUMERICSERV);
+            
+            if(strcmp(ifCAddress,hostCAddress) == 0)
+            {
+                interfaceName = CFStringCreateWithCString(kCFAllocatorDefault,
+                                                          interface->ifa_name,
+                                                          kCFStringEncodingUTF8);
+                
+                break;
+            }
+        }
+        interface = interface->ifa_next;
+    }
+    
+    freeifaddrs(interfaceList);
+
+    CFStringRef address = CFStringCreateWithCString(kCFAllocatorDefault,targetCAddress,kCFStringEncodingASCII);
+    CFStringRef port = CFStringCreateWithCString(kCFAllocatorDefault,targetCPort,kCFStringEncodingASCII);
+
+    iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
+    iSCSIPortalSetAddress(portal,address);
+    iSCSIPortalSetPort(portal,port);
+    CFRelease(address);
+    CFRelease(port);
+    
+    if(interfaceName)
+    {
+        iSCSIPortalSetHostInterface(portal,interfaceName);
+        CFRelease(interfaceName);
+    }
+    
+    return portal;
 }
 
-
-/*! Gets configuration associated with a particular connection.
+/*! Copies the configuration object associated with a particular session.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param config the configuration to get.  The user of this function is
- *  responsible for allocating and freeing the configuration struct.
- *  @return error code indicating result of operation. */
-errno_t iSCSICopySessionConfig(SID sessionId,iSCSISessionConfigRef * config)
+ *  @return the session configuration object.
+ *  @return  the configuration object associated with the specified session. */
+iSCSISessionConfigRef iSCSICopySessionConfig(SID sessionId)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !config)
-        return EINVAL;
+    if(sessionId == kiSCSIInvalidSessionId)
+        return NULL;
     
     iSCSIKernelSessionCfg sessCfgKernel;
+
+    if(iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel))
+        return NULL;
     
-    errno_t error = 0;
-    if((error = iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel)))
-        return error;
-    
-    iSCSIMutableSessionConfigRef sessCfg = (iSCSIMutableSessionConfigRef)*config;
-    sessCfg = iSCSIMutableSessionConfigCreate();
+    iSCSIMutableSessionConfigRef sessCfg = iSCSIMutableSessionConfigCreate();
     iSCSISessionConfigSetErrorRecoveryLevel(sessCfg,sessCfgKernel.errorRecoveryLevel);
     iSCSISessionConfigSetMaxConnections(sessCfg,sessCfgKernel.maxConnections);
     iSCSISessionConfigSetTargetPortalGroupTag(sessCfg,sessCfgKernel.targetPortalGroupTag);
     
-    return 0;
+    return sessCfg;
 }
 
-/*! Gets configuration associated with a particular connection.
+/*! Copies the configuration object associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
- *  @param config the configurations to get.  The user of this function is
- *  responsible for allocating and freeing the configuration struct.
- *  @return error code indicating result of operation. */
-errno_t iSCSICopyConnectionConfig(SID sessionId,
-                                  CID connectionId,
-                                  iSCSIConnectionConfigRef * config)
+ *  @return  the configuration object associated with the specified connection. */
+iSCSIConnectionConfigRef iSCSICopyConnectionConfig(SID sessionId,CID connectionId)
 {
-    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !config)
-        return EINVAL;
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+        return NULL;
     
     iSCSIKernelConnectionCfg connCfgKernel;
     
-    errno_t error = 0;
-    if((error = iSCSIKernelGetConnectionConfig(sessionId,connectionId,&connCfgKernel)))
-        return error;
+    if(iSCSIKernelGetConnectionConfig(sessionId,connectionId,&connCfgKernel))
+        return NULL;
     
-    iSCSIMutableConnectionConfigRef connCfg = (iSCSIMutableConnectionConfigRef)*config;
-    connCfg = iSCSIMutableConnectionConfigCreate();
+    iSCSIMutableConnectionConfigRef connCfg = iSCSIMutableConnectionConfigCreate();
     connCfgKernel.useDataDigest = iSCSIConnectionConfigGetDataDigest(connCfg);
     connCfgKernel.useHeaderDigest = iSCSIConnectionConfigGetHeaderDigest(connCfg);
 
-    return 0;
+    return connCfg;
 }
 
 /*! Sets the name of this initiator.  This is the IQN-format name that is
  *  exchanged with a target during negotiation.
- *  @param initiatorName the initiator name.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSISetInitiatiorName(CFStringRef initiatorName)
+ *  @param initiatorName the initiator name. */
+void iSCSISetInitiatiorName(CFStringRef initiatorName)
 {
     if(!initiatorName)
-        return EINVAL;
+        return;
     
     CFRelease(kiSCSIInitiatorName);
     kiSCSIInitiatorName = CFStringCreateCopy(kCFAllocatorDefault,initiatorName);
-    
-    return 0;
+
 }
 
 /*! Sets the alias of this initiator.  This is the IQN-format alias that is
  *  exchanged with a target during negotiation.
- *  @param initiatorAlias the initiator alias.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSISetInitiatorAlias(CFStringRef initiatorAlias)
+ *  @param initiatorAlias the initiator alias. */
+void iSCSISetInitiatorAlias(CFStringRef initiatorAlias)
 {
     if(!initiatorAlias)
-        return EINVAL;
+        return;
     
     CFRelease(kiSCSIInitiatorAlias);
     kiSCSIInitiatorAlias = CFStringCreateCopy(kCFAllocatorDefault,initiatorAlias);
-    
-    return 0;
 }

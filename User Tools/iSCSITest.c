@@ -107,8 +107,7 @@ int c = 100;
     }
 
    */
-    
-    
+ 
     
     
     if(iSCSIKernelInitialize() == kIOReturnSuccess)
@@ -123,18 +122,25 @@ int c = 100;
 
     iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
     iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
-    iSCSIPortalSetPort(portal,CFSTR("3260"));
+    
+    CFStringRef a = CFStringCreateWithCString(kCFAllocatorDefault,"3260",kCFStringEncodingASCII);
+//    iSCSIPortalSetPort(portal,CFSTR("3260"));
+    
+    iSCSIPortalSetPort(portal,a);
     iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
+
+    int zz = CFGetRetainCount(a);
     
-    iSCSIPLSetPortal(CFSTR("iqn.test.blah.com"),portal);
+    CFRelease(a);
     
-    iSCSIPortalRef portal2 = iSCSIPLCopyPortal(CFSTR("iqn.test.blah.com"),CFSTR("192.168.1.115"));
+    int zzz = 0;
+    
+
   
-    
-    iSCSIPLSynchronize();
 
 
-  //  iSCSIAuthRef auth = iSCSIAuthCreateNone();
+
+   // iSCSIAuthRef auth = iSCSIAuthCreateNone();
   //  iSCSIDBSetAuthentication(CFSTR("test2"),CFSTR("192.168.1.115"),auth);
 
  /*
@@ -158,17 +164,16 @@ int c = 100;
     */
 /*
     CID connectionId = 100;
-    iSCSIGetConnectionIdFromAddress(0,portal,&connectionId);
+    iSCSIGetConnectionIdForAddress(0,portal,&connectionId);
     int c = 100;
   */
- 
-/*
+
     iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
-    iSCSITargetSetName(target,CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi58"));
+    iSCSITargetSetName(target,CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi59"));
 
  //   iSCSITargetSetHeaderDigest(target,false);
 //    iSCSITargetSetDataDigest(target,false);
-    
+ 
     iSCSIAuthRef auth = iSCSIAuthCreateNone();
 
 
@@ -178,10 +183,33 @@ int c = 100;
     CID connectionId;
 
     enum iSCSILoginStatusCode statusCode;
-    iSCSILoginSession(portal,target,auth,&sessionId,&connectionId,&statusCode);
-    iSCSILoginSession(target,portal,auth,
+iSCSISessionConfigRef sessCfg = iSCSIMutableSessionConfigCreate();
+    iSCSIConnectionConfigRef connCfg = iSCSIMutableConnectionConfigCreate();
     
-    */
+
+    iSCSILoginSession(target,portal,auth,sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
+    
+    iSCSITargetRef tt = iSCSICreateTargetForSessionId(0);
+    
+    iSCSIPortalRef pp = iSCSICreatePortalForConnectionId(0,0);
+    CFShow(iSCSIPortalGetAddress(portal));
+    CFShow(iSCSIPortalGetPort(portal));
+   
+    SID id = 50;
+//CFArraySetValueAtIndex(sessionIds,0,(void *)2);
+   // id = CFArrayGetValueAtIndex(sessionIds, 0);
+   /*
+    const void ** sessionIdValues;
+    int count = CFArrayGetCount(sessionIds);
+    CFArrayGetValues(sessionIds,CFRangeMake(0,CFArrayGetCount(sessionIds)),sessionIdValues);
+
+    SID test = (SID)sessionIdValues[0];
+    
+    int z = 10;
+    
+   */ 
+    
+
  /*
     UInt16 id;
     iSCSIGetSessionIdForTarget(CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi55"),&id);

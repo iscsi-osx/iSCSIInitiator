@@ -38,7 +38,8 @@ io_object_t iSCSIDAFindTargetForSession(SID sessionId)
     while((entry = IOIteratorNext(iterator)) != IO_OBJECT_NULL)
     {
         // Grab this entry's protocol characteristics list, if it has one
-        CFTypeRef data = IORegistryEntryCreateCFProperty(entry,CFSTR("Protocol Characteristics"),
+        CFTypeRef data = IORegistryEntryCreateCFProperty(entry,
+                                                         CFSTR("Protocol Characteristics"),
                                                          kCFAllocatorDefault,0);
         
         if(data && CFGetTypeID(data) == CFDictionaryGetTypeID())
@@ -54,11 +55,16 @@ io_object_t iSCSIDAFindTargetForSession(SID sessionId)
                 // The child is the IOSCSITargetDevice object...
                 io_object_t child;
                 IORegistryEntryGetChildEntry(entry,kIOServicePlane,&child);
+                
+                CFRelease(data);
+
                 return child;
             }
         }
+        
+        if(data)
+            CFRelease(data);
     }
-    
     return IO_OBJECT_NULL;
 }
 
@@ -106,6 +112,7 @@ void iSCSIDAUnmountApplierFunc(io_object_t entry, void * context)
     DASessionRef session = (DASessionRef)context;
     DADiskRef disk = DADiskCreateFromIOMedia(kCFAllocatorDefault,session,entry);
     DADiskUnmount(disk,kDADiskUnmountOptionWhole,NULL,NULL);
+    
 }
 
 /*! Unmounts all IOMedia associated with a particular iSCSI session.
@@ -131,8 +138,10 @@ void iSCSIDACreateBSDDiskNamesApplierFunc(io_object_t entry, void * context)
     // Get the disk name for the object and add it to the array
     CFStringRef BSDName = IORegistryEntryCreateCFProperty(entry,CFSTR("BSD Name"),kCFAllocatorDefault,0);
     
-    if(BSDName)
+    if(BSDName) {
         CFArrayAppendValue(diskNames,BSDName);
+        CFRelease(BSDName);
+    }
 }
 
 /*! Creates an array of strings that hold the BSD disk names for a particular
