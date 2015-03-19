@@ -152,16 +152,17 @@ errno_t iSCSIDLoginSession(int fd,struct iSCSIDCmdLoginSession * cmd)
     iSCSIAuthRef auth = iSCSIDCreateObjectFromSocket(fd,cmd->authLength,
                             (void *(* )(CFDataRef))&iSCSIAuthCreateWithData);
     
-    if(!portal || !target || !auth)
-        return EAGAIN;
+    iSCSISessionConfigRef sessCfg = iSCSIDCreateObjectFromSocket(
+        fd,cmd->sessCfgLength,(void *(* )(CFDataRef))&iSCSISessionConfigCreateWithData);
+    
+    iSCSIConnectionConfigRef connCfg = iSCSIDCreateObjectFromSocket(
+        fd,cmd->connCfgLength,(void *(* )(CFDataRef))&iSCSIConnectionConfigCreateWithData);
     
     SID sessionId;
     CID connectionId;
     enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
     
     // Login the session
-    iSCSISessionConfigRef sessCfg = iSCSIMutableSessionConfigCreate();
-    iSCSIConnectionConfigRef connCfg = iSCSIMutableConnectionConfigCreate();
     errno_t error = iSCSILoginSession(target,portal,auth,sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
     
     iSCSIPortalRelease(portal);
@@ -205,24 +206,20 @@ errno_t iSCSIDLoginConnection(int fd,struct iSCSIDCmdLoginConnection * cmd)
     // Grab objects from stream
     iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
                             (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
-    iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
-                            (void *(* )(CFDataRef))&iSCSITargetCreateWithData);
     iSCSIAuthRef auth = iSCSIDCreateObjectFromSocket(fd,cmd->authLength,
                             (void *(* )(CFDataRef))&iSCSIAuthCreateWithData);
     
-    if(!portal || !target || !auth)
-        return EAGAIN;
+    iSCSIConnectionConfigRef connCfg = iSCSIDCreateObjectFromSocket(
+        fd,cmd->connCfgLength,(void *(* )(CFDataRef))&iSCSIConnectionConfigCreateWithData);
+
     
     CID connectionId;
     enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
-    
-    iSCSIConnectionConfigRef connCfg = iSCSIMutableConnectionConfigCreate();
     
     // Login the session
     errno_t error = iSCSILoginConnection(cmd->sessionId,portal,auth,connCfg,&connectionId,&statusCode);
     
     iSCSIPortalRelease(portal);
-    iSCSITargetRelease(target);
     iSCSIAuthRelease(auth);
     iSCSIConnectionConfigRelease(connCfg);
     
@@ -390,6 +387,7 @@ errno_t iSCSIDGetSessionIds(int fd,struct iSCSIDCmdGetSessionIds * cmd)
         
         CFRelease(sessionIds);
     }
+    
     return 0;
 }
 
@@ -430,6 +428,8 @@ errno_t iSCSIDGetConnectionIds(int fd,struct iSCSIDCmdGetConnectionIds * cmd)
         
         CFRelease(connectionIds);
     }
+    
+    
     return 0;
 }
 
@@ -440,31 +440,27 @@ errno_t iSCSIDCreateTargetForSessionId(int fd,struct iSCSIDCmdCreateTargetForSes
     // Compose a response to send back to the client
     struct iSCSIDRspCreateTargetForSessionId rsp = iSCSIDRspCreateTargetForSessionIdInit;
     CFDataRef data = NULL;
-        fprintf(stderr,"STEP A");
+
     if(target)
     {
-            fprintf(stderr,"STEP B");
         data = iSCSITargetCreateData(target);
         CFRelease(target);
         rsp.targetLength = (UInt32)CFDataGetLength(data);
     }
     else
     {
-            fprintf(stderr,"STEP C");
         rsp.targetLength = 0;
     }
     
-        fprintf(stderr,"STEP D");
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
     {
         if(data)
             CFRelease(data);
         return EAGAIN;
     }
-    
-        fprintf(stderr,"STEP E");
+
     if(data)
-    {    fprintf(stderr,"STEP F");
+    {
         if(send(fd,CFDataGetBytePtr(data),rsp.targetLength,0) != rsp.targetLength)
         {
             CFRelease(data);
@@ -473,7 +469,7 @@ errno_t iSCSIDCreateTargetForSessionId(int fd,struct iSCSIDCmdCreateTargetForSes
         
         CFRelease(data);
     }
-        fprintf(stderr,"STEP G");
+    
     return 0;
 }
 
@@ -510,7 +506,6 @@ errno_t iSCSIDCreatePortalForConnectionId(int fd,struct iSCSIDCmdCreatePortalFor
             CFRelease(data);
             return EAGAIN;
         }
-        
         CFRelease(data);
     }
     
@@ -634,19 +629,10 @@ int main(void)
     
     // Keep track of events as we get them and errors as we do processing
     errno_t error = 0;
-    struct kevent eventList;
-    int numEvents = 0;
+    bool shutdownDaemon = false;
 
     do
     {
- /*       // Wait for the kernel to tell that data has become available on the
-        // socket (if no events keep trying or if there's an error we quit)
-        if((numEvents = kevent(kernelQueue,NULL,0,&eventList,1,NULL)) == -1)
-            goto ERROR_COMM_FAIL;
-        
-        if(numEvents == 0)
-            continue;
-        */
         // Receive data
         struct iSCSIDCmd cmd;
         if(recv(fd,&cmd,sizeof(cmd),0) != sizeof(cmd))
@@ -682,11 +668,13 @@ int main(void)
                 error = iSCSIDGetSessionConfig(fd,(iSCSIDCmdGetSessionConfig*)&cmd); break;
             case kiSCSIDGetConnectionConfig:
                 error = iSCSIDGetConnectionConfig(fd,(iSCSIDCmdGetConnectionConfig*)&cmd); break;
+            case kiSCSIDShutdownDaemon:
+                shutdownDaemon = true; break;
             default:
-                error = EAGAIN;
-        }
+                error = EIO;
+        };
         
-    } while(!error);
+    } while(!error && !shutdownDaemon);
     
     close(fd);
     

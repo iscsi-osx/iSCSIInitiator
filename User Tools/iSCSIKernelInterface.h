@@ -32,7 +32,8 @@ kern_return_t iSCSIKernelCleanUp();
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
  *  @param targetName the name of the target, or NULL if discovery session.
- *  @param targetNameLen the length of the targetName string (excluding null terminators)
+ *  @param targetNameCStringLen the length of the targetNameCString string 
+ *  (length must include null terminator).
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
@@ -169,10 +170,13 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections);
 
 /*! Looks up the session identifier associated with a particular target name.
  *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
+ *  @param targetNameLen the length of the targetName string, including
+ *  the NULL terminator.
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelGetSessionIdForTargetName(const char * targetName,
-                                              SID * sessionId);
+                                             size_t targetNameLen,
+                                             SID * sessionId);
 
 /*! Looks up the connection identifier associated with a particular connection address.
  *  @param sessionId the session identifier.

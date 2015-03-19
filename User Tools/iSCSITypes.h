@@ -225,33 +225,33 @@ iSCSIAuthRef iSCSIAuthCreateNone();
  *  and initiatorSecret are both required parameters, while targetUser and 
  *  targetSecret are optional.  This function will fail to return an 
  *  authentication object if the first two parameters are not specified.
- *  @param initiatorUser the user name for CHAP.
- *  @param initiatorSecret the shared CHAP secret.
- *  @param targetUser the user name for mutual CHAP (may be NULL if mutual
+ *  @param targetUser the user name for CHAP.
+ *  @param targetSecret the shared CHAP secret.
+ *  @param initiatorUser the user name for mutual CHAP (may be NULL if mutual
  *  CHAP is not used).
- *  @param targetSecret the shared secret for mutual CHAP (may be NULL if 
+ *  @param initiatorSecret the shared secret for mutual CHAP (may be NULL if
  *  mutual CHAP is not used). 
  *  @return an iSCSI authentication object, or NULL if the parameters were
  *  invalid. */
-iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef initiatorUser,
-                                 CFStringRef initiatorSecret,
-                                 CFStringRef targetUser,
-                                 CFStringRef targetSecret);
+iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef targetUser,
+                                 CFStringRef targetSecret,
+                                 CFStringRef initiatorUser,
+                                 CFStringRef initiatorSecret);
 
 /*! Returns the CHAP authentication parameter values if the authentication
  *  method is actually CHAP.
  *  @param auth an iSCSI authentication object.
- *  @param initiatorUser the user name for CHAP.
- *  @param initiatorSecret the shared CHAP secret.
- *  @param targetUser the user name for mutual CHAP (may be NULL if mutual
+ *  @param targetUser the user name for CHAP.
+ *  @param targetSecret the shared CHAP secret.
+ *  @param initiatorUser the user name for mutual CHAP (may be NULL if mutual
  *  CHAP is not used).
- *  @param targetSecret the shared secret for mutual CHAP (may be NULL if
+ *  @param initiatorSecret the shared secret for mutual CHAP (may be NULL if
  *  mutual CHAP is not used). */
 void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
-                            CFStringRef * initiatorUser,
-                            CFStringRef * initiatorSecret,
                             CFStringRef * targetUser,
-                            CFStringRef * targetSecret);
+                            CFStringRef * targetSecret,
+                            CFStringRef * initiatorUser,
+                            CFStringRef * initiatorSecret);
 
 
 /*! Gets the authentication method used.

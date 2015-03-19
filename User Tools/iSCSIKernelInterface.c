@@ -80,7 +80,8 @@ kern_return_t iSCSIKernelCleanUp()
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
  *  @param targetNameCString the name of the target, or NULL if discovery session.
- *  @param targetNameCStringLen the length of the targetNameCString string (excluding null terminators)
+ *  @param targetNameCStringLen the length of the targetNameCString string
+ *  (length must include null terminator).
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
@@ -456,7 +457,7 @@ errno_t iSCSIKernelGetConnection(SID sessionId,CID * connectionId)
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    const UInt32 expOutputCnt = 2;
+    const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
     
@@ -498,12 +499,16 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections)
 }
 
 /*! Looks up the session identifier associated with a particular target name.
- *  @param targetNameCString the IQN name of the target (e.q., iqn.2015-01.com.example)
+ *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
+ *  @param targetNameLen the length of the targetName string, including
+ *  the NULL terminator.
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIdForTargetName(const char * targetNameCString,SID * sessionId)
+errno_t iSCSIKernelGetSessionIdForTargetName(const char * targetName,
+                                             size_t targetNameLen,
+                                             SID * sessionId)
 {
-    if(!targetNameCString || !sessionId)
+    if(!targetName || !sessionId)
         return EINVAL;
     
     const UInt32 expOutputCnt = 1;
@@ -511,8 +516,8 @@ errno_t iSCSIKernelGetSessionIdForTargetName(const char * targetNameCString,SID 
     UInt32 outputCnt = expOutputCnt;
     
     kern_return_t result =
-        IOConnectCallMethod(connection,kiSCSIGetSessionIdForTargetName,0,0,targetNameCString,
-                            sizeof(targetNameCString)/sizeof(char),output,&outputCnt,0,0);
+        IOConnectCallMethod(connection,kiSCSIGetSessionIdForTargetName,0,0,targetName,
+                            targetNameLen,output,&outputCnt,0,0);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
         *sessionId = (UInt16)output[0];
@@ -537,15 +542,24 @@ errno_t iSCSIKernelGetConnectionIdForAddress(SID sessionId,
     // Convert address string to an address structure
     errno_t error = 0;
     
+    struct addrinfo hints =  {
+        .ai_family = AF_UNSPEC,
+        .ai_socktype = SOCK_STREAM,
+        .ai_protocol = IPPROTO_TCP,
+    };
+    
     struct addrinfo * aiTarget = NULL;
-    if((error = getaddrinfo(targetAddr,targetPort,NULL,&aiTarget)))
+    if((error = getaddrinfo(targetAddr,targetPort,&hints,&aiTarget)))
         return error;
     
-    struct sockaddr_storage ss_target;
+    struct sockaddr_storage ssTarget;
     
     // Copy the sock_addr structure into a sockaddr_storage structure (this
     // may be either an IPv4 or IPv6 sockaddr structure)
-    memcpy(&ss_target,aiTarget->ai_addr,aiTarget->ai_addrlen);
+    memcpy(&ssTarget,aiTarget->ai_addr,aiTarget->ai_addrlen);
+    
+    // The occupied length of the socket address structure (AF-dependent)
+    socklen_t ssTargetLen = aiTarget->ai_addrlen;
     
     freeaddrinfo(aiTarget);
 
@@ -558,7 +572,7 @@ errno_t iSCSIKernelGetConnectionIdForAddress(SID sessionId,
     
     kern_return_t result =
         IOConnectCallMethod(connection,kiSCSIGetConnectionIdForAddress,&input,inputCnt,
-                           &ss_target,ss_target.ss_len,output,&outputCnt,0,0);
+                           &ssTarget,ssTargetLen,output,&outputCnt,0,0);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
         *connectionId = (UInt16)output[0];

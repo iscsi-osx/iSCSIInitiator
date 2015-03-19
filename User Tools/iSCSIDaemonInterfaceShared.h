@@ -86,11 +86,11 @@ typedef struct iSCSIDCmdLoginSession {
     
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  reserved2;
-    UInt32  connectionId;
     UInt32  portalLength;
     UInt32  targetLength;
     UInt32  authLength;
+    UInt32  sessCfgLength;
+    UInt32  connCfgLength;
     
 } __attribute__((packed)) iSCSIDCmdLoginSession;
 
@@ -151,10 +151,10 @@ typedef struct iSCSIDCmdLoginConnection {
     const UInt16 funcCode;
     UInt16  reserved;
     UInt32  sessionId;
-    UInt32  reserved2;
     UInt32  portalLength;
-    UInt32  targetLength;
     UInt32  authLength;
+    UInt32  connCfgLength;
+    UInt32  reserved2;
     
 } __attribute__((packed)) iSCSIDCmdLoginConnection;
 
@@ -547,6 +547,7 @@ enum iSCSIDFunctionCodes {
     kiSCSIDGetConnectionConfig = 13,
     kiSCSIDSetInitiatorName = 14,
     kiSCSIDSetInitiatorAlias = 15,
+    kiSCSIDShutdownDaemon = 16,
     kiSCSIDInvalidFunctionCode
 };
 

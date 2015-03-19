@@ -12,14 +12,16 @@
 #include "iSCSIDaemonInterfaceShared.h"
 
 const struct iSCSIDCmdShutdown iSCSIDCmdShutdownInit = {
-    .funcCode = kiSCSIDInvalidFunctionCode
+    .funcCode = kiSCSIDShutdownDaemon
 };
 
 const struct iSCSIDCmdLoginSession iSCSIDCmdLoginSessionInit  = {
     .funcCode = kiSCSIDLoginSession,
     .portalLength = 0,
     .targetLength = 0,
-    .authLength   = 0
+    .authLength   = 0,
+    .sessCfgLength = 0,
+    .connCfgLength = 0
 };
 
 const struct iSCSIDCmdLogoutSession iSCSIDCmdLogoutSessionInit  = {
@@ -28,6 +30,10 @@ const struct iSCSIDCmdLogoutSession iSCSIDCmdLogoutSessionInit  = {
 
 const struct iSCSIDCmdLoginConnection iSCSIDCmdLoginConnectionInit  = {
     .funcCode = kiSCSIDLoginConnection,
+    .sessionId = kiSCSIInvalidSessionId,
+    .portalLength = 0,
+    .authLength = 0,
+    .connCfgLength = 0
 };
 
 const struct iSCSIDCmdLogoutConnection iSCSIDCmdLogoutConnectionInit  = {
@@ -117,7 +123,7 @@ errno_t iSCSIDaemonSendCmdWithData(iSCSIDaemonHandle handle,iSCSIDCmd * cmd,...)
     
     // Send command header
     if(send(handle,cmd,sizeof(iSCSIDCmd),0) != sizeof(iSCSIDCmd))
-        return EAGAIN;
+        return EIO;
     
     // Iterate over data and send each one...
     CFDataRef data = NULL;
@@ -127,7 +133,7 @@ errno_t iSCSIDaemonSendCmdWithData(iSCSIDaemonHandle handle,iSCSIDCmd * cmd,...)
         if(send(handle,CFDataGetBytePtr(data),length,0) != length)
         {
             va_end(argList);
-            return EAGAIN;
+            return EIO;
         }
     }
     va_end(argList);
@@ -140,17 +146,21 @@ errno_t iSCSIDaemonSendCmdWithData(iSCSIDaemonHandle handle,iSCSIDCmd * cmd,...)
  *  @param portal specifies the portal to use for the new session.
  *  @param target specifies the target and connection parameters to use.
  *  @param auth specifies the authentication parameters to use.
+ *  @param sessCfg the session configuration parameters to use.
+ *  @param connCfg the connection configuration parameters to use.
  *  @param sessionId the new session identifier.
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonLoginSession(iSCSIDaemonHandle handle,
-                           iSCSIPortalRef portal,
-                           iSCSITargetRef target,
-                           iSCSIAuthRef auth,
-                           SID * sessionId,
-                           CID * connectionId,
-                           enum iSCSILoginStatusCode * statusCode)
+                                iSCSIPortalRef portal,
+                                iSCSITargetRef target,
+                                iSCSIAuthRef auth,
+                                iSCSISessionConfigRef sessCfg,
+                                iSCSIConnectionConfigRef connCfg,
+                                SID * sessionId,
+                                CID * connectionId,
+                                enum iSCSILoginStatusCode * statusCode)
 {
     if(handle < 0 || !portal || !target || !auth || !sessionId || !connectionId || !statusCode)
         return EINVAL;
@@ -158,18 +168,24 @@ errno_t iSCSIDaemonLoginSession(iSCSIDaemonHandle handle,
     CFDataRef portalData = iSCSIPortalCreateData(portal);
     CFDataRef targetData = iSCSITargetCreateData(target);
     CFDataRef authData   = iSCSIAuthCreateData(auth);
+    CFDataRef sessCfgData = iSCSISessionConfigCreateData(sessCfg);
+    CFDataRef connCfgData = iSCSIConnectionConfigCreateData(connCfg);
     
     iSCSIDCmdLoginSession cmd = iSCSIDCmdLoginSessionInit;
     cmd.portalLength = (UInt32)CFDataGetLength(portalData);
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
     cmd.authLength = (UInt32)CFDataGetLength(authData);
+    cmd.sessCfgLength = (UInt32)CFDataGetLength(sessCfgData);
+    cmd.connCfgLength = (UInt32)CFDataGetLength(connCfgData);
 
     errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
-                                               portalData,targetData,authData,NULL);
+                                               portalData,targetData,authData,sessCfgData,connCfgData,NULL);
     
     CFRelease(portalData);
     CFRelease(targetData);
     CFRelease(authData);
+    CFRelease(sessCfgData);
+    CFRelease(connCfgData);
     
     if(error)
         return error;
@@ -177,10 +193,10 @@ errno_t iSCSIDaemonLoginSession(iSCSIDaemonHandle handle,
     iSCSIDRspLoginSession rsp;
     
     if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return EIO;
     
     if(rsp.funcCode != kiSCSIDLoginSession)
-        return EAGAIN;
+        return EIO;
     
     // At this point we have a valid response, process it
     *statusCode = rsp.statusCode;
@@ -205,12 +221,12 @@ errno_t iSCSIDaemonLogoutSession(iSCSIDaemonHandle handle,
     cmd.sessionId = sessionId;
     
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return EAGAIN;
+        return EIO;
     
     iSCSIDRspLogoutSession rsp;
     
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return EIO;
     
     // At this point we have a valid response, process it
     *statusCode = rsp.statusCode;
@@ -218,24 +234,64 @@ errno_t iSCSIDaemonLogoutSession(iSCSIDaemonHandle handle,
     return rsp.errorCode;
 }
 
+
 /*! Adds a new connection to an iSCSI session.
  *  @param handle a handle to a daemon connection.
- *  @param portal specifies the portal to use for the connection.
- *  @param target specifies the target and connection parameters to use.
- *  @param auth specifies the authentication parameters to use.
  *  @param sessionId the new session identifier.
+ *  @param portal specifies the portal to use for the connection.
+ *  @param auth specifies the authentication parameters to use.
+ *  @param connCfg the connection configuration parameters to use.
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonLoginConnection(iSCSIDaemonHandle handle,
-                                   iSCSIPortalRef portal,
-                                   iSCSITargetRef target,
-                                   iSCSIAuthRef auth,
                                    SID sessionId,
+                                   iSCSIPortalRef portal,
+                                   iSCSIAuthRef auth,
+                                   iSCSIConnectionConfigRef connCfg,
                                    CID * connectionId,
                                    enum iSCSILoginStatusCode * statusCode)
+
 {
-    return 0;
+    if(handle < 0 || !portal || !auth || !connectionId || !statusCode)
+        return EINVAL;
+    
+    if(sessionId == kiSCSIInvalidSessionId)
+        return EINVAL;
+    
+    CFDataRef portalData = iSCSIPortalCreateData(portal);
+    CFDataRef authData   = iSCSIAuthCreateData(auth);
+    CFDataRef connCfgData = iSCSIConnectionConfigCreateData(connCfg);
+    
+    iSCSIDCmdLoginSession cmd = iSCSIDCmdLoginSessionInit;
+    cmd.portalLength = (UInt32)CFDataGetLength(portalData);
+    cmd.authLength = (UInt32)CFDataGetLength(authData);
+    cmd.connCfgLength = (UInt32)CFDataGetLength(connCfgData);
+
+    
+    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
+                                               portalData,authData,connCfgData,NULL);
+    
+    CFRelease(portalData);
+    CFRelease(authData);
+    CFRelease(connCfgData);
+    
+    if(error)
+        return error;
+    
+    iSCSIDRspLoginSession rsp;
+    
+    if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
+        return EIO;
+    
+    if(rsp.funcCode != kiSCSIDLoginSession)
+        return EIO;
+    
+    // At this point we have a valid response, process it
+    *statusCode = rsp.statusCode;
+    *connectionId  = rsp.connectionId;
+    
+    return rsp.errorCode;
 }
 
 /*! Removes a connection from an existing session.
@@ -277,14 +333,14 @@ errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
     if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,portalData,NULL))
     {
         CFRelease(portalData);
-        return EAGAIN;
+        return EIO;
     }
 
     CFRelease(portalData);
     iSCSIDRspQueryPortalForTargets rsp;
     
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return EIO;
     
     // Retrieve the discovery record...
     UInt8 * bytes = malloc(rsp.discoveryLength);
@@ -292,7 +348,7 @@ errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
     if(bytes && recv(handle,bytes,rsp.discoveryLength,0) != sizeof(rsp.discoveryLength))
     {
         free(bytes);
-        return EAGAIN;
+        return EIO;
     }
     
     CFDataRef discData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,bytes,
@@ -300,7 +356,7 @@ errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
                                                      kCFAllocatorMalloc);
     
     if(!(*discoveryRec = iSCSIMutableDiscoveryRecCreateWithData(discData)))
-        return EAGAIN;
+        return EIO;
     
     CFRelease(discData);
     
@@ -344,7 +400,7 @@ errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
     {
         CFRelease(portalData);
         CFRelease(targetData);
-        return EAGAIN;
+        return EIO;
     }
 
     CFRelease(portalData);
@@ -352,7 +408,7 @@ errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
     iSCSIDRspQueryTargetForAuthMethod rsp;
     
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return EIO;
     
     *authMethod = rsp.authMethod;
     *statusCode = rsp.statusCode;
@@ -389,39 +445,34 @@ errno_t iSCSIDaemonGetSessionIdForTarget(iSCSIDaemonHandle handle,
     if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,targetData,NULL))
     {
         CFRelease(targetData);
-        return EAGAIN;
+        return EIO;
     }
 
     CFRelease(targetData);
     iSCSIDRspGetSessionIdForTarget rsp;
     
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return EIO;
 
     *sessionId = rsp.sessionId;
 
     return rsp.errorCode;
 }
 
-
-/*! Looks up the connection identifier associated with a particular connection address.
+/*! Looks up the connection identifier associated with a portal.
  *  @param handle a handle to a daemon connection.
  *  @param sessionId the session identifier.
- *  @param address the name used when adding the connection (e.g., IP or DNS).
+ *  @param portal the iSCSI portal.
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionIdForAddress(iSCSIDaemonHandle handle,
-                                              SID sessionId,
-                                              CFStringRef address,
-                                              CID * connectionId)
+errno_t iSCSIDaemonGetConnectionIdForPortal(iSCSIDaemonHandle handle,
+                                            SID sessionId,
+                                            iSCSIPortalRef portal,
+                                            CID * connectionId)
 {
     // Validate inputs
-    if(handle < 0 || !address || sessionId == kiSCSIInvalidSessionId || !connectionId)
+    if(handle < 0 || !portal || sessionId == kiSCSIInvalidSessionId || !connectionId)
         return EINVAL;
-    
-    // Setup a portal object with the target name
-    iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
-    iSCSIPortalSetAddress(portal,address);
     
     // Generate data to transmit (no longer need target object after this)
     CFDataRef portalData = iSCSIPortalCreateData(portal);
@@ -435,14 +486,14 @@ errno_t iSCSIDaemonGetConnectionIdForAddress(iSCSIDaemonHandle handle,
     if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,portalData,NULL))
     {
         CFRelease(portalData);
-        return EAGAIN;
+        return EIO;
     }
     
     CFRelease(portalData);
     iSCSIDRspGetConnectionIdForPortal rsp;
     
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return EIO;
     
     *connectionId = rsp.connectionId;
     
@@ -610,12 +661,12 @@ errno_t iSCSIDaemonGetSessionConfig(iSCSIDaemonHandle handle,
     cmd.sessionId = sessionId;
     
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return EAGAIN;
+        return EIO;
     
     // Receive daemon response header
     iSCSIDRspGetSessionConfig rsp;
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return EIO;
     
     // We expect the data payload that follows the header to be an struct
     if(rsp.dataLength != sizeof(iSCSIKernelSessionCfg))
@@ -623,7 +674,7 @@ errno_t iSCSIDaemonGetSessionConfig(iSCSIDaemonHandle handle,
     
     // Get the session information struct
     if(recv(handle,options,sizeof(iSCSIKernelSessionCfg),0) != sizeof(iSCSIKernelSessionCfg))
-        return EAGAIN;
+        return EIO;
     
     return rsp.errorCode;
 }
@@ -650,12 +701,12 @@ errno_t iSCSIDaemonGetConnectionConfig(iSCSIDaemonHandle handle,
     cmd.connectionId = connectionId;
     
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return EAGAIN;
+        return EIO;
     
     // Receive daemon response header
     iSCSIDRspGetSessionConfig rsp;
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+        return EIO;
     
     // We expect the data payload that follows the header to be an struct
     if(rsp.dataLength != sizeof(iSCSIKernelConnectionCfg))
@@ -663,7 +714,7 @@ errno_t iSCSIDaemonGetConnectionConfig(iSCSIDaemonHandle handle,
     
     // Get the session information struct
     if(recv(handle,options,sizeof(iSCSIKernelConnectionCfg),0) != sizeof(iSCSIKernelConnectionCfg))
-        return EAGAIN;
+        return EIO;
     
     return rsp.errorCode;
 }

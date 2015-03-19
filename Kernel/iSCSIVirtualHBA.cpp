@@ -1168,6 +1168,8 @@ errno_t iSCSIVirtualHBA::CreateSession(OSString * targetName,
     newSession->cmdSN = 0;
     newSession->expCmdSN = 0;
     newSession->maxCmdSN = 0;
+    newSession->opts.targetPortalGroupTag = 0;
+    newSession->opts.targetSessionId = 0;
 //    newSession->initiatorTaskTag = 0;
 
     // Retain new session
@@ -1177,18 +1179,16 @@ errno_t iSCSIVirtualHBA::CreateSession(OSString * targetName,
     // Add target to lookup table...
     targetList->setObject(targetName->getCStringNoCopy(),OSNumber::withNumber(sessionIdx,sizeof(sessionIdx)*8));
 
-    
-    IOLog("\nConnected: ");
-    IOLog(targetName->getCStringNoCopy());
-    IOLog("\n");
-
     // Create a connection associated with this session
     if((error = CreateConnection(*sessionId,targetAddress,hostAddress,connectionId)))
         goto SESSION_CREATE_CONNECTION_FAILURE;
     
     
 // UNLOCK SESSION HERE...
-    
+
+//TODO: SET SOME RFC DEFAULT VALUES HERE FOR OPTIONS FOR SANITY....
+
+
     // Success
     return 0;
     
@@ -1303,6 +1303,10 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     session->connections[index] = newConn;
     *connectionId = index;
     
+    
+// TODO: Complete setting some RFC standard options for sanity (above)
+    
+    
     // Initialize default error (try again)
     errno_t error = EAGAIN;
     
@@ -1357,6 +1361,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     // Initialize queue that keeps track of connection speed
     memset(newConn->bytesPerSecondHistory,0,sizeof(UInt8)*newConn->kBytesPerSecAvgWindowSize);
     newConn->bytesPerSecHistoryIdx = 0;
+    
     
     return 0;
     

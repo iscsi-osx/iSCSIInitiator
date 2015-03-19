@@ -28,10 +28,44 @@
 #include <IOKit/IOKitLib.h>
 #include "iSCSIPropertyList.h"
 
+#include <regex.h>
+
+
 
 
 
 int main(int argc, const char * argv[]) {
+    
+    
+    CFArrayRef portalParts = CreateArrayBySeparatingPortalParts(CFStringCreateWithCString(kCFAllocatorDefault,argv[1],kCFStringEncodingASCII));
+    
+    if(!portalParts)
+        CFShow(CFSTR("invalid portal"));
+    else
+        CFShow(CFSTR("OK"));
+  
+    
+    CFShow(CFArrayGetValueAtIndex(portalParts, 0));
+    
+    if(CFArrayGetCount(portalParts) > 1)
+        CFShow(CFArrayGetValueAtIndex(portalParts, 1));
+    
+   
+    int a = 10000;
+    
+   /*
+    CFMutableDictionaryRef a = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFMutableDictionaryRef b = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFMutableDictionaryRef c = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    
+    CFDictionarySetValue(a,CFSTR("test"),b);
+    CFDictionarySetValue(a,CFSTR("test2"),c);
+    
+    CFMutableDictionaryRef d = (CFMutableDictionaryRef)CFDictionaryGetValue(a,CFSTR("test"));
+    
+    CFDictionarySetValue(d,CFSTR("blah"),CFSTR("2"));
+    
+    
 
    iSCSIPLSetInitiatorName(CFSTR("iqn.test.com"));
     
@@ -49,7 +83,7 @@ int main(int argc, const char * argv[]) {
     
 
     
-int c = 100;
+
 
 /*
     // Iterate over sessions
@@ -120,20 +154,13 @@ int c = 100;
   //       iSCSILogoutSession(0);
   
 
-    iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
-    iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
+ //   iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
+ //   iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
     
-    CFStringRef a = CFStringCreateWithCString(kCFAllocatorDefault,"3260",kCFStringEncodingASCII);
+   
 //    iSCSIPortalSetPort(portal,CFSTR("3260"));
     
-    iSCSIPortalSetPort(portal,a);
-    iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
-
-    int zz = CFGetRetainCount(a);
-    
-    CFRelease(a);
-    
-    int zzz = 0;
+   
     
 
   
@@ -178,7 +205,7 @@ int c = 100;
 
 
 //    iSCSIQueryPortalForTargets(&portal,&targets);
-
+/*//////////////////////////
     SID sessionId;
     CID connectionId;
 

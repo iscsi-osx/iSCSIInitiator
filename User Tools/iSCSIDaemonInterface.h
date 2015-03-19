@@ -37,6 +37,8 @@ void iSCSIDaemonDisconnect(iSCSIDaemonHandle handle);
  *  @param portal specifies the portal to use for the new session.
  *  @param target specifies the target and connection parameters to use.
  *  @param auth specifies the authentication parameters to use.
+ *  @param sessCfg the session configuration parameters to use.
+ *  @param connCfg the connection configuration parameters to use.
  *  @param sessionId the new session identifier.
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
@@ -45,11 +47,11 @@ errno_t iSCSIDaemonLoginSession(iSCSIDaemonHandle handle,
                                 iSCSIPortalRef portal,
                                 iSCSITargetRef target,
                                 iSCSIAuthRef auth,
+                                iSCSISessionConfigRef sessCfg,
+                                iSCSIConnectionConfigRef connCfg,
                                 SID * sessionId,
                                 CID * connectionId,
                                 enum iSCSILoginStatusCode * statusCode);
-
-
 
 /*! Closes the iSCSI connection and frees the session qualifier.
  *  @param handle a handle to a daemon connection.
@@ -61,18 +63,18 @@ errno_t iSCSIDaemonLogoutSession(iSCSIDaemonHandle handle,
 
 /*! Adds a new connection to an iSCSI session.
  *  @param handle a handle to a daemon connection.
- *  @param portal specifies the portal to use for the connection.
- *  @param target specifies the target and connection parameters to use.
- *  @param auth specifies the authentication parameters to use.
  *  @param sessionId the new session identifier.
+ *  @param portal specifies the portal to use for the connection.
+ *  @param auth specifies the authentication parameters to use.
+ *  @param connCfg the connection configuration parameters to use.
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonLoginConnection(iSCSIDaemonHandle handle,
-                                   iSCSIPortalRef portal,
-                                   iSCSITargetRef target,
-                                   iSCSIAuthRef auth,
                                    SID sessionId,
+                                   iSCSIPortalRef portal,
+                                   iSCSIAuthRef auth,
+                                   iSCSIConnectionConfigRef connCfg,
                                    CID * connectionId,
                                    enum iSCSILoginStatusCode * statusCode);
 
@@ -120,16 +122,16 @@ errno_t iSCSIDaemonGetSessionIdForTarget(iSCSIDaemonHandle handle,
                                          CFStringRef targetName,
                                          SID * sessionId);
 
-/*! Looks up the connection identifier associated with a particular connection address.
+/*! Looks up the connection identifier associated with a portal.
  *  @param handle a handle to a daemon connection.
  *  @param sessionId the session identifier.
- *  @param address the name used when adding the connection (e.g., IP or DNS).
+ *  @param portal the iSCSI portal.
  *  @param connectionId the associated connection identifier.
  *  @return error code indicating result of operation. */
 errno_t iSCSIDaemonGetConnectionIdForPortal(iSCSIDaemonHandle handle,
-                                              SID sessionId,
-                                              CFStringRef address,
-                                              CID * connectionId);
+                                            SID sessionId,
+                                            iSCSIPortalRef portal,
+                                            CID * connectionId);
 
 /*! Gets an array of session identifiers for each session.
  *  @param handle a handle to a daemon connection.

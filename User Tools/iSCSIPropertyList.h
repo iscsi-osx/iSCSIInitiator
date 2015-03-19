@@ -40,16 +40,25 @@ iSCSISessionConfigRef iSCSIPLCopySessionConfig(CFStringRef targetName);
  *  @param sessCfg the session configuration object. */
 void iSCSIPLSetSessionConfig(CFStringRef targetName,iSCSISessionConfigRef sessCfg);
 
-/*! Copies a portal object for a particular portal for the specified target.
+/*! Copies a portal object for the specified target.
  *  @param targetName the target name.
  *  @param poralName the portal name (IPv4, IPv6 or DNS name).
  *  @return portal the portal object to set. */
 iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetName,CFStringRef portalName);
 
-/*! Sets a portal object for a particular portal for the specified target.
+/*! Sets a portal object for the specified target.
  *  @param targetName the target name.
  *  @param portal the portal object to set. */
 void iSCSIPLSetPortal(CFStringRef targetName,iSCSIPortalRef portal);
+
+/*! Removes a portal object for a particular target.
+ *  @param targetName the target name.
+ *  @param portalName the portal name to remove. */
+void iSCSIPLRemovePortal(CFStringRef targetName,CFStringRef portalName);
+
+/*! Removes a target object.
+ *  @param targetName the target name. */
+void iSCSIPLRemoveTarget(CFStringRef targetName);
 
 /*! Copies a connection configuration object associated with a particular
  *  portal for the specified target.
@@ -84,6 +93,18 @@ iSCSIAuthRef iSCSIPLCopyAuthentication(CFStringRef targetName,
 void iSCSIPLSetAuthentication(CFStringRef targetName,
                               CFStringRef portalName,
                               iSCSIAuthRef auth);
+
+/*! Gets whether a target is defined in the property list.
+ *  @param targetName the name of the target.
+ *  @return true if the target exists, false otherwise. */
+Boolean iSCSIPLContainsTarget(CFStringRef targetName);
+
+/*! Gets whether a portal is defined in the property list.
+ *  @param targetName the name of the target.
+ *  @param portalName the name of the portal.
+ *  @return true if the portal exists, false otherwise. */
+Boolean iSCSIPLContainsPortal(CFStringRef targetName,
+                              CFStringRef portalName);
 
 /*! Creates an array of target names (fully qualified IQN or EUI names)
  *  defined in the property list.

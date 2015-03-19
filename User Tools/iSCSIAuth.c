@@ -212,12 +212,12 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
         CFRelease(authRsp);
         return error;
     }
-    
+
     CFDictionaryRemoveAllValues(authCmd);
     
     // Get CHAP parameters
-    CFStringRef initiatorUser,initiatorSecret,targetUser,targetSecret;
-    iSCSIAuthGetCHAPValues(auth,&initiatorUser,&initiatorSecret,&targetUser,&targetSecret);
+    CFStringRef targetUser,targetSecret,initiatorUser,initiatorSecret;
+    iSCSIAuthGetCHAPValues(auth,&targetUser,&targetSecret,&initiatorUser,&initiatorSecret);
     
     // Get identifier and challenge & calculate the response
     CFStringRef identifier = NULL, challenge = NULL;
@@ -247,7 +247,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     }
     
     context.nextStage = kiSCSIPDULoginOperationalNegotiation;
-    
+
     error = iSCSISessionLoginQuery(&context,
                                    statusCode,
                                    &rejectCode,

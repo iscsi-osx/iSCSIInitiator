@@ -401,23 +401,19 @@ IOReturn iSCSIInitiatorClient::SetSessionOptions(iSCSIInitiatorClient * target,
     iSCSIKernelSessionCfg * options = (iSCSIKernelSessionCfg*)args->structureInput;
     session->opts = *options;
     
-    return kIOReturnError;
+    return kIOReturnSuccess;
 }
 
 IOReturn iSCSIInitiatorClient::GetSessionOptions(iSCSIInitiatorClient * target,
                                                  void * reference,
                                                  IOExternalMethodArguments * args)
 {
-    // Validate buffer is large enough to hold options
-    if(args->structureOutputSize < sizeof(iSCSIKernelSessionCfg))
-        return kIOReturnMessageTooLarge;
-    
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
     SID sessionId = (SID)args->scalarInput[0];
     
     // Range-check input
-    if(sessionId >= kiSCSIMaxSessions)
+    if(sessionId == kiSCSIInvalidSessionId)
         return kIOReturnBadArgument;
     
     // Do nothing if session doesn't exist
@@ -429,7 +425,7 @@ IOReturn iSCSIInitiatorClient::GetSessionOptions(iSCSIInitiatorClient * target,
     iSCSIKernelSessionCfg * options = (iSCSIKernelSessionCfg*)args->structureOutput;
     *options = session->opts;
     
-    return kIOReturnError;
+    return kIOReturnSuccess;
 }
 
 /*! Dispatched function invoked from user-space to create new connection. */
@@ -771,21 +767,9 @@ IOReturn iSCSIInitiatorClient::GetSessionIdForTargetName(iSCSIInitiatorClient * 
 {
     iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
     
-    SID sessionId = (SID)args->scalarInput[0];
-    
-    // Range-check input
-    if(sessionId >= kiSCSIMaxSessions)
-        return kIOReturnBadArgument;
-    
-    // Do nothing if session doesn't exist
-    iSCSISession * session = hba->sessionList[sessionId];
-    
-    if(!session)
-        return kIOReturnNotFound;
-    
     const char * targetName = (const char *)args->structureInput;
     
-    OSNumber * identifier = (OSNumber*)hba->targetList->getObject(targetName);
+    OSNumber * identifier = (OSNumber*)(hba->targetList->getObject(targetName));
     
     if(!identifier)
         return kIOReturnNotFound;
@@ -805,7 +789,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionIdForAddress(iSCSIInitiatorClient * 
     SID sessionId = (SID)args->scalarInput[0];
 
     // Range-check input
-    if(sessionId >= kiSCSIMaxSessions)
+    if(sessionId == kiSCSIInvalidSessionId)
         return kIOReturnBadArgument;
     
     // Do nothing if session doesn't exist
@@ -828,20 +812,42 @@ IOReturn iSCSIInitiatorClient::GetConnectionIdForAddress(iSCSIInitiatorClient * 
             continue;
         
         sockaddr_storage peername;
-        socklen_t peernamelen = sizeof(peername);
+        socklen_t peernamelen = sizeof(peername); 
         sock_getpeername(connection->socket,(sockaddr*)&peername,peernamelen);
         
         // Ensure family matches (IPv4/IPv6)
         if(peername.ss_family != address->ss_family)
             continue;
         
-        // Next, see if IP and port data match
-        if(memcmp(address,&peername,address->ss_len) == 0)
+        if(peername.ss_family == AF_INET)
         {
-            *args->scalarOutput = connectionId;
-            args->scalarOutputCount = 1;
-            return kIOReturnSuccess;
+            struct sockaddr_in * peer = (struct sockaddr_in *)&peername;
+            struct sockaddr_in * addr = (struct sockaddr_in *)address;
+            
+            if(peer->sin_addr.s_addr != addr->sin_addr.s_addr)
+                continue;
+            
+            if(peer->sin_port != addr->sin_port)
+                continue;
         }
+        else if(peername.ss_family == AF_INET6)
+        {
+            struct sockaddr_in6 * peer = (struct sockaddr_in6 *)&peername;
+            struct sockaddr_in6 * addr = (struct sockaddr_in6 *)address;
+            
+            if(memcmp(&peer->sin6_addr,&addr->sin6_addr,sizeof(addr->sin6_addr)) != 0)
+                continue;
+            
+            if(peer->sin6_port != addr->sin6_port)
+                continue;
+        }
+        else
+            continue;
+        
+        *args->scalarOutput = connectionId;
+        args->scalarOutputCount = 1;
+            
+        return kIOReturnSuccess;
     }
     
     *args->scalarOutput = kiSCSIInvalidConnectionId;

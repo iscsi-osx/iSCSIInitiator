@@ -6,6 +6,8 @@
 	<dict>
 		<key>iqn.test.com</key>
 		<dict>
+			<key>Target Information</key>
+			<string></string>
 			<key>Configuration</key>
 			<dict>
 				<key>ErrorRecoveryLevel</key>

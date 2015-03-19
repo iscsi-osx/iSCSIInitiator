@@ -208,69 +208,60 @@ iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data)
  *  (defaults to no authentication). */
 iSCSIAuthRef iSCSIAuthCreateNone()
 {
-    UInt32 authMethod = kiSCSIAuthMethodNone;
-    CFNumberRef authNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&authMethod);
-    
     const void * keys[] = {CFSTR("Authentication Method")};
-    const void * values[] = {authNum};
-
+    const void * values[] = {CFSTR("None")};
+    
     return CFDictionaryCreate(kCFAllocatorDefault,keys,values,1,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
 }
 
 /*! Creates a new iSCSIAuth object with empty authentication parameters
  *  (defaults to no authentication). */
-iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef initiatorUser,
-                                 CFStringRef initiatorSecret,
-                                 CFStringRef targetUser,
-                                 CFStringRef targetSecret)
+iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef targetUser,
+                                 CFStringRef targetSecret,
+                                 CFStringRef initiatorUser,
+                                 CFStringRef initiatorSecret)
 {
     // Required parameters
-    if(!initiatorUser || !initiatorSecret)
+    if(!targetUser || !targetSecret)
         return NULL;
     
-    UInt32 authMethod = kiSCSIAuthMethodCHAP;
-    CFNumberRef authNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&authMethod);
-    
     const void * keys[] = {
-        CFSTR("AuthMethod"),
-        CFSTR("InitiatorUser"),
-        CFSTR("InitiatorSecret"),
-        CFSTR("TargetUser"),
-        CFSTR("TargetSecret")
+        CFSTR("Authentication Method"),
+        CFSTR("Target User"),
+        CFSTR("Target Secret"),
+        CFSTR("Initiator User"),
+        CFSTR("Initiator Secret")
     };
     
     const void * values[] = {
-        authNum,
-        initiatorUser,
-        initiatorSecret,
+        CFSTR("CHAP"),
         targetUser,
-        targetSecret
+        targetSecret,
+        initiatorUser,
+        initiatorSecret
     };
 
-    // Check for mutual CHAP before including the targetUser and targetSecret
+    // Check for mutual CHAP before including the initiatorUser and initiatorSecret
     // (include the first there terms of the arrays above when mutual CHAP
     // is not used).
-    if(!targetUser || !targetSecret)
-        return CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,NULL,NULL);
+    if(!initiatorUser || !initiatorSecret)
+        return CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     
     // Else we include all parameters
-    return CFDictionaryCreate(kCFAllocatorDefault,keys,values,5,NULL,NULL);
+    return CFDictionaryCreate(kCFAllocatorDefault,keys,values,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
 }
 
 /*! Returns the CHAP authentication parameter values if the authentication
  *  method is actually CHAP. */
 void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
-                            CFStringRef * initiatorUser,
-                            CFStringRef * initiatorSecret,
                             CFStringRef * targetUser,
-                            CFStringRef * targetSecret)
+                            CFStringRef * targetSecret,
+                            CFStringRef * initiatorUser,
+                            CFStringRef * initiatorSecret)
 {
-    if(iSCSIAuthGetMethod(auth) != kiSCSIAuthMethodCHAP)
+    if(!auth || !targetUser || !targetSecret || !initiatorUser || !initiatorUser || (iSCSIAuthGetMethod(auth) != kiSCSIAuthMethodCHAP))
         return;
-    
-    if(!auth || !initiatorUser || !initiatorSecret || !targetUser || !targetSecret)
-        return;
-    
+
     *initiatorUser = CFDictionaryGetValue(auth,CFSTR("Initiator User"));
     *initiatorUser = CFDictionaryGetValue(auth,CFSTR("Initiator Secret"));
     *targetUser = CFDictionaryGetValue(auth,CFSTR("Target User"));
@@ -280,10 +271,18 @@ void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
 /*! Gets the authentication method used. */
 enum iSCSIAuthMethods iSCSIAuthGetMethod(iSCSIAuthRef auth)
 {
-    UInt8 authMethod = 0;
-    CFNumberRef authNum = CFDictionaryGetValue(auth,CFSTR("Authentication Method"));
-    CFNumberGetValue(authNum,kCFNumberIntType,&authMethod);
-    return (enum iSCSIAuthMethods)authMethod;
+    CFStringRef authMethod = CFDictionaryGetValue(auth,CFSTR("Authentication Method"));
+    
+    if(!authMethod)
+        return kiSCSIAuthMethodInvalid;
+    
+    if(CFStringCompare(authMethod,CFSTR("CHAP"),0) == kCFCompareEqualTo)
+        return kiSCSIAuthMethodCHAP;
+    
+    else if(CFStringCompare(authMethod,CFSTR("None"),0) == kCFCompareEqualTo)
+        return kiSCSIAuthMethodNone;
+    
+    return kiSCSIAuthMethodInvalid;
 }
 
 /*! Releases memory associated with an iSCSI auth object. */
@@ -619,6 +618,24 @@ CFDataRef iSCSISessionConfigCreateData(iSCSISessionConfigRef config)
 }
 
 
+/*! Creates a new session config object from an external data representation.
+ *  @param data data used to construct an iSCSI session config object.
+ *  @return an iSCSI session configuration object
+ *  or NULL if object creation failed */
+iSCSISessionConfigRef iSCSISessionConfigCreateWithData(CFDataRef data)
+{
+    CFPropertyListFormat format;
+    
+    iSCSISessionConfigRef sessCfg = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+    
+    if(format == kCFPropertyListBinaryFormat_v1_0)
+        return sessCfg;
+    
+    return NULL;
+}
+
+
+
 CFStringRef kiSCSIConnectionConfigHeaderDigestKey = CFSTR("Header Digest");
 CFStringRef kiSCSIConnectionConfigDataDigestKey = CFSTR("Data Digest");
 
@@ -705,4 +722,21 @@ CFDictionaryRef iSCSIConnectionConfigCreateDictionary(iSCSIConnectionConfigRef c
 CFDataRef iSCSIConnectionConfigCreateData(iSCSIConnectionConfigRef config)
 {
     return CFPropertyListCreateData(kCFAllocatorDefault,config,kCFPropertyListBinaryFormat_v1_0,0,NULL);
+}
+
+
+/*! Creates a new connection config object from an external data representation.
+ *  @param data data used to construct an iSCSI connection config object.
+ *  @return an iSCSI connection configuration object
+ *  or NULL if object creation failed */
+iSCSIConnectionConfigRef iSCSIConnectionConfigCreateWithData(CFDataRef data)
+{
+    CFPropertyListFormat format;
+    
+    iSCSIConnectionConfigRef connCfg = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+    
+    if(format == kCFPropertyListBinaryFormat_v1_0)
+        return connCfg;
+    
+    return NULL;
 }
