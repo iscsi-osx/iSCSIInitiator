@@ -8,67 +8,76 @@
  */
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <unistd.h>
-#include <getopt.h>
-#include "iSCSITypes.h"
+#include <Cocoa/Cocoa.h>
+
 #include <regex.h>
+
+#include "iSCSITypes.h"
+#include "iSCSIPropertyList.h"
 #include "iSCSIDaemonInterface.h"
 #include "iSCSIDA.h"
-#include "iSCSIPropertyList.h"
+
 
 /*! Add command-line option. */
-static const int kOptAdd = 'A';
+CFStringRef kSwitchAdd = CFSTR("-add");
 
 /*! Modify command-line option. */
-static const int kOptModify = 'M';
+CFStringRef kSwitchModify = CFSTR("-modify");
 
 /*! Remove command-line option. */
-static const int kOptRemove = 'R';
+CFStringRef kSwitchRemove = CFSTR("-remove");
 
 /*! List command-line option. */
-static const int kOptList = 'L';
+CFStringRef kSwitchList = CFSTR("-list");
 
 /*! Login command-line option. */
-static const int kOptLogin = 'l';
+CFStringRef kSwitchLogin = CFSTR("-login");
 
 /*! Logout command-line option. */
-static const int kOptLogout = 'u';
+CFStringRef kSwitchLogout = CFSTR("-logout");
+
+/*! Probe command; probes a target for authentication method. */
+CFStringRef kSwitchProbe = CFSTR("-probe");
 
 /*! Target command-line option. */
-static const int kOptTarget = 't';
+CFStringRef kOptTarget = CFSTR("target");
 
 /*! Portal command-line option. */
-static const int kOptPortal = 'p';
+CFStringRef kOptPortal = CFSTR("portal");
 
 /*! Discovery command-line option. */
-static const int kOptDiscovery = 'd';
+CFStringRef kOptDiscovery = CFSTR("discovery");
 
 /*! Interface command-line option. */
-static const int kOptInterface = 'f';
+CFStringRef kOptInterface = CFSTR("interface");
 
 /*! Session identifier command-line option. */
-static const int kOptSessionId = 'i';
+CFStringRef kOptSessionId = CFSTR("session");
+
+/*! Digest command-line options. */
+CFStringRef kOptDigest = CFSTR("digest");
 
 /*! User (CHAP) command-line option. */
-static const int kOptUser = 'c';
+CFStringRef kOptUser = CFSTR("user");
 
 /*! Secret (CHAP) command-line option. */
-static const int kOptSecret = 's';
+CFStringRef kOptSecret = CFSTR("secret");
 
 /*! Mutual-user (CHAP) command-line option. */
-static const int kOptMutualUser = 'q';
+CFStringRef kOptMutualUser = CFSTR("mutualUser");
 
 /*! Mutual-secret (CHAP) command-line option. */
-static const int kOptMutualSecret = 'r';
+CFStringRef kOptMutualSecret = CFSTR("mutualSecret");
+
 
 /*! Verbose command-line option. */
-static const int kOptVerbose = 'v';
+CFStringRef kOptVerbose = CFSTR("verbose");
 
 /*! All command-line option. */
-static const int kOptAll = 'a';
+CFStringRef kOptAll = CFSTR("all");
 
 /*! Nickname command-line option. */  ////// TODO
-static const int kOptNickname = 'n';
+CFStringRef kOptNickname = CFSTR("nickname");
 
 
 
@@ -76,32 +85,11 @@ static const int kOptNickname = 'n';
 const char * executableName;
 
 /*! Command line arguments (used for getopt()). */
-const char * kShortOptions = "AMLRlp:t:i:df:vac:n:us:q:r:";
+//const char * kShortOptions = "AMLRlp:t:i:df:vac:n:us:q:r:";
 
 /*! The standard out stream, used by various functions to write. */
 CFWriteStreamRef stdoutStream = NULL;
 
-
-void displayString(CFStringRef string)
-{
-    if(!string || !stdoutStream)
-        return;
-
-    CFIndex maxBufLen = 255;
-    CFIndex usedBufLen = 0;
-    UInt8 buffer[maxBufLen];
-
-    CFStringGetBytes(string,
-                     CFRangeMake(0,CFStringGetLength(string)),
-                     kCFStringEncodingASCII,
-                     0,
-                     false,
-                     buffer,
-                     maxBufLen,
-                     &usedBufLen);
-    
-    CFWriteStreamWrite(stdoutStream,buffer,usedBufLen);
-}
 /*! Helper function.  Returns true if the targetName is a valid IQN/EUI name. */
 bool validateTargetName(CFStringRef targetName)
 {
@@ -124,7 +112,6 @@ bool validateTargetName(CFStringRef targetName)
 /*! Helper function.  Creates an array where the first element is the host
  *  IP address (either IPv4 or IPv6) or host name and the second part 
  *  contains the port to use, if present. */
-
 CFArrayRef CreateArrayBySeparatingPortalParts(CFStringRef portal)
 {
     // Regular expressions to match valid IPv4, IPv6 and DNS portal strings
@@ -139,9 +126,9 @@ CFArrayRef CreateArrayBySeparatingPortalParts(CFStringRef portal)
     // Start with IPv4 as that is the most restrictive pattern, then work
     // down to least restrictive (DNS names)
     const char * patterns[] = {IPv4Pattern, IPv6Pattern, DNSPattern};
-    const int  maxMatches[] = {10,6,6};
-    const int   hostIndex[] = {2,2,2};
-    const int   portIndex[] = {9,5,5};
+    const int  maxMatches[] = {10, 6, 6};
+    const int   hostIndex[] = {2, 2, 2};
+    const int   portIndex[] = {9, 5, 5};
     
     int index = 0;
     
@@ -165,22 +152,23 @@ CFArrayRef CreateArrayBySeparatingPortalParts(CFStringRef portal)
         // Get the host name
         if(matches[hostIndex[index]].rm_so != -1)
         {
-            CFRange rangeHost = CFRangeMake(matches[hostIndex[index]].rm_so, matches[hostIndex[index]].rm_eo - matches[hostIndex[index]].rm_so);
-            CFStringRef host = CFStringCreateWithSubstring(kCFAllocatorDefault,portal,rangeHost);
+            CFRange rangeHost = CFRangeMake(matches[hostIndex[index]].rm_so,
+                                            matches[hostIndex[index]].rm_eo - matches[hostIndex[index]].rm_so);
+            CFStringRef host = CFStringCreateWithSubstring(kCFAllocatorDefault,
+                                                           portal,rangeHost);
             
             CFArrayAppendValue(portalParts,host);
-            
             CFRelease(host);
         }
         
         // Is the port available?  If so, set it...
         if(matches[portIndex[index]].rm_so != -1)
         {
-            CFRange rangePort = CFRangeMake(matches[portIndex[index]].rm_so, matches[portIndex[index]].rm_eo - matches[portIndex[index]].rm_so);
-            CFStringRef port = CFStringCreateWithSubstring(kCFAllocatorDefault,portal,rangePort);
-            
+            CFRange rangePort = CFRangeMake(matches[portIndex[index]].rm_so,
+                                            matches[portIndex[index]].rm_eo - matches[portIndex[index]].rm_so);
+            CFStringRef port = CFStringCreateWithSubstring(kCFAllocatorDefault,
+                                                           portal,rangePort);
             CFArrayAppendValue(portalParts,port);
-            
             CFRelease(port);
         }
         
@@ -190,6 +178,28 @@ CFArrayRef CreateArrayBySeparatingPortalParts(CFStringRef portal)
     } while(index < sizeof(patterns)/sizeof(const char *));
     
     return NULL;
+}
+
+/*! Writes a string to stdout. */
+void displayString(CFStringRef string)
+{
+    if(!string || !stdoutStream)
+        return;
+    
+    CFIndex maxBufLen = 255;
+    CFIndex usedBufLen = 0;
+    UInt8 buffer[maxBufLen];
+    
+    CFStringGetBytes(string,
+                     CFRangeMake(0,CFStringGetLength(string)),
+                     kCFStringEncodingASCII,
+                     0,
+                     false,
+                     buffer,
+                     maxBufLen,
+                     &usedBufLen);
+    
+    CFWriteStreamWrite(stdoutStream,buffer,usedBufLen);
 }
 
 /*! Displays a list of valid command-line options. */
@@ -206,21 +216,23 @@ void displayUsage()
     CFRelease(usage);
 }
 
-/*! Displays error for a missing option. */
-void displayMissingOptionError(int option)
+/*! Displays error for a missing option.
+ *  @param option the missing option. */
+void displayMissingOptionError(CFStringRef option)
 {
     CFStringRef error = CFStringCreateWithFormat(
         kCFAllocatorDefault,
         NULL,
-        CFSTR("%s: required option -- %c\n"),
+        CFSTR("%s: required option -%s\n"),
         executableName,
-        option);
+        CFStringGetCStringPtr(option,kCFStringEncodingASCII));
     
     displayString(error);
     CFRelease(error);
 }
 
-/*! Displays a generic error message. */
+/*! Displays a generic error message.
+ *  @param errorString the error message to display. */
 void displayError(const char * errorString)
 {
     CFStringRef error = CFStringCreateWithFormat(
@@ -230,21 +242,124 @@ void displayError(const char * errorString)
     CFRelease(error);
 }
 
+/*! Helper function used to display a C error code.
+ *  @param error the standard C error code to display. */
 void displayErrorCode(errno_t error)
 {
+    if(!error)
+        return;
+    
     CFStringRef errorStr = NULL;
     
     switch(error)
     {
-        case 0: return;
+        case EINVAL:
+            errorStr = CFSTR("Invalid argument.\n");
+            break;
+        case EAUTH:
+            errorStr = CFSTR("Access denied.\n");
+            break;
         case EPIPE:
-        case EIO: errorStr = CFSTR("I/O error occured while communicating with iscsid.\n"); break;
-        case EINVAL: errorStr = CFSTR("Invalid argument.\n"); break;
-        case EAUTH: errorStr = CFSTR("Access denied.\n"); break;
-        default: errorStr = CFSTR("Unknown error.\n"); break;
+        case EIO:
+            errorStr = CFSTR("I/O error occured while communicating with iscsid.\n");
+            break;
+        default:
+            errorStr = CFSTR("Unknown error.\n");
     };
     
     displayString(errorStr);
+}
+
+/*! Helper function used to display login status.
+ *  @param target the target
+ *  @param portal the portal used to logon to the target.
+ *  @param statusCode the status code indicating the login result. */
+void displayLoginStatus(iSCSITargetRef target,
+                        iSCSIPortalRef portal,
+                        enum iSCSILoginStatusCode statusCode)
+{
+    CFStringRef statusStr = NULL;
+    
+    switch(statusCode)
+    {
+        case kiSCSILoginSuccess:
+    //        statusStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("Login to %s using %s over %s] successful."),);
+            break;
+        case kiSCSILoginAccessDenied:
+            statusStr = CFSTR("The target has denied access.\n");
+            break;
+        case kiSCSILoginAuthFail:
+            statusStr = CFSTR("Failed to authenticate.\n");
+            break;
+        case kiSCSILoginCantIncludeInSeession:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginInitiatorError:
+            statusStr = CFSTR("An initiator error has occurred.\n");
+            break;
+        case kiSCSILoginInvalidReqDuringLogin:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginMissingParam:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginNotFound:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginOutOfResources:
+            statusStr = CFSTR("The target .\n");
+            break;
+        case kiSCSILoginServiceUnavailable:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginSessionDoesntExist:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginSessionTypeUnsupported:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginTargetHWorSWError:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginTargetMovedPerm:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginTargetMovedTemp:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginTargetRemoved:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginTooManyConnections:
+            statusStr = CFSTR(".\n");
+            break;
+        case kiSCSILoginUnsupportedVer:
+            statusStr = CFSTR(".\n");
+            break;
+
+    };
+    
+    displayString(statusStr);
+}
+
+void displayLogoutStatus(enum iSCSILogoutStatusCode statusCode)
+{
+    CFStringRef statusStr = NULL;
+    
+    switch(statusCode)
+    {
+        case kiSCSILogoutSuccess:
+            break;
+            
+        case kiSCSILogoutCIDNotFound:
+            break;
+        case kiSCSILogoutCleanupFailed:
+            break;
+        case kiSCSILogoutRecoveryNotSupported:
+            break;
+    };
+    
+    displayString(statusStr);
 }
 
 CFHashCode hashOption(const void * value)
@@ -260,10 +375,11 @@ CFHashCode hashOption(const void * value)
  *  @param options command-line options.
  *  @param target the target object, or NULL
  *  @return an error code indicating the result of the operation. */
-errno_t iSCSICtlCreateTargetFromOptions(CFDictionaryRef options,iSCSIMutableTargetRef * target)
+errno_t iSCSICtlCreateTargetFromOptions(CFDictionaryRef options,
+                                        iSCSIMutableTargetRef * target)
 {
     CFStringRef targetName;
-    if(!CFDictionaryGetValueIfPresent(options,&kOptTarget,(const void **)&targetName))
+    if(!CFDictionaryGetValueIfPresent(options,kOptTarget,(const void **)&targetName))
     {
         *target = NULL;
         return 0;
@@ -276,7 +392,7 @@ errno_t iSCSICtlCreateTargetFromOptions(CFDictionaryRef options,iSCSIMutableTarg
     }
     
     *target = iSCSIMutableTargetCreate();
-    iSCSITargetSetName(*target,CFDictionaryGetValue(options,&kOptTarget));
+    iSCSITargetSetName(*target,CFDictionaryGetValue(options,kOptTarget));
     
     return 0;
 }
@@ -288,11 +404,12 @@ errno_t iSCSICtlCreateTargetFromOptions(CFDictionaryRef options,iSCSIMutableTarg
  *  @param options command-line options.
  *  @param portal the portal object, or NULL
  *  @return an error code indicating the result of the operation. */
-errno_t iSCSICtlCreatePortalFromOptions(CFDictionaryRef options,iSCSIMutablePortalRef * portal)
+errno_t iSCSICtlCreatePortalFromOptions(CFDictionaryRef options,
+                                        iSCSIMutablePortalRef * portal)
 {
     CFStringRef portalAddress, hostInterface;
     
-    if(!CFDictionaryGetValueIfPresent(options,&kOptPortal,(const void **)&portalAddress))
+    if(!CFDictionaryGetValueIfPresent(options,kOptPortal,(const void **)&portalAddress))
     {
         *portal = NULL;
         return 0;
@@ -317,7 +434,7 @@ errno_t iSCSICtlCreatePortalFromOptions(CFDictionaryRef options,iSCSIMutablePort
     
     CFRelease(portalParts);
 //////// TODO: remove "en0" ----> if no interface specified leave blank - this should be handled by the daemon/kernel layer
-    if(!CFDictionaryGetValueIfPresent(options,&kOptInterface,(const void **)&hostInterface))
+    if(!CFDictionaryGetValueIfPresent(options,kOptInterface,(const void **)&hostInterface))
         iSCSIPortalSetHostInterface(*portal,CFSTR("en0"));
     else
         iSCSIPortalSetHostInterface(*portal,hostInterface);
@@ -325,14 +442,18 @@ errno_t iSCSICtlCreatePortalFromOptions(CFDictionaryRef options,iSCSIMutablePort
     return 0;
 }
 
-errno_t iSCSICtlCreateAuthFromOptions(CFDictionaryRef options,iSCSIAuthRef * auth)
+errno_t iSCSICtlCreateAuthFromOptions(CFDictionaryRef options,
+                                      iSCSIAuthRef * auth)
 {
+    if(!auth)
+        return EINVAL;
+    
     // Setup authentication object from command-line parameters
     CFStringRef user = NULL, secret = NULL, mutualUser = NULL, mutualSecret = NULL;
-    CFDictionaryGetValueIfPresent(options,&kOptUser,(const void **)&user);
-    CFDictionaryGetValueIfPresent(options,&kOptSecret,(const void **)&secret);
-    CFDictionaryGetValueIfPresent(options,&kOptMutualUser,(const void **)&mutualUser);
-    CFDictionaryGetValueIfPresent(options,&kOptMutualSecret,(const void **)&mutualSecret);
+    CFDictionaryGetValueIfPresent(options,kOptUser,(const void **)&user);
+    CFDictionaryGetValueIfPresent(options,kOptSecret,(const void **)&secret);
+    CFDictionaryGetValueIfPresent(options,kOptMutualUser,(const void **)&mutualUser);
+    CFDictionaryGetValueIfPresent(options,kOptMutualSecret,(const void **)&mutualSecret);
     
     if(!user && secret)
     {
@@ -367,15 +488,19 @@ errno_t iSCSICtlCreateAuthFromOptions(CFDictionaryRef options,iSCSIAuthRef * aut
     return 0;
 }
 
-errno_t iSCSICtlCreateSessionConfigFromOptions(CFDictionaryRef options,iSCSISessionConfigRef * sessCfg)
+errno_t iSCSICtlModifySessionConfigFromOptions(CFDictionaryRef options,iSCSISessionConfigRef * sessCfg)
 {
-    *sessCfg = NULL;
+    if(!sessCfg)
+        return EINVAL;
+    
     return 0;
 }
 
-errno_t iSCSICtlCreateConnectionConfigFromOptions(CFDictionaryRef options,iSCSIConnectionConfigRef * connCfg)
+errno_t iSCSICtlModifyConnectionConfigFromOptions(CFDictionaryRef options,iSCSIConnectionConfigRef * connCfg)
 {
-    *connCfg = NULL;
+    if(!connCfg)
+        return EINVAL;
+
     return 0;
 }
 
@@ -421,22 +546,20 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
     {
         // At this point we're doing some kind of login (either session, adding
         // a connection, or both...)
-        
         iSCSISessionConfigRef sessCfg = NULL;
         
         // If the session needs to be logged in...
         if(sessionId == kiSCSIInvalidSessionId)
         {
-            // If user specified command-line session options, use that
-            iSCSICtlCreateSessionConfigFromOptions(options,&sessCfg);
-            
-            // If user didn't specify then check the database
-            if(!sessCfg)
-                sessCfg = iSCSIPLCopySessionConfig(iSCSITargetGetName(target));
+            // Grab session configuration from property list
+            sessCfg = iSCSIPLCopySessionConfig(iSCSITargetGetName(target));
             
             // If it doesn't exist in the database create a new one with defaults
             if(!sessCfg)
                 sessCfg = iSCSIMutableSessionConfigCreate();
+            
+            // If user specified command-line session options, use those
+            iSCSICtlModifySessionConfigFromOptions(options,&sessCfg);
         }
         
         // If a valid portal was specified, then check the database for
@@ -446,32 +569,35 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
         
         if(portal) {
             
-            // Get all parameters from command-line options if possible, then
-            // resort to the database (if values are provided) and finally
-            // use defaults if neither user-specified values nor database
-            // entries are available for the portal
-            iSCSICtlCreateConnectionConfigFromOptions(options,&connCfg);
+            // Grab connection configuration from property list
+            connCfg = iSCSIPLCopyConnectionConfig(iSCSITargetGetName(target),iSCSIPortalGetAddress(portal));
             
-            if(!connCfg)
-                connCfg = iSCSIPLCopyConnectionConfig(iSCSITargetGetName(target),iSCSIPortalGetAddress(portal));
-            
+            // If it doesn't exist in the database create a new one with defaults
             if(!connCfg)
                 connCfg = iSCSIMutableConnectionConfigCreate();
             
-            iSCSICtlCreateAuthFromOptions(options,&auth);
+            // Override the options with command-line switches, if any
+            iSCSICtlModifyConnectionConfigFromOptions(options,&connCfg);
+
+            // See if user specified alternative authentication options
+            error = iSCSICtlCreateAuthFromOptions(options,&auth);
             
-            if(!auth)
+            // If user didn't specify any authentication options, check the
+            // database for options (if the user's input was incorrect, don't
+            // revert to defaults or the property list; instead quit)
+            if(!error && !auth)
                 auth = iSCSIPLCopyAuthentication(iSCSITargetGetName(target),iSCSIPortalGetAddress(portal));
-            
-            if(!auth)
+
+            // If it doesn't exist in the database create a new one with defaults
+            if(!error && !auth)
                 auth = iSCSIAuthCreateNone();
             
             enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
             
             // Do either session login or add a connection...
-            if(sessionId == kiSCSIInvalidSessionId)
+            if(!error && sessionId == kiSCSIInvalidSessionId)
                 error = iSCSIDaemonLoginSession(handle,portal,target,auth,sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
-            else
+            else if(!error)
                 error = iSCSIDaemonLoginConnection(handle,sessionId,portal,auth,connCfg,&connectionId,&statusCode);
             
             // TODO: Print status of login...
@@ -608,20 +734,19 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     // add target and or portal with user-specified options
     if(!iSCSIPLContainsPortal(iSCSITargetGetName(target),iSCSIPortalGetAddress(portal)))
     {
+        // Create an authentication object from user-specified switches
         iSCSIAuthRef auth = NULL;
-        iSCSISessionConfigRef sessCfg = NULL;
-        iSCSIConnectionConfigRef connCfg = NULL;
-
-        // The authenticaiton, session, and configuration objects are
-        // guaranteed to be valid if no error was returned (if they
-        // are not specified by the user, then defaults are used).
         error = iSCSICtlCreateAuthFromOptions(options,&auth);
         
+        // Setup optional session or connection configuration from switches
+        iSCSISessionConfigRef sessCfg = iSCSIMutableSessionConfigCreate();
+        iSCSIConnectionConfigRef connCfg = iSCSIMutableConnectionConfigCreate();
+
         if(!error)
-            error = iSCSICtlCreateSessionConfigFromOptions(options,&sessCfg);
-        
+            error = iSCSICtlModifySessionConfigFromOptions(options,&sessCfg);
+
         if(!error)
-            error = iSCSICtlCreateConnectionConfigFromOptions(options,&connCfg);
+            error = iSCSICtlModifyConnectionConfigFromOptions(options,&connCfg);
         
         if(!error)
         {
@@ -710,16 +835,13 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     }
     
     iSCSIPLSynchronize();
-    
     return 0;
 }
-
 
 errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
     return 0;
 }
-
 
 /*! Helper function.  Used by iSCSICtlListTargets to display a single row of
  *  information about a target. */
@@ -754,7 +876,6 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
     // various portals and whether they are connected.  Targets from the
     // property list that cannot be matched to an active session are
     // assumed to be disconnected.
-    
     
     // Get a list of all active session identifiers
     CFArrayRef sessionIds = iSCSIDaemonCreateArrayOfSessionIds(handle);
@@ -820,6 +941,60 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
     return 0;
 }
 
+errno_t iSCSICtlProbeTargetForAuthMethod(iSCSIDaemonHandle handle,CFDictionaryRef options)
+{
+    if(handle < 0 || !options)
+        return EINVAL;
+    
+    iSCSIMutableTargetRef target = NULL;
+    iSCSIMutablePortalRef portal = NULL;
+    errno_t error = 0;
+    
+    // Create target object from user input (may be null if user didn't specify)
+    error = iSCSICtlCreateTargetFromOptions(options,&target);
+    
+    // Quit if there's an error, or no error but the target wasn't specified.
+    if(!target)
+    {
+        if(!error)
+            displayMissingOptionError(kOptTarget);
+        
+        return EINVAL;
+    }
+    
+    error = iSCSICtlCreatePortalFromOptions(options,&portal);
+    
+    // Ensure that the user specified a valid portal (at least one portal
+    // must be specified for a target)
+    if(!portal)
+    {
+        if(!error)
+            displayMissingOptionError(kOptPortal);
+        
+        return EINVAL;
+    }
+    
+    // Synchronize the database with the property list on disk
+    iSCSIPLSynchronize();
+    
+    enum iSCSILoginStatusCode statusCode;
+    enum iSCSIAuthMethods authMethod;
+    
+    error = iSCSIDaemonQueryTargetForAuthMethod(handle,portal,
+                                                iSCSITargetGetName(target),
+                                                &authMethod,
+                                                &statusCode);
+    if(!error)
+    {
+        if(statusCode != kiSCSILoginSuccess)
+        {
+            
+        }
+    }
+    
+    return error;
+}
+
 Boolean compareOptions(const void * value1,const void * value2 )
 {
     // Compare chars
@@ -830,6 +1005,15 @@ Boolean compareOptions(const void * value1,const void * value2 )
  *  iSCSI deamon and executes requested iSCSI tasks. */
 int main(int argc, char * argv[])
 {
+
+@autoreleasepool {
+    
+    NSArray * args = [[NSProcessInfo processInfo] arguments];
+    CFArrayRef arguments = (__bridge CFArrayRef)(args);
+    
+    NSUserDefaults * options = [NSUserDefaults standardUserDefaults];
+    CFDictionaryRef optDictionary = (__bridge CFDictionaryRef)([options dictionaryRepresentation]);
+    
     // Connect to the daemon
     iSCSIDaemonHandle handle = iSCSIDaemonConnect();
     
@@ -841,77 +1025,33 @@ int main(int argc, char * argv[])
     // Save command line executable name for later use
     executableName = argv[0];
     
-    // Setup custom dictionary to process command-line options
-    errno_t (* mode)(iSCSIDaemonHandle,CFDictionaryRef) = NULL;
-    static int option = -1;
-    CFDictionaryKeyCallBacks keyCallbacks;
-    keyCallbacks.release = NULL;
-    keyCallbacks.retain  = NULL;
-    keyCallbacks.equal   = &compareOptions;
-    keyCallbacks.hash    = &hashOption;
-    CFMutableDictionaryRef options = CFDictionaryCreateMutable(kCFAllocatorDefault,
-                                                               sizeof(option),&keyCallbacks,
-                                                               &kCFTypeDictionaryValueCallBacks);
-    CFStringRef optArgString = NULL;
+    // Get the mode of operation (e.g., add, modify, remove, etc).
+    CFStringRef mode = NULL;
+    if(CFArrayGetCount(arguments) > 0)
+        mode = CFArrayGetValueAtIndex(arguments,1);
     
-    while((option = getopt(argc,argv,kShortOptions)) != -1)
-    {
-        if(optarg)
-            optArgString = CFStringCreateWithCString(kCFAllocatorDefault,optarg,kCFStringEncodingASCII);
-        
-        switch(option) {
-            case kOptAdd:    mode = &iSCSICtlAddTarget;      break;
-            case kOptRemove: mode = &iSCSICtlRemoveTarget;   break;
-            case kOptModify: mode = &iSCSICtlModifyTarget;   break;
-            case kOptList:   mode = &iSCSICtlListTargets;    break;
-            case kOptLogin:  mode = &iSCSICtlLoginSession;   break;
-            case kOptLogout: mode = &iSCSICtlLogoutSession;  break;
-            case kOptTarget:
-                CFDictionarySetValue(options,&kOptTarget,optArgString);
-                break;
-            case kOptPortal:
-                CFDictionarySetValue(options,&kOptPortal,optArgString);
-                break;
-            case kOptDiscovery:
-                CFDictionarySetValue(options,&kOptDiscovery,optArgString);
-                break;
-            case kOptInterface:
-                CFDictionarySetValue(options,&kOptInterface,optArgString);
-                break;
-            case kOptSessionId:
-                CFDictionarySetValue(options,&kOptSessionId,optArgString);
-                break;
-            case kOptUser:
-                CFDictionarySetValue(options,&kOptUser,optArgString);
-                break;
-            case kOptSecret:
-                CFDictionarySetValue(options,&kOptSecret,optArgString);
-                break;
-            case kOptMutualUser:
-                CFDictionarySetValue(options,&kOptMutualUser,optArgString);
-                break;
-            case kOptMutualSecret:
-                CFDictionarySetValue(options,&kOptMutualSecret,optArgString);
-                break;
-            case kOptAll:
-                CFDictionarySetValue(options,&kOptAll,optArgString);
-                break;
-            case '?':
-                break;
-        };
-        
-        // Release the string object for this option
-        if(optArgString != NULL)
-            CFRelease(optArgString);
-    }
+    // Process add, modify, remove or list
+    if(CFStringCompare(mode,kSwitchAdd,0) == kCFCompareEqualTo)
+        iSCSICtlAddTarget(handle,optDictionary);
+    if(CFStringCompare(mode,kSwitchModify,0) == kCFCompareEqualTo)
+        iSCSICtlModifyTarget(handle,optDictionary);
+    if(CFStringCompare(mode,kSwitchRemove,0) == kCFCompareEqualTo)
+        iSCSICtlRemoveTarget(handle,optDictionary);
+    if(CFStringCompare(mode,kSwitchList,0) == kCFCompareEqualTo)
+        iSCSICtlListTargets(handle,optDictionary);
+    if(CFStringCompare(mode,kSwitchProbe,0) == kCFCompareEqualTo)
+        iSCSICtlProbeTargetForAuthMethod(handle,optDictionary);
     
-    if(mode)
-        mode(handle,options);
-    else
-        displayUsage();
+    // Then process login or logout in tandem
+    if(CFStringCompare(mode,kSwitchLogin,0) == kCFCompareEqualTo)
+        iSCSICtlLoginSession(handle,optDictionary);
+    if(CFStringCompare(mode,kSwitchLogout,0) == kCFCompareEqualTo)
+        iSCSICtlLogoutSession(handle,optDictionary);
     
     iSCSIDaemonDisconnect(handle);
     CFWriteStreamClose(stdoutStream);
-  
+}
+    
+    
     return 0;
 }

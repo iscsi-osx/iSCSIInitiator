@@ -1454,7 +1454,7 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
  *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::ActivateConnection(SID sessionId,CID connectionId)
 {
-    if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession)
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
         return EINVAL;
     
     // Do nothing if session doesn't exist
@@ -1495,7 +1495,7 @@ errno_t iSCSIVirtualHBA::ActivateConnection(SID sessionId,CID connectionId)
  *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::ActivateAllConnections(SID sessionId)
 {
-    if(sessionId >= kMaxSessions)
+    if(sessionId == kiSCSIInvalidSessionId)
         return EINVAL;
     
     // Do nothing if session doesn't exist
@@ -1567,7 +1567,6 @@ errno_t iSCSIVirtualHBA::DeactivateConnection(SID sessionId,CID connectionId)
     
     return 0;
 }
-
 
 /*! Deactivates all iSCSI connections so that parameters can be adjusted or
  *  negotiated by the iSCSI daemon.

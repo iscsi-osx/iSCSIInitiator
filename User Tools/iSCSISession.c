@@ -14,6 +14,7 @@
 #include "iSCSIAuth.h"
 #include "iSCSIQueryTarget.h"
 #include "iSCSITypes.h"
+#include "iSCSIDA.h"
 
 /*! Name of the initiator. */
 CFStringRef kiSCSIInitiatorName = CFSTR("default");

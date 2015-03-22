@@ -384,7 +384,7 @@ IOReturn iSCSIInitiatorClient::SetSessionOptions(iSCSIInitiatorClient * target,
                                                  void * reference,
                                                  IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     
@@ -408,7 +408,7 @@ IOReturn iSCSIInitiatorClient::GetSessionOptions(iSCSIInitiatorClient * target,
                                                  void * reference,
                                                  IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     
@@ -519,7 +519,7 @@ IOReturn iSCSIInitiatorClient::SendData(iSCSIInitiatorClient * target,
                                         void * reference,
                                         IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     CID connectionId = (CID)args->scalarInput[1];
@@ -560,7 +560,7 @@ IOReturn iSCSIInitiatorClient::RecvBHS(iSCSIInitiatorClient * target,
     if(args->structureOutputSize != kiSCSIPDUBasicHeaderSegmentSize)
         return kIOReturnNoSpace;
     
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     CID connectionId = (CID)args->scalarInput[1];
@@ -597,7 +597,7 @@ IOReturn iSCSIInitiatorClient::RecvData(iSCSIInitiatorClient * target,
                                         void * reference,
                                         IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     CID connectionId = (CID)args->scalarInput[1];
@@ -633,7 +633,7 @@ IOReturn iSCSIInitiatorClient::SetConnectionOptions(iSCSIInitiatorClient * targe
                                                     void * reference,
                                                     IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     CID connectionId = (CID)args->scalarInput[1];
@@ -671,7 +671,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionOptions(iSCSIInitiatorClient * targe
     if(args->structureOutputSize < sizeof(iSCSIKernelConnectionCfg))
         return kIOReturnMessageTooLarge;
     
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     CID connectionId = (CID)args->scalarInput[1];
@@ -701,7 +701,7 @@ IOReturn iSCSIInitiatorClient::GetConnection(iSCSIInitiatorClient * target,
                                              void * reference,
                                              IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     
@@ -735,7 +735,7 @@ IOReturn iSCSIInitiatorClient::GetNumConnections(iSCSIInitiatorClient * target,
                                                  void * reference,
                                                  IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     
@@ -765,7 +765,7 @@ IOReturn iSCSIInitiatorClient::GetSessionIdForTargetName(iSCSIInitiatorClient * 
                                                          void * reference,
                                                          IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     const char * targetName = (const char *)args->structureInput;
     
@@ -784,7 +784,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionIdForAddress(iSCSIInitiatorClient * 
                                                           void * reference,
                                                           IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
 
@@ -863,7 +863,7 @@ IOReturn iSCSIInitiatorClient::GetSessionIds(iSCSIInitiatorClient * target,
     if(args->structureOutputSize < sizeof(SID)*kiSCSIMaxSessions)
         return kIOReturnBadArgument;
     
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionCount = 0;
     SID * sessionIds = (SID *)args->structureOutput;
@@ -890,7 +890,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionIds(iSCSIInitiatorClient * target,
     if(args->structureOutputSize < sizeof(CID)*kiSCSIMaxConnectionsPerSession)
         return kIOReturnBadArgument;
 
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     
@@ -927,7 +927,7 @@ IOReturn iSCSIInitiatorClient::GetTargetNameForSessionId(iSCSIInitiatorClient * 
                                                          void * reference,
                                                          IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     
@@ -971,7 +971,7 @@ IOReturn iSCSIInitiatorClient::GetAddressForConnectionId(iSCSIInitiatorClient * 
                                                          void * reference,
                                                          IOExternalMethodArguments * args)
 {
-    iSCSIVirtualHBA * hba = (iSCSIVirtualHBA*)target->provider;
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
     SID sessionId = (SID)args->scalarInput[0];
     CID connectionId = (CID)args->scalarInput[1];
