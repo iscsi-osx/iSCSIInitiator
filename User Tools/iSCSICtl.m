@@ -91,14 +91,14 @@ const char * executableName;
 CFWriteStreamRef stdoutStream = NULL;
 
 /*! Helper function.  Returns true if the targetName is a valid IQN/EUI name. */
-bool validateTargetName(CFStringRef targetName)
+Boolean validateTargetName(CFStringRef targetName)
 {
     // IEEE regular expression for matching IQN name
     const char pattern[] =  "^iqn\.[0-9]\{4\}-[0-9]\{2\}\.[[:alnum:]]\{3\}\."
                             "[A-Za-z0-9.]\{1,255\}:[A-Za-z0-9.]\{1,255\}"
                             "|^eui\.[[:xdigit:]]\{16\}$";
     
-    bool validName = false;
+    Boolean validName = false;
     regex_t preg;
     regcomp(&preg,pattern,REG_EXTENDED | REG_NOSUB);
     
@@ -140,6 +140,7 @@ CFArrayRef CreateArrayBySeparatingPortalParts(CFStringRef portal)
         regmatch_t matches[maxMatches[index]];
         memset(matches,0,sizeof(regmatch_t)*maxMatches[index]);
         
+        // Match against pattern[index]
         if(regexec(&preg,CFStringGetCStringPtr(portal,kCFStringEncodingASCII),maxMatches[index],matches,0))
         {
             regfree(&preg);
@@ -242,124 +243,150 @@ void displayError(const char * errorString)
     CFRelease(error);
 }
 
-/*! Helper function used to display a C error code.
- *  @param error the standard C error code to display. */
-void displayErrorCode(errno_t error)
-{
-    if(!error)
-        return;
-    
-    CFStringRef errorStr = NULL;
-    
-    switch(error)
-    {
-        case EINVAL:
-            errorStr = CFSTR("Invalid argument.\n");
-            break;
-        case EAUTH:
-            errorStr = CFSTR("Access denied.\n");
-            break;
-        case EPIPE:
-        case EIO:
-            errorStr = CFSTR("I/O error occured while communicating with iscsid.\n");
-            break;
-        default:
-            errorStr = CFSTR("Unknown error.\n");
-    };
-    
-    displayString(errorStr);
-}
-
 /*! Helper function used to display login status.
+ *  @param statusCode the status code indicating the login result.
  *  @param target the target
- *  @param portal the portal used to logon to the target.
- *  @param statusCode the status code indicating the login result. */
-void displayLoginStatus(iSCSITargetRef target,
-                        iSCSIPortalRef portal,
-                        enum iSCSILoginStatusCode statusCode)
+ *  @param portal the portal used to logon to the target. */
+void displayLoginStatus(enum iSCSILoginStatusCode statusCode,
+                        iSCSITargetRef target,
+                        iSCSIPortalRef portal)
 {
-    CFStringRef statusStr = NULL;
+    CFStringRef targetName      = iSCSITargetGetName(target);
+    CFStringRef portalAddress   = iSCSIPortalGetAddress(portal);
+    CFStringRef portalPort      = iSCSIPortalGetPort(portal);
+    CFStringRef portalInterface = iSCSIPortalGetHostInterface(portal);
     
+    CFStringRef loginStr;
+    
+    if(statusCode == kiSCSILoginSuccess)
+    {
+        loginStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                            CFSTR("Login to [target: %@ portal: %@:%@ if: %@] successful.\n"),
+                                            targetName,portalAddress,
+                                            portalPort,portalInterface);
+        
+        displayString(loginStr);
+        CFRelease(loginStr);
+        return;
+    }
+    
+    CFStringRef statusStr = CFSTR("");
     switch(statusCode)
     {
         case kiSCSILoginSuccess:
-    //        statusStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("Login to %s using %s over %s] successful."),);
             break;
         case kiSCSILoginAccessDenied:
-            statusStr = CFSTR("The target has denied access.\n");
+            statusStr = CFSTR("the target has denied access");
             break;
         case kiSCSILoginAuthFail:
-            statusStr = CFSTR("Failed to authenticate.\n");
+            statusStr = CFSTR("authentication failure");
             break;
         case kiSCSILoginCantIncludeInSeession:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("can't include the portal in the session");
             break;
         case kiSCSILoginInitiatorError:
-            statusStr = CFSTR("An initiator error has occurred.\n");
+            statusStr = CFSTR("an initiator error has occurred");
             break;
         case kiSCSILoginInvalidReqDuringLogin:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("the initiator made an invalid request");
             break;
         case kiSCSILoginMissingParam:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("missing login parameters");
             break;
         case kiSCSILoginNotFound:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("target was not found");
             break;
         case kiSCSILoginOutOfResources:
-            statusStr = CFSTR("The target .\n");
+            statusStr = CFSTR("target is out of resources");
             break;
         case kiSCSILoginServiceUnavailable:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("target services unavailable");
             break;
         case kiSCSILoginSessionDoesntExist:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("session doesn't exist");
             break;
         case kiSCSILoginSessionTypeUnsupported:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("target doesn't support login");
             break;
         case kiSCSILoginTargetHWorSWError:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("target software or hardware error has occured");
             break;
         case kiSCSILoginTargetMovedPerm:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("target has permanently moved");
             break;
         case kiSCSILoginTargetMovedTemp:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("target has temporarily moved");
             break;
         case kiSCSILoginTargetRemoved:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("target has been removed");
             break;
         case kiSCSILoginTooManyConnections:
             statusStr = CFSTR(".\n");
             break;
         case kiSCSILoginUnsupportedVer:
-            statusStr = CFSTR(".\n");
+            statusStr = CFSTR("target is incompatible with the initiator");
             break;
-
+        case kiSCSILoginInvalidStatusCode:
+        default:
+            statusStr = CFSTR("unknown error occurred");
+            break;
+            
     };
     
-    displayString(statusStr);
+    loginStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                        CFSTR("Login to [target: %@ portal: %@:%@ if: %@] failed: %@.\n"),
+                                        targetName,portalAddress,portalPort,
+                                        portalInterface,statusStr);
+    displayString(loginStr);
+    CFRelease(loginStr);
 }
 
-void displayLogoutStatus(enum iSCSILogoutStatusCode statusCode)
+void displayLogoutStatus(enum iSCSILogoutStatusCode statusCode,
+                         iSCSITargetRef target,
+                         iSCSIPortalRef portal)
 {
-    CFStringRef statusStr = NULL;
+    CFStringRef targetName      = iSCSITargetGetName(target);
+    CFStringRef portalAddress   = iSCSIPortalGetAddress(portal);
+    CFStringRef portalPort      = iSCSIPortalGetPort(portal);
+    CFStringRef portalInterface = iSCSIPortalGetHostInterface(portal);
     
+    CFStringRef loginStr;
+    
+    if(statusCode == kiSCSILogoutSuccess)
+    {
+        loginStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                            CFSTR("Logout of [target: %@ portal: %@:%@ if: %@] successful.\n"),
+                                            targetName,portalAddress,portalPort,portalInterface);
+        
+        displayString(loginStr);
+        CFRelease(loginStr);
+        return;
+    }
+
+    CFStringRef statusStr = CFSTR("");
     switch(statusCode)
     {
         case kiSCSILogoutSuccess:
             break;
             
         case kiSCSILogoutCIDNotFound:
+            statusStr = CFSTR("the connection was not found");
             break;
         case kiSCSILogoutCleanupFailed:
+            statusStr = CFSTR("target cleanup of connection failed");
             break;
         case kiSCSILogoutRecoveryNotSupported:
+            statusStr = CFSTR("could not recover the connection");
             break;
     };
     
-    displayString(statusStr);
+    loginStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                        CFSTR("Logout of [target: %@ portal: %@:%@ if: %@] failed: %@.\n"),
+                                        targetName,portalAddress,portalPort,
+                                        portalInterface,statusStr);
+    
+    displayString(loginStr);
+    CFRelease(loginStr);
 }
 
 CFHashCode hashOption(const void * value)
@@ -368,85 +395,100 @@ CFHashCode hashOption(const void * value)
     return  *((int *)value);
 }
 
-/*! Creates a target object from command-line options.  If the target is not
- *  well-formatted, the function displays an error message and returns an error
- *  code.  If the target is not specified, this function returns success and
- *  a NULL target object.
+/*! Helper function.  Returns true if the user attempted to specify a target
+ *  as a command line argument (even if it was unsuccessful or malformed).
  *  @param options command-line options.
- *  @param target the target object, or NULL
- *  @return an error code indicating the result of the operation. */
-errno_t iSCSICtlCreateTargetFromOptions(CFDictionaryRef options,
-                                        iSCSIMutableTargetRef * target)
+ *  @return true if a target was specified. */
+Boolean iSCSICtlIsTargetSpecified(CFDictionaryRef options)
+{
+    return CFDictionaryContainsKey(options,kOptTarget);
+}
+
+/*! Creates a target object from command-line options.  If the target is not
+ *  well-formatted or missing then the function displays an error message and
+ *  returns NULL.
+ *  @param options command-line options.
+ *  @return the target object, or NULL. */
+iSCSITargetRef iSCSICtlCreateTargetFromOptions(CFDictionaryRef options)
 {
     CFStringRef targetName;
     if(!CFDictionaryGetValueIfPresent(options,kOptTarget,(const void **)&targetName))
     {
-        *target = NULL;
-        return 0;
+        displayMissingOptionError(kOptTarget);
+        return NULL;
     }
     
-    if(!validateTargetName(targetName))
-    {
+    if(!validateTargetName(targetName)) {
         displayError("the specified iSCSI target is invalid");
-        return EINVAL;
+        return NULL;
     }
     
-    *target = iSCSIMutableTargetCreate();
-    iSCSITargetSetName(*target,CFDictionaryGetValue(options,kOptTarget));
+    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
+    iSCSITargetSetName(target,targetName);
     
-    return 0;
+    return target;
+}
+
+/*! Helper function.  Returns true if the user attempted to specify a portal
+ *  as a command line argument (even if it was unsuccessful or malformed).
+ *  @param options command-line options.
+ *  @return true if a portal was specified. */
+Boolean iSCSICtlIsPortalSpecified(CFDictionaryRef options)
+{
+    return CFDictionaryContainsKey(options,kOptPortal);
 }
 
 /*! Creates a portal object from command-line options.  If the portal is not
- *  well-formatted, the function displays an error message and returns an error
- *  code.  If the portal is not specified, this function returns success and
- *  a NULL portal object.
+ *  well-formatted or missing then the function displays an error message and
+ *  returns NULL.
  *  @param options command-line options.
- *  @param portal the portal object, or NULL
- *  @return an error code indicating the result of the operation. */
-errno_t iSCSICtlCreatePortalFromOptions(CFDictionaryRef options,
-                                        iSCSIMutablePortalRef * portal)
+ *  @return the portal object, or NULL. */
+iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
 {
     CFStringRef portalAddress, hostInterface;
     
     if(!CFDictionaryGetValueIfPresent(options,kOptPortal,(const void **)&portalAddress))
     {
-        *portal = NULL;
-        return 0;
+        displayMissingOptionError(kOptPortal);
+        return NULL;
     }
-    
-    *portal = iSCSIMutablePortalCreate();
     
     // Returns an array of hostname, port strings (port optional)
     CFArrayRef portalParts = CreateArrayBySeparatingPortalParts(portalAddress);
     
-    if(!portalParts)
-    {
+    if(!portalParts) {
         displayError("the specified iSCSI portal is invalid");
-        return EINVAL;
+        return NULL;
     }
     
-    iSCSIPortalSetAddress(*portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,0));
+    iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
+    iSCSIPortalSetAddress(portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,0));
     
     // If portal is present, set it
     if(CFArrayGetCount(portalParts) > 1)
-        iSCSIPortalSetPort(*portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,1));
+        iSCSIPortalSetPort(portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,1));
     
     CFRelease(portalParts);
 //////// TODO: remove "en0" ----> if no interface specified leave blank - this should be handled by the daemon/kernel layer
     if(!CFDictionaryGetValueIfPresent(options,kOptInterface,(const void **)&hostInterface))
-        iSCSIPortalSetHostInterface(*portal,CFSTR("en0"));
+        iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
     else
-        iSCSIPortalSetHostInterface(*portal,hostInterface);
+        iSCSIPortalSetHostInterface(portal,hostInterface);
 
-    return 0;
+    return portal;
 }
 
-errno_t iSCSICtlCreateAuthFromOptions(CFDictionaryRef options,
-                                      iSCSIAuthRef * auth)
+
+/*! Creates a authentication object from command-line options.  If authentication
+ *  is not well-formatted or missing components then the function displays an 
+ *  error message and returns NULL.  If authentication is absent entirely this
+ *  function returns a valid authentication object indicating no authentication.
+ *  @param options command-line options.
+ *  @return the authentication object, or NULL. */
+iSCSIAuthRef iSCSICtlCreateAuthFromOptions(CFDictionaryRef options)
 {
-    if(!auth)
-        return EINVAL;
+    if(!options)
+        return NULL;
     
     // Setup authentication object from command-line parameters
     CFStringRef user = NULL, secret = NULL, mutualUser = NULL, mutualSecret = NULL;
@@ -455,37 +497,31 @@ errno_t iSCSICtlCreateAuthFromOptions(CFDictionaryRef options,
     CFDictionaryGetValueIfPresent(options,kOptMutualUser,(const void **)&mutualUser);
     CFDictionaryGetValueIfPresent(options,kOptMutualSecret,(const void **)&mutualSecret);
     
-    if(!user && secret)
-    {
+    if(!user && secret) {
         displayMissingOptionError(kOptUser);
-        return EINVAL;
+        return NULL;
     }
-    else if(user && !secret)
-    {
+    else if(user && !secret) {
         displayMissingOptionError(kOptSecret);
-        return EINVAL;
+        return NULL;
     }
     
-    if(!mutualUser && mutualSecret)
-    {
+    if(!mutualUser && mutualSecret) {
         displayMissingOptionError(kOptMutualUser);
-        return EINVAL;
+        return NULL;
     }
-    else if(mutualUser && !mutualSecret)
-    {
+    else if(mutualUser && !mutualSecret) {
         displayMissingOptionError(kOptMutualSecret);
-        return EINVAL;
+        return NULL;
     }
     
     // At this point we've validated input combinations, if the user is not
     // present then we're dealing with no authentication.  Otherwise we have
     // either CHAP or mutual CHAP
     if(!user)
-        *auth = iSCSIAuthCreateNone();
+        return iSCSIAuthCreateNone();
     else
-        *auth = iSCSIAuthCreateCHAP(user,secret,mutualUser,mutualSecret);
-    
-    return 0;
+        return iSCSIAuthCreateCHAP(user,secret,mutualUser,mutualSecret);
 }
 
 errno_t iSCSICtlModifySessionConfigFromOptions(CFDictionaryRef options,iSCSISessionConfigRef * sessCfg)
@@ -509,60 +545,77 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
     if(handle < 0 || !options)
         return EINVAL;
     
-    errno_t error = 0;
-    iSCSIMutableTargetRef target = NULL;
-    iSCSIMutablePortalRef portal = NULL;
+    iSCSITargetRef target = NULL;
+    iSCSIPortalRef portal = NULL;
     
     // Create target object from user input (may be null if user didn't specify)
-    error = iSCSICtlCreateTargetFromOptions(options,&target);
+    if(!(target = iSCSICtlCreateTargetFromOptions(options)))
+        return EINVAL;
     
-    // Quit if there's an error, or no error but the target wasn't specified.
-    if(!target)
-    {
-        if(!error)
-            displayMissingOptionError(kOptTarget);
+    CFStringRef targetName = iSCSITargetGetName(target);
+    
+    // Synchronize the database with the property list on disk
+    iSCSIPLSynchronize();
+    
+    // Verify that the target exists in the property list
+    if(!iSCSIPLContainsTarget(targetName)) {
+        displayError("the specified target does not exist.");
         
+        iSCSITargetRelease(target);
         return EINVAL;
     }
     
+    // Portal is optional for a login operation (omission logs in all portals)
+    if(iSCSICtlIsPortalSpecified(options)) {
+        if(!(portal = iSCSICtlCreatePortalFromOptions(options)))
+        {
+            iSCSITargetRelease(target);
+            return EINVAL;
+        }
+    }
+    
+    // Verify that portal exists
+    if(portal && !iSCSIPLContainsPortal(targetName,iSCSIPortalGetAddress(portal))) {
+        displayError("the specified portal does not exist.");
+        
+        iSCSIPortalRelease(portal);
+        iSCSITargetRelease(target);
+        return EINVAL;
+    }
+    
+    // Check for active sessions or connections before allowing removal
     SID sessionId = kiSCSIInvalidSessionId;
     CID connectionId = kiSCSIInvalidConnectionId;
     
-    // See if there exists an active session for this target
-    error = iSCSIDaemonGetSessionIdForTarget(handle,iSCSITargetGetName(target),&sessionId);
+    errno_t error = iSCSIDaemonGetSessionIdForTarget(handle,targetName,&sessionId);
     
-    if(!error)
-        error = iSCSICtlCreatePortalFromOptions(options,&portal);
-    
-    // See if there exists an active connection for this portal
-    if(!error && portal && sessionId != kiSCSIInvalidSessionId)
+    if(sessionId != kiSCSIInvalidSessionId && portal)
         error = iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId);
     
+    if(error)
+        displayError("an I/O error occured while communicating with iscsid.");
+    
     // There's an active session and connection for the target/portal
-    if(!error && sessionId != kiSCSIInvalidSessionId && connectionId != kiSCSIInvalidConnectionId) {
+    if(sessionId != kiSCSIInvalidSessionId && connectionId != kiSCSIInvalidConnectionId) {
         displayError("the specified target has an active session over the specified portal.");
     }
     else if(!error)
     {
-        // At this point we're doing some kind of login (either session, adding
-        // a connection, or both...)
+        // At this point we're doing some kind of login
         iSCSISessionConfigRef sessCfg = NULL;
         
         // If the session needs to be logged in...
         if(sessionId == kiSCSIInvalidSessionId)
         {
             // Grab session configuration from property list
-            sessCfg = iSCSIPLCopySessionConfig(iSCSITargetGetName(target));
-            
-            // If it doesn't exist in the database create a new one with defaults
-            if(!sessCfg)
-                sessCfg = iSCSIMutableSessionConfigCreate();
+            if(!(sessCfg = iSCSIPLCopySessionConfig(targetName)))
+               sessCfg = iSCSIMutableSessionConfigCreate();
             
             // If user specified command-line session options, use those
             iSCSICtlModifySessionConfigFromOptions(options,&sessCfg);
         }
         
-        // If a valid portal was specified, then check the database for
+        // Check property list for If a valid portal was specified, then check the database for
         // configuration for the portal
         iSCSIConnectionConfigRef connCfg = NULL;
         iSCSIAuthRef auth = NULL;
@@ -570,23 +623,17 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
         if(portal) {
             
             // Grab connection configuration from property list
-            connCfg = iSCSIPLCopyConnectionConfig(iSCSITargetGetName(target),iSCSIPortalGetAddress(portal));
-            
-            // If it doesn't exist in the database create a new one with defaults
-            if(!connCfg)
-                connCfg = iSCSIMutableConnectionConfigCreate();
+            if(!(connCfg = iSCSIPLCopyConnectionConfig(targetName,iSCSIPortalGetAddress(portal))))
+               connCfg = iSCSIMutableConnectionConfigCreate();
             
             // Override the options with command-line switches, if any
             iSCSICtlModifyConnectionConfigFromOptions(options,&connCfg);
-
-            // See if user specified alternative authentication options
-            error = iSCSICtlCreateAuthFromOptions(options,&auth);
             
             // If user didn't specify any authentication options, check the
             // database for options (if the user's input was incorrect, don't
             // revert to defaults or the property list; instead quit)
             if(!error && !auth)
-                auth = iSCSIPLCopyAuthentication(iSCSITargetGetName(target),iSCSIPortalGetAddress(portal));
+                auth = iSCSIPLCopyAuthentication(targetName,iSCSIPortalGetAddress(portal));
 
             // If it doesn't exist in the database create a new one with defaults
             if(!error && !auth)
@@ -600,7 +647,8 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
             else if(!error)
                 error = iSCSIDaemonLoginConnection(handle,sessionId,portal,auth,connCfg,&connectionId,&statusCode);
             
-            // TODO: Print status of login...
+            if(error)
+                displayLoginStatus(statusCode,target,portal);
             
         }
         //else  // At this point the portal was not specified, and the session
@@ -609,7 +657,6 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
     
     if(portal)
         iSCSIPortalRelease(portal);
-    
     iSCSITargetRelease(target);
    
     return error;
@@ -620,27 +667,17 @@ errno_t iSCSICtlLogoutSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
     if(handle < 0 || !options)
         return EINVAL;
     
-    errno_t error = 0;
-    iSCSIMutableTargetRef target = NULL;
-    iSCSIMutablePortalRef portal = NULL;
+    iSCSITargetRef target = NULL;
+    iSCSIPortalRef portal = NULL;
     
     SID sessionId = kiSCSIInvalidSessionId;
     CID connectionId = kiSCSIInvalidConnectionId;
     
-    // Create target object from user input (may be null if user didn't specify)
-    error = iSCSICtlCreateTargetFromOptions(options,&target);
-    
-    // Quit if there's an error, or no error but the target wasn't specified.
-    if(!target)
-    {
-        if(!error)
-            displayMissingOptionError(kOptTarget);
-        
+    if(!(target = iSCSICtlCreateTargetFromOptions(options)))
         return EINVAL;
-    }
     
     // See if there exists an active session for this target
-    error = iSCSIDaemonGetSessionIdForTarget(handle,iSCSITargetGetName(target),&sessionId);
+    errno_t error = iSCSIDaemonGetSessionIdForTarget(handle,iSCSITargetGetName(target),&sessionId);
     
     if(!error && sessionId == kiSCSIInvalidSessionId)
     {
@@ -648,8 +685,10 @@ errno_t iSCSICtlLogoutSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
         error = EINVAL;
     }
     
-    if(!error)
-        error = iSCSICtlCreatePortalFromOptions(options,&portal);
+    if(iSCSICtlIsPortalSpecified(options)) {
+        if(!(portal = iSCSICtlCreatePortalFromOptions(options)))
+            return EINVAL;
+    }
     
     // See if there exists an active connection for this portal
     if(!error && portal)
@@ -674,9 +713,9 @@ errno_t iSCSICtlLogoutSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
             error = iSCSIDaemonLogoutConnection(handle,sessionId,connectionId,&statusCode);
         
         if(!error)
-        {} // TODO: display logout status....
+            displayLogoutStatus(statusCode,target,portal);
         else
-            displayErrorCode(error);
+            displayError("an I/O error occured while communicating with iscsid.");
     }
 
     if(portal)
@@ -699,31 +738,15 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     if(handle < 0 || !options)
         return EINVAL;
     
-    iSCSIMutableTargetRef target = NULL;
-    iSCSIMutablePortalRef portal = NULL;
+    iSCSITargetRef target = NULL;
+    iSCSIPortalRef portal = NULL;
     errno_t error = 0;
     
-    // Create target object from user input (may be null if user didn't specify)
-    error = iSCSICtlCreateTargetFromOptions(options,&target);
-    
-    // Quit if there's an error, or no error but the target wasn't specified.
-    if(!target)
-    {
-        if(!error)
-            displayMissingOptionError(kOptTarget);
-        
+    if(!(target = iSCSICtlCreateTargetFromOptions(options)))
         return EINVAL;
-    }
-
-    error = iSCSICtlCreatePortalFromOptions(options,&portal);
     
-    // Ensure that the user specified a valid portal (at least one portal
-    // must be specified for a target)
-    if(!portal)
-    {
-        if(!error)
-            displayMissingOptionError(kOptPortal);
-        
+    if(!(portal = iSCSICtlCreatePortalFromOptions(options))) {
+        iSCSITargetRelease(target);
         return EINVAL;
     }
     
@@ -732,11 +755,14 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     
     // If portal and target both exist then do nothing, otherwise
     // add target and or portal with user-specified options
-    if(!iSCSIPLContainsPortal(iSCSITargetGetName(target),iSCSIPortalGetAddress(portal)))
+    CFStringRef targetName = iSCSITargetGetName(target);
+    
+    if(!iSCSIPLContainsPortal(targetName,iSCSIPortalGetAddress(portal)))
     {
         // Create an authentication object from user-specified switches
-        iSCSIAuthRef auth = NULL;
-        error = iSCSICtlCreateAuthFromOptions(options,&auth);
+        iSCSIAuthRef auth;
+        if(!(auth = iSCSICtlCreateAuthFromOptions(options)))
+            error = EINVAL;
         
         // Setup optional session or connection configuration from switches
         iSCSISessionConfigRef sessCfg = iSCSIMutableSessionConfigCreate();
@@ -750,7 +776,6 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
         
         if(!error)
         {
-            CFStringRef targetName = iSCSITargetGetName(target);
             iSCSIPLSetPortal(targetName,portal);
             iSCSIPLSetAuthentication(targetName,iSCSIPortalGetAddress(portal),auth);
             iSCSIPLSetSessionConfig(targetName,sessCfg);
@@ -761,13 +786,12 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
         
         if(auth)
             iSCSIAuthRelease(auth);
-        
-        if(sessCfg)
-            iSCSISessionConfigRelease(sessCfg);
-        
-        if(connCfg)
-            iSCSIConnectionConfigRelease(connCfg);
+    
+        iSCSISessionConfigRelease(sessCfg);
+        iSCSIConnectionConfigRelease(connCfg);
     }
+    else
+        displayError("the specified target and portal already exist.");
     
     // Target and portal are necessarily valid at this point
     iSCSITargetRelease(target);
@@ -786,56 +810,76 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     if(handle < 0 || !options)
         return EINVAL;
     
-    iSCSIMutableTargetRef target = NULL;
-    iSCSIMutablePortalRef portal = NULL;
-    errno_t error = 0;
+    iSCSITargetRef target = NULL;
+    iSCSIPortalRef portal = NULL;
     
-    // Create target object from user input (may be null if user didn't specify)
-    error = iSCSICtlCreateTargetFromOptions(options,&target);
-    
-    // Quit if there's an error, or no error but the target wasn't specified.
-    if(!target)
-    {
-        if(!error)
-            displayMissingOptionError(kOptTarget);
-        
-        return EINVAL;
-    }
-    
-    error = iSCSICtlCreatePortalFromOptions(options,&portal);
-    
-    // Portal is optional for a remove operation, but check for error to see
-    // if there were any problems parsing a portal if one was supplied.
-    if(error)
-    {
-        iSCSITargetRelease(target);
-        return EINVAL;
-    }
+    if(!(target = iSCSICtlCreateTargetFromOptions(options)))
+       return EINVAL;
+       
+    CFStringRef targetName = iSCSITargetGetName(target);
     
     // Synchronize the database with the property list on disk
     iSCSIPLSynchronize();
     
-    // Target must be valid at this point.  Remove the target entirely if no
-    // portal was specified.
-    CFStringRef targetName = iSCSITargetGetName(target);
+    // Verify that the target exists in the property list
+    if(!iSCSIPLContainsTarget(targetName)) {
+        displayError("the specified target does not exist.");
+        
+        iSCSITargetRelease(target);
+        return EINVAL;
+    }
+
+    if(iSCSICtlIsPortalSpecified(options)) {
+        if(!(portal = iSCSICtlCreatePortalFromOptions(options))) {
+            iSCSITargetRelease(target);
+            return EINVAL;
+        }
+    }
+
+    // Verify that portal exists in property list
+    if(portal && !iSCSIPLContainsPortal(targetName,iSCSIPortalGetAddress(portal))) {
+        displayError("the specified portal does not exist.");
+        
+        iSCSIPortalRelease(portal);
+        iSCSITargetRelease(target);
+        return EINVAL;
+    }
     
-    if(!portal)
+    // Check for active sessions or connections before allowing removal
+    SID sessionId = kiSCSIInvalidSessionId;
+    CID connectionId = kiSCSIInvalidConnectionId;
+    
+    errno_t error = iSCSIDaemonGetSessionIdForTarget(handle,targetName,&sessionId);
+    
+    if(sessionId != kiSCSIInvalidSessionId && portal)
+        error = iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId);
+    
+    if(error)
+        displayError("I/O error occurred while communicating with the iscsid.");
+    else if(!portal)
     {
-        if(!iSCSIPLContainsTarget(targetName))
-            displayError("the specified target does not exist.");
-        else
+        if(sessionId != kiSCSIInvalidSessionId)
+            displayError("the specified target has an active session and cannot be removed.");
+        else if(sessionId == kiSCSIInvalidSessionId) {
             iSCSIPLRemoveTarget(targetName);
+            iSCSIPLSynchronize();
+        }
     }
-    else
+    else if(portal)
     {
-        if(!iSCSIPLContainsPortal(targetName,iSCSIPortalGetAddress(portal)))
-            displayError("the specified portal does not exist.");
-        else
+        if(connectionId != kiSCSIInvalidConnectionId)
+            displayError("the specified portal is connected and cannot be removed.");
+        else if(connectionId == kiSCSIInvalidConnectionId) {
             iSCSIPLRemovePortal(targetName,iSCSIPortalGetAddress(portal));
+            iSCSIPLSynchronize();
+        }
     }
+
+    if(portal)
+        iSCSIPortalRelease(portal);
+    iSCSITargetRelease(target);
     
-    iSCSIPLSynchronize();
-    return 0;
+    return error;
 }
 
 errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
@@ -946,33 +990,15 @@ errno_t iSCSICtlProbeTargetForAuthMethod(iSCSIDaemonHandle handle,CFDictionaryRe
     if(handle < 0 || !options)
         return EINVAL;
     
-    iSCSIMutableTargetRef target = NULL;
-    iSCSIMutablePortalRef portal = NULL;
+    iSCSITargetRef target = NULL;
+    iSCSIPortalRef portal = NULL;
     errno_t error = 0;
     
-    // Create target object from user input (may be null if user didn't specify)
-    error = iSCSICtlCreateTargetFromOptions(options,&target);
-    
-    // Quit if there's an error, or no error but the target wasn't specified.
-    if(!target)
-    {
-        if(!error)
-            displayMissingOptionError(kOptTarget);
-        
+    if(!(target = iSCSICtlCreateTargetFromOptions(options)))
         return EINVAL;
-    }
     
-    error = iSCSICtlCreatePortalFromOptions(options,&portal);
-    
-    // Ensure that the user specified a valid portal (at least one portal
-    // must be specified for a target)
-    if(!portal)
-    {
-        if(!error)
-            displayMissingOptionError(kOptPortal);
-        
+    if(!(portal = iSCSICtlCreatePortalFromOptions(options)))
         return EINVAL;
-    }
     
     // Synchronize the database with the property list on disk
     iSCSIPLSynchronize();
@@ -1005,6 +1031,7 @@ Boolean compareOptions(const void * value1,const void * value2 )
  *  iSCSI deamon and executes requested iSCSI tasks. */
 int main(int argc, char * argv[])
 {
+    errno_t error = 0;
 
 @autoreleasepool {
     
@@ -1032,26 +1059,25 @@ int main(int argc, char * argv[])
     
     // Process add, modify, remove or list
     if(CFStringCompare(mode,kSwitchAdd,0) == kCFCompareEqualTo)
-        iSCSICtlAddTarget(handle,optDictionary);
+        error = iSCSICtlAddTarget(handle,optDictionary);
     if(CFStringCompare(mode,kSwitchModify,0) == kCFCompareEqualTo)
-        iSCSICtlModifyTarget(handle,optDictionary);
+        error = iSCSICtlModifyTarget(handle,optDictionary);
     if(CFStringCompare(mode,kSwitchRemove,0) == kCFCompareEqualTo)
-        iSCSICtlRemoveTarget(handle,optDictionary);
+        error = iSCSICtlRemoveTarget(handle,optDictionary);
     if(CFStringCompare(mode,kSwitchList,0) == kCFCompareEqualTo)
-        iSCSICtlListTargets(handle,optDictionary);
+        error = iSCSICtlListTargets(handle,optDictionary);
     if(CFStringCompare(mode,kSwitchProbe,0) == kCFCompareEqualTo)
-        iSCSICtlProbeTargetForAuthMethod(handle,optDictionary);
+        error = iSCSICtlProbeTargetForAuthMethod(handle,optDictionary);
     
     // Then process login or logout in tandem
     if(CFStringCompare(mode,kSwitchLogin,0) == kCFCompareEqualTo)
-        iSCSICtlLoginSession(handle,optDictionary);
+        error = iSCSICtlLoginSession(handle,optDictionary);
     if(CFStringCompare(mode,kSwitchLogout,0) == kCFCompareEqualTo)
-        iSCSICtlLogoutSession(handle,optDictionary);
+        error = iSCSICtlLogoutSession(handle,optDictionary);
     
     iSCSIDaemonDisconnect(handle);
     CFWriteStreamClose(stdoutStream);
 }
     
-    
-    return 0;
+    return error;
 }

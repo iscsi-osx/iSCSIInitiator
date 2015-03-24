@@ -476,7 +476,6 @@ errno_t iSCSIDaemonGetConnectionIdForPortal(iSCSIDaemonHandle handle,
     
     // Generate data to transmit (no longer need target object after this)
     CFDataRef portalData = iSCSIPortalCreateData(portal);
-    iSCSIPortalRelease(portal);
     
     // Create command header to transmit
     iSCSIDCmdGetConnectionIdForPortal cmd = iSCSIDCmdGetConnectionIdForPortalInit;

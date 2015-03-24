@@ -101,9 +101,9 @@ extern const iSCSIDCmdLoginSession iSCSIDCmdLoginSessionInit;
 typedef struct iSCSIDRspLoginSession {
     
     const UInt8 funcCode;
-    UInt16 reserved;
+    UInt8 reserved;
     UInt32 errorCode;
-    UInt8  statusCode;
+    UInt16  statusCode;
     UInt32 sessionId;
     UInt32 connectionId;
     UInt32 reserved2;
@@ -133,9 +133,9 @@ extern const iSCSIDCmdLogoutSession iSCSIDCmdLogoutSessionInit;
 typedef struct iSCSIDRspLogoutSession {
     
     const UInt8 funcCode;
-    UInt16 reserved;
+    UInt8 reserved;
     UInt32 errorCode;
-    UInt8  statusCode;
+    UInt16  statusCode;
     UInt32 reserved2;
     UInt32 reserved3;
     UInt32 reserved4;
@@ -165,9 +165,9 @@ extern const iSCSIDCmdLoginConnection iSCSIDCmdLoginConnectionInit;
 typedef struct iSCSIDRspLoginConnection {
 
     const UInt8 funcCode;
-    UInt16 reserved;
+    UInt8 reserved;
     UInt32 errorCode;
-    UInt8  statusCode;
+    UInt16  statusCode;
     UInt32 reserved2;
     UInt32 connectionId;
     UInt32 reserved3;
@@ -197,9 +197,9 @@ extern const iSCSIDCmdLogoutConnection iSCSIDCmdLogoutConnectionInit;
 typedef struct iSCSIDRspLogoutConnection {
     
     const UInt8 funcCode;
-    UInt16 reserved;
+    UInt8 reserved;
     UInt32 errorCode;
-    UInt8  statusCode;
+    UInt16  statusCode;
     UInt32 reserved2;
     UInt32 reserved3;
     UInt32 reserved4;
@@ -230,9 +230,9 @@ extern const iSCSIDCmdQueryPortalForTargets iSCSIDCmdQueryPortalForTargetsInit;
 typedef struct iSCSIDRspQueryPortalForTargets {
     
     const UInt8 funcCode;
-    UInt16 reserved;
+    UInt8 reserved;
     UInt32 errorCode;
-    UInt8  statusCode;
+    UInt16  statusCode;
     UInt32 reserved2;
     UInt32 reserved3;
     UInt32 discoveryLength;
@@ -261,9 +261,9 @@ extern const iSCSIDCmdQueryTargetForAuthMethod iSCSIDCmdQueryTargetForAuthMethod
 typedef struct iSCSIDRspQueryTargetForAuthMethod {
     
     const UInt8 funcCode;
-    UInt16 reserved;
+    UInt8 reserved;
     UInt32 errorCode;
-    UInt8  statusCode;
+    UInt16  statusCode;
     UInt32 reserved2;
     UInt32 reserved3;
     UInt32 reserved4;

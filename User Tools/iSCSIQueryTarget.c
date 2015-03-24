@@ -69,10 +69,15 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
         
         if(rsp.opCode == kiSCSIPDUOpCodeLoginRsp)
         {
-            //            connInfo->status = *((UInt16*)(&rsp.statusClass));
-            
-            if(error)
+            // Per RFC3720, the status and detail together make up the code
+            // where the class is the high byte and the detail is the low
+            *statusCode = ((((UInt16)rsp.statusClass)<<8) | rsp.statusDetail);
+
+            fprintf(stderr, "%d \n",*statusCode);
+            if(*statusCode != kiSCSILoginSuccess) {
+                error = EINVAL;
                 break;
+            }
             
             iSCSIPDUDataParseToDict(data,length,textRsp);
         }
@@ -143,7 +148,7 @@ errno_t iSCSISessionTextQuery(SID sessionId,
         // For this case some other kind of PDU or invalid data was received
         else if(rsp.opCode == kiSCSIPDUOpCodeReject)
         {
-            error = EINVAL;
+            error = EIO;
             break;
         }
     }

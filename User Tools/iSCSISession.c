@@ -42,10 +42,10 @@ static const unsigned int kRFC3720_MaxConnections_Max = 65535;
 
 
 /*! Default initialR2T connections value per RFC3720. */
-static const bool kRFC3720_InitialR2T = true;
+static const Boolean kRFC3720_InitialR2T = true;
 
 /*! Default immediate data value per RFC3720. */
-static const bool kRFC3720_ImmediateData = true;
+static const Boolean kRFC3720_ImmediateData = true;
 
 
 /*! Default maximum received data segment length value per RFC3720. */
@@ -110,10 +110,10 @@ static const unsigned int kRFC3720_MaxOutstandingR2T_Max = 65535;
 
 
 /*! Default data PDU in order value per RFC3720. */
-static const bool kRFC3720_DataPDUInOrder = true;
+static const Boolean kRFC3720_DataPDUInOrder = true;
 
 /*! Default data segment in order value per RFC3720. */
-static const bool kRFC3720_DataSequenceInOrder = true;
+static const Boolean kRFC3720_DataSequenceInOrder = true;
 
 
 /*! Default error recovery level per RFC3720. */
@@ -134,7 +134,7 @@ errno_t iSCSILogoutResponseToErrno(enum iSCSIPDULogoutRsp response)
 
 /*! Helper function used during session negotiation.  Returns true if BOTH
  *  the command and the response strings are "Yes" */
-bool iSCSILVGetEqual(CFStringRef cmdStr,CFStringRef rspStr)
+Boolean iSCSILVGetEqual(CFStringRef cmdStr,CFStringRef rspStr)
 {
     if(CFStringCompare(cmdStr,rspStr,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         return true;
@@ -144,7 +144,7 @@ bool iSCSILVGetEqual(CFStringRef cmdStr,CFStringRef rspStr)
 
 /*! Helper function used during session negotiation.  Returns true if BOTH
  *  the command and the response strings are "Yes" */
-bool iSCSILVGetAnd(CFStringRef cmdStr,CFStringRef rspStr)
+Boolean iSCSILVGetAnd(CFStringRef cmdStr,CFStringRef rspStr)
 {
     CFComparisonResult cmd, rsp;
     cmd = CFStringCompare(cmdStr,kiSCSILVYes,kCFCompareCaseInsensitive);
@@ -158,7 +158,7 @@ bool iSCSILVGetAnd(CFStringRef cmdStr,CFStringRef rspStr)
 
 /*! Helper function used during session negotiation.  Returns true if either
  *  one of the command or response strings are "Yes" */
-bool iSCSILVGetOr(CFStringRef cmdStr,CFStringRef rspStr)
+Boolean iSCSILVGetOr(CFStringRef cmdStr,CFStringRef rspStr)
 {
     if(CFStringCompare(cmdStr,kiSCSILVYes,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         return true;
@@ -199,7 +199,7 @@ UInt32 iSCSILVGetMax(CFStringRef cmdStr, CFStringRef rspStr)
 
 /*! Helper function used during session negotiation.  Checks range of
  *  a particular value associated with a given key. */
-bool iSCSILVRangeInvalid(UInt32 value,UInt32 min, UInt32 max)
+Boolean iSCSILVRangeInvalid(UInt32 value,UInt32 min, UInt32 max)
 {
     return (value < min || value > max);
 }
@@ -494,7 +494,7 @@ errno_t iSCSINegotiateParseCWDict(CFDictionaryRef connCmd,
     CFStringRef targetRsp;
     
     // Flag that indicates that target and initiator agree on a parameter
-    bool agree = false;
+    Boolean agree = false;
     
     // Get data digest key and compare to requested value
     if(CFDictionaryGetValueIfPresent(connRsp,kiSCSILKDataDigest,(void*)&targetRsp))

@@ -44,14 +44,7 @@
 		2BCB2B571A7019D700A81C80 /* iSCSIDaemonInterface.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B0E1A70157200A81C80 /* iSCSIDaemonInterface.c */; };
 		2BCB2B581A7019D700A81C80 /* iSCSIPropertyList.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B111A70157200A81C80 /* iSCSIPropertyList.c */; };
 		2BCB2B591A7019D700A81C80 /* iSCSITypes.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B1B1A70157200A81C80 /* iSCSITypes.c */; };
-		2BCB2B5A1A7019F100A81C80 /* iSCSIKernelInterface.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B451A70168B00A81C80 /* iSCSIKernelInterface.c */; };
-		2BCB2B5B1A7019F100A81C80 /* iSCSIAuth.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B091A70157200A81C80 /* iSCSIAuth.c */; };
-		2BCB2B5D1A7019F100A81C80 /* iSCSIPropertyList.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B111A70157200A81C80 /* iSCSIPropertyList.c */; };
-		2BCB2B5E1A7019F100A81C80 /* iSCSIPDUUser.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B141A70157200A81C80 /* iSCSIPDUUser.c */; };
-		2BCB2B5F1A7019F100A81C80 /* iSCSIQueryTarget.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B161A70157200A81C80 /* iSCSIQueryTarget.c */; };
-		2BCB2B601A7019F100A81C80 /* iSCSISession.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B181A70157200A81C80 /* iSCSISession.c */; };
 		2BCB2B611A7019F100A81C80 /* iSCSITest.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B1A1A70157200A81C80 /* iSCSITest.c */; };
-		2BCB2B621A7019F100A81C80 /* iSCSITypes.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B1B1A70157200A81C80 /* iSCSITypes.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -483,14 +476,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2BCB2B601A7019F100A81C80 /* iSCSISession.c in Sources */,
-				2BCB2B5D1A7019F100A81C80 /* iSCSIPropertyList.c in Sources */,
-				2BCB2B5A1A7019F100A81C80 /* iSCSIKernelInterface.c in Sources */,
-				2BCB2B5B1A7019F100A81C80 /* iSCSIAuth.c in Sources */,
-				2BCB2B5E1A7019F100A81C80 /* iSCSIPDUUser.c in Sources */,
-				2BCB2B5F1A7019F100A81C80 /* iSCSIQueryTarget.c in Sources */,
 				2BCB2B611A7019F100A81C80 /* iSCSITest.c in Sources */,
-				2BCB2B621A7019F100A81C80 /* iSCSITypes.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
