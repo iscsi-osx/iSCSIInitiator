@@ -30,11 +30,13 @@
 
 int main(int argc, const char * argv[]) {
     
+    CFStringRef k[] = {CFSTR("1"),CFSTR("2")};
+    CFStringRef v[] = {CFSTR("3"),CFSTR("4")};
+    CFDictionaryRef x = CFDictionaryCreate(kCFAllocatorDefault,&k,&v,2,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     
-    CFStringRef test = CFSTR("hello");
-    CFStringRef blah = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%@"),test);
-    int c = 0;
-
+    const void * keys, * values;
+    CFDictionaryGetKeysAndValues(x,&keys,&values);
     
+    CFArrayCreate(kCFAllocatorDefault,&keys,, <#const CFArrayCallBacks *callBacks#>)
     return 0;
 }

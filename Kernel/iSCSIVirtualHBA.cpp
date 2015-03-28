@@ -14,6 +14,8 @@
 #include <sys/ioctl.h>
 #include <sys/unistd.h>
 
+#include <IOKit/IORegistryEntry.h>
+
 
 #undef DEBUG
 
@@ -68,7 +70,50 @@ bool iSCSIVirtualHBA::DoesHBASupportSCSIParallelFeature(SCSIParallelFeature theF
 
 bool iSCSIVirtualHBA::InitializeTargetForID(SCSITargetIdentifier targetId)
 {
-	return true;
+    // Find and set the IQN of the target in the IORegistry.  First we need
+    // to iterate over the target names and find the one that matches our
+    // target identifiers (session identifier).  Next, we copy the existing
+    // protocol dictionary and add a custom property for the IQN.
+    
+    OSCollectionIterator * iterator = OSCollectionIterator::withCollection(targetList);
+    
+    if(!iterator)
+        return false;
+    
+    OSObject * object;
+    
+    while((object = iterator->getNextObject()))
+    {
+        OSString * targetName = OSDynamicCast(OSString,object);
+        OSNumber * sessionIdNumber = OSDynamicCast(OSNumber,targetList->getObject(targetName));
+        
+        if(sessionIdNumber->unsigned16BitValue() == targetId)
+            break;
+    }
+    
+    // Set the name of the target in the IORegistry
+    IOService * device;
+    if(!(device = (IOService*)GetTargetForID(targetId)))
+        return false;
+    
+    OSDictionary * copyDict, * protocolDict;
+    
+    if(!(copyDict = OSDynamicCast(OSDictionary,device->getProperty(kIOPropertyProtocolCharacteristicsKey))))
+        return false;
+    
+    if((protocolDict = OSDynamicCast(OSDictionary,copyDict->copyCollection())))
+    {
+        OSString * targetName = OSDynamicCast(OSString,object);
+        
+        if(targetName) {
+            protocolDict->setObject("iSCSI Qualified Name",targetName);
+            device->setProperty(kIOPropertyProtocolCharacteristicsKey,protocolDict);
+        }
+        
+        protocolDict->release();
+    }
+    
+  	return true;
 }
 
 SCSIServiceResponse iSCSIVirtualHBA::AbortTaskRequest(SCSITargetIdentifier targetId,
@@ -267,7 +312,6 @@ bool iSCSIVirtualHBA::InitializeController()
     
     // Generate an initiator id using a random number (per RFC3720)
     kInitiatorId = random();
-    
     
 	// Successfully initialized controller
 	return true;
@@ -1481,9 +1525,9 @@ errno_t iSCSIVirtualHBA::ActivateConnection(SID sessionId,CID connectionId)
             return EAGAIN;
         }
     }
-    
+
     OSIncrementAtomic(&session->numActiveConnections);
-    
+
     return 0;
 }
 

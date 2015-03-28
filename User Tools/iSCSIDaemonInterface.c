@@ -75,13 +75,13 @@ const struct iSCSIDCmdCreatePortalForConnectionId iSCSIDCmdCreatePortalForConnec
     .connectionId = kiSCSIInvalidConnectionId
 };
 
-const struct iSCSIDCmdGetSessionConfig iSCSIDCmdGetSessionConfigInit  = {
-    .funcCode = kiSCSIDGetSessionConfig,
+const struct iSCSIDCmdCopySessionConfig iSCSIDCmdCopySessionConfigInit  = {
+    .funcCode = kiSCSIDCopySessionConfig,
     .sessionId = kiSCSIInvalidSessionId
 };
 
-const struct iSCSIDCmdGetConnectionConfig iSCSIDCmdGetConnectionConfigInit  = {
-    .funcCode = kiSCSIDGetConnectionConfig,
+const struct iSCSIDCmdCopyConnectionConfig iSCSIDCmdCopyConnectionConfigInit  = {
+    .funcCode = kiSCSIDCopyConnectionConfig,
     .sessionId = kiSCSIInvalidSessionId,
     .connectionId = kiSCSIInvalidConnectionId
 };
@@ -641,80 +641,59 @@ iSCSIPortalRef iSCSIDaemonCreatePortalForConnectionId(iSCSIDaemonHandle handle,
     return portal;
 }
 
-
-/*! Gets information about a particular session.
+/*! Copies the configuration object associated with a particular session.
  *  @param handle a handle to a daemon connection.
- *  @param sessionId the session identifier.
- *  @param options the optionts for the specified session.
- *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetSessionConfig(iSCSIDaemonHandle handle,
-                                  SID sessionId,
-                                  iSCSIKernelSessionCfg * options)
+ *  @param sessionId the qualifier part of the ISID (see RFC3720).
+ *  @return  the configuration object associated with the specified session. */
+iSCSISessionConfigRef iSCSIDaemonCopySessionConfig(iSCSIDaemonHandle handle,
+                                                   SID sessionId)
 {
     // Validate inputs
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId || !options)
-        return EINVAL;
+    if(handle < 0 || sessionId == kiSCSIInvalidSessionId)
+        return NULL;
     
     // Send command to daemon
-    iSCSIDCmdGetSessionConfig cmd = iSCSIDCmdGetSessionConfigInit;
+    iSCSIDCmdCopySessionConfig cmd = iSCSIDCmdCopySessionConfigInit;
     cmd.sessionId = sessionId;
     
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return EIO;
+        return NULL;
     
     // Receive daemon response header
-    iSCSIDRspGetSessionConfig rsp;
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
-    
-    // We expect the data payload that follows the header to be an struct
-    if(rsp.dataLength != sizeof(iSCSIKernelSessionCfg))
-        return rsp.errorCode;
+    iSCSIDRspCopySessionConfig rsp;
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp) || rsp.dataLength == 0)
+        return NULL;
     
     // Get the session information struct
-    if(recv(handle,options,sizeof(iSCSIKernelSessionCfg),0) != sizeof(iSCSIKernelSessionCfg))
-        return EIO;
-    
-    return rsp.errorCode;
+    return iSCSIDCreateObjectFromSocket(handle,rsp.dataLength,(void *(* )(CFDataRef))&iSCSISessionConfigCreateWithData);
 }
 
-
-/*! Gets information about a particular session.
+/*! Copies the configuration object associated with a particular connection.
  *  @param handle a handle to a daemon connection.
- *  @param sessionId the session identifier.
- *  @param connectionId the connection identifier.
- *  @param options the optionts for the specified session.
- *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionConfig(iSCSIDaemonHandle handle,
-                                     SID sessionId,
-                                     CID connectionId,
-                                     iSCSIKernelConnectionCfg * options)
+ *  @param sessionId the qualifier part of the ISID (see RFC3720).
+ *  @param connectionId the connection associated with the session.
+ *  @return  the configuration object associated with the specified connection. */
+iSCSIConnectionConfigRef iSCSIDaemonCopyConnectionConfig(iSCSIDaemonHandle handle,
+                                                         SID sessionId,
+                                                         CID connectionId)
 {
     // Validate inputs
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !options)
-        return EINVAL;
+    if(handle < 0 || sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+        return NULL;
     
     // Send command to daemon
-    iSCSIDCmdGetConnectionConfig cmd = iSCSIDCmdGetConnectionConfigInit;
+    iSCSIDCmdCopyConnectionConfig cmd = iSCSIDCmdCopyConnectionConfigInit;
     cmd.sessionId = sessionId;
     cmd.connectionId = connectionId;
     
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return EIO;
+        return NULL;
     
     // Receive daemon response header
-    iSCSIDRspGetSessionConfig rsp;
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
-    
-    // We expect the data payload that follows the header to be an struct
-    if(rsp.dataLength != sizeof(iSCSIKernelConnectionCfg))
-        return rsp.errorCode;
+    iSCSIDRspCopySessionConfig rsp;
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp) || rsp.dataLength == 0)
+        return NULL;
     
     // Get the session information struct
-    if(recv(handle,options,sizeof(iSCSIKernelConnectionCfg),0) != sizeof(iSCSIKernelConnectionCfg))
-        return EIO;
-    
-    return rsp.errorCode;
+    return iSCSIDCreateObjectFromSocket(handle,rsp.dataLength,(void *(* )(CFDataRef))&iSCSIConnectionConfigCreateWithData);
 }
-

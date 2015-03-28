@@ -44,7 +44,12 @@ void iSCSIPLSetSessionConfig(CFStringRef targetName,iSCSISessionConfigRef sessCf
  *  @param targetName the target name.
  *  @param poralName the portal name (IPv4, IPv6 or DNS name).
  *  @return portal the portal object to set. */
-iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetName,CFStringRef portalName);
+iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetName,CFStringRef portalAddress);
+
+/*! Copies a target object for the specified target.
+ *  @param targetName the target name.
+ *  @return target the target object to copy. */
+iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetName);
 
 /*! Sets a portal object for the specified target.
  *  @param targetName the target name.
@@ -53,8 +58,8 @@ void iSCSIPLSetPortal(CFStringRef targetName,iSCSIPortalRef portal);
 
 /*! Removes a portal object for a particular target.
  *  @param targetName the target name.
- *  @param portalName the portal name to remove. */
-void iSCSIPLRemovePortal(CFStringRef targetName,CFStringRef portalName);
+ *  @param portalAddress the portal name to remove. */
+void iSCSIPLRemovePortal(CFStringRef targetName,CFStringRef portalAddress);
 
 /*! Removes a target object.
  *  @param targetName the target name. */
@@ -66,7 +71,7 @@ void iSCSIPLRemoveTarget(CFStringRef targetName);
  *  @param poralName the portal name (IPv4, IPv6 or DNS name).
  *  @return the connection configuration object to copy. */
 iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetName,
-                                                     CFStringRef portalName);
+                                                     CFStringRef portalAddress);
 
 /*! Sets a connection configuration object associated with a particualr portal
  *  for the specified target.
@@ -74,24 +79,24 @@ iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetName,
  *  @param poralName the portal name (IPv4, IPv6 or DNS name).
  *  @param connCfg the connection configuration object to set. */
 void iSCSIPLSetConnectionConfig(CFStringRef targetName,
-                                CFStringRef portalName,
+                                CFStringRef portalAddress,
                                 iSCSIConnectionConfigRef connCfg);
 
 /*! Copies an authentication object associated with a particular
  *  portal for the specified target.
  *  @param targetName the target name.
- *  @param portalName the portal name (IPv4, IPv6 or DNS name).
+ *  @param portalAddress the portal name (IPv4, IPv6 or DNS name).
  *  @return the authentication object. */
 iSCSIAuthRef iSCSIPLCopyAuthentication(CFStringRef targetName,
-                                       CFStringRef portalName);
+                                       CFStringRef portalAddress);
 
 /*! Sets an authentication object associated with a particular portal
  *  for the specified target.
  *  @param targetName the target name.
- *  @param portalName the portal name (IPv4, IPv6 or DNS name).
+ *  @param portalAddress the portal name (IPv4, IPv6 or DNS name).
  *  @param auth the connection configuration object to set. */
 void iSCSIPLSetAuthentication(CFStringRef targetName,
-                              CFStringRef portalName,
+                              CFStringRef portalAddress,
                               iSCSIAuthRef auth);
 
 /*! Gets whether a target is defined in the property list.
@@ -101,10 +106,10 @@ Boolean iSCSIPLContainsTarget(CFStringRef targetName);
 
 /*! Gets whether a portal is defined in the property list.
  *  @param targetName the name of the target.
- *  @param portalName the name of the portal.
+ *  @param portalAddress the name of the portal.
  *  @return true if the portal exists, false otherwise. */
 Boolean iSCSIPLContainsPortal(CFStringRef targetName,
-                              CFStringRef portalName);
+                              CFStringRef portalAddress);
 
 /*! Creates an array of target names (fully qualified IQN or EUI names)
  *  defined in the property list.

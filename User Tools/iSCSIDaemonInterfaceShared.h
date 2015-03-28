@@ -465,7 +465,7 @@ typedef struct iSCSIDRspCreatePortalForConnectionId {
 
 
 /*! Command to get information about a session. */
-typedef struct iSCSIDCmdGetSessionConfig {
+typedef struct iSCSIDCmdCopySessionConfig {
     
     const UInt16 funcCode;
     UInt16  reserved;
@@ -475,13 +475,13 @@ typedef struct iSCSIDCmdGetSessionConfig {
     UInt32  reserved4;
     UInt32  reserved5;
     
-} __attribute__((packed)) iSCSIDCmdGetSessionConfig;
+} __attribute__((packed)) iSCSIDCmdCopySessionConfig;
 
 /*! Default initialization for a get session information command. */
-extern const iSCSIDCmdGetSessionConfig iSCSIDCmdGetSessionConfigInit;
+extern const iSCSIDCmdCopySessionConfig iSCSIDCmdCopySessionConfigInit;
 
 /*! Response to command to get information about a session. */
-typedef struct iSCSIDRspGetSessionConfig {
+typedef struct iSCSIDRspCopySessionConfig {
     
     const UInt8 funcCode;
     UInt16 reserved;
@@ -492,12 +492,12 @@ typedef struct iSCSIDRspGetSessionConfig {
     UInt32 dataLength;
     UInt32 reserved5;
     
-} __attribute__((packed)) iSCSIDRspGetSessionConfig;
+} __attribute__((packed)) iSCSIDRspCopySessionConfig;
 
 
 
 /*! Command to get information about a connection. */
-typedef struct iSCSIDCmdGetConnectionConfig {
+typedef struct iSCSIDCmdCopyConnectionConfig {
     
     const UInt16 funcCode;
     UInt16  reserved;
@@ -507,10 +507,10 @@ typedef struct iSCSIDCmdGetConnectionConfig {
     UInt32  reserved3;
     UInt32  reserved4;
     
-} __attribute__((packed)) iSCSIDCmdGetConnectionConfig;
+} __attribute__((packed)) iSCSIDCmdCopyConnectionConfig;
 
 /*! Default initialization for a get connection information command. */
-extern const iSCSIDCmdGetConnectionConfig iSCSIDCmdGetConnectionConfigInit;
+extern const iSCSIDCmdCopyConnectionConfig iSCSIDCmdCopyConnectionConfigInit;
 
 /*! Response to command to get information about a connection. */
 typedef struct iSCSIDRspGetConnectionConfig {
@@ -543,8 +543,8 @@ enum iSCSIDFunctionCodes {
     kiSCSIDGetConnectionIds = 9,
     kiSCSIDCreateTargetForSessionId = 10,
     kiSCSIDCreatePortalForConnectionId = 11,
-    kiSCSIDGetSessionConfig = 12,
-    kiSCSIDGetConnectionConfig = 13,
+    kiSCSIDCopySessionConfig = 12,
+    kiSCSIDCopyConnectionConfig = 13,
     kiSCSIDSetInitiatorName = 14,
     kiSCSIDSetInitiatorAlias = 15,
     kiSCSIDShutdownDaemon = 16,

@@ -129,15 +129,15 @@ const struct iSCSIDRspCreatePortalForConnectionId iSCSIDRspCreatePortalForConnec
     .portalLength = 0
 };
 
-const struct iSCSIDRspGetSessionConfig iSCSIDRspGetSessionConfigInit = {
-    .funcCode = kiSCSIDGetSessionConfig,
+const struct iSCSIDRspCopySessionConfig iSCSIDRspCopySessionConfigInit = {
+    .funcCode = kiSCSIDCopySessionConfig,
     .errorCode = 0,
     .dataLength = 0
 };
 
 
 const struct iSCSIDRspGetConnectionConfig iSCSIDRspGetConnectionConfigInit = {
-    .funcCode = kiSCSIDGetConnectionConfig,
+    .funcCode = kiSCSIDCopyConnectionConfig,
     .errorCode = 0,
     .dataLength = 0
 };
@@ -512,7 +512,7 @@ errno_t iSCSIDCreatePortalForConnectionId(int fd,struct iSCSIDCmdCreatePortalFor
     return 0;
 }
 
-errno_t iSCSIDGetSessionConfig(int fd,struct iSCSIDCmdGetSessionConfig * cmd)
+errno_t iSCSIDCopySessionConfig(int fd,struct iSCSIDCmdCopySessionConfig * cmd)
 {
     iSCSISessionConfigRef sessCfg = iSCSICopySessionConfig(cmd->sessionId);
     
@@ -521,7 +521,7 @@ errno_t iSCSIDGetSessionConfig(int fd,struct iSCSIDCmdGetSessionConfig * cmd)
     iSCSISessionConfigRelease(sessCfg);
     
     // Compose a response to send back to the client
-    struct iSCSIDRspGetSessionConfig rsp = iSCSIDRspGetSessionConfigInit;
+    struct iSCSIDRspCopySessionConfig rsp = iSCSIDRspCopySessionConfigInit;
     
     rsp.errorCode = 0;
     rsp.dataLength = (UInt32)CFDataGetLength(data);
@@ -542,7 +542,7 @@ errno_t iSCSIDGetSessionConfig(int fd,struct iSCSIDCmdGetSessionConfig * cmd)
     return 0;
 }
 
-errno_t iSCSIDGetConnectionConfig(int fd,struct iSCSIDCmdGetConnectionConfig * cmd)
+errno_t iSCSIDCopyConnectionConfig(int fd,struct iSCSIDCmdCopyConnectionConfig * cmd)
 {
     iSCSIConnectionConfigRef connCfg = iSCSICopyConnectionConfig(cmd->sessionId,cmd->connectionId);
     
@@ -664,10 +664,10 @@ int main(void)
                 error = iSCSIDCreateTargetForSessionId(fd,(iSCSIDCmdCreateTargetForSessionId*)&cmd); break;
             case kiSCSIDCreatePortalForConnectionId:
                 error = iSCSIDCreatePortalForConnectionId(fd,(iSCSIDCmdCreatePortalForConnectionId*)&cmd); break;
-            case kiSCSIDGetSessionConfig:
-                error = iSCSIDGetSessionConfig(fd,(iSCSIDCmdGetSessionConfig*)&cmd); break;
-            case kiSCSIDGetConnectionConfig:
-                error = iSCSIDGetConnectionConfig(fd,(iSCSIDCmdGetConnectionConfig*)&cmd); break;
+            case kiSCSIDCopySessionConfig:
+                error = iSCSIDCopySessionConfig(fd,(iSCSIDCmdCopySessionConfig*)&cmd); break;
+            case kiSCSIDCopyConnectionConfig:
+                error = iSCSIDCopyConnectionConfig(fd,(iSCSIDCmdCopyConnectionConfig*)&cmd); break;
             case kiSCSIDShutdownDaemon:
                 shutdownDaemon = true; break;
             default:

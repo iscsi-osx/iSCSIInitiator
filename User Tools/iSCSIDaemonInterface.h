@@ -162,32 +162,21 @@ iSCSIPortalRef iSCSIDaemonCreatePortalForConnectionId(iSCSIDaemonHandle handle,
                                                       SID sessionId,
                                                       CID connectionId);
 
-/*! Gets information about a particular session.
- *  @param handle a handle to a daemon connection.
- *  @param sessionId the session identifier.
- *  @param connectionId the connection identifier.
- *  @param options the optionts for the specified session.
- *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionConfig(iSCSIDaemonHandle handle,
-                                     SID sessionId,
-                                     CID connectionId,
-                                     iSCSIKernelConnectionCfg * options);
-
 /*! Copies the configuration object associated with a particular session.
  *  @param handle a handle to a daemon connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @return the session configuration object.
  *  @return  the configuration object associated with the specified session. */
-iSCSISessionConfigRef iSCSICopySessionConfig(iSCSIDaemonHandle handle,SID sessionId);
+iSCSISessionConfigRef iSCSIDaemonCopySessionConfig(iSCSIDaemonHandle handle,
+                                                   SID sessionId);
 
 /*! Copies the configuration object associated with a particular connection.
  *  @param handle a handle to a daemon connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
  *  @return  the configuration object associated with the specified connection. */
-iSCSIConnectionConfigRef iSCSICopyConnectionConfig(iSCSIDaemonHandle handle,
-                                                   SID sessionId,
-                                                   CID connectionId);
+iSCSIConnectionConfigRef iSCSIDaemonCopyConnectionConfig(iSCSIDaemonHandle handle,
+                                                         SID sessionId,
+                                                         CID connectionId);
 
 
 

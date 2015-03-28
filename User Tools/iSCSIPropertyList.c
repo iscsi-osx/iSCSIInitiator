@@ -13,16 +13,16 @@
 #include <CoreFoundation/CFPropertyList.h>
 
 /*! A cached version of the targets dictionary. */
-static CFMutableDictionaryRef targetsCache = NULL;
+CFMutableDictionaryRef targetsCache = NULL;
 
 /*! Flag that indicates whether the targets cache was modified. */
-static bool targetsCacheModified = false;
+Boolean targetsCacheModified = false;
 
 /*! A cached version of the initiator dictionary. */
-static CFMutableDictionaryRef initiatorCache = NULL;
+CFMutableDictionaryRef initiatorCache = NULL;
 
 /*! Flag that indicates whether the initiator cache was modified. */
-static bool initiatorCacheModified = false;
+Boolean initiatorCacheModified = false;
 
 /*! App ID. */
 CFStringRef kiSCSIPKAppId = CFSTR("com.NSinenian.iSCSI");
@@ -134,10 +134,6 @@ CFMutableDictionaryRef iSCSIPLGetTargetInfo(CFStringRef targetName,
                                                                           &kCFTypeDictionaryKeyCallBacks,
                                                                           &kCFTypeDictionaryValueCallBacks);
             
-
-//            CFDictionarySetValue(targetInfo,kiSCSIPKSessionCfgKey,CFSTR(""));
-  //          CFDictionarySetValue(targetInfo,kiSCSIPKPortalsKey,CFSTR(""));
-
             CFDictionarySetValue(targetsList,targetName,targetInfo);
             CFRelease(targetInfo);
         }
@@ -174,7 +170,7 @@ CFMutableDictionaryRef iSCSIPLGetPortalsList(CFStringRef targetName,
 }
 
 CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetName,
-                                            CFStringRef portalName,
+                                            CFStringRef portalAddress,
                                             Boolean createIfMissing)
 {
     // Get list of portals for this target
@@ -185,7 +181,7 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetName,
     // and authentication sub-dictionaries
     if(portalsList)
     {
-       if(createIfMissing && CFDictionaryGetCountOfKey(portalsList,portalName) == 0)
+       if(createIfMissing && CFDictionaryGetCountOfKey(portalsList,portalAddress) == 0)
        {
            CFMutableDictionaryRef portalInfo = CFDictionaryCreateMutable(kCFAllocatorDefault,
                                                                          0,
@@ -196,11 +192,11 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetName,
            CFDictionarySetValue(portalInfo,kiSCSIPKConnectionCfgKey,CFSTR(""));
            CFDictionarySetValue(portalInfo,kiSCSIPKPortalKey,CFSTR(""));
            
-           CFDictionarySetValue(portalsList,portalName,portalInfo);
+           CFDictionarySetValue(portalsList,portalAddress,portalInfo);
            CFRelease(portalInfo);
 
        }
-       return (CFMutableDictionaryRef)CFDictionaryGetValue(portalsList,portalName);
+       return (CFMutableDictionaryRef)CFDictionaryGetValue(portalsList,portalAddress);
     }
     return NULL;
 }
@@ -228,10 +224,10 @@ void iSCSIPLSetSessionConfig(CFStringRef targetName,iSCSISessionConfigRef sessCf
     targetsCacheModified = true;
 }
 
-iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetName,CFStringRef portalName)
+iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetName,CFStringRef portalAddress)
 {
     // Get the dictionary containing information about the portal
-    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalName,false);
+    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalAddress,false);
     
     if(portalInfo)
         return iSCSIPortalCreateWithDictionary(CFDictionaryGetValue(portalInfo,kiSCSIPKPortalKey));
@@ -239,10 +235,20 @@ iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetName,CFStringRef portalName)
     return NULL;
 }
 
-iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetName,CFStringRef portalName)
+iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetName)
+{
+    // Get the dictionary containing information about the target
+    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
+    iSCSITargetSetName(target,targetName);
+    
+    return target;
+}
+
+
+iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetName,CFStringRef portalAddress)
 {
     // Get the dictionary containing information about the portal
-    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalName,false);
+    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalAddress,false);
     
     if(portalInfo)
         return iSCSIConnectionConfigCreateWithDictionary(CFDictionaryGetValue(portalInfo,kiSCSIPKConnectionCfgKey));
@@ -250,10 +256,10 @@ iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetName,CFSt
     return NULL;
 }
 
-iSCSIAuthRef iSCSIPLCopyAuthentication(CFStringRef targetName,CFStringRef portalName)
+iSCSIAuthRef iSCSIPLCopyAuthentication(CFStringRef targetName,CFStringRef portalAddress)
 {
     // Get the dictionary containing information about the portal
-    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalName,false);
+    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalAddress,false);
     
     if(portalInfo)
         return iSCSIAuthCreateWithDictionary(CFDictionaryGetValue(portalInfo,kiSCSIPKAuthKey));
@@ -261,10 +267,10 @@ iSCSIAuthRef iSCSIPLCopyAuthentication(CFStringRef targetName,CFStringRef portal
     return NULL;
 }
 
-void iSCSIPLSetAuthentication(CFStringRef targetName,CFStringRef portalName,iSCSIAuthRef auth)
+void iSCSIPLSetAuthentication(CFStringRef targetName,CFStringRef portalAddress,iSCSIAuthRef auth)
 {
     // Get the dictionary containing information about the portal
-    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalName,true);
+    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalAddress,true);
     
     // Set the authentication object
     CFDictionaryRef authDict = iSCSIAuthCreateDictionary(auth);
@@ -275,11 +281,11 @@ void iSCSIPLSetAuthentication(CFStringRef targetName,CFStringRef portalName,iSCS
 }
 
 void iSCSIPLSetConnectionConfig(CFStringRef targetName,
-                                CFStringRef portalName,
+                                CFStringRef portalAddress,
                                 iSCSIConnectionConfigRef connCfg)
 {
     // Get the dictionary containing information about the portal
-    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalName,true);
+    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetName,portalAddress,true);
     
     // Set the authentication object
     CFDictionaryRef connCfgDict = iSCSIConnectionConfigCreateDictionary(connCfg);
@@ -303,14 +309,14 @@ void iSCSIPLSetPortal(CFStringRef targetName,
     targetsCacheModified = true;
 }
 
-void iSCSIPLRemovePortal(CFStringRef targetName,CFStringRef portalName)
+void iSCSIPLRemovePortal(CFStringRef targetName,CFStringRef portalAddress)
 {
     CFMutableDictionaryRef portalsList = iSCSIPLGetPortalsList(targetName,false);
     
     if(!portalsList)
         return;
     
-    CFDictionaryRemoveValue(portalsList,portalName);
+    CFDictionaryRemoveValue(portalsList,portalAddress);
     
     targetsCacheModified = true;
 }
@@ -392,13 +398,13 @@ Boolean iSCSIPLContainsTarget(CFStringRef targetName)
 
 /*! Gets whether a portal is defined in the property list.
  *  @param targetName the name of the target.
- *  @param portalName the name of the portal.
+ *  @param portalAddress the name of the portal.
  *  @return true if the portal exists, false otherwise. */
 Boolean iSCSIPLContainsPortal(CFStringRef targetName,
-                              CFStringRef portalName)
+                              CFStringRef portalAddress)
 {
     CFDictionaryRef portalsList = iSCSIPLGetPortalsList(targetName,false);
-    return (portalsList && CFDictionaryContainsKey(portalsList,portalName));
+    return (portalsList && CFDictionaryContainsKey(portalsList,portalAddress));
 }
 
 
@@ -407,15 +413,20 @@ Boolean iSCSIPLContainsPortal(CFStringRef targetName,
  *  @return an array of target names. */
 CFArrayRef iSCSIPLCreateArrayOfTargets()
 {
-    CFMutableDictionaryRef targetsList = iSCSIPLGetTargetsList(false);
+    CFDictionaryRef targetsList = iSCSIPLGetTargetsList(false);
     
     if(!targetsList)
         return NULL;
 
-    const void * keys, * values;
-    CFDictionaryGetKeysAndValues(targetsList,&keys,&values);
+    const CFIndex keyCount = CFDictionaryGetCount(targetsList);
     
-    return CFArrayCreate(kCFAllocatorDefault,&keys,CFDictionaryGetCount(targetsList),&kCFTypeArrayCallBacks);
+    if(keyCount == 0)
+        return NULL;
+  
+    const void * keys[keyCount];
+    CFDictionaryGetKeysAndValues(targetsList,keys,NULL);
+    
+    return CFArrayCreate(kCFAllocatorDefault,keys,keyCount,&kCFTypeArrayCallBacks);
 }
 
 /*! Creates an array of portal names for a given target.
@@ -428,10 +439,15 @@ CFArrayRef iSCSIPLCreateArrayOfPortals(CFStringRef targetName)
     if(!portalsList)
         return NULL;
     
-    const void * keys, * values;
-    CFDictionaryGetKeysAndValues(portalsList,&keys,&values);
+    const CFIndex keyCount = CFDictionaryGetCount(portalsList);
     
-    return CFArrayCreate(kCFAllocatorDefault,&keys,CFDictionaryGetCount(portalsList),&kCFTypeArrayCallBacks);
+    if(keyCount == 0)
+        return NULL;
+    
+    const void * keys[keyCount];
+    CFDictionaryGetKeysAndValues(portalsList,keys,NULL);
+    
+    return CFArrayCreate(kCFAllocatorDefault,keys,keyCount,&kCFTypeArrayCallBacks);
 }
 
 /*! Synchronizes the intitiator and target settings cache with the property

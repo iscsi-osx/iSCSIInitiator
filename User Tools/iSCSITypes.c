@@ -670,7 +670,7 @@ void iSCSIConnectionConfigSetHeaderDigest(iSCSIMutableConnectionConfigRef portal
 /*! Gets whether a data digest is enabled in the portal object. */
 bool iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef portal)
 {
-    CFBooleanRef dataDigest = CFDictionaryGetValue(portal,kiSCSIConnectionConfigDataDigestKey);
+    CFBooleanRef dataDigest = (CFBooleanRef)CFDictionaryGetValue(portal,kiSCSIConnectionConfigDataDigestKey);
     return CFBooleanGetValue(dataDigest);
 }
 

@@ -49,9 +49,7 @@ kern_return_t iSCSIKernelInitialize()
     
 	// Check to see if the driver was found in the I/O registry
 	if(service == IO_OBJECT_NULL)
-	{
 		return kIOReturnNotFound;
-	}
     
 	// Using the service handle, open a connection
     result = IOServiceOpen(service,mach_task_self(),0,&connection);

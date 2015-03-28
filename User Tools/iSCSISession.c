@@ -15,6 +15,7 @@
 #include "iSCSIQueryTarget.h"
 #include "iSCSITypes.h"
 #include "iSCSIDA.h"
+#include "iSCSIIORegistry.h"
 
 /*! Name of the initiator. */
 CFStringRef kiSCSIInitiatorName = CFSTR("default");
@@ -962,7 +963,9 @@ errno_t iSCSILogoutSession(SID sessionId,
     errno_t error = 0;
 
     // Unmount all media for this session
-    iSCSIDAUnmountIOMediaForSession(sessionId);
+    iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
+
+    iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetName(target));
     
     // First deactivate all of the connections
     if((error = iSCSIKernelDeactivateAllConnections(sessionId)))
@@ -978,8 +981,6 @@ errno_t iSCSILogoutSession(SID sessionId,
     
     return error;
 }
-
-
 
 /*! Callback function used by iSCSIQueryPortalForTargets to parse discovery
  *  data into an iSCSIDiscoveryRec object. */
@@ -1077,7 +1078,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     
     // Can't use a text query; must manually send/receive as the received
     // keys will be duplicates and CFDictionary doesn't support them
-    CFDictionaryAddValue(textCmd,kiSCSITKSendTargets,kiSCSITVSendTargetsAll);
+    CFDictionarySetValue(textCmd,kiSCSITKSendTargets,kiSCSITVSendTargetsAll);
      
     // Create a data segment based on text commands (key-value pairs)
     void * data;
