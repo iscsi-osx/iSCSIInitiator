@@ -95,7 +95,16 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     struct sockaddr_un address;
     address.sun_family = AF_LOCAL;
     strcpy(address.sun_path,"/tmp/iscsid_local");
-
+    
+    // Set the timeout for this socket so that the client will quit if
+    // the daemon isn't running (otherwise it will hang on the non-blocking
+    // socket
+/*    struct timeval tv;
+    tv.tv_sec = 10;
+    tv.tv_usec = 0;
+    setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(struct timeval));
+    setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(struct timeval));
+*/
     // Connect to local socket and return handle
     if(connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address))==0)
         return handle;
@@ -355,7 +364,7 @@ errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
                                                      rsp.discoveryLength,
                                                      kCFAllocatorMalloc);
     
-    if(!(*discoveryRec = iSCSIMutableDiscoveryRecCreateWithData(discData)))
+    if(!(*discoveryRec = iSCSIDiscoveryRecCreateMutableWithData(discData)))
         return EIO;
     
     CFRelease(discData);
@@ -373,17 +382,17 @@ errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
                                             iSCSIPortalRef portal,
-                                            CFStringRef targetName,
+                                            CFStringRef targetIQN,
                                             enum iSCSIAuthMethods * authMethod,
                                             enum iSCSILoginStatusCode * statusCode)
 {
     // Validate inputs
-    if(handle < 0 || !portal || !targetName || !authMethod || !statusCode)
+    if(handle < 0 || !portal || !targetIQN || !authMethod || !statusCode)
         return EINVAL;
     
     // Setup a target object with the target name
-    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
-    iSCSITargetSetName(target,targetName);
+    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
+    iSCSITargetSetName(target,targetIQN);
     
     // Generate data to transmit (no longer need target object after this)
     CFDataRef targetData = iSCSITargetCreateData(target);
@@ -419,20 +428,20 @@ errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
 
 /*! Retreives the initiator session identifier associated with this target.
  *  @param handle a handle to a daemon connection.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @param sessionId the session identiifer.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonGetSessionIdForTarget(iSCSIDaemonHandle handle,
-                                         CFStringRef targetName,
+                                         CFStringRef targetIQN,
                                          SID * sessionId)
 {
     // Validate inputs
-    if(handle < 0 || !targetName || !sessionId)
+    if(handle < 0 || !targetIQN || !sessionId)
         return EINVAL;
     
     // Setup a target object with the target name
-    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
-    iSCSITargetSetName(target,targetName);
+    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
+    iSCSITargetSetName(target,targetIQN);
     
     // Generate data to transmit (no longer need target object after this)
     CFDataRef targetData = iSCSITargetCreateData(target);

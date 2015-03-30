@@ -38,7 +38,7 @@ iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data)
 }
 
 /*! Convenience function.  Creates a new iSCSIPortalRef with the above keys. */
-iSCSIMutablePortalRef iSCSIMutablePortalCreate()
+iSCSIMutablePortalRef iSCSIPortalCreateMutable()
 {
     iSCSIMutablePortalRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     CFDictionaryAddValue(portal,kiSCSIPortalAddresssKey,CFSTR(""));
@@ -133,19 +133,19 @@ iSCSISessionConfigRef iSCSITargetCreateWithData(CFDataRef data)
 
 /*! iSCSI target records are dictionaries with keys with string values
  *  that specify the target name and other parameters. */
-CFStringRef kiSCSITargetNameKey = CFSTR("Target Name");
+CFStringRef kiSCSITargetIQNKey = CFSTR("Target Name");
 
 /*! Convenience function.  Creates a new iSCSITargetRef with the above keys. */
-iSCSIMutableTargetRef iSCSIMutableTargetCreate()
+iSCSIMutableTargetRef iSCSITargetCreateMutable()
 {
     iSCSIMutableTargetRef target = CFDictionaryCreateMutable(kCFAllocatorDefault,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     return target;
 }
 
 /*! Gets the name associated with the iSCSI target. */
-CFStringRef iSCSITargetGetName(iSCSITargetRef target)
+CFStringRef iSCSITargetGetIQN(iSCSITargetRef target)
 {
-    return CFDictionaryGetValue(target,kiSCSITargetNameKey);
+    return CFDictionaryGetValue(target,kiSCSITargetIQNKey);
 }
 
 /*! Sets the name associated with the iSCSI target. */
@@ -155,7 +155,7 @@ void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name)
     if(CFStringCompare(name,CFSTR(""),0) == kCFCompareEqualTo)
         return;
     
-    CFDictionarySetValue(target,kiSCSITargetNameKey,name);
+    CFDictionarySetValue(target,kiSCSITargetIQNKey,name);
 }
 
 /*! Releases memory associated with iSCSI targets. */
@@ -321,7 +321,7 @@ CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth)
 
 
 /*! Creates a discovery record object. */
-iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreate()
+iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutable()
 {
     return CFDictionaryCreateMutable(kCFAllocatorDefault,
                                      kMaxDiscoveryRecEntries,
@@ -332,7 +332,7 @@ iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreate()
 /*! Creates a discovery record from an external data representation.
  * @param data data used to construct an iSCSI discovery object.
  * @return an iSCSI discovery object or NULL if object creation failed */
-iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreateWithData(CFDataRef data)
+iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutableWithData(CFDataRef data)
 {
     CFPropertyListFormat format;
     iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)
@@ -350,29 +350,29 @@ iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreateWithData(CFDataRef dat
 
 /*! Add a portal to a specified portal group tag for a given target.
  *  @param discoveryRec the discovery record.
- *  @param targetName the name of the target to add.
+ *  @param targetIQN the name of the target to add.
  *  @param portalGroupTag the target portal group tag to add.
  *  @param portal the iSCSI portal to add. */
 void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
-                                CFStringRef targetName,
+                                CFStringRef targetIQN,
                                 CFStringRef portalGroupTag,
                                 iSCSIPortalRef portal)
 {
     // Validate inputs
-    if(!discoveryRec || !targetName || !portalGroupTag)
+    if(!discoveryRec || !targetIQN || !portalGroupTag)
         return;
     
     CFMutableDictionaryRef targetDict;
     
     // If target doesn't exist add it
-    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetName,(void *)&targetDict))
+    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetIQN,(void *)&targetDict))
     {
         targetDict = CFDictionaryCreateMutable(kCFAllocatorDefault,
                                                kMaxPortalGroupsPerTarget,
                                                &kCFTypeDictionaryKeyCallBacks,
                                                &kCFTypeDictionaryValueCallBacks);
         
-        CFDictionaryAddValue(discoveryRec,targetName,targetDict);
+        CFDictionaryAddValue(discoveryRec,targetIQN,targetDict);
     }
     
     // If the group tag doesn't exist add it
@@ -420,18 +420,18 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIMutableDiscoveryRecRef dis
 /*! Creates a CFArray object containing CFString objects with portal group
  *  tags for a particular target.
  *  @param discoveryRec the discovery record.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @return an array of strings with portal group tags for the specified target. */
 CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIMutableDiscoveryRecRef discoveryRec,
-                                                         CFStringRef targetName)
+                                                         CFStringRef targetIQN)
 {
     // Validate inputs
-    if(!discoveryRec || !targetName)
+    if(!discoveryRec || !targetIQN)
         return NULL;
     
     // If target doesn't exist return NULL
     CFMutableDictionaryRef targetDict;
-    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetName,(void *)&targetDict))
+    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetIQN,(void *)&targetDict))
         return NULL;
     
     // Otherwise get all keys, which correspond to the portal group tags
@@ -449,21 +449,21 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIMutableDiscoveryRe
 /*! Gets all of the portals associated with a partiular target and portal
  *  group tag.
  *  @param discoveryRec the discovery record.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @param portalGroupTag the portal group tag associated with the target.
  *  @return an array of iSCSIPortal objects associated with the specified
  *  group tag for the specified target. */
 CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIMutableDiscoveryRecRef discoveryRec,
-                                       CFStringRef targetName,
+                                       CFStringRef targetIQN,
                                        CFStringRef portalGroupTag)
 {
     // Validate inputs
-    if(!discoveryRec || !targetName || !portalGroupTag)
+    if(!discoveryRec || !targetIQN || !portalGroupTag)
         return NULL;
     
     // If target doesn't exist return NULL
     CFMutableDictionaryRef targetDict;
-    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetName,(void *)&targetDict))
+    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetIQN,(void *)&targetDict))
         return NULL;
 
     // Grab requested portal group
@@ -514,7 +514,7 @@ CFStringRef kiSCSISessionConfigPortalGroupTagKey = CFSTR("Target Portal Group Ta
 CFStringRef kiSCSISessionConfigMaxConnectionsKey = CFSTR("Maximum Connections");
 
 /*! Convenience function.  Creates a new iSCSISessionConfigRef with the above keys. */
-iSCSIMutableSessionConfigRef iSCSIMutableSessionConfigCreate()
+iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutable()
 {
     iSCSIMutableSessionConfigRef config = CFDictionaryCreateMutable(kCFAllocatorDefault,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     iSCSISessionConfigSetErrorRecoveryLevel(config,kiSCSIErrorRecoverySession);
@@ -641,7 +641,7 @@ CFStringRef kiSCSIConnectionConfigDataDigestKey = CFSTR("Data Digest");
 
 
 /*! Convenience function.  Creates a new iSCSIConnectionConfigRef with the above keys. */
-iSCSIMutableConnectionConfigRef iSCSIMutableConnectionConfigCreate()
+iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutable()
 {
     iSCSIMutableConnectionConfigRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     CFDictionaryAddValue(portal,kiSCSIConnectionConfigHeaderDigestKey,kCFBooleanFalse);

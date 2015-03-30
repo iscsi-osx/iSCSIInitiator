@@ -81,14 +81,14 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
-                                      CFStringRef targetName,
+                                      CFStringRef targetIQN,
                                       enum iSCSIAuthMethods * authMethod,
                                       enum iSCSILoginStatusCode * statusCode);
 
 /*! Gets the session identifier associated with the specified target.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @return the session identiifer. */
-SID iSCSIGetSessionIdForTarget(CFStringRef targetName);
+SID iSCSIGetSessionIdForTarget(CFStringRef targetIQN);
 
 /*! Gets the connection identifier associated with the specified portal.
  *  @param sessionId the session identifier.
@@ -131,8 +131,8 @@ iSCSIConnectionConfigRef iSCSICopyConnectionConfig(SID sessionId,CID connectionI
 
 /*! Sets the name of this initiator.  This is the IQN-format name that is
  *  exchanged with a target during negotiation.
- *  @param initiatorName the initiator name. */
-void iSCSISetInitiatiorName(CFStringRef initiatorName);
+ *  @param initiatorIQN the initiator name. */
+void iSCSISetInitiatiorName(CFStringRef initiatorIQN);
 
 /*! Sets the alias of this initiator.  This is the IQN-format alias that is
  *  exchanged with a target during negotiation.

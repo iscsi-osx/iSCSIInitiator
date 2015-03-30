@@ -545,7 +545,7 @@ enum iSCSIDFunctionCodes {
     kiSCSIDCreatePortalForConnectionId = 11,
     kiSCSIDCopySessionConfig = 12,
     kiSCSIDCopyConnectionConfig = 13,
-    kiSCSIDSetInitiatorName = 14,
+    kiSCSIDSetInitiatorIQN = 14,
     kiSCSIDSetInitiatorAlias = 15,
     kiSCSIDShutdownDaemon = 16,
     kiSCSIDInvalidFunctionCode

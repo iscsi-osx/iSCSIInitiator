@@ -77,8 +77,8 @@ kern_return_t iSCSIKernelCleanUp()
 /*! Allocates a new iSCSI session in the kernel and creates an associated
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
- *  @param targetNameCString the name of the target, or NULL if discovery session.
- *  @param targetNameCStringLen the length of the targetNameCString string
+ *  @param targetIQNCString the name of the target, or NULL if discovery session.
+ *  @param targetIQNCStringLen the length of the targetIQNCString string
  *  (length must include null terminator).
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
@@ -86,8 +86,8 @@ kern_return_t iSCSIKernelCleanUp()
  *  @param sessionId the session identifier for the new session (returned).
  *  @param connectionId the identifier of the new connection (returned).
  *  @return An error code if a valid session could not be created. */
-errno_t iSCSIKernelCreateSession(const char * targetNameCString,
-                                 size_t targetNameCStringLen,
+errno_t iSCSIKernelCreateSession(const char * targetIQNCString,
+                                 size_t targetIQNCStringLen,
                                  const struct sockaddr_storage * targetAddress,
                                  const struct sockaddr_storage * hostAddress,
                                  SID * sessionId,
@@ -101,10 +101,10 @@ errno_t iSCSIKernelCreateSession(const char * targetNameCString,
     
     size_t ss_len = sizeof(struct sockaddr_storage);
 
-    size_t inputBufferSize = inputStructCnt*ss_len + targetNameCStringLen;
+    size_t inputBufferSize = inputStructCnt*ss_len + targetIQNCStringLen;
 
-    // Pack the targetAddress, hostAddress, targetNameCString and connectionName into
-    // a single buffer in that order.  The strings targetNameCString and connectionName
+    // Pack the targetAddress, hostAddress, targetIQNCString and connectionName into
+    // a single buffer in that order.  The strings targetIQNCString and connectionName
     // are NULL-terminated C strings (the NULL character is copied)
     void * inputBuffer = malloc(inputBufferSize);
 
@@ -112,8 +112,8 @@ errno_t iSCSIKernelCreateSession(const char * targetNameCString,
     memcpy(inputBuffer+ss_len,hostAddress,ss_len);
     
     // For discovery sessions target name is left blank (NULL)
-    if(targetNameCString)
-        memcpy(inputBuffer+2*ss_len,targetNameCString,targetNameCStringLen);
+    if(targetIQNCString)
+        memcpy(inputBuffer+2*ss_len,targetIQNCString,targetIQNCStringLen);
     
     const UInt32 expOutputCnt = 2;
     UInt64 output[expOutputCnt];
@@ -497,16 +497,16 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections)
 }
 
 /*! Looks up the session identifier associated with a particular target name.
- *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
- *  @param targetNameLen the length of the targetName string, including
+ *  @param targetIQN the IQN name of the target (e.q., iqn.2015-01.com.example)
+ *  @param targetIQNLen the length of the targetIQN string, including
  *  the NULL terminator.
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIdForTargetName(const char * targetName,
-                                             size_t targetNameLen,
+errno_t iSCSIKernelGetSessionIdForTargetIQN(const char * targetIQN,
+                                             size_t targetIQNLen,
                                              SID * sessionId)
 {
-    if(!targetName || !sessionId)
+    if(!targetIQN || !sessionId)
         return EINVAL;
     
     const UInt32 expOutputCnt = 1;
@@ -514,8 +514,8 @@ errno_t iSCSIKernelGetSessionIdForTargetName(const char * targetName,
     UInt32 outputCnt = expOutputCnt;
     
     kern_return_t result =
-        IOConnectCallMethod(connection,kiSCSIGetSessionIdForTargetName,0,0,targetName,
-                            targetNameLen,output,&outputCnt,0,0);
+        IOConnectCallMethod(connection,kiSCSIGetSessionIdForTargetIQN,0,0,targetIQN,
+                            targetIQNLen,output,&outputCnt,0,0);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
         *sessionId = (UInt16)output[0];
@@ -640,22 +640,22 @@ errno_t iSCSIKernelGetConnectionIds(SID sessionId,
 
 /*! Gets the name of the target associated with a particular session.
  *  @param sessionId session identifier.
- *  @param targetNameCString the name of the target.
- *  @param size the size of the targetNameCString buffer.
+ *  @param targetIQNCString the name of the target.
+ *  @param size the size of the targetIQNCString buffer.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetTargetNameForSessionId(SID sessionId,
-                                             char * targetNameCString,
+errno_t iSCSIKernelGetTargetIQNForSessionId(SID sessionId,
+                                             char * targetIQNCString,
                                              size_t * size)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !targetNameCString || !size)
+    if(sessionId == kiSCSIInvalidSessionId || !targetIQNCString || !size)
         return EINVAL;
     
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
     
-    kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetTargetNameForSessionId,
-                                               &input,inputCnt,0,0,0,0,targetNameCString,size);
+    kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetTargetIQNForSessionId,
+                                               &input,inputCnt,0,0,0,0,targetIQNCString,size);
     
     return IOReturnToErrno(result);
 

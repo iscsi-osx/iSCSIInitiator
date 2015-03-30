@@ -101,7 +101,7 @@ iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIPortal object with empty portal parameters.
  *  @return a new portal object. */
-iSCSIMutablePortalRef iSCSIMutablePortalCreate();
+iSCSIMutablePortalRef iSCSIPortalCreateMutable();
 
 /*! Gets the address associated with the iSCSI portal.
  *  @param an iSCSI portal object.
@@ -173,12 +173,12 @@ iSCSITargetRef iSCSITargetCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSITarget object with empty target parameters.
  *  @return an iSCSI target object. */
-iSCSIMutableTargetRef iSCSIMutableTargetCreate();
+iSCSIMutableTargetRef iSCSITargetCreateMutable();
 
 /*! Gets the name associated with the iSCSI target.
   * @param target the iSCSI target object.
  *  @return the target name or NULL if one was not set.  */
-CFStringRef iSCSITargetGetName(iSCSITargetRef target);
+CFStringRef iSCSITargetGetIQN(iSCSITargetRef target);
 
 /*! Sets the name associated with the iSCSI target.  This function has no
  *  effect if the specified target name is blank.
@@ -286,20 +286,20 @@ CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth);
 
 
 /*! Creates a discovery record object. */
-iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreate();
+iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutable();
 
 /*! Creates a discovery record from an external data representation.
  * @param data data used to construct an iSCSI discovery object.
  * @return an iSCSI discovery object or NULL if object creation failed */
-iSCSIMutableDiscoveryRecRef iSCSIMutableDiscoveryRecCreateWithData(CFDataRef data);
+iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutableWithData(CFDataRef data);
 
 /*! Add a portal to a specified portal group tag for a given target.
  *  @param discoveryRec the discovery record.
- *  @param targetName the name of the target to add.
+ *  @param targetIQN the name of the target to add.
  *  @param portalGroupTag the target portal group tag to add.
  *  @param portal the iSCSI portal to add. */
 void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
-                                CFStringRef targetName,
+                                CFStringRef targetIQN,
                                 CFStringRef portalGroupTag,
                                 iSCSIPortalRef portal);
 
@@ -313,21 +313,21 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIMutableDiscoveryRecRef dis
 /*! Creates a CFArray object containing CFString objects with portal group
  *  tags for a particular target.
  *  @param discoveryRec the discovery record.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @return an array of strings with portal group tags for the specified target. */
 CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIMutableDiscoveryRecRef discoveryRec,
-                                                         CFStringRef targetName);
+                                                         CFStringRef targetIQN);
 
 
 /*! Gets all of the portals associated with a partiular target and portal
  *  group tag.  
  *  @param discoveryRec the discovery record.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @param portalGroupTag the portal group tag associated with the target.
  *  @return an array of iSCSIPortal objects associated with the specified
  *  group tag for the specified target. */
 CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIMutableDiscoveryRecRef discoveryRec,
-                                       CFStringRef targetName,
+                                       CFStringRef targetIQN,
                                        CFStringRef portalGroupTag);
 
 
@@ -361,7 +361,7 @@ CFDataRef iSCSIDiscoveryRecCreateData(iSCSIMutableDiscoveryRecRef discoveryRec);
 iSCSISessionConfigRef iSCSISessionConfigCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSISessionConfigRef with default values. */
-iSCSIMutableSessionConfigRef iSCSIMutableSessionConfigCreate();
+iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutable();
 
 /*! Gets the error recovery level associated with a  session. */
 enum iSCSIErrorRecoveryLevels iSCSISessionConfigGetErrorRecoveryLevel(iSCSISessionConfigRef config);
@@ -418,7 +418,7 @@ CFDataRef iSCSISessionConfigCreateData(iSCSISessionConfigRef config);
 iSCSIConnectionConfigRef iSCSIConnectionConfigCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIConnectionConfigRef with default values. */
-iSCSIMutableConnectionConfigRef iSCSIMutableConnectionConfigCreate();
+iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutable();
 
 /*! Gets whether a header digest is enabled in the config object.
  *  @param config the iSCSI config object.

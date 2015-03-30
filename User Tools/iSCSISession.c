@@ -16,9 +16,10 @@
 #include "iSCSITypes.h"
 #include "iSCSIDA.h"
 #include "iSCSIIORegistry.h"
+#include "iSCSIRFC3720Defaults.h"
 
 /*! Name of the initiator. */
-CFStringRef kiSCSIInitiatorName = CFSTR("default");
+CFStringRef kiSCSIInitiatorIQN = CFSTR("default");
 
 /*! Alias of the initiator. */
 CFStringRef kiSCSIInitiatorAlias = CFSTR("default");
@@ -26,107 +27,6 @@ CFStringRef kiSCSIInitiatorAlias = CFSTR("default");
 /*! Maximum number of key-value pairs supported by a dictionary that is used
  *  to produce the data section of text and login PDUs. */
 const unsigned int kiSCSISessionMaxTextKeyValuePairs = 100;
-
-static const unsigned int kRFC3720_kiSCSISessionTimeoutMs = 1000;
-
-
-/////////// RFC3720 ALLOWED VALUES FOR SESSION & CONNECTION PARAMETERS /////////
-
-/*! Default max connections value per RFC3720. */
-static const unsigned int kRFC3720_MaxConnections = 1;
-
-/*! Maximum max connections value per RFC3720. */
-static const unsigned int kRFC3720_MaxConnections_Min = 1;
-
-/*! Minimum max connections value per RFC3720. */
-static const unsigned int kRFC3720_MaxConnections_Max = 65535;
-
-
-/*! Default initialR2T connections value per RFC3720. */
-static const Boolean kRFC3720_InitialR2T = true;
-
-/*! Default immediate data value per RFC3720. */
-static const Boolean kRFC3720_ImmediateData = true;
-
-
-/*! Default maximum received data segment length value per RFC3720. */
-static const unsigned int kRFC3720_MaxRecvDataSegmentLength = 8192;
-
-/*! Minimum allowed received data segment length value per RFC3720. */
-static const unsigned int kRFC3720_MaxRecvDataSegmentLength_Min = 512;
-
-/*! Maximum allowed received data segment length value per RFC3720. */
-static const unsigned int kRFC3720_MaxRecvDataSegmentLength_Max = (2e24-1);
-
-
-
-/*! Default maximum burst length value per RFC3720. */
-static const unsigned int kRFC3720_MaxBurstLength = 262144;
-
-/*! Minimum maximum burst length value per RFC3720. */
-static const unsigned int kRFC3720_MaxBurstLength_Min = 512;
-
-/*! Maximum maximum burst length value per RFC3720. */
-static const unsigned int kRFC3720_MaxBurstLength_Max = (2e24-1);
-
-
-/*! Default first burst length value per RFC3720. */
-static const unsigned int kRFC3720_FirstBurstLength = 65536;
-
-/*! Minimum first burst length value per RFC3720. */
-static const unsigned int kRFC3720_FirstBurstLength_Min = 512;
-
-/*! Maximum first burst length value per RFC3720. */
-static const unsigned int kRFC3720_FirstBurstLength_Max = (2e24-1);
-
-
-/*! Default time to wait value per RFC3720. */
-static const unsigned int kRFC3720_DefaultTime2Wait = 2;
-
-/*! Minimum time to wait value per RFC3720. */
-static const unsigned int kRFC3720_DefaultTime2Wait_Min = 0;
-
-/*! Maximum time to wait value per RFC3720. */
-static const unsigned int kRFC3720_DefaultTime2Wait_Max = 3600;
-
-
-/*! Default time to retain value per RFC3720. */
-static const unsigned int kRFC3720_DefaultTime2Retain = 20;
-
-/*! Minimum time to retain value per RFC3720. */
-static const unsigned int kRFC3720_DefaultTime2Retain_Min = 0;
-
-/*! Maximum time to retain value per RFC3720. */
-static const unsigned int kRFC3720_DefaultTime2Retain_Max = 3600;
-
-
-/*! Default maximum outstanding R2T value per RFC3720. */
-static const unsigned int kRFC3720_MaxOutstandingR2T = 1;
-
-/*! Minimum maximum outstanding R2T value per RFC3720. */
-static const unsigned int kRFC3720_MaxOutstandingR2T_Min = 1;
-
-/*! Maximum maximum outstanding R2T value per RFC3720. */
-static const unsigned int kRFC3720_MaxOutstandingR2T_Max = 65535;
-
-
-/*! Default data PDU in order value per RFC3720. */
-static const Boolean kRFC3720_DataPDUInOrder = true;
-
-/*! Default data segment in order value per RFC3720. */
-static const Boolean kRFC3720_DataSequenceInOrder = true;
-
-
-/*! Default error recovery level per RFC3720. */
-static const unsigned int kRFC3720_ErrorRecoveryLevel = 0;
-
-/*! Minimum error recovery level per RFC3720. */
-static const unsigned int kRFC3720_ErrorRecoveryLevel_Min = 0;
-
-/*! Maximum error recovery level per RFC3720. */
-static const unsigned int kRFC3720_ErrorRecoveryLevel_Max = 2;
-
-
 
 errno_t iSCSILogoutResponseToErrno(enum iSCSIPDULogoutRsp response)
 {
@@ -556,7 +456,7 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
     iSCSINegotiateBuildSWDictCommon(sessCfg,sessCmd);
     
     // If target name is specified, this is a normal session; add parameters
-    if(iSCSITargetGetName(target) != NULL)
+    if(iSCSITargetGetIQN(target) != NULL)
         iSCSINegotiateBuildSWDictNormal(sessCfg,sessCmd);
     
     // Add connection parameters
@@ -596,7 +496,7 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
         error = iSCSINegotiateParseSWDictCommon(sessCmd,sessRsp,&sessCfgKernel);
     
     if(!error)
-        if(iSCSITargetGetName(target) != NULL)
+        if(iSCSITargetGetIQN(target) != NULL)
             error = iSCSINegotiateParseSWDictNormal(sessCmd,sessRsp,&sessCfgKernel);
     
     if(!error)
@@ -916,15 +816,15 @@ errno_t iSCSILoginSession(iSCSITargetRef target,
     if((error = iSCSISessionResolveNode(portal,&ssTarget,&ssHost)))
         return error;
     
-    const char * targetName = CFStringGetCStringPtr(iSCSITargetGetName(target),
+    const char * targetIQN = CFStringGetCStringPtr(iSCSITargetGetIQN(target),
                                                     kCFStringEncodingASCII);
 
     // (CFStringGetLength doesn't include the the null terminator)
-    size_t targetNameLen = CFStringGetLength(iSCSITargetGetName(target))+1;
+    size_t targetIQNLen = CFStringGetLength(iSCSITargetGetIQN(target))+1;
 
     // Create a new session in the kernel.  This allocates session and
     // connection identifiers
-    error = iSCSIKernelCreateSession(targetName,targetNameLen,
+    error = iSCSIKernelCreateSession(targetIQN,targetIQNLen,
                                      &ssTarget,&ssHost,sessionId,connectionId);
     
     // If session couldn't be allocated were maxed out; try again later
@@ -941,7 +841,7 @@ errno_t iSCSILoginSession(iSCSITargetRef target,
     
     if(error)
         iSCSIKernelReleaseSession(*sessionId);
-    else if(!error && iSCSITargetGetName(target) != NULL)
+    else if(!error && iSCSITargetGetIQN(target) != NULL)
             iSCSIKernelActivateConnection(*sessionId,*connectionId);
     
     return error;
@@ -965,7 +865,7 @@ errno_t iSCSILogoutSession(SID sessionId,
     // Unmount all media for this session
     iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
 
-    iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetName(target));
+    iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
     
     // First deactivate all of the connections
     if((error = iSCSIKernelDeactivateAllConnections(sessionId)))
@@ -987,13 +887,13 @@ errno_t iSCSILogoutSession(SID sessionId,
 void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key,
                                              void * valContainer,CFStringRef val)
 {
-    static CFStringRef targetName = NULL;
+    static CFStringRef targetIQN = NULL;
     
-    // If the discovery data has a "TargetName = xxx" field, we're starting
+    // If the discovery data has a "TargetIQN = xxx" field, we're starting
     // a record for a new target
-    if(CFStringCompare(key,kiSCSILKTargetName,0) == kCFCompareEqualTo)
+    if(CFStringCompare(key,kiSCSILKTargetIQN,0) == kCFCompareEqualTo)
     {
-        targetName = CFStringCreateCopy(kCFAllocatorDefault,val);
+        targetIQN = CFStringCreateCopy(kCFAllocatorDefault,val);
     }
     // Otherwise we're dealing with a portal entry. Per RFC3720, this is
     // of the form "TargetAddress = <address>:<port>,<portalGroupTag>
@@ -1014,7 +914,7 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
         CFStringRef address = CFStringCreateWithSubstring(kCFAllocatorDefault,addressAndPort,addressRange);
         CFStringRef port = CFStringCreateWithSubstring(kCFAllocatorDefault,addressAndPort,portRange);
         
-        iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
+        iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
         iSCSIPortalSetAddress(portal,address);
         iSCSIPortalSetPort(portal,port);
         
@@ -1023,9 +923,9 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
         CFRelease(targetAddress);
     
         iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)(valContainer);
-        iSCSIDiscoveryRecAddPortal(discoveryRec,targetName,portalGroupTag,portal);
+        iSCSIDiscoveryRecAddPortal(discoveryRec,targetIQN,portalGroupTag,portal);
         
-        CFRelease(targetName);
+        CFRelease(targetIQN);
         CFRelease(portalGroupTag);
         iSCSIPortalRelease(portal);
     }
@@ -1045,7 +945,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     
     // Create a discovery session to the portal (empty target name is assumed to
     // be a discovery session)
-    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
+    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
     iSCSITargetSetName(target,CFSTR(""));
     
     iSCSIAuthRef auth = iSCSIAuthCreateNone();
@@ -1055,8 +955,8 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     
     errno_t error;
     
-    iSCSIMutableSessionConfigRef sessCfg = iSCSIMutableSessionConfigCreate();
-    iSCSIMutableConnectionConfigRef connCfg = iSCSIMutableConnectionConfigCreate();
+    iSCSIMutableSessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
+    iSCSIMutableConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
 
     if((error = iSCSILoginSession(target,portal,auth,sessCfg,connCfg,&sessionId,&connectionId,statusCode)))
     {
@@ -1103,7 +1003,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     // Get response from iSCSI portal, continue until response is complete
     iSCSIPDUTextRspBHS rsp;
     
-    *discoveryRec = iSCSIMutableDiscoveryRecCreate();
+    *discoveryRec = iSCSIDiscoveryRecCreateMutable();
 
     do {
         if((error = iSCSIKernelRecv(sessionId,connectionId,(iSCSIPDUTargetBHS *)&rsp,&data,&length)))
@@ -1144,7 +1044,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
-                                      CFStringRef targetName,
+                                      CFStringRef targetIQN,
                                       enum iSCSIAuthMethods * authMethod,
                                       enum iSCSILoginStatusCode * statusCode)
 {
@@ -1161,8 +1061,8 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
         return error;
     
     // Create a discovery session to the portal
-    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
-    iSCSITargetSetName(target,targetName);
+    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
+    iSCSITargetSetName(target,targetIQN);
     
     iSCSIKernelSessionCfg sessCfgKernel;
     
@@ -1170,8 +1070,8 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
     // Reset qualifier and connection ID by default
     SID sessionId;
     CID connectionId;
-    error = iSCSIKernelCreateSession(CFStringGetCStringPtr(targetName,kCFStringEncodingASCII),
-                                     CFStringGetLength(targetName),
+    error = iSCSIKernelCreateSession(CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+                                     CFStringGetLength(targetIQN),
                                      &ssTarget,
                                      &ssHost,
                                      &sessionId,
@@ -1195,20 +1095,20 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
 }
 
 /*! Gets the session identifier associated with the specified target.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @return the session identiifer. */
-SID iSCSIGetSessionIdForTarget(CFStringRef targetName)
+SID iSCSIGetSessionIdForTarget(CFStringRef targetIQN)
 {
-    if(!targetName)
+    if(!targetIQN)
         return kiSCSIInvalidSessionId;
     
-    const char * targetNameCString = CFStringGetCStringPtr(targetName,kCFStringEncodingASCII);
+    const char * targetIQNCString = CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII);
     
     // Target name does not include the NULL terminator
-    size_t targetNameCStringLen = CFStringGetLength(targetName) + 1;
+    size_t targetIQNCStringLen = CFStringGetLength(targetIQN) + 1;
     
     SID sessionId = kiSCSIInvalidSessionId;
-    if(iSCSIKernelGetSessionIdForTargetName(targetNameCString,targetNameCStringLen,&sessionId))
+    if(iSCSIKernelGetSessionIdForTargetIQN(targetIQNCString,targetIQNCStringLen,&sessionId))
         return kiSCSIInvalidSessionId;
 
     return sessionId;
@@ -1278,18 +1178,18 @@ iSCSITargetRef iSCSICreateTargetForSessionId(SID sessionId)
     if(sessionId == kiSCSIInvalidSessionId)
         return NULL;
 
-    char targetNameCString[NI_MAXHOST];
+    char targetIQNCString[NI_MAXHOST];
     size_t length = NI_MAXHOST;
 
-    if(iSCSIKernelGetTargetNameForSessionId(sessionId,targetNameCString,&length))
+    if(iSCSIKernelGetTargetIQNForSessionId(sessionId,targetIQNCString,&length))
         return NULL;
     
-    CFStringRef targetName = CFStringCreateWithCString(kCFAllocatorDefault,targetNameCString,kCFStringEncodingASCII);
+    CFStringRef targetIQN = CFStringCreateWithCString(kCFAllocatorDefault,targetIQNCString,kCFStringEncodingASCII);
     
-    iSCSIMutableTargetRef target = iSCSIMutableTargetCreate();
-    iSCSITargetSetName(target,targetName);
+    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
+    iSCSITargetSetName(target,targetIQN);
 
-    CFRelease(targetName);
+    CFRelease(targetIQN);
     
     return target;
 }
@@ -1350,7 +1250,6 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId)
                 interfaceName = CFStringCreateWithCString(kCFAllocatorDefault,
                                                           interface->ifa_name,
                                                           kCFStringEncodingUTF8);
-                
                 break;
             }
         }
@@ -1362,7 +1261,7 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId)
     CFStringRef address = CFStringCreateWithCString(kCFAllocatorDefault,targetCAddress,kCFStringEncodingASCII);
     CFStringRef port = CFStringCreateWithCString(kCFAllocatorDefault,targetCPort,kCFStringEncodingASCII);
 
-    iSCSIMutablePortalRef portal = iSCSIMutablePortalCreate();
+    iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
     iSCSIPortalSetAddress(portal,address);
     iSCSIPortalSetPort(portal,port);
     CFRelease(address);
@@ -1391,7 +1290,7 @@ iSCSISessionConfigRef iSCSICopySessionConfig(SID sessionId)
     if(iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel))
         return NULL;
     
-    iSCSIMutableSessionConfigRef sessCfg = iSCSIMutableSessionConfigCreate();
+    iSCSIMutableSessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
     iSCSISessionConfigSetErrorRecoveryLevel(sessCfg,sessCfgKernel.errorRecoveryLevel);
     iSCSISessionConfigSetMaxConnections(sessCfg,sessCfgKernel.maxConnections);
     iSCSISessionConfigSetTargetPortalGroupTag(sessCfg,sessCfgKernel.targetPortalGroupTag);
@@ -1413,7 +1312,7 @@ iSCSIConnectionConfigRef iSCSICopyConnectionConfig(SID sessionId,CID connectionI
     if(iSCSIKernelGetConnectionConfig(sessionId,connectionId,&connCfgKernel))
         return NULL;
     
-    iSCSIMutableConnectionConfigRef connCfg = iSCSIMutableConnectionConfigCreate();
+    iSCSIMutableConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
     connCfgKernel.useDataDigest = iSCSIConnectionConfigGetDataDigest(connCfg);
     connCfgKernel.useHeaderDigest = iSCSIConnectionConfigGetHeaderDigest(connCfg);
 
@@ -1422,14 +1321,14 @@ iSCSIConnectionConfigRef iSCSICopyConnectionConfig(SID sessionId,CID connectionI
 
 /*! Sets the name of this initiator.  This is the IQN-format name that is
  *  exchanged with a target during negotiation.
- *  @param initiatorName the initiator name. */
-void iSCSISetInitiatiorName(CFStringRef initiatorName)
+ *  @param initiatorIQN the initiator name. */
+void iSCSISetInitiatiorName(CFStringRef initiatorIQN)
 {
-    if(!initiatorName)
+    if(!initiatorIQN)
         return;
     
-    CFRelease(kiSCSIInitiatorName);
-    kiSCSIInitiatorName = CFStringCreateCopy(kCFAllocatorDefault,initiatorName);
+    CFRelease(kiSCSIInitiatorIQN);
+    kiSCSIInitiatorIQN = CFStringCreateCopy(kCFAllocatorDefault,initiatorIQN);
 
 }
 

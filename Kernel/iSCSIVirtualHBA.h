@@ -168,14 +168,14 @@ public:
     /////////////////////  FUNCTIONS TO MANIPULATE ISCSI ///////////////////////
     
     /*! Allocates a new iSCSI session and returns a session qualifier ID.
-     *  @param targetName the name of the target, or NULL if discovery session.
-     *  @param targetNameLen the length of the target name.
+     *  @param targetIQN the name of the target, or NULL if discovery session.
+     *  @param targetIQNLen the length of the target name.
      *  @param targetaddress the BSD socket structure used to identify the target.
      *  @param hostaddress the BSD socket structure used to identify the host adapter.
      *  @param sessionId identifier for the new session.
      *  @param connectionId identifier for the new connection.
      *  @return error code indicating result of operation. */
-    errno_t CreateSession(OSString * targetName,
+    errno_t CreateSession(OSString * targetIQN,
                           const struct sockaddr_storage * targetAddress,
                           const struct sockaddr_storage * hostAddress,
                           SID * sessionId,
@@ -382,32 +382,42 @@ private:
     
     /*! Used as part of the iSCSI layer intiator task tag to specify the 
      *  type of task. */
-    enum InitiatorTaskTagCodes {
+    enum InitiatorTaskTypes {
         
         /*! Used as part of the iSCSI task tag for all SCSI tasks. */
-        kInitiatorTaskTagSCSITask = 0,
+        kInitiatorTaskTypeSCSITask = 0,
     
         /*! Used as part of the iSCSI task tag for latency measurement task. */
-        kInitiatorTaskTagLatency = 1,
+        kInitiatorTaskTypeLatency = 1,
     
         /*! Used as part of the iSCSI task tag for all task management operations. */
-        kInitiatorTaskTagTaskMgmt = 2
+        kInitiatorTaskTypeTaskMgmt = 2
     };
     
     /*! Creates the iSCSI layer's initiator task tag for a PDU using the task
      *  code, LUN, and the SCSI layer's task identifier. */
-    inline UInt32 BuildInitiatorTaskTag(InitiatorTaskTagCodes taskCode,
+    inline UInt32 BuildInitiatorTaskTag(InitiatorTaskTypes taskType,
                                         SCSILogicalUnitNumber LUN,
                                         SCSITaggedTaskIdentifier taskId)
     {
         // The task tag is constructed using the HBA controller task ID, the
         // LUN and a taskCode that maps to differnet *types* of iSCSI tasks
-        return ( ((UInt8)taskCode)<<24 | ((UInt8)LUN)<<16 | (UInt16)taskId );
+        return ( (UInt32)taskId | ((UInt32)LUN)<<16 | ((UInt32)taskType)<<24 );
     }
     
-    inline InitiatorTaskTagCodes ParseInitiatorTaskTagForID(UInt32 initiatorTaskTag)
+    inline InitiatorTaskTypes ParseInitiatorTaskTagForTaskType(UInt32 initiatorTaskTag)
     {
-        return (InitiatorTaskTagCodes)((initiatorTaskTag>>24) & 0xFF);
+        return (InitiatorTaskTypes)((initiatorTaskTag>>24) & 0xFF);
+    }
+    
+    inline SCSILogicalUnitNumber ParseInitiatorTaskTagForLUN(UInt32 initiatorTaskTag)
+    {
+        return (UInt32)((initiatorTaskTag>>16) & 0xFF);
+    }
+    
+    inline SCSITaggedTaskIdentifier ParseInitiatorTaskTagForTaskId(UInt32 initiatorTaskTag)
+    {
+        return (UInt32)(initiatorTaskTag & 0xFFFF);
     }
     
     /*! Helper function.  Sends a burst of data out PDUs, either as a response

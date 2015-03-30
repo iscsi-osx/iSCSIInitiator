@@ -94,10 +94,10 @@ typedef struct iSCSIKernelConnectionCfg
     bool useOFMarker;
     
     /*! Interval for OF marker. */
-    UInt16 OFMarkerInt;
+    UInt16 OFMarkInt;
     
     /*! Interval for IF marker. */
-    UInt16 IFMarkerInt;
+    UInt16 IFMarkInt;
     
     /*! Maximum data segment length allowed by the target. */
     UInt32 maxSendDataSegmentLength;

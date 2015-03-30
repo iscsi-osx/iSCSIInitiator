@@ -31,8 +31,8 @@ kern_return_t iSCSIKernelCleanUp();
 /*! Allocates a new iSCSI session in the kernel and creates an associated
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
- *  @param targetName the name of the target, or NULL if discovery session.
- *  @param targetNameCStringLen the length of the targetNameCString string 
+ *  @param targetIQN the name of the target, or NULL if discovery session.
+ *  @param targetIQNCStringLen the length of the targetIQNCString string 
  *  (length must include null terminator).
  *  @param targetAddress the BSD socket structure used to identify the target.
  *  @param hostAddress the BSD socket structure used to identify the host. This
@@ -40,8 +40,8 @@ kern_return_t iSCSIKernelCleanUp();
  *  @param sessionId the session identifier for the new session (returned).
  *  @param connectionId the identifier of the new connection (returned).
  *  @return An error code if a valid session could not be created. */
-errno_t iSCSIKernelCreateSession(const char * targetName,
-                                 size_t targetNameLen,
+errno_t iSCSIKernelCreateSession(const char * targetIQN,
+                                 size_t targetIQNLen,
                                  const struct sockaddr_storage * targetAddress,
                                  const struct sockaddr_storage * hostAddress,
                                  SID * sessionId,
@@ -169,13 +169,13 @@ errno_t iSCSIKernelGetConnection(SID sessionId,CID * connectionId);
 errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections);
 
 /*! Looks up the session identifier associated with a particular target name.
- *  @param targetName the IQN name of the target (e.q., iqn.2015-01.com.example)
- *  @param targetNameLen the length of the targetName string, including
+ *  @param targetIQN the IQN name of the target (e.q., iqn.2015-01.com.example)
+ *  @param targetIQNLen the length of the targetIQN string, including
  *  the NULL terminator.
  *  @param sessionId the session identifier.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIdForTargetName(const char * targetName,
-                                             size_t targetNameLen,
+errno_t iSCSIKernelGetSessionIdForTargetIQN(const char * targetIQN,
+                                             size_t targetIQNLen,
                                              SID * sessionId);
 
 /*! Looks up the connection identifier associated with a particular connection address.
@@ -207,11 +207,11 @@ errno_t iSCSIKernelGetConnectionIds(SID sessionId,
 
 /*! Gets the name of the target associated with a particular session.
  *  @param sessionId session identifier.
- *  @param targetName the name of the target.
- *  @param size the size of the targetName buffer.
+ *  @param targetIQN the name of the target.
+ *  @param size the size of the targetIQN buffer.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetTargetNameForSessionId(SID sessionId,
-                                             char * targetName,
+errno_t iSCSIKernelGetTargetIQNForSessionId(SID sessionId,
+                                             char * targetIQN,
                                              size_t * size);
 
 /*! Gets the target and host address associated with a particular connection.

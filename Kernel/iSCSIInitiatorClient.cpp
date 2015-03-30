@@ -160,7 +160,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
         0
     },
     {
-        (IOExternalMethodAction) &iSCSIInitiatorClient::GetSessionIdForTargetName,
+        (IOExternalMethodAction) &iSCSIInitiatorClient::GetSessionIdForTargetIQN,
         0,
         kIOUCVariableStructureSize,         // Target name
         1,                                  // Returned session identifier
@@ -188,7 +188,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
         kIOUCVariableStructureSize // List of connection ids
     },
     {
-        (IOExternalMethodAction) &iSCSIInitiatorClient::GetTargetNameForSessionId,
+        (IOExternalMethodAction) &iSCSIInitiatorClient::GetTargetIQNForSessionId,
         1,                                  // Session ID
         0,
         0,                                  // Returned connection count
@@ -350,11 +350,11 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
     const char * targetCString = (const char *)((const sockaddr_storage *)args->structureInput+2);
 //    size_t length = args->structureInputSize - sizeof(const sockaddr)*2;
     
-    OSString * targetName = OSString::withCString(targetCString);
+    OSString * targetIQN = OSString::withCString(targetCString);
     
     // Create a connection
     target->provider->CreateSession(
-        targetName,
+        targetIQN,
         (const sockaddr_storage *)args->structureInput,     // Target
         (const sockaddr_storage *)args->structureInput+1,   // Host interface
         &sessionId,
@@ -364,7 +364,7 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
     args->scalarOutput[1] = connectionId;
     args->scalarOutputCount = 2;
     
-    targetName->release();
+    targetIQN->release();
     
     return kIOReturnSuccess;
 }
@@ -761,15 +761,15 @@ IOReturn iSCSIInitiatorClient::GetNumConnections(iSCSIInitiatorClient * target,
     return kIOReturnSuccess;
 }
 
-IOReturn iSCSIInitiatorClient::GetSessionIdForTargetName(iSCSIInitiatorClient * target,
+IOReturn iSCSIInitiatorClient::GetSessionIdForTargetIQN(iSCSIInitiatorClient * target,
                                                          void * reference,
                                                          IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
-    const char * targetName = (const char *)args->structureInput;
+    const char * targetIQN = (const char *)args->structureInput;
     
-    OSNumber * identifier = (OSNumber*)(hba->targetList->getObject(targetName));
+    OSNumber * identifier = (OSNumber*)(hba->targetList->getObject(targetIQN));
     
     if(!identifier)
         return kIOReturnNotFound;
@@ -923,7 +923,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionIds(iSCSIInitiatorClient * target,
     return kIOReturnSuccess;
 }
 
-IOReturn iSCSIInitiatorClient::GetTargetNameForSessionId(iSCSIInitiatorClient * target,
+IOReturn iSCSIInitiatorClient::GetTargetIQNForSessionId(iSCSIInitiatorClient * target,
                                                          void * reference,
                                                          IOExternalMethodArguments * args)
 {
@@ -951,15 +951,15 @@ IOReturn iSCSIInitiatorClient::GetTargetNameForSessionId(iSCSIInitiatorClient * 
     
     while((object = iterator->getNextObject()))
     {
-        OSString * targetName = OSDynamicCast(OSString,object);
-        OSNumber * sessionIdNumber = OSDynamicCast(OSNumber,hba->targetList->getObject(targetName));
+        OSString * targetIQN = OSDynamicCast(OSString,object);
+        OSNumber * sessionIdNumber = OSDynamicCast(OSNumber,hba->targetList->getObject(targetIQN));
 
         if(sessionIdNumber->unsigned16BitValue() == sessionId)
         {
             // Minimum length (either buffer size or size of
             // target name, whichever is shorter)
-            size_t size = min(targetName->getLength(),args->structureOutputSize);
-            memcpy(args->structureOutput,targetName->getCStringNoCopy(),size);
+            size_t size = min(targetIQN->getLength(),args->structureOutputSize);
+            memcpy(args->structureOutput,targetIQN->getCStringNoCopy(),size);
 
             return kIOReturnSuccess;
         }

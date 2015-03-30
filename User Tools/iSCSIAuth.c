@@ -19,7 +19,7 @@
 /*! Defined by the session layer and used during authentication here. */
 extern unsigned int kiSCSISessionMaxTextKeyValuePairs;
 
-extern CFStringRef kiSCSIInitiatorName;
+extern CFStringRef kiSCSIInitiatorIQN;
 extern CFStringRef kiSCSIInitiatorAlias;
 
 
@@ -286,17 +286,17 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
                                  iSCSIAuthRef auth,
                                  CFMutableDictionaryRef authCmd)
 {
-    CFStringRef targetName = iSCSITargetGetName(target);
+    CFStringRef targetIQN = iSCSITargetGetIQN(target);
     
-    if(targetName == NULL)
+    if(targetIQN == NULL)
         CFDictionaryAddValue(authCmd,kiSCSILKSessionType,kiSCSILVSessionTypeDiscovery);
     else {
         CFDictionaryAddValue(authCmd,kiSCSILKSessionType,kiSCSILVSessionTypeNormal);
-        CFDictionaryAddValue(authCmd,kiSCSILKTargetName,iSCSITargetGetName(target));
+        CFDictionaryAddValue(authCmd,kiSCSILKTargetIQN,iSCSITargetGetIQN(target));
     }
 
     // Read global variables for initiator name & alias and add them to dict.
-    CFDictionaryAddValue(authCmd,kiSCSILKInitiatorName,kiSCSIInitiatorName);
+    CFDictionaryAddValue(authCmd,kiSCSILKInitiatorIQN,kiSCSIInitiatorIQN);
     CFDictionaryAddValue(authCmd,kiSCSILKInitiatorAlias,kiSCSIInitiatorAlias);
 
     // Determine authentication method used and add to dictionary
@@ -452,9 +452,9 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
         &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     
     CFDictionaryAddValue(authCmd,kiSCSILKSessionType,kiSCSILVSessionTypeNormal);
-    CFDictionaryAddValue(authCmd,kiSCSILKTargetName,iSCSITargetGetName(target));
+    CFDictionaryAddValue(authCmd,kiSCSILKTargetIQN,iSCSITargetGetIQN(target));
 
-    CFDictionaryAddValue(authCmd,kiSCSILKInitiatorName,kiSCSIInitiatorName);
+    CFDictionaryAddValue(authCmd,kiSCSILKInitiatorIQN,kiSCSIInitiatorIQN);
     CFDictionaryAddValue(authCmd,kiSCSILKInitiatorAlias,kiSCSIInitiatorAlias);
     CFDictionaryAddValue(authCmd,kiSCSILKAuthMethod,kiSCSILVAuthMethodAll);
 
@@ -487,6 +487,8 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
             CFStringRef method = CFDictionaryGetValue(authRsp,kiSCSILKAuthMethod);
             if(CFStringCompare(method,kiSCSILVAuthMethodCHAP,0) == kCFCompareEqualTo)
                 *authMethod = kiSCSIAuthMethodCHAP;
+            else if(CFStringCompare(method,kiSCSILVAuthMethodNone,0) == kCFCompareEqualTo)
+                *authMethod = kiSCSIAuthMethodNone;
         }
         // Otherwise the target didn't return an "AuthMethod" key, this means
         // that it doesn't require authentication

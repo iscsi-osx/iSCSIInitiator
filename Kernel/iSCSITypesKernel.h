@@ -54,7 +54,7 @@ typedef struct iSCSIConnection {
     
     /*! Amount of data, in bytes, that this connection has been requested
      *  to transfer.  This is used for bitrate-based load balancing. */
-    UInt32 dataToTransfer;
+    UInt64 dataToTransfer;
     
     /*! The maximum length of data allowed for immediate data (data sent as part
      *  of a command PDU).  This parameter is derived by taking the lesser of

@@ -23,36 +23,11 @@
 #include "iSCSISession.h"
 #include "iSCSIKernelInterface.h"
 #include "iSCSIDaemonInterfaceShared.h"
+#include "iSCSIPropertyList.h"
 
 #include <CoreFoundation/CFPreferences.h>
 
 static const CFStringRef applicationId = CFSTR("com.NSinenian.iscsix");
-
-/*! Read target entry from .plist and construct target and portal information. */
-//errno_t BuildPortalFrom
-
-/*! Helper function.  Configures the iSCSI initiator based on parameters
- *  that are read from the preferences .plist file. */
-void ConfigureiSCSIFromPreferences()
-{
-    // Connect to the preferences .plist file associated with "iscsid" and
-    // read configuration parameters for the initiator
-/*    CFStringRef initiatorName =
-        CFPreferencesCopyValue(kiSCSIPKInitiatorName,applicationId,
-                               kCFPreferencesAnyUser,kCFPreferencesAnyHost);
-    
-    CFStringRef initiatorAlias =
-        CFPreferencesCopyValue(kiSCSIPKInitiatorAlias,applicationId,
-                               kCFPreferencesAnyUser,kCFPreferencesAnyHost);
-    
-    // If initiator name & alias are provided, set them...
-    if(initiatorName)
-        iSCSISetInitiatiorName(initiatorName);
-    
-    if(initiatorAlias)
-        iSCSISetInitiatorAlias(initiatorAlias);*/
-    
-}
 
 const struct iSCSIDRspLoginSession iSCSIDRspLoginSessionInit  = {
     .funcCode = kiSCSIDLoginSession,
@@ -297,7 +272,7 @@ errno_t iSCSIDQueryTargetForAuthMethod(int fd,struct iSCSIDCmdQueryTargetForAuth
     enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
     enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
     
-    errno_t error = iSCSIQueryTargetForAuthMethod(portal,iSCSITargetGetName(target),&authMethod,&statusCode);
+    errno_t error = iSCSIQueryTargetForAuthMethod(portal,iSCSITargetGetIQN(target),&authMethod,&statusCode);
     
     // Compose a response to send back to the client
     struct iSCSIDRspQueryTargetForAuthMethod rsp = iSCSIDRspQueryTargetForAuthMethodInit;
@@ -317,7 +292,7 @@ errno_t iSCSIDGetSessionIdForTarget(int fd,struct iSCSIDCmdGetSessionIdForTarget
     iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
                             (void *(* )(CFDataRef))&iSCSITargetCreateWithData);
     
-    SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetName(target));
+    SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
     
     // Compose a response to send back to the client
     struct iSCSIDRspGetSessionIdForTarget rsp = iSCSIDRspGetSessionIdForTargetInit;
@@ -577,10 +552,18 @@ int main(void)
     // Verify that the iSCSI kernel extension is running
     if(iSCSIKernelInitialize() != kIOReturnSuccess)
         return ENOTSUP;
-
-    // Configure the initiator by reading preferences file
-    ConfigureiSCSIFromPreferences();
+ /*
+    // Connect to the preferences .plist file associated with "iscsid" and
+    // read configuration parameters for the initiator
+    iSCSIPLSynchronize();
     
+    CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
+    CFStringRef initiatorAlias = iSCSIPLCopyInitiatorAlias();
+    iSCSISetInitiatiorName(initiatorIQN);
+    iSCSISetInitiatiorName(initiatorAlias);
+    CFRelease(initiatorIQN);
+    CFRelease(initiatorAlias);
+  */  
     // Register with launchd so it can manage this daemon
     launch_data_t reg_request = launch_data_new_string(LAUNCH_KEY_CHECKIN);
     

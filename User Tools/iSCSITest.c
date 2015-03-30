@@ -23,20 +23,31 @@
 #include <stdio.h>
 #include <IOKit/IOKitLib.h>
 
-
+#include "iSCSISession.h"
+#include "iSCSIKernelInterface.h"
 
 
 
 
 int main(int argc, const char * argv[]) {
+
+    iSCSIKernelInitialize();
+
+
+    iSCSIAuthRef auth = iSCSIAuthCreateNone();
+    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
     
-    CFStringRef k[] = {CFSTR("1"),CFSTR("2")};
-    CFStringRef v[] = {CFSTR("3"),CFSTR("4")};
-    CFDictionaryRef x = CFDictionaryCreate(kCFAllocatorDefault,&k,&v,2,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
+    iSCSITargetSetName(target,CFSTR(""));
+    iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
+    iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
+    iSCSIPortalSetPort(portal,CFSTR("3260"));
+    iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
     
-    const void * keys, * values;
-    CFDictionaryGetKeysAndValues(x,&keys,&values);
+    enum iSCSILoginStatusCode statusCode;
+    enum iSCSIAuthMethods authMethod;
+    iSCSIQueryTargetForAuthMethod(portal,CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi59"),&authMethod,&statusCode);
+                                
     
-    CFArrayCreate(kCFAllocatorDefault,&keys,, <#const CFArrayCallBacks *callBacks#>)
+    iSCSIKernelCleanUp();
     return 0;
 }

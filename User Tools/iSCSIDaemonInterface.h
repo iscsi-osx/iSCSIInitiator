@@ -109,17 +109,17 @@ errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
                                             iSCSIPortalRef portal,
-                                            CFStringRef targetName,
+                                            CFStringRef targetIQN,
                                             enum iSCSIAuthMethods * authMethod,
                                             enum iSCSILoginStatusCode * statusCode);
 
 /*! Retreives the initiator session identifier associated with this target.
  *  @param handle a handle to a daemon connection.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @param sessionId the session identiifer.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonGetSessionIdForTarget(iSCSIDaemonHandle handle,
-                                         CFStringRef targetName,
+                                         CFStringRef targetIQN,
                                          SID * sessionId);
 
 /*! Looks up the connection identifier associated with a portal.

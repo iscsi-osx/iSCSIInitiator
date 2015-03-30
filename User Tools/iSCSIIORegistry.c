@@ -9,12 +9,14 @@
 #include "iSCSIIORegistry.h"
 
 #include <IOKit/IOKitLib.h>
+
+// The following are included for definitions of various IORegistry constants
 #include <IOKit/scsi/SCSITaskLib.h>
 #include <IOKit/storage/IOStorageProtocolCharacteristics.h>
 #include <IOKit/IOTypes.h>
 #include <IOKit/IOBSD.h>
 #include <IOKit/storage/IOMedia.h>
-
+#include <IOKit/storage/IOBlockStorageDriver.h>
 
 
 /*! Gets the iSCSIVirtualHBA object in the IO registry.*/
@@ -29,13 +31,13 @@ io_object_t iSCSIIORegistryGetiSCSIHBAEntry()
     return service;
 }
 
-/*! Finds the target object (IOSCSIParallelDevice) in the IO registry that
+/*! Finds the target object (IOSCSIParallelInterfaceDevice) in the IO registry that
  *  corresponds to the specified target.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @return the IO registry object of the IOSCSITargetDevice for this session. */
-io_object_t iSCSIIORegistryGetTargetEntry(CFStringRef targetName)
+io_object_t iSCSIIORegistryGetTargetEntry(CFStringRef targetIQN)
 {
-    if(!targetName)
+    if(!targetIQN)
         return IO_OBJECT_NULL;
     
     io_service_t service;
@@ -55,7 +57,7 @@ io_object_t iSCSIIORegistryGetTargetEntry(CFStringRef targetName)
         if(protocolDict)
         {
             CFStringRef IQN = CFDictionaryGetValue(protocolDict,CFSTR(kIOPropertyiSCSIQualifiedNameKey));
-            if(CFStringCompare(IQN,targetName,0) == kCFCompareEqualTo)
+            if(CFStringCompare(IQN,targetIQN,0) == kCFCompareEqualTo)
             {
                 CFRelease(protocolDict);
                 IOObjectRelease(iterator);
@@ -91,15 +93,15 @@ kern_return_t iSCSIIORegistryGetTargets(io_iterator_t * iterator)
 
 /*! Gets an iterator for traversing iSCSI LUNs for a specified target in the
  *  I/O registry.
- *  @param targetName the name of the target.
+ *  @param targetIQN the name of the target.
  *  @param iterator the iterator used to traverse LUNs for the specified target.
  *  @return a kernel error code indicating the result of the operation. */
-kern_return_t iSCSIIORegistryGetLUNs(CFStringRef targetName,io_iterator_t * iterator)
+kern_return_t iSCSIIORegistryGetLUNs(CFStringRef targetIQN,io_iterator_t * iterator)
 {
     if(!iterator)
         return kIOReturnBadArgument;
     
-    io_object_t parallelDevice = iSCSIIORegistryGetTargetEntry(targetName);
+    io_object_t parallelDevice = iSCSIIORegistryGetTargetEntry(targetIQN);
     
     if(parallelDevice == IO_OBJECT_NULL)
         return kIOReturnNotFound;
@@ -143,9 +145,9 @@ void iSCSIIORegistryIOMediaApplyFunction(io_object_t target,
         // Find the IOMedia's root provider class (IOBlockStorageDriver) and
         // get the first child.  This ensures that we grab the IOMedia object
         // for the disk itself and not each individual partition
-        CFStringRef providerClass = IORegistryEntryCreateCFProperty(entry,CFSTR("IOClass"),kCFAllocatorDefault,0);
+        CFStringRef providerClass = IORegistryEntryCreateCFProperty(entry,CFSTR(kIOClassKey),kCFAllocatorDefault,0);
 
-        if(providerClass && CFStringCompare(providerClass,CFSTR("IOBlockStorageDriver"),0) == kCFCompareEqualTo)
+        if(providerClass && CFStringCompare(providerClass,CFSTR(kIOBlockStorageDriverClass),0) == kCFCompareEqualTo)
         {
             // Apply callback function to the child (the child is the the
             // IOMedia object that pertains to the whole disk)
@@ -178,9 +180,9 @@ io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t lun)
         // Find the IOMedia's root provider class (IOBlockStorageDriver) and
         // get the first child.  This ensures that we grab the IOMedia object
         // for the disk itself and not each individual partition
-        CFStringRef providerClass = IORegistryEntryCreateCFProperty(entry,CFSTR("IOClass"),kCFAllocatorDefault,0);
+        CFStringRef providerClass = IORegistryEntryCreateCFProperty(entry,CFSTR(kIOClassKey),kCFAllocatorDefault,0);
         
-        if(providerClass && CFStringCompare(providerClass,CFSTR("IOBlockStorageDriver"),0) == kCFCompareEqualTo)
+        if(providerClass && CFStringCompare(providerClass,CFSTR(kIOBlockStorageDriverClass),0) == kCFCompareEqualTo)
         {
             // Apply callback function to the child (the child is the the
             // IOMedia object that pertains to the whole disk)
@@ -207,10 +209,10 @@ io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t lun)
 /*! Creates a dictionary of properties associated with the target.  These
  *  include the following keys:
  *
- *  kIOPropertyVendorNameKey
- *  kIOPropertyProductNameKey
- *  kIOPropertyTargetIdentifierKey
- *  kIOPropertyiSCSIQualifiedNameKey
+ *  kIOPropertySCSIVendorIdentification (CFStringRef)
+ *  kIOPropertySCSIProductIdentification (CFStringRef)
+ *  kIOPropertyiSCSIQualifiedNameKey (CFStringRef)
+ *  kIOPropertySCSITargetIdentifierKey (CFNumberRef)
  *
  *  @param target the target IO registry object.
  *  @return a dictionary of values for the properties, or NULL if the object
@@ -256,7 +258,6 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target)
                                                         &kCFTypeDictionaryValueCallBacks);
     CFRelease(vendor);
     CFRelease(product);
-
     CFRelease(protocolDict);
 
     return propertiesDict;
@@ -265,10 +266,10 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target)
 /*! Creates a dictionary of properties associated with the LUN.  These
  *  include the following keys:
  *
- *  kIOBSDNameKey
- *  kIOMediaSizeKey
- *  kIOMediaPreferredBlockSizeKey
- *  kIOPropertySCSILogicalUnitNumberKey
+ *  kIOBSDNameKey (CFStringRef)
+ *  kIOMediaSizeKey (CFNumberRef)
+ *  kIOMediaPreferredBlockSizeKey (CFNumberRef)
+ *  kIOPropertySCSILogicalUnitNumberKey (CFNumberRef)
  *
  *  @param lun the target IO registry object.
  *  @return a dictionary of values for the properties, or NULL if the object
@@ -315,5 +316,3 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForLUN(io_object_t lun)
     
     return propertiesDict;
 }
-
-

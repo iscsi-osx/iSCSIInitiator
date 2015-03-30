@@ -21,9 +21,9 @@
 /////////// RFC3720 ALLOWED KEYS FOR SESSION & CONNECTION NEGOTIATION //////////
 
 // Literals used for initial authentication step
-static CFStringRef kiSCSILKInitiatorName = CFSTR("InitiatorName");
+static CFStringRef kiSCSILKInitiatorIQN = CFSTR("InitiatorName");
 static CFStringRef kiSCSILKInitiatorAlias = CFSTR("InitiatorAlias");
-static CFStringRef kiSCSILKTargetName = CFSTR("TargetName");
+static CFStringRef kiSCSILKTargetIQN = CFSTR("TargetName");
 static CFStringRef kiSCSILKTargetAlias = CFSTR("TargetAlias");
 static CFStringRef kiSCSILKTargetAddress = CFSTR("TargetAddress");
 

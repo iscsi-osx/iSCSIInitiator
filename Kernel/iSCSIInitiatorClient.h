@@ -100,7 +100,7 @@ public:
                                       void * reference,
                                       IOExternalMethodArguments * args);
     
-    static IOReturn GetSessionIdForTargetName(iSCSIInitiatorClient * target,
+    static IOReturn GetSessionIdForTargetIQN(iSCSIInitiatorClient * target,
                                                void * reference,
                                                IOExternalMethodArguments * args);
     
@@ -116,7 +116,7 @@ public:
                                      void * reference,
                                      IOExternalMethodArguments * args);
     
-    static IOReturn GetTargetNameForSessionId(iSCSIInitiatorClient * target,
+    static IOReturn GetTargetIQNForSessionId(iSCSIInitiatorClient * target,
                                               void * reference,
                                               IOExternalMethodArguments * args);
     
