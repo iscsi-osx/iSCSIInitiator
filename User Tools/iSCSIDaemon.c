@@ -232,24 +232,36 @@ errno_t iSCSIDQueryPortalForTargets(int fd,struct iSCSIDCmdQueryPortalForTargets
     // Grab objects from stream
     iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
                             (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
+    
+    // Grab objects from stream
+    iSCSIAuthRef auth = iSCSIDCreateObjectFromSocket(fd,cmd->authLength,
+                            (void *(* )(CFDataRef))&iSCSIAuthCreateWithData);
 
     enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
 
     iSCSIMutableDiscoveryRecRef discoveryRec;
-    errno_t error = iSCSIQueryPortalForTargets(portal,&discoveryRec,&statusCode);
+    errno_t error = iSCSIQueryPortalForTargets(portal,auth,&discoveryRec,&statusCode);
+    
+    iSCSIPortalRelease(portal);
+    iSCSIAuthRelease(auth);
+    
+    if(error)
+        return error;
     
     // Compose a response to send back to the client
     struct iSCSIDRspQueryPortalForTargets rsp = iSCSIDRspQueryPortalForTargetsInit;
     rsp.errorCode = error;
     rsp.statusCode = statusCode;
     
+    CFDataRef data = iSCSIDiscoveryRecCreateData(discoveryRec);
+    iSCSIDiscoveryRecRelease(discoveryRec);
+    rsp.discoveryLength = CFDataGetLength(data);
+    
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
     {
-        iSCSIDiscoveryRecRelease(discoveryRec);
+        CFRelease(data);
         return EAGAIN;
     }
-    
-    CFDataRef data = iSCSIDiscoveryRecCreateData(discoveryRec);
     
     if(send(fd,CFDataGetBytePtr(data),CFDataGetLength(data),0) != CFDataGetLength(data))
     {
@@ -552,18 +564,25 @@ int main(void)
     // Verify that the iSCSI kernel extension is running
     if(iSCSIKernelInitialize() != kIOReturnSuccess)
         return ENOTSUP;
- /*
+ 
     // Connect to the preferences .plist file associated with "iscsid" and
     // read configuration parameters for the initiator
     iSCSIPLSynchronize();
     
     CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
+    
+    if(initiatorIQN) {
+        iSCSISetInitiatiorName(initiatorIQN);
+        CFRelease(initiatorIQN);
+    }
+    
     CFStringRef initiatorAlias = iSCSIPLCopyInitiatorAlias();
-    iSCSISetInitiatiorName(initiatorIQN);
-    iSCSISetInitiatiorName(initiatorAlias);
-    CFRelease(initiatorIQN);
-    CFRelease(initiatorAlias);
-  */  
+    
+    if(initiatorAlias) {
+        iSCSISetInitiatiorName(initiatorAlias);
+        CFRelease(initiatorAlias);
+    }
+  
     // Register with launchd so it can manage this daemon
     launch_data_t reg_request = launch_data_new_string(LAUNCH_KEY_CHECKIN);
     

@@ -47,9 +47,9 @@ void iSCSIIORegistryIOMediaApplyFunction(io_object_t root,
                                          void * context);
 
 /*! Finds the IOMedia object associated with the LUN object.
- *  @param lun the IO registry object corresponding to a LUN. 
+ *  @param LUN the IO registry object corresponding to a LUN.
  *  @return the IOMedia object for the LUN. */
-io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t lun);
+io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t LUN);
 
 /*! Creates a dictionary of properties associated with the target.  These
  *  include the following keys:
@@ -67,16 +67,24 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target);
 /*! Creates a dictionary of properties associated with the LUN.  These
  *  include the following keys:
  *
+ *  kIOPropertySCSILogicalUnitNumberKey (CFNumberRef)
+ *  kIOPropertySCSIPeripheralDeviceType (CFNumberRef)
+ *
+ *  @param LUN the target IO registry object.
+ *  @return a dictionary of values for the properties, or NULL if the object
+ *  could not be found. */
+CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForLUN(io_object_t LUN);
+
+/*! Creates a dictionary of properties associated with the LUN.  These
+ *  include the following keys:
+ *
  *  kIOBSDNameKey (CFStringRef)
  *  kIOMediaSizeKey (CFNumberRef)
  *  kIOMediaPreferredBlockSizeKey (CFNumberRef)
- *  kIOPropertySCSILogicalUnitNumberKey (CFNumberRef)
  *
- *  @param lun the target IO registry object.
+ *  @param IOMedia the IOMedia IO registry object.
  *  @return a dictionary of values for the properties, or NULL if the object
  *  could not be found. */
-CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForLUN(io_object_t lun);
-
-
+CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForIOMedia(io_object_t IOMedia);
 
 #endif

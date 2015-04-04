@@ -121,6 +121,16 @@ CFArrayRef iSCSIPLCreateArrayOfTargets();
  *  @return an array of portal names for the specified target. */
 CFArrayRef iSCSIPLCreateArrayOfPortals(CFStringRef targetIQN);
 
+/*! Adds a discovery record to the property list.
+ *  @param discoveryRecord the record to add. */
+void iSCSIPLAddDiscoveryRecord(iSCSIDiscoveryRecRef discoveryRecord);
+
+/*! Retrieves the discovery record from the property list.
+ *  @return the cached discovery record. */
+iSCSIDiscoveryRecRef iSCSIPLCopyDiscoveryRecord();
+
+/*! Clears the discovery record. */
+void iSCSIPLClearDiscoveryRecord();
 
 /*! Synchronizes the intitiator and target settings cache with the property
  *  list on the disk. */

@@ -18,6 +18,12 @@ CFMutableDictionaryRef targetsCache = NULL;
 /*! Flag that indicates whether the targets cache was modified. */
 Boolean targetsCacheModified = false;
 
+/*! A cached version of the discovery dictionary. */
+CFMutableDictionaryRef discoveryCache = NULL;
+
+/*! Flag that indicates whether the discovery cache was modified. */
+Boolean discoveryCacheModified = false;
+
 /*! A cached version of the initiator dictionary. */
 CFMutableDictionaryRef initiatorCache = NULL;
 
@@ -90,6 +96,18 @@ CFMutableDictionaryRef iSCSIPLCreateTargetsDict()
                                      &kCFTypeDictionaryKeyCallBacks,
                                      &kCFTypeDictionaryValueCallBacks);
 }
+
+/*! Creates a mutable dictionary for the discovery key.
+ *  @return a mutable dictionary for the discovery key. */
+CFMutableDictionaryRef iSCSIPLCreateDiscoveryDict()
+{
+    return CFDictionaryCreateMutable(kCFAllocatorDefault,
+                                     0,
+                                     &kCFTypeDictionaryKeyCallBacks,
+                                     &kCFTypeDictionaryValueCallBacks);
+}
+
+
 
 /*! Creates a mutable dictionary for the initiator key.
  *  @return a mutable dictionary for the initiator key. */
@@ -450,6 +468,50 @@ CFArrayRef iSCSIPLCreateArrayOfPortals(CFStringRef targetIQN)
     return CFArrayCreate(kCFAllocatorDefault,keys,keyCount,&kCFTypeArrayCallBacks);
 }
 
+/*! Adds a discovery record to the property list.
+ *  @param discoveryRecord the record to add. */
+void iSCSIPLAddDiscoveryRecord(iSCSIDiscoveryRecRef discoveryRecord)
+{
+    // Iterate over the dictionary and add keys to the existing cache
+    CFDictionaryRef discoveryDict = iSCSIDiscoveryRecCreateDictionary(discoveryRecord);
+    
+    if(!discoveryDict)
+        return;
+    
+    if(!discoveryCache)
+        discoveryCache = iSCSIPLCreateDiscoveryDict();
+    
+    const CFIndex count = CFDictionaryGetCount(discoveryDict);
+    const void * keys[count];
+    const void * values[count];
+    CFDictionaryGetKeysAndValues(discoveryDict,keys,values);
+    
+    for(CFIndex idx = 0; idx < count; idx++) {
+        CFDictionarySetValue(discoveryCache,keys[idx],values[idx]);
+    }
+    
+//    CFRelease(discoveryDict);
+    discoveryCacheModified = true;
+}
+
+/*! Retrieves the discovery record from the property list.
+ *  @return the cached discovery record. */
+iSCSIDiscoveryRecRef iSCSIPLCopyDiscoveryRecord()
+{
+    if(!discoveryCache)
+        return NULL;
+    
+    return iSCSIDiscoveryRecCreateWithDictionary(discoveryCache);
+}
+
+/*! Clears the discovery record. */
+void iSCSIPLClearDiscoveryRecord()
+{
+    CFRelease(discoveryCache);
+    discoveryCache = NULL;
+    discoveryCacheModified = true;
+}
+
 /*! Synchronizes the intitiator and target settings cache with the property
  *  list on the disk. */
 void iSCSIPLSynchronize()
@@ -462,6 +524,9 @@ void iSCSIPLSynchronize()
     if(initiatorCacheModified)
         CFPreferencesSetAppValue(kiSCSIPKInitiatorKey,initiatorCache,kiSCSIPKAppId);
     
+    if(discoveryCacheModified)
+        CFPreferencesSetAppValue(kiSCSIPKDiscoveryKey,discoveryCache,kiSCSIPKAppId);
+
     CFPreferencesAppSynchronize(kiSCSIPKAppId);
     
     if(!targetsCacheModified)
@@ -484,5 +549,15 @@ void iSCSIPLSynchronize()
         initiatorCache = iSCSIPLCopyPropertyDict(kiSCSIPKInitiatorKey);
     }
     
-    initiatorCacheModified = targetsCacheModified = false;
+    if(!discoveryCacheModified)
+    {
+        // Free old cache if present
+        if(discoveryCache)
+            CFRelease(discoveryCache);
+        
+        // Refresh cache from preferences
+        discoveryCache = iSCSIPLCopyPropertyDict(kiSCSIPKDiscoveryKey);
+    }
+
+    initiatorCacheModified = targetsCacheModified = discoveryCacheModified = false;
 }

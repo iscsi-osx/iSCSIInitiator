@@ -217,7 +217,7 @@ typedef struct iSCSIDCmdQueryPortalForTargets {
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  portalLength;
-    UInt32  reserved4;
+    UInt32  authLength;
     UInt32  reserved5;
 
 } __attribute__((packed)) iSCSIDCmdQueryPortalForTargets;

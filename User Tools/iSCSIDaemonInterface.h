@@ -89,15 +89,16 @@ errno_t iSCSIDaemonLogoutConnection(iSCSIDaemonHandle handle,
                                     CID connectionId,
                                     enum iSCSILogoutStatusCode * statusCode);
 
-
 /*! Queries a portal for available targets.
  *  @param handle a handle to a daemon connection.
  *  @param portal the iSCSI portal to query.
+ *  @param auth specifies the authentication parameters to use.
  *  @param discoveryRec a discovery record, containing the query results.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
                                          iSCSIPortalRef portal,
+                                         iSCSIAuthRef auth,
                                          iSCSIMutableDiscoveryRecRef * discoveryRec,
                                          enum iSCSILoginStatusCode * statuscode);
 

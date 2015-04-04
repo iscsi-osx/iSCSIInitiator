@@ -167,34 +167,23 @@ void iSCSIIORegistryIOMediaApplyFunction(io_object_t target,
 }
 
 /*! Finds the IOMedia object associated with the LUN object.
- *  @param lun the IO registry object corresponding to a LUN.
+ *  @param LUN the IO registry object corresponding to a LUN.
  *  @return the IOMedia object for the LUN. */
-io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t lun)
+io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t LUN)
 {
     io_object_t entry = IO_OBJECT_NULL;
-    IORegistryEntryGetChildEntry(lun,kIOServicePlane,&entry);
+    IORegistryEntryGetChildEntry(LUN,kIOServicePlane,&entry);
     
-    // Iterate over all children of the target object
+    // Descend down the tree and find the first IOMedia class
     while(entry != IO_OBJECT_NULL)
     {
-        // Find the IOMedia's root provider class (IOBlockStorageDriver) and
-        // get the first child.  This ensures that we grab the IOMedia object
-        // for the disk itself and not each individual partition
-        CFStringRef providerClass = IORegistryEntryCreateCFProperty(entry,CFSTR(kIOClassKey),kCFAllocatorDefault,0);
+        CFStringRef class = IOObjectCopyClass(entry);
         
-        if(providerClass && CFStringCompare(providerClass,CFSTR(kIOBlockStorageDriverClass),0) == kCFCompareEqualTo)
-        {
-            // Apply callback function to the child (the child is the the
-            // IOMedia object that pertains to the whole disk)
-            io_object_t child;
-            IORegistryEntryGetChildEntry(entry,kIOServicePlane,&child);
-
-            IOObjectRelease(entry);
-            return child;
-        }
+        if(class && CFStringCompare(class,CFSTR(kIOMediaClass),0) == kCFCompareEqualTo)
+            return entry;
         
-        if(providerClass)
-            CFRelease(providerClass);
+        if(class)
+            CFRelease(class);
         
         // Descend down into the tree next time IOIteratorNext() is called
         io_object_t child;
@@ -266,53 +255,42 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target)
 /*! Creates a dictionary of properties associated with the LUN.  These
  *  include the following keys:
  *
- *  kIOBSDNameKey (CFStringRef)
- *  kIOMediaSizeKey (CFNumberRef)
- *  kIOMediaPreferredBlockSizeKey (CFNumberRef)
  *  kIOPropertySCSILogicalUnitNumberKey (CFNumberRef)
+ *  kIOPropertySCSIPeripheralDeviceType (CFNumberRef)
  *
- *  @param lun the target IO registry object.
+ *  @param LUN the target IO registry object.
  *  @return a dictionary of values for the properties, or NULL if the object
  *  could not be found. */
-CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForLUN(io_object_t lun)
+CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForLUN(io_object_t LUN)
 {
-    CFNumberRef SCSILUNIdentifier = IORegistryEntryCreateCFProperty(
-        lun,CFSTR(kIOPropertySCSILogicalUnitNumberKey),kCFAllocatorDefault,0);
+    if(LUN == IO_OBJECT_NULL)
+        return NULL;
     
-    io_object_t ioMediaEntry = iSCSIIORegistryFindIOMediaForLUN(lun);
-    
-    CFNumberRef size = IORegistryEntryCreateCFProperty(
-        ioMediaEntry,CFSTR(kIOMediaSizeKey),kCFAllocatorDefault,0);
-    
-    CFNumberRef preferredBlockSize = IORegistryEntryCreateCFProperty(
-        ioMediaEntry,CFSTR(kIOMediaPreferredBlockSizeKey),kCFAllocatorDefault,0);
-    
-    CFStringRef BSDName = IORegistryEntryCreateCFProperty(
-        ioMediaEntry,CFSTR(kIOBSDNameKey),kCFAllocatorDefault,0);
-    
-    const void * keys[] = {
-        CFSTR(kIOPropertySCSILogicalUnitNumberKey),
-        CFSTR(kIOMediaSizeKey),
-        CFSTR(kIOMediaPreferredBlockSizeKey),
-        CFSTR(kIOBSDNameKey)};
-    
-    const void * values[] = {
-        SCSILUNIdentifier,
-        size,
-        preferredBlockSize,
-        BSDName
-    };
-
-    CFDictionaryRef propertiesDict = CFDictionaryCreate(kCFAllocatorDefault,
-                                                        keys,values,
-                                                        sizeof(values)/sizeof(void*),
-                                                        &kCFTypeDictionaryKeyCallBacks,
-                                                        &kCFTypeDictionaryValueCallBacks);
-    CFRelease(SCSILUNIdentifier);
-    CFRelease(size);
-    CFRelease(preferredBlockSize);
-    
-    IOObjectRelease(ioMediaEntry);
+    CFMutableDictionaryRef propertiesDict;
+    IORegistryEntryCreateCFProperties(LUN,&propertiesDict,kCFAllocatorDefault,0);
     
     return propertiesDict;
 }
+
+/*! Creates a dictionary of properties associated with the LUN.  These
+ *  include the following keys:
+ *
+ *  kIOBSDNameKey (CFStringRef)
+ *  kIOMediaSizeKey (CFNumberRef)
+ *  kIOMediaPreferredBlockSizeKey (CFNumberRef)
+ *
+ *  @param IOMedia the IOMedia IO registry object.
+ *  @return a dictionary of values for the properties, or NULL if the object
+ *  could not be found. */
+CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForIOMedia(io_object_t IOMedia)
+{
+    if(IOMedia == IO_OBJECT_NULL)
+        return NULL;
+    
+    CFMutableDictionaryRef propertiesDict;
+    IORegistryEntryCreateCFProperties(IOMedia,&propertiesDict,kCFAllocatorDefault,0);
+    IOObjectRelease(IOMedia);
+    
+    return propertiesDict;
+}
+

@@ -40,13 +40,13 @@ int main(int argc, const char * argv[]) {
     iSCSITargetSetName(target,CFSTR(""));
     iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
     iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
-    iSCSIPortalSetPort(portal,CFSTR("3260"));
+    iSCSIPortalSetPort(portal,CFSTR("100"));
     iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
     
     enum iSCSILoginStatusCode statusCode;
     enum iSCSIAuthMethods authMethod;
-    iSCSIQueryTargetForAuthMethod(portal,CFSTR("iqn.1995-05.com.lacie:nas-vault:iscsi59"),&authMethod,&statusCode);
-                                
+    iSCSIMutableDiscoveryRecRef discRec;
+    iSCSIQueryPortalForTargets(portal,auth,&discRec,&statusCode);
     
     iSCSIKernelCleanUp();
     return 0;

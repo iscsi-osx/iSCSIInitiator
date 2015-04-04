@@ -37,7 +37,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateSession,
 		0,
 		kIOUCVariableStructureSize,         // Address structures
-		2,                                  // Returned identifiers
+		3,                                  // Returned identifiers, error code
 		0
 	},
     {
@@ -65,7 +65,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateConnection,
 		1,                                  // Session ID
 		kIOUCVariableStructureSize,         // Address structures
-		1,                                  // Returned connection identifier
+		2,                                  // Returned connection identifier, error code
 		0
 	},
 	{
@@ -348,12 +348,11 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
     
     // The target string is packed at the end of the input structure
     const char * targetCString = (const char *)((const sockaddr_storage *)args->structureInput+2);
-//    size_t length = args->structureInputSize - sizeof(const sockaddr)*2;
     
     OSString * targetIQN = OSString::withCString(targetCString);
     
     // Create a connection
-    target->provider->CreateSession(
+    errno_t error = target->provider->CreateSession(
         targetIQN,
         (const sockaddr_storage *)args->structureInput,     // Target
         (const sockaddr_storage *)args->structureInput+1,   // Host interface
@@ -362,7 +361,8 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
     
     args->scalarOutput[0] = sessionId;
     args->scalarOutput[1] = connectionId;
-    args->scalarOutputCount = 2;
+    args->scalarOutput[2] = error;
+    args->scalarOutputCount = 3;
     
     targetIQN->release();
     
@@ -436,14 +436,15 @@ IOReturn iSCSIInitiatorClient::CreateConnection(iSCSIInitiatorClient * target,
     CID connectionId;
     
     // Create a connection
-    target->provider->CreateConnection(
+    errno_t error = target->provider->CreateConnection(
             (SID)args->scalarInput[0],       // Session qualifier
             (const sockaddr_storage *)args->structureInput,
             (const sockaddr_storage *)args->structureInput+1,
             &connectionId);
     
     args->scalarOutput[0] = connectionId;
-    args->scalarOutputCount = 1;
+    args->scalarOutput[1] = error;
+    args->scalarOutputCount = 2;
 
     return kIOReturnSuccess;
 }

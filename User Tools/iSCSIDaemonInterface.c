@@ -272,10 +272,11 @@ errno_t iSCSIDaemonLoginConnection(iSCSIDaemonHandle handle,
     CFDataRef authData   = iSCSIAuthCreateData(auth);
     CFDataRef connCfgData = iSCSIConnectionConfigCreateData(connCfg);
     
-    iSCSIDCmdLoginSession cmd = iSCSIDCmdLoginSessionInit;
+    iSCSIDCmdLoginConnection cmd = iSCSIDCmdLoginConnectionInit;
     cmd.portalLength = (UInt32)CFDataGetLength(portalData);
     cmd.authLength = (UInt32)CFDataGetLength(authData);
     cmd.connCfgLength = (UInt32)CFDataGetLength(connCfgData);
+    cmd.sessionId = sessionId;
 
     
     errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
@@ -320,32 +321,38 @@ errno_t iSCSIDaemonLogoutConnection(iSCSIDaemonHandle handle,
 /*! Queries a portal for available targets.
  *  @param handle a handle to a daemon connection.
  *  @param portal the iSCSI portal to query.
+ *  @param auth specifies the authentication parameters to use.
  *  @param discoveryRec a discovery record, containing the query results.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
                                          iSCSIPortalRef portal,
+                                         iSCSIAuthRef auth,
                                          iSCSIMutableDiscoveryRecRef * discoveryRec,
                                          enum iSCSILoginStatusCode * statusCode)
 {
     // Validate inputs
-    if(handle < 0 || !portal || !discoveryRec || !statusCode)
+    if(handle < 0 || !portal || !auth || !discoveryRec || !statusCode)
         return EINVAL;
     
     // Generate data to transmit (no longer need target object after this)
     CFDataRef portalData = iSCSIPortalCreateData(portal);
+    CFDataRef authData = iSCSIAuthCreateData(auth);
     
     // Create command header to transmit
     iSCSIDCmdQueryPortalForTargets cmd = iSCSIDCmdQueryPortalForTargetsInit;
     cmd.portalLength = (UInt32)CFDataGetLength(portalData);
+    cmd.authLength = (UInt32)CFDataGetLength(authData);
     
-    if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,portalData,NULL))
+    if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,portalData,authData,NULL))
     {
         CFRelease(portalData);
+        CFRelease(authData);
         return EIO;
     }
 
     CFRelease(portalData);
+    CFRelease(authData);
     iSCSIDRspQueryPortalForTargets rsp;
     
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
@@ -354,7 +361,7 @@ errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
     // Retrieve the discovery record...
     UInt8 * bytes = malloc(rsp.discoveryLength);
     
-    if(bytes && recv(handle,bytes,rsp.discoveryLength,0) != sizeof(rsp.discoveryLength))
+    if(bytes && (recv(handle,bytes,rsp.discoveryLength,0) != rsp.discoveryLength))
     {
         free(bytes);
         return EIO;

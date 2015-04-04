@@ -27,14 +27,15 @@ enum iSCSIRejectCode {
     kiSCSIRejectCodeTest
 };
 
-
 /*! Helper function used throughout the login process to query the target.
  *  This function will take a dictionary of key-value pairs and send the
  *  appropriate login PDU to the target.  It will then receive one or more
  *  login response PDUs from the target, parse them and return the key-value
  *  pairs received as a dictionary.  If an error occurs, this function will
- *  parse the iSCSI error and express it in terms of a system errno_t as
- *  the system would treat any other device.
+ *  return the C error code.  If communications are successful but the iSCSI
+ *  layer experiences errors, it will return an iSCSI error code, either in the
+ *  form of a login status code or a PDU rejection code in addition to
+ *  a standard C error code.
  *  @param context the context to query (session identifier, etc)
  *  @param statusCode the iSCSI status code returned by the target
  *  @param rejectCode the iSCSI reject code, if the command was rejected

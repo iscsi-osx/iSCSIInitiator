@@ -24,11 +24,4 @@ void iSCSIDAMountIOMediaForTarget(CFStringRef targetIQN);
  *  @param targetIQN the name of the iSCSI target. */
 void iSCSIDAUnmountIOMediaForTarget(CFStringRef targetIQN);
 
-/*! Rescans the iSCSI bus (all targets) for new LUNs. */
-void iSCSIDARescanBus();
-
-/*! Rescans the iSCSI bus for new LUNs for a particular target only.
- *  @param tagetIQN the name of the iSCSI target. */
-void iSCSIDARescanBusForTarget(CFStringRef targetIQN);
-
 #endif /* defined(__ISCSI_DA_H__) */

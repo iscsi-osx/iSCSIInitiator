@@ -139,11 +139,6 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
         }
         currentByte++;
     }
-    
-    // Corner case - if a key is missing a value and our function is done,
-    // we will need to release the key string created earlier
- //   if(keyString)
-   //     CFRelease(keyString);
 }
 
 void iSCSIPDUDataParseToDictCallback(void * keyContainer,CFStringRef keyString,

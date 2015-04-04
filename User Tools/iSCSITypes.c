@@ -42,7 +42,7 @@ iSCSIMutablePortalRef iSCSIPortalCreateMutable()
 {
     iSCSIMutablePortalRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     CFDictionaryAddValue(portal,kiSCSIPortalAddresssKey,CFSTR(""));
-    CFDictionaryAddValue(portal,kiSCSIPortalPortKey,CFSTR(""));
+    CFDictionaryAddValue(portal,kiSCSIPortalPortKey,CFSTR("3260"));
     CFDictionaryAddValue(portal,kiSCSIPortalHostInterfaceKey,CFSTR(""));
     
     return portal;
@@ -329,6 +329,13 @@ iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutable()
                                      &kCFTypeDictionaryValueCallBacks);
 }
 
+/*! Creates a new discovery record object from a dictionary representation.
+ * @return an iSCSI discovery object or NULL if object creation failed. */
+iSCSIDiscoveryRecRef iSCSIDiscoveryRecCreateWithDictionary(CFDictionaryRef dict)
+{
+    return CFDictionaryCreateCopy(kCFAllocatorDefault,dict);
+}
+
 /*! Creates a discovery record from an external data representation.
  * @param data data used to construct an iSCSI discovery object.
  * @return an iSCSI discovery object or NULL if object creation failed */
@@ -359,7 +366,7 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
                                 iSCSIPortalRef portal)
 {
     // Validate inputs
-    if(!discoveryRec || !targetIQN || !portalGroupTag)
+    if(!discoveryRec || !targetIQN || !portalGroupTag || !portal)
         return;
     
     CFMutableDictionaryRef targetDict;
@@ -371,8 +378,6 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
                                                kMaxPortalGroupsPerTarget,
                                                &kCFTypeDictionaryKeyCallBacks,
                                                &kCFTypeDictionaryValueCallBacks);
-        
-        CFDictionaryAddValue(discoveryRec,targetIQN,targetDict);
     }
     
     // If the group tag doesn't exist add it
@@ -383,8 +388,7 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
         portalsArray = CFArrayCreateMutable(kCFAllocatorDefault,
                                             kMaxPortalsPerGroup,
                                             &kCFTypeArrayCallBacks);
-        
-        CFDictionaryAddValue(targetDict,portalGroupTag,portalsArray);
+    
     }
     
     // If we've exceeded the max number of portals do nothing
@@ -393,27 +397,29 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
     
     // Add a new portal
     CFArrayAppendValue(portalsArray,portal);
+    CFDictionarySetValue(targetDict,portalGroupTag,portalsArray);
+    CFDictionarySetValue(discoveryRec,targetIQN,targetDict);
 }
 
 /*! Creates a CFArray object containing CFString objects with names of
  *  all of the targets in the discovery record.
  *  @param discoveryRec the discovery record.
  *  @return an array of strings with names of the targets in the record. */
-CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIMutableDiscoveryRecRef discoveryRec)
+CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIDiscoveryRecRef discoveryRec)
 {
     // Validate input
     if(!discoveryRec)
         return NULL;
     
     // Get all keys, which correspond to the targets
-    const void * keys;
-    CFDictionaryGetKeysAndValues(discoveryRec,&keys,NULL);
+    const CFIndex count = CFDictionaryGetCount(discoveryRec);
+    const void * keys[count];
+    CFDictionaryGetKeysAndValues(discoveryRec,keys,NULL);
     
     CFArrayRef targets = CFArrayCreate(kCFAllocatorDefault,
-                                       &keys,
-                                       CFDictionaryGetCount(discoveryRec),
+                                       keys,
+                                       count,
                                        &kCFTypeArrayCallBacks);
-    
     return targets;
 }
 
@@ -422,7 +428,7 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIMutableDiscoveryRecRef dis
  *  @param discoveryRec the discovery record.
  *  @param targetIQN the name of the target.
  *  @return an array of strings with portal group tags for the specified target. */
-CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIMutableDiscoveryRecRef discoveryRec,
+CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIDiscoveryRecRef discoveryRec,
                                                          CFStringRef targetIQN)
 {
     // Validate inputs
@@ -435,14 +441,15 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIMutableDiscoveryRe
         return NULL;
     
     // Otherwise get all keys, which correspond to the portal group tags
-    const void * keys;
-    CFDictionaryGetKeysAndValues(targetDict,&keys,NULL);
+    const CFIndex count = CFDictionaryGetCount(targetDict);
+    
+    const void * keys[count];
+    CFDictionaryGetKeysAndValues(targetDict,keys,NULL);
     
     CFArrayRef portalGroups = CFArrayCreate(kCFAllocatorDefault,
-                                            &keys,
-                                            CFDictionaryGetCount(targetDict),
+                                            keys,
+                                            count,
                                             &kCFTypeArrayCallBacks);
-    
     return portalGroups;
 }
 
@@ -453,7 +460,7 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIMutableDiscoveryRe
  *  @param portalGroupTag the portal group tag associated with the target.
  *  @return an array of iSCSIPortal objects associated with the specified
  *  group tag for the specified target. */
-CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIMutableDiscoveryRecRef discoveryRec,
+CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIDiscoveryRecRef discoveryRec,
                                        CFStringRef targetIQN,
                                        CFStringRef portalGroupTag)
 {
@@ -475,7 +482,7 @@ CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIMutableDiscoveryRecRef discoveryRec,
 
 /*! Releases memory associated with an iSCSI discovery record object.
  * @param target the iSCSI discovery record object. */
-void iSCSIDiscoveryRecRelease(iSCSIMutableDiscoveryRecRef discoveryRec)
+void iSCSIDiscoveryRecRelease(iSCSIDiscoveryRecRef discoveryRec)
 {
     CFRelease(discoveryRec);
 }
@@ -491,7 +498,7 @@ void iSCSIDiscoveryRecRetain(iSCSIMutableDiscoveryRecRef discoveryRec)
  *  @param auth an iSCSI discovery record object.
  *  @return a dictionary representation of the discovery record object or
  *  NULL if the discovery record object is invalid. */
-CFDictionaryRef iSCSIDiscoveryRecCreateDictionary(iSCSIMutableDiscoveryRecRef discoveryRec)
+CFDictionaryRef iSCSIDiscoveryRecCreateDictionary(iSCSIDiscoveryRecRef discoveryRec)
 {
     return CFDictionaryCreateCopy(kCFAllocatorDefault,discoveryRec);
 }
@@ -517,8 +524,8 @@ CFStringRef kiSCSISessionConfigMaxConnectionsKey = CFSTR("Maximum Connections");
 iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutable()
 {
     iSCSIMutableSessionConfigRef config = CFDictionaryCreateMutable(kCFAllocatorDefault,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
-    iSCSISessionConfigSetErrorRecoveryLevel(config,kiSCSIErrorRecoverySession);
-    iSCSISessionConfigSetMaxConnections(config,0);
+    iSCSISessionConfigSetErrorRecoveryLevel(config,kRFC3720_ErrorRecoveryLevel);
+    iSCSISessionConfigSetMaxConnections(config,kRFC3720_MaxConnections);
     iSCSISessionConfigSetTargetPortalGroupTag(config,0);
     return config;
 }
@@ -633,8 +640,6 @@ iSCSISessionConfigRef iSCSISessionConfigCreateWithData(CFDataRef data)
     
     return NULL;
 }
-
-
 
 CFStringRef kiSCSIConnectionConfigHeaderDigestKey = CFSTR("Header Digest");
 CFStringRef kiSCSIConnectionConfigDataDigestKey = CFSTR("Data Digest");

@@ -21,9 +21,9 @@
 /////////// RFC3720 ALLOWED KEYS FOR SESSION & CONNECTION NEGOTIATION //////////
 
 // Literals used for initial authentication step
-static CFStringRef kiSCSILKInitiatorIQN = CFSTR("InitiatorName");
+static CFStringRef kiSCSILKInitiatorName = CFSTR("InitiatorName");
 static CFStringRef kiSCSILKInitiatorAlias = CFSTR("InitiatorAlias");
-static CFStringRef kiSCSILKTargetIQN = CFSTR("TargetName");
+static CFStringRef kiSCSILKTargetName = CFSTR("TargetName");
 static CFStringRef kiSCSILKTargetAlias = CFSTR("TargetAlias");
 static CFStringRef kiSCSILKTargetAddress = CFSTR("TargetAddress");
 
@@ -49,7 +49,6 @@ static CFStringRef kiSCSILKAuthCHAPName = CFSTR("CHAP_N");
 // Used for grouping connections together (multiple connections must have the
 // same group tag or authentication will fail).
 static CFStringRef kiSCSILKTargetPortalGroupTag = CFSTR("TargetPortalGroupTag");
-
 
 static CFStringRef kiSCSILKHeaderDigest = CFSTR("HeaderDigest");
 static CFStringRef kiSCSILVHeaderDigestNone = CFSTR("None");

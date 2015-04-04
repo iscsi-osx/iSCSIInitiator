@@ -12,6 +12,7 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include "iSCSITypesShared.h"
+#include "iSCSIRFC3720Defaults.h"
 
 typedef CFMutableDictionaryRef iSCSIMutablePortalRef;
 typedef CFDictionaryRef iSCSIPortalRef;
@@ -293,6 +294,10 @@ iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutable();
  * @return an iSCSI discovery object or NULL if object creation failed */
 iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutableWithData(CFDataRef data);
 
+/*! Creates a new discovery record object from a dictionary representation.
+ * @return an iSCSI discovery object or NULL if object creation failed. */
+iSCSIDiscoveryRecRef iSCSIDiscoveryRecCreateWithDictionary(CFDictionaryRef dict);
+
 /*! Add a portal to a specified portal group tag for a given target.
  *  @param discoveryRec the discovery record.
  *  @param targetIQN the name of the target to add.
@@ -307,7 +312,7 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
  *  all of the targets in the discovery record.
  *  @param discoveryRec the discovery record.
  *  @return an array of strings with names of the targets in the record. */
-CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIMutableDiscoveryRecRef discoveryRec);
+CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIDiscoveryRecRef discoveryRec);
 
 
 /*! Creates a CFArray object containing CFString objects with portal group
@@ -315,7 +320,7 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIMutableDiscoveryRecRef dis
  *  @param discoveryRec the discovery record.
  *  @param targetIQN the name of the target.
  *  @return an array of strings with portal group tags for the specified target. */
-CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIMutableDiscoveryRecRef discoveryRec,
+CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIDiscoveryRecRef discoveryRec,
                                                          CFStringRef targetIQN);
 
 
@@ -326,14 +331,14 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIMutableDiscoveryRe
  *  @param portalGroupTag the portal group tag associated with the target.
  *  @return an array of iSCSIPortal objects associated with the specified
  *  group tag for the specified target. */
-CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIMutableDiscoveryRecRef discoveryRec,
+CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIDiscoveryRecRef discoveryRec,
                                        CFStringRef targetIQN,
                                        CFStringRef portalGroupTag);
 
 
 /*! Releases memory associated with an iSCSI discovery record object.
  * @param target the iSCSI discovery record object. */
-void iSCSIDiscoveryRecRelease(iSCSIMutableDiscoveryRecRef discoveryRec);
+void iSCSIDiscoveryRecRelease(iSCSIDiscoveryRecRef discoveryRec);
 
 /*! Retains an iSCSI discovery record object.
  * @param target the iSCSI discovery record object. */
@@ -343,7 +348,7 @@ void iSCSIDiscoveryRecRetain(iSCSIMutableDiscoveryRecRef discoveryRec);
  *  @param auth an iSCSI discovery record object.
  *  @return a dictionary representation of the discovery record object or
  *  NULL if the discovery record object is invalid. */
-CFDictionaryRef iSCSIDiscoveryRecCreateDictionary(iSCSIMutableDiscoveryRecRef discoveryRec);
+CFDictionaryRef iSCSIDiscoveryRecCreateDictionary(iSCSIDiscoveryRecRef discoveryRec);
 
 /*! Copies the discovery record object to a byte array representation.
  *  @param auth an iSCSI discovery record object.

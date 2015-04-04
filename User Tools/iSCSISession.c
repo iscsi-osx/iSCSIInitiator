@@ -19,7 +19,7 @@
 #include "iSCSIRFC3720Defaults.h"
 
 /*! Name of the initiator. */
-CFStringRef kiSCSIInitiatorIQN = CFSTR("default");
+CFStringRef kiSCSIInitiatorName = CFSTR("default");
 
 /*! Alias of the initiator. */
 CFStringRef kiSCSIInitiatorAlias = CFSTR("default");
@@ -703,7 +703,7 @@ errno_t iSCSILoginConnection(SID sessionId,
                              CID * connectionId,
                              enum iSCSILoginStatusCode * statusCode)
 {
-    
+
     if(!portal || sessionId == kiSCSIInvalidSessionId || !connectionId)
         return EINVAL;
 
@@ -716,40 +716,29 @@ errno_t iSCSILoginConnection(SID sessionId,
     struct sockaddr_storage ssTarget, ssHost;
     
     if((error = iSCSISessionResolveNode(portal,&ssTarget,&ssHost)))
-       return error;
+        return error;
     
-    // If both target and host were resolved, grab a session
+    // If both target and host were resolved, grab a connection
     error = iSCSIKernelCreateConnection(sessionId,&ssTarget,&ssHost,connectionId);
     
-    // Perform authentication and negotiate connection-level parameters
-    iSCSIKernelConnectionCfg connCfgKernel;
-    memset(&connCfgKernel,0,sizeof(connCfgKernel));
+    // If we can't accomodate a new connection quit; try again later
+    if(error || *connectionId == kiSCSIInvalidConnectionId)
+        return EAGAIN;
     
-    iSCSIKernelSessionCfg sessCfgKernel;
-    iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel);
+    iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
     
     // If no error, authenticate (negotiate security parameters)
-  /*  if(!error) {
-        error = iSCSIAuthNegotiate(sessionId,
-                                   connectionId,
-  //                                 targetInfo,
-                                   connInfo,
-                                   &sessCfgKernel,
-                                   &connCfgKernel);
-    }
-    */
+    if(!error)
+        error = iSCSIAuthNegotiate(target,auth,sessionId,*connectionId,statusCode);
+    
     if(error)
         iSCSIKernelReleaseConnection(sessionId,*connectionId);
-    else {
-        
-        // At this point connection options have been modified/parsed by
-        // the helper functions called above; set these options in the kernel
-        iSCSIKernelSetConnectionConfig(sessionId,*connectionId,&connCfgKernel);
-        
-        // Activate connection first then the session
+    
+    if(!error)
         iSCSIKernelActivateConnection(sessionId,*connectionId);
-    }
-    return error;
+    
+    iSCSITargetRelease(target);
+    return 0;
 }
 
 errno_t iSCSILogoutConnection(SID sessionId,
@@ -820,7 +809,11 @@ errno_t iSCSILoginSession(iSCSITargetRef target,
                                                     kCFStringEncodingASCII);
 
     // (CFStringGetLength doesn't include the the null terminator)
-    size_t targetIQNLen = CFStringGetLength(iSCSITargetGetIQN(target))+1;
+    size_t targetIQNLen;
+    if(targetIQN)
+        targetIQNLen = CFStringGetLength(iSCSITargetGetIQN(target))+1;
+    else
+        targetIQNLen = 0;
 
     // Create a new session in the kernel.  This allocates session and
     // connection identifiers
@@ -889,9 +882,9 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
 {
     static CFStringRef targetIQN = NULL;
     
-    // If the discovery data has a "TargetIQN = xxx" field, we're starting
+    // If the discovery data has a "TargetName = xxx" field, we're starting
     // a record for a new target
-    if(CFStringCompare(key,kiSCSILKTargetIQN,0) == kCFCompareEqualTo)
+    if(CFStringCompare(key,kiSCSILKTargetName,0) == kCFCompareEqualTo)
     {
         targetIQN = CFStringCreateCopy(kCFAllocatorDefault,val);
     }
@@ -917,26 +910,27 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
         iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
         iSCSIPortalSetAddress(portal,address);
         iSCSIPortalSetPort(portal,port);
-        
-        CFRelease(port);
-        CFRelease(address);
-        CFRelease(targetAddress);
     
         iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)(valContainer);
         iSCSIDiscoveryRecAddPortal(discoveryRec,targetIQN,portalGroupTag,portal);
         
+        CFRelease(port);
+        CFRelease(address);
+        CFRelease(targetAddress);
+        
         CFRelease(targetIQN);
-        CFRelease(portalGroupTag);
         iSCSIPortalRelease(portal);
     }
 }
 
-/*! Queries a portal for available targets.
+/*! Queries a portal for available targets (utilizes iSCSI SendTargets).
  *  @param portal the iSCSI portal to query.
+ *  @param auth specifies the authentication parameters to use.
  *  @param discoveryRec a discovery record, containing the query results.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
+                                   iSCSIAuthRef auth,
                                    iSCSIMutableDiscoveryRecRef * discoveryRec,
                                    enum iSCSILoginStatusCode * statusCode)
 {
@@ -948,26 +942,20 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
     iSCSITargetSetName(target,CFSTR(""));
     
-    iSCSIAuthRef auth = iSCSIAuthCreateNone();
-    
     SID sessionId;
     CID connectionId;
-    
-    errno_t error;
     
     iSCSIMutableSessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
     iSCSIMutableConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
 
-    if((error = iSCSILoginSession(target,portal,auth,sessCfg,connCfg,&sessionId,&connectionId,statusCode)))
-    {
-        iSCSITargetRelease(target);
-        iSCSIAuthRelease(auth);
-        iSCSISessionConfigRelease(sessCfg);
-        iSCSIConnectionConfigRelease(connCfg);
-        iSCSIPortalRelease(portal);
-        return error;
-    }
+    errno_t error = iSCSILoginSession(target,portal,auth,sessCfg,connCfg,&sessionId,&connectionId,statusCode);
+
+    iSCSITargetRelease(target);
+    iSCSISessionConfigRelease(sessCfg);
+    iSCSIConnectionConfigRelease(connCfg);
     
+    if(error)
+        return error;
     
     // Place text commands to get target list into a dictionary
     CFMutableDictionaryRef textCmd =
@@ -1027,10 +1015,10 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
             error = EINVAL;
             break;
         }
-     }
-     while(rsp.textReqStageBits & kiSCSIPDUTextReqContinueFlag);
+    }
+    while(rsp.textReqStageBits & kiSCSIPDUTextReqContinueFlag);
      
-     iSCSIPDUDataRelease(&data);
+    iSCSIPDUDataRelease(&data);
     
     enum iSCSILogoutStatusCode logoutStatusCode;
     iSCSILogoutSession(sessionId,&logoutStatusCode);
@@ -1327,9 +1315,8 @@ void iSCSISetInitiatiorName(CFStringRef initiatorIQN)
     if(!initiatorIQN)
         return;
     
-    CFRelease(kiSCSIInitiatorIQN);
-    kiSCSIInitiatorIQN = CFStringCreateCopy(kCFAllocatorDefault,initiatorIQN);
-
+    CFRelease(kiSCSIInitiatorName);
+    kiSCSIInitiatorName = CFStringCreateCopy(kCFAllocatorDefault,initiatorIQN);
 }
 
 /*! Sets the alias of this initiator.  This is the IQN-format alias that is

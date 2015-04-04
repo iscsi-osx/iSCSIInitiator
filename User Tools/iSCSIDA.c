@@ -57,30 +57,3 @@ void iSCSIDAMountIOMediaForTarget(CFStringRef targetIQN)
     CFRunLoopRunInMode(kCFRunLoopDefaultMode,1,true);
 }
 
-
-/*! Rescans the iSCSI bus (target) for new LUNs. */
-void iSCSIDARescanBus()
-{
-    io_object_t iSCSIHBA = iSCSIIORegistryGetiSCSIHBAEntry();
-    
-    if(iSCSIHBA == IO_OBJECT_NULL)
-        return;
-
-    IOServiceRequestProbe(iSCSIHBA,0);
-    IOObjectRelease(iSCSIHBA);
-}
-
-/*! Rescans the iSCSI bus for new LUNs for a particular target only.
- *  @param tagetIQN the name of the iSCSI target. */
-void iSCSIDARescanBusForTarget(CFStringRef targetIQN)
-{
-    io_object_t target = iSCSIIORegistryGetTargetEntry(targetIQN);
-    
-    if(target == IO_OBJECT_NULL)
-        return;
-    
-    IOServiceRequestProbe(target,0);
-    IOObjectRelease(target);
-}
-
-

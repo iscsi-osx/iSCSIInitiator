@@ -115,7 +115,7 @@ errno_t iSCSIKernelCreateSession(const char * targetIQNCString,
     if(targetIQNCString)
         memcpy(inputBuffer+2*ss_len,targetIQNCString,targetIQNCStringLen);
     
-    const UInt32 expOutputCnt = 2;
+    const UInt32 expOutputCnt = 3;
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
     
@@ -124,8 +124,11 @@ errno_t iSCSIKernelCreateSession(const char * targetIQNCString,
                             inputBuffer,inputBufferSize,output,&outputCnt,0,0);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt) {
-            *sessionId    = (UInt16)output[0];
-            *connectionId = (UInt32)output[1];
+        *sessionId    = (UInt16)output[0];
+        *connectionId = (UInt32)output[1];
+        
+        errno_t error = (errno_t)output[2];
+        return error;
     }
     
     return IOReturnToErrno(result);
@@ -207,7 +210,7 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
     const UInt32 inputStructCnt = 2;
     const struct sockaddr_storage addresses[] = {*targetAddress,*hostAddress};
     
-    const UInt32 expOutputCnt = 1;
+    const UInt32 expOutputCnt = 2;
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
 
@@ -216,8 +219,12 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
         IOConnectCallMethod(connection,kiSCSICreateConnection,inputs,inputCnt,addresses,
                             inputStructCnt*sizeof(struct sockaddr_storage),output,&outputCnt,0,0);
     
-    if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
+    if(result == kIOReturnSuccess && outputCnt == expOutputCnt) {
         *connectionId = (UInt32)output[0];
+        errno_t error = (errno_t)output[1];
+        
+        return error;
+    }
 
     return IOReturnToErrno(result);
 }
@@ -653,12 +660,10 @@ errno_t iSCSIKernelGetTargetIQNForSessionId(SID sessionId,
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    
     kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetTargetIQNForSessionId,
                                                &input,inputCnt,0,0,0,0,targetIQNCString,size);
     
     return IOReturnToErrno(result);
-
 }
 
 /*! Gets the target and host address associated with a particular connection.

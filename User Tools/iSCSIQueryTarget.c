@@ -16,8 +16,10 @@
  *  appropriate login PDU to the target.  It will then receive one or more
  *  login response PDUs from the target, parse them and return the key-value
  *  pairs received as a dictionary.  If an error occurs, this function will
- *  parse the iSCSI error and express it in terms of a system errno_t as
- *  the system would treat any other device.
+ *  return the C error code.  If communications are successful but the iSCSI
+ *  layer experiences errors, it will return an iSCSI error code, either in the
+ *  form of a login status code or a PDU rejection code in addition to
+ *  a standard C error code.
  *  @param context the context to query (session identifier, etc)
  *  @param statusCode the iSCSI status code returned by the target
  *  @param rejectCode the iSCSI reject code, if the command was rejected
@@ -73,7 +75,6 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
             // where the class is the high byte and the detail is the low
             *statusCode = ((((UInt16)rsp.statusClass)<<8) | rsp.statusDetail);
 
-            fprintf(stderr, "%d \n",*statusCode);
             if(*statusCode != kiSCSILoginSuccess) {
                 error = EINVAL;
                 break;
@@ -84,7 +85,7 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
         // For this case some other kind of PDU or invalid data was received
         else if(rsp.opCode == kiSCSIPDUOpCodeReject)
         {
-            error = EINVAL;
+            error = EOPNOTSUPP;
             break;
         }
     }
