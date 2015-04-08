@@ -32,18 +32,21 @@ kern_return_t iSCSIKernelCleanUp();
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
  *  @param targetIQN the name of the target, or NULL if discovery session.
- *  @param targetIQNCStringLen the length of the targetIQNCString string 
- *  (length must include null terminator).
- *  @param targetAddress the BSD socket structure used to identify the target.
- *  @param hostAddress the BSD socket structure used to identify the host. This
+ *  @param portalAddress the portal address (IPv4/IPv6, or DNS name).
+ *  @param portalPort the TCP port used to connect to the portal.
+ *  @param hostInterface the name of the host interface adapter to use.
+ *  @param portalSockaddr the BSD socket structure used to identify the target.
+ *  @param hostSockaddr the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
  *  @param sessionId the session identifier for the new session (returned).
  *  @param connectionId the identifier of the new connection (returned).
  *  @return An error code if a valid session could not be created. */
-errno_t iSCSIKernelCreateSession(const char * targetIQN,
-                                 size_t targetIQNLen,
-                                 const struct sockaddr_storage * targetAddress,
-                                 const struct sockaddr_storage * hostAddress,
+errno_t iSCSIKernelCreateSession(CFStringRef targetIQN,
+                                 CFStringRef portalAddress,
+                                 CFStringRef portalPort,
+                                 CFStringRef hostInterface,
+                                 const struct sockaddr_storage * portalSockAddr,
+                                 const struct sockaddr_storage * hostSockAddr,
                                  SID * sessionId,
                                  CID * connectionId);
 
@@ -68,14 +71,20 @@ errno_t iSCSIKernelGetSessionConfig(SID sessionId,iSCSIKernelSessionCfg * config
 
 /*! Allocates an additional iSCSI connection for a particular session.
  *  @param sessionId the session to create a new connection for.
- *  @param targetAddress the BSD socket structure used to identify the target. 
- *  @param hostAddress the BSD socket structure used to identify the host. This
+ *  @param portalAddress the portal address (IPv4/IPv6, or DNS name).
+ *  @param portalPort the TCP port used to connect to the portal.
+ *  @param hostInterface the name of the host interface adapter to use.
+ *  @param portalSockaddr the BSD socket structure used to identify the target.
+ *  @param hostSockaddr the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
  *  @param connectionId the identifier of the new connection.
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelCreateConnection(SID sessionId,
-                                    const struct sockaddr_storage * targetAddress,
-                                    const struct sockaddr_storage * hostAddress,
+                                    CFStringRef portalAddress,
+                                    CFStringRef portalPort,
+                                    CFStringRef hostInterface,
+                                    const struct sockaddr_storage * portalSockAddr,
+                                    const struct sockaddr_storage * hostSockAddr,
                                     CID * connectionId);
 
 /*! Frees a given iSCSI connection associated with a given session.
@@ -170,24 +179,16 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections);
 
 /*! Looks up the session identifier associated with a particular target name.
  *  @param targetIQN the IQN name of the target (e.q., iqn.2015-01.com.example)
- *  @param targetIQNLen the length of the targetIQN string, including
- *  the NULL terminator.
- *  @param sessionId the session identifier.
- *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIdForTargetIQN(const char * targetIQN,
-                                             size_t targetIQNLen,
-                                             SID * sessionId);
+ *  @return sessionId the session identifier. */
+SID iSCSIKernelGetSessionIdForTargetIQN(CFStringRef targetIQN);
 
-/*! Looks up the connection identifier associated with a particular connection address.
+/*! Looks up the connection identifier associated with a particular portal address.
  *  @param sessionId the session identifier.
- *  @param address the name used when adding the connection (e.g., IP or DNS).
- *  @param port the port used when adding the connection.
- *  @param connectionId the associated connection identifier.
- *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionIdForAddress(SID sessionId,
-                                              const char * targetAddr,
-                                              const char * targetPort,
-                                              CID * connectionId);
+ *  @param portalAddress the address passed to iSCSIKernelCreateSession() or
+ *  iSCSIKernelCreateConnection() when the connection was created.
+ *  @return the associated connection identifier. */
+CID iSCSIKernelGetConnectionIdForPortalAddress(SID sessionId,
+                                               CFStringRef portalAddress);
 
 /*! Gets an array of session identifiers for each session.
  *  @param sessionIds an array of session identifiers.
@@ -205,25 +206,35 @@ errno_t iSCSIKernelGetConnectionIds(SID sessionId,
                                     CID * connectionIds,
                                     UInt32 * connectionCount);
 
-/*! Gets the name of the target associated with a particular session.
+/*! Creates a string containing the target IQN associated with a session.
  *  @param sessionId session identifier.
  *  @param targetIQN the name of the target.
- *  @param size the size of the targetIQN buffer.
+ *  @param size the size of the targetIQNCString buffer.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetTargetIQNForSessionId(SID sessionId,
-                                             char * targetIQN,
-                                             size_t * size);
+CFStringRef iSCSIKernelCreateTargetIQNForSessionId(SID sessionId);
 
-/*! Gets the target and host address associated with a particular connection.
+/*! Creates a string containing the address of the portal associated with
+ *  the specified connection.
  *  @param sessionId session identifier.
  *  @param connectionId connection identifier.
- *  @param targetAddress the target address.
- *  @param hostAddress the host address.
- *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetAddressForConnectionId(SID sessionId,
-                                             CID connectionId,
-                                             struct sockaddr_storage * targetAddress,
-                                             struct sockaddr_storage * hostAddress);
+ *  @return a string containing the portal address, or NULL if the session or
+ *  connection was invalid. */
+CFStringRef iSCSIKernelCreatePortalAddressForConnectionId(SID sessionId,CID connectionId);
+
+/*! Creates a string containing the TCP port of the portal associated with
+ *  the specified connection.
+ *  @param sessionId session identifier.
+ *  @param connectionId connection identifier.
+ *  @return a string containing the TCP port of the portal, or NULL if the
+ *  session or connection was invalid. */
+CFStringRef iSCSIKernelCreatePortalPortForConnectionId(SID sessionId,CID connectionId);
+
+/*! Creates a string containing the host interface used for the connection.
+ *  @param sessionId session identifier.
+ *  @param connectionId connection identifier.
+ *  @return a string containing the host interface name, or NULL if the
+ *  session or connection was invalid. */
+CFStringRef iSCSIKernelCreateHostInterfaceForConnectionId(SID sessionId,CID connectionId);
 
 
 #endif /* defined(__ISCSI_KERNEL_INTERFACE_H__) */

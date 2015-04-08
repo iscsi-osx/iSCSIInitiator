@@ -16,20 +16,12 @@ CFStringRef kiSCSIPortalAddresssKey = CFSTR("Address");
 CFStringRef kiSCSIPortalPortKey = CFSTR("Port");
 CFStringRef kiSCSIPortalHostInterfaceKey = CFSTR("Host Interface");
 
-/*! Maximum number of discovery record entries (targets). */
-const int kMaxDiscoveryRecEntries = 50;
-
-/*! Maximum number of portal groups per target. */
-const int kMaxPortalGroupsPerTarget = 10;
-
-/*! Maximum number of portals per portal group. */
-const int kMaxPortalsPerGroup = 10;
-
 /*! Creates a new portal object from byte representation. */
 iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data)
 {
     CFPropertyListFormat format;
-    iSCSIPortalRef portal = CFPropertyListCreateWithData(kCFAllocatorDefault,data,kCFPropertyListImmutable,&format,NULL);
+    iSCSIPortalRef portal = CFPropertyListCreateWithData(
+            kCFAllocatorDefault,data,kCFPropertyListImmutable,&format,NULL);
     
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return portal;
@@ -323,8 +315,7 @@ CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth)
 /*! Creates a discovery record object. */
 iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutable()
 {
-    return CFDictionaryCreateMutable(kCFAllocatorDefault,
-                                     kMaxDiscoveryRecEntries,
+    return CFDictionaryCreateMutable(kCFAllocatorDefault,0,
                                      &kCFTypeDictionaryKeyCallBacks,
                                      &kCFTypeDictionaryValueCallBacks);
 }
@@ -333,7 +324,7 @@ iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutable()
  * @return an iSCSI discovery object or NULL if object creation failed. */
 iSCSIDiscoveryRecRef iSCSIDiscoveryRecCreateWithDictionary(CFDictionaryRef dict)
 {
-    return CFDictionaryCreateCopy(kCFAllocatorDefault,dict);
+    return CFPropertyListCreateDeepCopy(kCFAllocatorDefault,dict,kCFPropertyListImmutable);
 }
 
 /*! Creates a discovery record from an external data representation.
@@ -374,8 +365,7 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
     // If target doesn't exist add it
     if(!CFDictionaryGetValueIfPresent(discoveryRec,targetIQN,(void *)&targetDict))
     {
-        targetDict = CFDictionaryCreateMutable(kCFAllocatorDefault,
-                                               kMaxPortalGroupsPerTarget,
+        targetDict = CFDictionaryCreateMutable(kCFAllocatorDefault,0,
                                                &kCFTypeDictionaryKeyCallBacks,
                                                &kCFTypeDictionaryValueCallBacks);
     }
@@ -385,20 +375,19 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
     
     if(!CFDictionaryGetValueIfPresent(targetDict,portalGroupTag,(void *)&portalsArray))
     {
-        portalsArray = CFArrayCreateMutable(kCFAllocatorDefault,
-                                            kMaxPortalsPerGroup,
+        portalsArray = CFArrayCreateMutable(kCFAllocatorDefault,0,
                                             &kCFTypeArrayCallBacks);
     
     }
     
-    // If we've exceeded the max number of portals do nothing
-    if(CFArrayGetCount(portalsArray) == kMaxPortalsPerGroup)
-        return;
+    CFDictionaryRef portalDict = iSCSIPortalCreateDictionary(portal);
     
     // Add a new portal
-    CFArrayAppendValue(portalsArray,portal);
+    CFArrayAppendValue(portalsArray,portalDict);
     CFDictionarySetValue(targetDict,portalGroupTag,portalsArray);
     CFDictionarySetValue(discoveryRec,targetIQN,targetDict);
+    
+    CFRelease(portalDict);
 }
 
 /*! Creates a CFArray object containing CFString objects with names of
@@ -500,7 +489,10 @@ void iSCSIDiscoveryRecRetain(iSCSIMutableDiscoveryRecRef discoveryRec)
  *  NULL if the discovery record object is invalid. */
 CFDictionaryRef iSCSIDiscoveryRecCreateDictionary(iSCSIDiscoveryRecRef discoveryRec)
 {
-    return CFDictionaryCreateCopy(kCFAllocatorDefault,discoveryRec);
+    return (CFDictionaryRef)CFPropertyListCreateDeepCopy(kCFAllocatorDefault,
+                                        (CFDictionaryRef)discoveryRec,
+                                        kCFPropertyListImmutable);
+
 }
 
 /*! Copies the discovery record object to a byte array representation.
@@ -511,9 +503,6 @@ CFDataRef iSCSIDiscoveryRecCreateData(iSCSIMutableDiscoveryRecRef discoveryRec)
 {
     return CFPropertyListCreateData(kCFAllocatorDefault,discoveryRec,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
-
-
-
 
 
 CFStringRef kiSCSISessionConfigErrorRecoveryKey = CFSTR("Error Recovery Level");

@@ -75,7 +75,7 @@ public:
     static IOReturn ReleaseConnection(iSCSIInitiatorClient * target,
                                       void * reference,
                                       IOExternalMethodArguments * args);
-    
+
     static IOReturn ActivateConnection(iSCSIInitiatorClient * target,
                                        void * reference,
                                        IOExternalMethodArguments * args);
@@ -104,7 +104,7 @@ public:
                                                void * reference,
                                                IOExternalMethodArguments * args);
     
-    static IOReturn GetConnectionIdForAddress(iSCSIInitiatorClient * target,
+    static IOReturn GetConnectionIdForPortalAddress(iSCSIInitiatorClient * target,
                                             void * reference,
                                             IOExternalMethodArguments * args);
     
@@ -121,10 +121,18 @@ public:
                                               IOExternalMethodArguments * args);
     
 
-    static IOReturn GetAddressForConnectionId(iSCSIInitiatorClient * target,
+    static IOReturn GetPortalAddressForConnectionId(iSCSIInitiatorClient * target,
                                               void * reference,
                                               IOExternalMethodArguments * args);
+
     
+    static IOReturn GetPortalPortForConnectionId(iSCSIInitiatorClient * target,
+                                                    void * reference,
+                                                    IOExternalMethodArguments * args);
+    
+    static IOReturn GetHostInterfaceForConnectionId(iSCSIInitiatorClient * target,
+                                                    void * reference,
+                                                    IOExternalMethodArguments * args);
 
     /*! Dispatched function invoked from user-space to send data
      *  over an existing, active connection. */

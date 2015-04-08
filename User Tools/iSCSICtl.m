@@ -247,7 +247,7 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
     if(statusCode == kiSCSILoginSuccess)
     {
         loginStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-            CFSTR("Login to [target: %@ portal: %@:%@ if: %@] successful.\n"),
+            CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
             targetIQN,portalAddress,
             portalPort,portalInterface);
         
@@ -259,7 +259,7 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
  
     
     loginStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-        CFSTR("Login to [target: %@ portal: %@:%@ if: %@] failed: %@.\n"),
+        CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
         targetIQN,portalAddress,portalPort,
         portalInterface,iSCSICtlGetStringForLoginStatus(statusCode));
     
@@ -353,28 +353,49 @@ void iSCSICtlDisplayLogoutStatus(enum iSCSILogoutStatusCode statusCode,
                                  iSCSITargetRef target,
                                  iSCSIPortalRef portal)
 {
-    CFStringRef targetIQN      = iSCSITargetGetIQN(target);
-    CFStringRef portalAddress   = iSCSIPortalGetAddress(portal);
-    CFStringRef portalPort      = iSCSIPortalGetPort(portal);
-    CFStringRef portalInterface = iSCSIPortalGetHostInterface(portal);
+    CFStringRef targetIQN = iSCSITargetGetIQN(target);
+    CFStringRef portalAddress,portalPort,hostInterface;
+
+    // The portal is optional since the entire session (many portals) may
+    // have been logged out...
+    if(portal) {
+        portalAddress = iSCSIPortalGetAddress(portal);
+        portalPort    = iSCSIPortalGetPort(portal);
+        hostInterface = iSCSIPortalGetHostInterface(portal);
+    }
     
     CFStringRef logoutStatus;
     
     if(statusCode == kiSCSILogoutSuccess)
     {
-        logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-            CFSTR("Logout of [target: %@ portal: %@:%@ if: %@] successful.\n"),
-            targetIQN,portalAddress,portalPort,portalInterface);
+        if(portal)
+        {
+            logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
+                targetIQN,portalAddress,portalPort,hostInterface);
+        }
+        else {
+            logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                CFSTR("Logout of [ target: %@ ] successful.\n"),targetIQN);
+        }
         
         iSCSICtlDisplayString(logoutStatus);
         CFRelease(logoutStatus);
         return;
     }
-    
-    logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-        CFSTR("Logout of [target: %@ portal: %@:%@ if: %@] failed: %@.\n"),
-        targetIQN,portalAddress,portalPort,
-        portalInterface,iSCSICtlGetStringForLogoutStatus(statusCode));
+
+    if(portal) {
+        logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+            CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
+            targetIQN,portalAddress,portalPort,
+            hostInterface,iSCSICtlGetStringForLogoutStatus(statusCode));
+    }
+    else {
+        logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+            CFSTR("Logout of [ target: %@ portal: <all> ] failed: %@.\n"),
+            targetIQN,portalAddress,portalPort,
+            hostInterface,iSCSICtlGetStringForLogoutStatus(statusCode));
+    }
     
     iSCSICtlDisplayString(logoutStatus);
     CFRelease(logoutStatus);
@@ -1067,6 +1088,7 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
     io_iterator_t LUNIterator = IO_OBJECT_NULL;
     
     iSCSIIORegistryGetTargets(&targetIterator);
+    
     while((target = IOIteratorNext(targetIterator)) != IO_OBJECT_NULL)
     {
         CFDictionaryRef targetDict = iSCSIIORegistryCreateCFPropertiesForTarget(target);
@@ -1077,7 +1099,7 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
         CFNumberRef targetId = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSITargetIdentifierKey));
         
         CFStringRef targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                         CFSTR("\n%@ [ Id: %@, Vendor: %@, Model: %@ ]\n"),
+                                                         CFSTR("\n%@ [ Target Id: %@, Vendor: %@, Model: %@ ]\n"),
                                                          targetIQN,targetId,targetVendor,targetProduct);
         iSCSICtlDisplayString(targetStr);
 
@@ -1228,7 +1250,6 @@ errno_t iSCSICtlDisplayDiscoveryRecord(iSCSIDiscoveryRecRef discoveryRecord)
                 iSCSICtlDisplayString(portalStr);
                 CFRelease(portalStr);
             }
-            CFRelease(portals);
         }
         CFRelease(portalGroups);
     }
@@ -1282,10 +1303,10 @@ errno_t iSCSICtlDiscoverTargets(iSCSIDaemonHandle handle,CFDictionaryRef options
     }
     
     iSCSIPLSynchronize();
-    
+
     iSCSICtlDisplayDiscoveryRecord(discoveryRecord);
     iSCSIPLAddDiscoveryRecord(discoveryRecord);
-//    iSCSIDiscoveryRecRelease(discoveryRecord);
+    iSCSIDiscoveryRecRelease(discoveryRecord);
 
     iSCSIPLSynchronize();
     

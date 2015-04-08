@@ -26,6 +26,7 @@
 #include "iSCSISession.h"
 #include "iSCSIKernelInterface.h"
 
+#include "iSCSITypes.h"
 
 
 
@@ -37,10 +38,10 @@ int main(int argc, const char * argv[]) {
     iSCSIAuthRef auth = iSCSIAuthCreateNone();
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
     
-    iSCSITargetSetName(target,CFSTR(""));
+    iSCSITargetSetName(target,CFSTR("iqn.2015-03.com.test:test1"));
     iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
     iSCSIPortalSetAddress(portal,CFSTR("192.168.1.115"));
-    iSCSIPortalSetPort(portal,CFSTR("100"));
+    iSCSIPortalSetPort(portal,CFSTR("3260"));
     iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
     
     enum iSCSILoginStatusCode statusCode;
@@ -48,6 +49,22 @@ int main(int argc, const char * argv[]) {
     iSCSIMutableDiscoveryRecRef discRec;
     iSCSIQueryPortalForTargets(portal,auth,&discRec,&statusCode);
     
+    
+    CFDataRef data = iSCSIDiscoveryRecCreateData(discRec);
+    
+    iSCSIDiscoveryRecRef a = iSCSIDiscoveryRecCreateMutableWithData(data);
+    
+    int b = CFDataGetLength(data);
+    
+    CFPreferencesSetAppValue(CFSTR("Discovery"),a,CFSTR("com.NSinenian.iSCSI"));
+    
+    
+    SID sessionId;
+    CID connectionId;
+    
+/*
+    iSCSILoginSession(target,portal,auth,iSCSISessionConfigCreateMutable(),iSCSIConnectionConfigCreateMutable(),&sessionId,&connectionId,&statusCode);
+    */
     iSCSIKernelCleanUp();
     return 0;
 }

@@ -321,15 +321,8 @@ void iSCSIVirtualHBA::TerminateController()
 {
     DBLog("iSCSI: Terminating virtual HBA\n");
     
-    // Go through every connection for each session, and close sockets,
-    // remove event sources, etc
-    for(SID index = 0; index < kMaxSessions; index++)
-    {
-        if(!sessionList[index])
-            continue;
-
-        ReleaseSession(index);
-    }
+    ReleaseAllSessions();
+    
     // Free up our list of sessions and targets
     IOFree(sessionList,kMaxSessions*sizeof(iSCSISession*));
     targetList->free();
@@ -344,7 +337,6 @@ bool iSCSIVirtualHBA::StartController()
 
 void iSCSIVirtualHBA::StopController()
 {
-	
 }
 
 void iSCSIVirtualHBA::HandleInterruptRequest()
@@ -1158,19 +1150,25 @@ void iSCSIVirtualHBA::MeasureConnectionLatency(iSCSISession * session,
 
 /*! Allocates a new iSCSI session and returns a session qualifier ID.
  *  @param targetIQN the name of the target, or NULL if discovery session.
- *  @param targetaddress the BSD socket structure used to identify the target.
- *  @param hostaddress the BSD socket structure used to identify the host adapter.
+ *  @param portalAddress the IPv4/IPv6 or hostname of the portal.
+ *  @param portalPort the TCP port used for the connection.
+ *  @param hostInterface the host interface to use for the connection.
+ *  @param portalSockaddr the BSD socket structure used to identify the target.
+ *  @param hostSockaddr the BSD socket structure used to identify the host adapter.
  *  @param sessionId identifier for the new session.
  *  @param connectionId identifier for the new connection.
  *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::CreateSession(OSString * targetIQN,
-                                       const struct sockaddr_storage * targetAddress,
-                                       const struct sockaddr_storage * hostAddress,
+                                       OSString * portalAddress,
+                                       OSString * portalPort,
+                                       OSString * hostInterface,
+                                       const struct sockaddr_storage * portalSockaddr,
+                                       const struct sockaddr_storage * hostSockaddr,
                                        SID * sessionId,
                                        CID * connectionId)
 {
     // Validate inputs
-    if(!targetAddress || !hostAddress || !sessionId || !connectionId)
+    if(!portalSockaddr || !hostSockaddr || !sessionId || !connectionId)
         return EINVAL;
 
     // Default session and connection Ids
@@ -1233,12 +1231,15 @@ errno_t iSCSIVirtualHBA::CreateSession(OSString * targetIQN,
     // Retain new session
     sessionList[sessionIdx] = newSession;
     *sessionId = sessionIdx;
-    
+    IOLog("NAME: ");
+    IOLog(targetIQN->getCStringNoCopy());
+    IOLog("\n");
     // Add target to lookup table...
     targetList->setObject(targetIQN->getCStringNoCopy(),OSNumber::withNumber(sessionIdx,sizeof(sessionIdx)*8));
 
     // Create a connection associated with this session
-    if((error = CreateConnection(*sessionId,targetAddress,hostAddress,connectionId)))
+    if((error = CreateConnection(*sessionId,portalAddress,portalPort,hostInterface,
+                                 portalSockaddr,hostSockaddr,connectionId)))
         goto SESSION_CREATE_CONNECTION_FAILURE;
     
 // UNLOCK SESSION HERE...
@@ -1267,6 +1268,20 @@ SESSION_ID_ALLOC_FAILURE:
     // Unlock session list here
     
     return error;
+}
+
+/*! Releases all iSCSI sessions. */
+void iSCSIVirtualHBA::ReleaseAllSessions()
+{
+    // Go through every connection for each session, and close sockets,
+    // remove event sources, etc
+    for(SID index = 0; index < kMaxSessions; index++)
+    {
+        if(!sessionList[index])
+            continue;
+        
+        ReleaseSession(index);
+    }
 }
 
 /*! Releases an iSCSI session, including all connections associated with that
@@ -1315,17 +1330,23 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
 
 /*! Allocates a new iSCSI connection associated with the particular session.
  *  @param sessionId the session to create a new connection for.
- *  @param targetaddress the BSD socket structure used to identify the target.
- *  @param hostaddress the BSD socket structure used to identify the host adapter.
+ *  @param portalAddress the IPv4/IPv6 or hostname of the portal.
+ *  @param portalPort the TCP port used for the connection.
+ *  @param hostInterface the host interface to use for the connection.
+ *  @param portalSockaddr the BSD socket structure used to identify the target.
+ *  @param hostSockaddr the BSD socket structure used to identify the host adapter.
  *  @param connectionId identifier for the new connection.
  *  @return error code indicating result of operation. */
 errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
-                                          const struct sockaddr_storage * targetAddress,
-                                          const struct sockaddr_storage * hostAddress,
+                                          OSString * portalAddress,
+                                          OSString * portalPort,
+                                          OSString * hostInterface,
+                                          const struct sockaddr_storage * portalSockaddr,
+                                          const struct sockaddr_storage * hostSockaddr,
                                           CID * connectionId)
 {
     // Range-check inputs
-    if(sessionId >= kMaxSessions || !targetAddress || !hostAddress || !connectionId)
+    if(sessionId >= kMaxSessions || !portalSockaddr || !hostSockaddr || !connectionId)
         return EINVAL;
     
     // Retrieve the session from the session list, validate
@@ -1347,8 +1368,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     iSCSIConnection * newConn = (iSCSIConnection*)IOMalloc(sizeof(iSCSIConnection));
     if(!newConn)
         return EAGAIN;
-    
-    // Sockets connected and bound add event source to driver workloop
+
     newConn->expStatSN = 0;
     newConn->dataToTransfer = 0;
     newConn->bytesPerSecond = 0;
@@ -1397,7 +1417,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
         
     // Create a new socket (per RFC3720, only TCP sockets are used.
     // Domain can vary between IPv4 or IPv6.
-    error = sock_socket(targetAddress->ss_family,
+    error = sock_socket(portalSockaddr->ss_family,
                         SOCK_STREAM,IPPROTO_TCP,
                         (sock_upcall)&iSCSIIOEventSource::socketCallback,
                         newConn->dataRecvEventSource,
@@ -1406,17 +1426,23 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
         goto SOCKET_CREATE_FAILURE;
     
     // Bind socket to a particular host connection
-    if((error = sock_bind(newConn->socket,(sockaddr*)hostAddress)))
+    if((error = sock_bind(newConn->socket,(sockaddr*)hostSockaddr)))
         goto SOCKET_BIND_FAILURE;
 
     // Connect the socket to the target node
-    if((error = sock_connect(newConn->socket,(sockaddr*)targetAddress,0)))
+    if((error = sock_connect(newConn->socket,(sockaddr*)portalSockaddr,0)))
         goto SOCKET_CONNECT_FAILURE;
 
     // Initialize queue that keeps track of connection speed
     memset(newConn->bytesPerSecondHistory,0,sizeof(UInt8)*newConn->kBytesPerSecAvgWindowSize);
     newConn->bytesPerSecHistoryIdx = 0;
     
+    newConn->portalAddress = portalAddress;
+    newConn->portalPort = portalPort;
+    newConn->hostInteface = hostInterface;
+    portalAddress->retain();
+    portalPort->retain();
+    hostInterface->retain();
     
     return 0;
     

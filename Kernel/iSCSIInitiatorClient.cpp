@@ -35,8 +35,8 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateSession,
-		0,
-		kIOUCVariableStructureSize,         // Address structures
+		1,                                  // Number of parameters in struct
+		kIOUCVariableStructureSize,         // Packed parameters for session
 		3,                                  // Returned identifiers, error code
 		0
 	},
@@ -50,7 +50,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::SetSessionOptions,
 		1,                                  // Session ID
-        sizeof(iSCSIKernelSessionCfg),        // Options to set
+        sizeof(iSCSIKernelSessionCfg),      // Options to set
 		0,
 		0
 	},
@@ -63,8 +63,8 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateConnection,
-		1,                                  // Session ID
-		kIOUCVariableStructureSize,         // Address structures
+		2,                                  // Session ID, number of params
+		kIOUCVariableStructureSize,         // Packed parameters for connection
 		2,                                  // Returned connection identifier, error code
 		0
 	},
@@ -167,7 +167,7 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
         0
     },
     {
-        (IOExternalMethodAction) &iSCSIInitiatorClient::GetConnectionIdForAddress,
+        (IOExternalMethodAction) &iSCSIInitiatorClient::GetConnectionIdForPortalAddress,
         1,                                  // Session ID
         kIOUCVariableStructureSize,         // Connection address structure
         1,                                  // Returned connection identifier
@@ -195,7 +195,21 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
         kIOUCVariableStructureSize // Target name
     },
     {
-        (IOExternalMethodAction) &iSCSIInitiatorClient::GetAddressForConnectionId,
+        (IOExternalMethodAction) &iSCSIInitiatorClient::GetPortalAddressForConnectionId,
+        2,                                  // Session ID, connection ID
+        0,
+        0,                                  // Returned connection count
+        kIOUCVariableStructureSize // connection address structures
+    },
+    {
+        (IOExternalMethodAction) &iSCSIInitiatorClient::GetPortalPortForConnectionId,
+        2,                                  // Session ID, connection ID
+        0,
+        0,                                  // Returned connection count
+        kIOUCVariableStructureSize // connection address structures
+    },
+    {
+        (IOExternalMethodAction) &iSCSIInitiatorClient::GetHostInterfaceForConnectionId,
         2,                                  // Session ID, connection ID
         0,
         0,                                  // Returned connection count
@@ -346,18 +360,35 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
     SID sessionId;
     CID connectionId;
     
-    // The target string is packed at the end of the input structure
-    const char * targetCString = (const char *)((const sockaddr_storage *)args->structureInput+2);
+    // Unpack the struct to get targetIQN, portalAddress, etc.
+    UInt64 kNumParams = *args->scalarInput;
     
-    OSString * targetIQN = OSString::withCString(targetCString);
+    // We expect six input arguments to CreateSession...
+    if(kNumParams < 6)
+        return kIOReturnBadArgument;
+    
+    void * params[kNumParams];
+    size_t paramSize[kNumParams];
+    size_t header = sizeof(UInt64*)*kNumParams;
+    UInt8 * inputPos = ((UInt8*)args->structureInput)+header;
+    
+    for(int idx = 0; idx < kNumParams; idx++) {
+        paramSize[idx] = ((UInt64*)args->structureInput)[idx];
+        params[idx] = inputPos;
+        inputPos += paramSize[idx];
+    }
+    
+    OSString * targetIQN = OSString::withCString((const char *)params[0]);
+    OSString * portalAddress = OSString::withCString((const char *)params[1]);
+    OSString * portalPort = OSString::withCString((const char *)params[2]);
+    OSString * hostInterface = OSString::withCString((const char *)params[3]);
+    const sockaddr_storage * portalSockAddr = (struct sockaddr_storage*)params[4];
+    const sockaddr_storage * hostSockAddr = (struct sockaddr_storage*)params[5];
     
     // Create a connection
     errno_t error = target->provider->CreateSession(
-        targetIQN,
-        (const sockaddr_storage *)args->structureInput,     // Target
-        (const sockaddr_storage *)args->structureInput+1,   // Host interface
-        &sessionId,
-        &connectionId);
+        targetIQN,portalAddress,portalPort,hostInterface,portalSockAddr,
+        hostSockAddr,&sessionId,&connectionId);
     
     args->scalarOutput[0] = sessionId;
     args->scalarOutput[1] = connectionId;
@@ -365,6 +396,9 @@ IOReturn iSCSIInitiatorClient::CreateSession(iSCSIInitiatorClient * target,
     args->scalarOutputCount = 3;
     
     targetIQN->release();
+    portalAddress->release();
+    portalPort->release();
+    hostInterface->release();
     
     return kIOReturnSuccess;
 }
@@ -433,14 +467,38 @@ IOReturn iSCSIInitiatorClient::CreateConnection(iSCSIInitiatorClient * target,
                                                 void * reference,
                                                 IOExternalMethodArguments * args)
 {
+    SID sessionId = (SID)args->scalarInput[0];
     CID connectionId;
+    
+    // Unpack the struct to get targetIQN, portalAddress, etc.
+    UInt64 kNumParams = args->scalarInput[1];
+    
+    // We expect six input arguments to CreateSession...
+    if(kNumParams < 5)
+        return kIOReturnBadArgument;
+    
+    void * params[kNumParams];
+    size_t paramSize[kNumParams];
+    size_t header = sizeof(UInt64*)*kNumParams;
+    UInt8 * inputPos = ((UInt8*)args->structureInput)+header;
+    
+    for(int idx = 0; idx < kNumParams; idx++) {
+        paramSize[idx] = ((UInt64*)args->structureInput)[idx];
+        params[idx] = inputPos;
+        inputPos += paramSize[idx];
+    }
+    
+    OSString * portalAddress = OSString::withCString((const char *)params[0]);
+    OSString * portalPort = OSString::withCString((const char *)params[1]);
+    OSString * hostInterface = OSString::withCString((const char *)params[2]);
+    const sockaddr_storage * portalSockAddr = (struct sockaddr_storage*)params[3];
+    const sockaddr_storage * hostSockAddr = (struct sockaddr_storage*)params[4];
+    
     
     // Create a connection
     errno_t error = target->provider->CreateConnection(
-            (SID)args->scalarInput[0],       // Session qualifier
-            (const sockaddr_storage *)args->structureInput,
-            (const sockaddr_storage *)args->structureInput+1,
-            &connectionId);
+            sessionId,portalAddress,portalPort,hostInterface,portalSockAddr,
+            hostSockAddr,&connectionId);
     
     args->scalarOutput[0] = connectionId;
     args->scalarOutput[1] = error;
@@ -781,7 +839,7 @@ IOReturn iSCSIInitiatorClient::GetSessionIdForTargetIQN(iSCSIInitiatorClient * t
     return kIOReturnSuccess;
 }
 
-IOReturn iSCSIInitiatorClient::GetConnectionIdForAddress(iSCSIInitiatorClient * target,
+IOReturn iSCSIInitiatorClient::GetConnectionIdForPortalAddress(iSCSIInitiatorClient * target,
                                                           void * reference,
                                                           IOExternalMethodArguments * args)
 {
@@ -799,9 +857,9 @@ IOReturn iSCSIInitiatorClient::GetConnectionIdForAddress(iSCSIInitiatorClient * 
     if(!session)
         return kIOReturnNotFound;
     
-    sockaddr_storage * address = (sockaddr_storage*)args->structureInput;
-    
-    if(!address)
+    OSString * portalAddress = OSString::withCString((const char *)args->structureInput);
+
+    if(!portalAddress)
         return kIOReturnBadArgument;
     
     iSCSIConnection * connection = NULL;
@@ -812,37 +870,7 @@ IOReturn iSCSIInitiatorClient::GetConnectionIdForAddress(iSCSIInitiatorClient * 
         if(!(connection = session->connections[connectionId]))
             continue;
         
-        sockaddr_storage peername;
-        socklen_t peernamelen = sizeof(peername); 
-        sock_getpeername(connection->socket,(sockaddr*)&peername,peernamelen);
-        
-        // Ensure family matches (IPv4/IPv6)
-        if(peername.ss_family != address->ss_family)
-            continue;
-        
-        if(peername.ss_family == AF_INET)
-        {
-            struct sockaddr_in * peer = (struct sockaddr_in *)&peername;
-            struct sockaddr_in * addr = (struct sockaddr_in *)address;
-            
-            if(peer->sin_addr.s_addr != addr->sin_addr.s_addr)
-                continue;
-            
-            if(peer->sin_port != addr->sin_port)
-                continue;
-        }
-        else if(peername.ss_family == AF_INET6)
-        {
-            struct sockaddr_in6 * peer = (struct sockaddr_in6 *)&peername;
-            struct sockaddr_in6 * addr = (struct sockaddr_in6 *)address;
-            
-            if(memcmp(&peer->sin6_addr,&addr->sin6_addr,sizeof(addr->sin6_addr)) != 0)
-                continue;
-            
-            if(peer->sin6_port != addr->sin6_port)
-                continue;
-        }
-        else
+        if(!connection->portalAddress->isEqualTo(portalAddress))
             continue;
         
         *args->scalarOutput = connectionId;
@@ -968,7 +996,7 @@ IOReturn iSCSIInitiatorClient::GetTargetIQNForSessionId(iSCSIInitiatorClient * t
     return kIOReturnNotFound;
 }
 
-IOReturn iSCSIInitiatorClient::GetAddressForConnectionId(iSCSIInitiatorClient * target,
+IOReturn iSCSIInitiatorClient::GetPortalAddressForConnectionId(iSCSIInitiatorClient * target,
                                                          void * reference,
                                                          IOExternalMethodArguments * args)
 {
@@ -991,15 +1019,76 @@ IOReturn iSCSIInitiatorClient::GetAddressForConnectionId(iSCSIInitiatorClient * 
     
     if(!connection)
         return kIOReturnNotFound;
+  
+    const char * portalAddress = connection->portalAddress->getCStringNoCopy();
+    size_t portalAddressLength = connection->portalAddress->getLength();
     
-    socklen_t sockaddrSize = sizeof(sockaddr_storage);
-    
-    sockaddr_storage * targetAddress = (sockaddr_storage *)args->structureOutput;
-    sockaddr_storage * hostAddress = (sockaddr_storage *)( ((UInt8 *)args->structureOutput) + sockaddrSize);
-    
-    sock_getpeername(connection->socket,(sockaddr*)targetAddress,sockaddrSize);
-    sock_getsockname(connection->socket,(sockaddr*)hostAddress,sockaddrSize);
+    memcpy(args->structureOutput,portalAddress,min(args->structureOutputSize,portalAddressLength+1));
 
+    return kIOReturnSuccess;
+}
+
+IOReturn iSCSIInitiatorClient::GetPortalPortForConnectionId(iSCSIInitiatorClient * target,
+                                                            void * reference,
+                                                            IOExternalMethodArguments * args)
+{
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
+    
+    SID sessionId = (SID)args->scalarInput[0];
+    CID connectionId = (CID)args->scalarInput[1];
+    
+    // Range-check input
+    if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
+        return kIOReturnBadArgument;
+    
+    // Do nothing if session doesn't exist
+    iSCSISession * session = hba->sessionList[sessionId];
+    
+    if(!session)
+        return kIOReturnNotFound;
+    
+    iSCSIConnection * connection = session->connections[connectionId];
+    
+    if(!connection)
+        return kIOReturnNotFound;
+    
+    const char * portalPort = connection->portalPort->getCStringNoCopy();
+    size_t portalPortLength = connection->portalPort->getLength();
+    
+    memcpy(args->structureOutput,portalPort,min(args->structureOutputSize,portalPortLength+1));
+    
+    return kIOReturnSuccess;
+}
+
+IOReturn iSCSIInitiatorClient::GetHostInterfaceForConnectionId(iSCSIInitiatorClient * target,
+                                                               void * reference,
+                                                               IOExternalMethodArguments * args)
+{
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
+    
+    SID sessionId = (SID)args->scalarInput[0];
+    CID connectionId = (CID)args->scalarInput[1];
+    
+    // Range-check input
+    if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
+        return kIOReturnBadArgument;
+    
+    // Do nothing if session doesn't exist
+    iSCSISession * session = hba->sessionList[sessionId];
+    
+    if(!session)
+        return kIOReturnNotFound;
+    
+    iSCSIConnection * connection = session->connections[connectionId];
+    
+    if(!connection)
+        return kIOReturnNotFound;
+    
+    const char * hostInterface = connection->hostInteface->getCStringNoCopy();
+    size_t hostInterfaceLength = connection->hostInteface->getLength();
+    
+    memcpy(args->structureOutput,hostInterface,min(args->structureOutputSize,hostInterfaceLength+1));
+    
     return kIOReturnSuccess;
 }
 

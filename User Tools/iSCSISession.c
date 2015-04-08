@@ -28,11 +28,6 @@ CFStringRef kiSCSIInitiatorAlias = CFSTR("default");
  *  to produce the data section of text and login PDUs. */
 const unsigned int kiSCSISessionMaxTextKeyValuePairs = 100;
 
-errno_t iSCSILogoutResponseToErrno(enum iSCSIPDULogoutRsp response)
-{
-    return 0;
-}
-
 /*! Helper function used during session negotiation.  Returns true if BOTH
  *  the command and the response strings are "Yes" */
 Boolean iSCSILVGetEqual(CFStringRef cmdStr,CFStringRef rspStr)
@@ -578,7 +573,8 @@ errno_t iSCSINegotiateConnection(iSCSITargetRef target,
 /*! Helper function used to log out of connections and sessions. */
 errno_t iSCSISessionLogoutCommon(SID sessionId,
                                  CID connectionId,
-                                 enum iSCSIPDULogoutReasons logoutReason)
+                                 enum iSCSIPDULogoutReasons logoutReason,
+                                 enum iSCSILogoutStatusCode * statusCode)
 {
     if(sessionId >= kiSCSIInvalidSessionId || connectionId >= kiSCSIInvalidConnectionId)
         return EINVAL;
@@ -602,12 +598,12 @@ errno_t iSCSISessionLogoutCommon(SID sessionId,
     void * data = NULL;
     size_t length = 0;
     
-    // Receive response PDUs until response is complete
+    // Receive response PDU...
     if((error = iSCSIKernelRecv(sessionId,connectionId,(iSCSIPDUTargetBHS *)&rsp,&data,&length)))
         return error;
     
     if(rsp.opCode == kiSCSIPDUOpCodeLogoutRsp)
-        error = iSCSILogoutResponseToErrno(rsp.response);
+        *statusCode = rsp.response;
     
     // For this case some other kind of PDU or invalid data was received
     else if(rsp.opCode == kiSCSIPDUOpCodeReject)
@@ -719,7 +715,12 @@ errno_t iSCSILoginConnection(SID sessionId,
         return error;
     
     // If both target and host were resolved, grab a connection
-    error = iSCSIKernelCreateConnection(sessionId,&ssTarget,&ssHost,connectionId);
+    error = iSCSIKernelCreateConnection(sessionId,
+                                        iSCSIPortalGetAddress(portal),
+                                        iSCSIPortalGetPort(portal),
+                                        iSCSIPortalGetHostInterface(portal),
+                                        &ssTarget,
+                                        &ssHost,connectionId);
     
     // If we can't accomodate a new connection quit; try again later
     if(error || *connectionId == kiSCSIInvalidConnectionId)
@@ -765,13 +766,96 @@ errno_t iSCSILogoutConnection(SID sessionId,
        return error;
     
     // Logout the connection or session, as necessary
-    error = iSCSISessionLogoutCommon(sessionId,connectionId,kISCSIPDULogoutCloseConnection);
+    error = iSCSISessionLogoutCommon(sessionId,connectionId,kISCSIPDULogoutCloseConnection,statusCode);
 
     // Release the connection in the kernel
     iSCSIKernelReleaseConnection(sessionId,connectionId);
     
     return error;
 }
+
+/*! Prepares the active sessions in the kernel for a sleep event.  After the
+ *  system wakes up, the function iSCSIRestoreForSystemWake() should be
+ *  called before using any other functions.  Failure to do so may lead to
+ *  undefined behavior.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSIPrepareForSystemSleep()
+{
+    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
+    
+    if(!sessionIds)
+        return 0;
+    
+    CFIndex sessionCount = CFArrayGetCount(sessionIds);
+
+    for(CFIndex idx = 0; idx < sessionCount; idx++) {
+        SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
+        
+        // Unmount all media for this session
+        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
+        iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
+
+        iSCSIKernelDeactivateAllConnections(sessionId);
+    }
+    
+    CFRelease(sessionIds);
+    return 0;
+}
+
+/*! Restores iSCSI sessions after a system has been woken up.  Before
+ *  sleeping, the function iSCSIPrepareForSleep() must have been called.
+ *  Otherwise, the behavior of this function is undefined.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSIRestoreForSystemWake()
+{
+    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
+    
+    if(!sessionIds)
+        return 0;
+    
+    CFIndex sessionCount = CFArrayGetCount(sessionIds);
+    
+    for(CFIndex idx = 0; idx < sessionCount; idx++) {
+        
+        SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
+        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
+        
+        CFArrayRef connectionIds = iSCSICreateArrayOfConnectionsIds(sessionId);
+        
+        if(!connectionIds)
+            continue;
+        
+        Boolean leadingLogin = false;
+        
+        CFIndex connectionCount = CFArrayGetCount(connectionIds);
+        
+        for(CFIndex idx = 0; idx < connectionCount; idx++)
+        {
+            CID connectionId = CFArrayGetValueAtIndex(connectionIds,idx);
+            iSCSIPortalRef portal = iSCSICreatePortalForConnectionId(sessionId,connectionId);
+            
+            iSCSIKernelReleaseConnection(sessionId,connectionId);
+            SID sid;
+            CID cid;
+            enum iSCSILoginStatusCode statusCode;
+            
+            iSCSILoginSession(target,portal,iSCSIAuthCreateNone(),iSCSISessionConfigCreateMutable(),
+                              iSCSIConnectionConfigCreateMutable(),&sid,&cid,&statusCode);
+            
+            
+        
+
+        }
+        
+
+        
+        iSCSIKernelDeactivateAllConnections(sessionId);
+    }
+    
+    CFRelease(sessionIds);
+    return 0;
+}
+
 
 /*! Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionClose to close this session and free resources.
@@ -805,19 +889,13 @@ errno_t iSCSILoginSession(iSCSITargetRef target,
     if((error = iSCSISessionResolveNode(portal,&ssTarget,&ssHost)))
         return error;
     
-    const char * targetIQN = CFStringGetCStringPtr(iSCSITargetGetIQN(target),
-                                                    kCFStringEncodingASCII);
-
-    // (CFStringGetLength doesn't include the the null terminator)
-    size_t targetIQNLen;
-    if(targetIQN)
-        targetIQNLen = CFStringGetLength(iSCSITargetGetIQN(target))+1;
-    else
-        targetIQNLen = 0;
 
     // Create a new session in the kernel.  This allocates session and
     // connection identifiers
-    error = iSCSIKernelCreateSession(targetIQN,targetIQNLen,
+    error = iSCSIKernelCreateSession(iSCSITargetGetIQN(target),
+                                     iSCSIPortalGetAddress(portal),
+                                     iSCSIPortalGetPort(portal),
+                                     iSCSIPortalGetHostInterface(portal),
                                      &ssTarget,&ssHost,sessionId,connectionId);
     
     // If session couldn't be allocated were maxed out; try again later
@@ -857,7 +935,6 @@ errno_t iSCSILogoutSession(SID sessionId,
 
     // Unmount all media for this session
     iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
-
     iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
     
     // First deactivate all of the connections
@@ -867,7 +944,7 @@ errno_t iSCSILogoutSession(SID sessionId,
     // Grab a handle to any connection so we can logout of the session
     CID connectionId = kiSCSIInvalidConnectionId;
     if(!(error = iSCSIKernelGetConnection(sessionId,&connectionId)))
-        error = iSCSISessionLogoutCommon(sessionId, connectionId, kiSCSIPDULogoutCloseSession);
+        error = iSCSISessionLogoutCommon(sessionId, connectionId,kiSCSIPDULogoutCloseSession,statusCode);
 
     // Release all of the connections in the kernel by releasing the session
     iSCSIKernelReleaseSession(sessionId);
@@ -910,6 +987,7 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
         iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
         iSCSIPortalSetAddress(portal,address);
         iSCSIPortalSetPort(portal,port);
+        iSCSIPortalSetHostInterface(portal,CFSTR(""));
     
         iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)(valContainer);
         iSCSIDiscoveryRecAddPortal(discoveryRec,targetIQN,portalGroupTag,portal);
@@ -1058,8 +1136,10 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
     // Reset qualifier and connection ID by default
     SID sessionId;
     CID connectionId;
-    error = iSCSIKernelCreateSession(CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
-                                     CFStringGetLength(targetIQN),
+    error = iSCSIKernelCreateSession(targetIQN,
+                                     iSCSIPortalGetAddress(portal),
+                                     iSCSIPortalGetPort(portal),
+                                     iSCSIPortalGetHostInterface(portal),
                                      &ssTarget,
                                      &ssHost,
                                      &sessionId,
@@ -1087,19 +1167,7 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
  *  @return the session identiifer. */
 SID iSCSIGetSessionIdForTarget(CFStringRef targetIQN)
 {
-    if(!targetIQN)
-        return kiSCSIInvalidSessionId;
-    
-    const char * targetIQNCString = CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII);
-    
-    // Target name does not include the NULL terminator
-    size_t targetIQNCStringLen = CFStringGetLength(targetIQN) + 1;
-    
-    SID sessionId = kiSCSIInvalidSessionId;
-    if(iSCSIKernelGetSessionIdForTargetIQN(targetIQNCString,targetIQNCStringLen,&sessionId))
-        return kiSCSIInvalidSessionId;
-
-    return sessionId;
+    return iSCSIKernelGetSessionIdForTargetIQN(targetIQN);
 }
 
 /*! Gets the connection identifier associated with the specified portal.
@@ -1108,18 +1176,7 @@ SID iSCSIGetSessionIdForTarget(CFStringRef targetIQN)
  *  @return the associated connection identifier. */
 CID iSCSIGetConnectionIdForPortal(SID sessionId,iSCSIPortalRef portal)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !portal)
-        return kiSCSIInvalidConnectionId;
-    
-    const char * address = CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingASCII);
-    const char * port = CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII);
-    
-    CID connectionId = kiSCSIInvalidConnectionId;
-    
-    if(iSCSIKernelGetConnectionIdForAddress(sessionId,address,port,&connectionId))
-        return kiSCSIInvalidConnectionId;
-    
-    return connectionId;
+    return iSCSIKernelGetConnectionIdForPortalAddress(sessionId,iSCSIPortalGetAddress(portal));
 }
 
 /*! Gets an array of session identifiers for each session.
@@ -1133,12 +1190,7 @@ CFArrayRef iSCSICreateArrayOfSessionIds()
     if(iSCSIKernelGetSessionIds(sessionIds,&sessionCount))
         return NULL;
     
-    CFMutableArrayRef sessionIdArray = CFArrayCreateMutable(kCFAllocatorDefault,sessionCount,NULL);
-    
-    for(int index = 0; index < sessionCount; index++)
-        CFArrayAppendValue(sessionIdArray,(const void *)(sessionIds[index]));
-
-    return sessionIdArray;
+    return CFArrayCreate(kCFAllocatorDefault,(const void**)&sessionIds,sessionCount,NULL);
 }
 
 /*! Gets an array of connection identifiers for each session.
@@ -1165,14 +1217,11 @@ iSCSITargetRef iSCSICreateTargetForSessionId(SID sessionId)
 {
     if(sessionId == kiSCSIInvalidSessionId)
         return NULL;
-
-    char targetIQNCString[NI_MAXHOST];
-    size_t length = NI_MAXHOST;
-
-    if(iSCSIKernelGetTargetIQNForSessionId(sessionId,targetIQNCString,&length))
-        return NULL;
     
-    CFStringRef targetIQN = CFStringCreateWithCString(kCFAllocatorDefault,targetIQNCString,kCFStringEncodingASCII);
+    CFStringRef targetIQN = iSCSIKernelCreateTargetIQNForSessionId(sessionId);
+    
+    if(!targetIQN)
+        return NULL;
     
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
     iSCSITargetSetName(target,targetIQN);
@@ -1192,74 +1241,30 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId)
     if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
         return NULL;
     
-    struct sockaddr_storage targetAddress, hostAddress;
-    iSCSIKernelGetAddressForConnectionId(sessionId,connectionId,&targetAddress,&hostAddress);
-
-    char targetCAddress[NI_MAXHOST], hostCAddress[NI_MAXHOST];
-    char targetCPort[NI_MAXSERV], hostCPort[NI_MAXSERV];
+    CFStringRef address,port,hostInterface;
     
-    // Get name information for the peer (target)
-    if(getnameinfo((const struct sockaddr*)&targetAddress,sizeof(struct sockaddr_storage),
-                        targetCAddress,NI_MAXHOST,targetCPort,NI_MAXSERV,NI_NUMERICSERV))
-        return NULL;
- 
-    // Get name information for the host (initiator) so that we can back out
-    // the interface that's being used
-    if(getnameinfo((const struct sockaddr*)&hostAddress,sizeof(struct sockaddr_storage),
-                        hostCAddress,NI_MAXHOST,hostCPort,NI_MAXSERV,NI_NUMERICSERV))
+    if(!(address = iSCSIKernelCreatePortalAddressForConnectionId(sessionId,connectionId)))
         return NULL;
 
-    
-    // Iterate over all interfaces and find the interface name that matches
-    // the host address (sockaddr_storage)
-    // Grab a list of interfaces on this system, iterate over them and
-    // find the requested interface.
-    struct ifaddrs * interfaceList;
-    
-    if(getifaddrs(&interfaceList))
-        return NULL;
-    
-    struct ifaddrs * interface = interfaceList;
-    CFStringRef interfaceName = NULL;
-    
-    while(interface)
+    if(!(port = iSCSIKernelCreatePortalPortForConnectionId(sessionId,connectionId)))
     {
-        // Check if the interface's address matches the host address
-        if(interface->ifa_addr->sa_family == hostAddress.ss_family)
-        {
-            char ifCAddress[NI_MAXHOST], ifCPort[NI_MAXSERV];
-            
-            // Get the interface address (in a protocol agnostic way)
-            getnameinfo((const struct sockaddr*)interface->ifa_addr,sizeof(struct sockaddr),
-                        ifCAddress,NI_MAXHOST,ifCPort,NI_MAXSERV,NI_NUMERICSERV);
-            
-            if(strcmp(ifCAddress,hostCAddress) == 0)
-            {
-                interfaceName = CFStringCreateWithCString(kCFAllocatorDefault,
-                                                          interface->ifa_name,
-                                                          kCFStringEncodingUTF8);
-                break;
-            }
-        }
-        interface = interface->ifa_next;
+        CFRelease(address);
+        return NULL;
     }
     
-    freeifaddrs(interfaceList);
-
-    CFStringRef address = CFStringCreateWithCString(kCFAllocatorDefault,targetCAddress,kCFStringEncodingASCII);
-    CFStringRef port = CFStringCreateWithCString(kCFAllocatorDefault,targetCPort,kCFStringEncodingASCII);
-
+    if(!(hostInterface = iSCSIKernelCreateHostInterfaceForConnectionId(sessionId,connectionId)))
+    {
+        CFRelease(hostInterface);
+        return NULL;
+    }
+    
     iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
     iSCSIPortalSetAddress(portal,address);
     iSCSIPortalSetPort(portal,port);
+    iSCSIPortalSetHostInterface(portal,hostInterface);
     CFRelease(address);
     CFRelease(port);
-    
-    if(interfaceName)
-    {
-        iSCSIPortalSetHostInterface(portal,interfaceName);
-        CFRelease(interfaceName);
-    }
+    CFRelease(hostInterface);
     
     return portal;
 }

@@ -58,6 +58,7 @@ kern_return_t iSCSIKernelInitialize()
         IOObjectRelease(service);
         return kIOReturnNotFound;
     }
+
     return IOConnectCallScalarMethod(connection,kiSCSIOpenInitiator,0,0,0,0);
 }
 
@@ -77,51 +78,91 @@ kern_return_t iSCSIKernelCleanUp()
 /*! Allocates a new iSCSI session in the kernel and creates an associated
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
- *  @param targetIQNCString the name of the target, or NULL if discovery session.
- *  @param targetIQNCStringLen the length of the targetIQNCString string
- *  (length must include null terminator).
- *  @param targetAddress the BSD socket structure used to identify the target.
- *  @param hostAddress the BSD socket structure used to identify the host. This
+ *  @param targetIQN the name of the target, or NULL if discovery session.
+ *  @param portalAddress the portal address (IPv4/IPv6, or DNS name).
+ *  @param portalPort the TCP port used to connect to the portal.
+ *  @param hostInterface the name of the host interface adapter to use.
+ *  @param portalSockaddr the BSD socket structure used to identify the target.
+ *  @param hostSockaddr the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
  *  @param sessionId the session identifier for the new session (returned).
  *  @param connectionId the identifier of the new connection (returned).
  *  @return An error code if a valid session could not be created. */
-errno_t iSCSIKernelCreateSession(const char * targetIQNCString,
-                                 size_t targetIQNCStringLen,
-                                 const struct sockaddr_storage * targetAddress,
-                                 const struct sockaddr_storage * hostAddress,
+errno_t iSCSIKernelCreateSession(CFStringRef targetIQN,
+                                 CFStringRef portalAddress,
+                                 CFStringRef portalPort,
+                                 CFStringRef hostInterface,
+                                 const struct sockaddr_storage * portalSockAddr,
+                                 const struct sockaddr_storage * hostSockAddr,
                                  SID * sessionId,
                                  CID * connectionId)
 {
     // Check parameters
-    if(!targetAddress || !hostAddress || !sessionId || !connectionId)
+    if(!portalAddress || !portalPort || !hostInterface || !portalSockAddr ||
+       !hostSockAddr || !sessionId || !connectionId)
         return EINVAL;
     
-    const UInt32 inputStructCnt = 2;
+    // Pack the input parameters into a single buffer to send to the kernel
+    const int kNumParams = 6;
+    void * params[kNumParams];
+    size_t paramSize[kNumParams];
     
-    size_t ss_len = sizeof(struct sockaddr_storage);
-
-    size_t inputBufferSize = inputStructCnt*ss_len + targetIQNCStringLen;
-
-    // Pack the targetAddress, hostAddress, targetIQNCString and connectionName into
-    // a single buffer in that order.  The strings targetIQNCString and connectionName
-    // are NULL-terminated C strings (the NULL character is copied)
-    void * inputBuffer = malloc(inputBufferSize);
-
-    memcpy(inputBuffer,targetAddress,ss_len);
-    memcpy(inputBuffer+ss_len,hostAddress,ss_len);
+    params[0] = (void*)CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII);
+    params[1] = (void*)CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII);
+    params[2] = (void*)CFStringGetCStringPtr(portalPort,kCFStringEncodingASCII);
+    params[3] = (void*)CFStringGetCStringPtr(hostInterface,kCFStringEncodingASCII);
+    params[4] = (void*)portalSockAddr;
+    params[5] = (void*)hostSockAddr;
     
-    // For discovery sessions target name is left blank (NULL)
-    if(targetIQNCString)
-        memcpy(inputBuffer+2*ss_len,targetIQNCString,targetIQNCStringLen);
+    // Add one for string lengths to copy the NULL character (CFGetStringLength
+    // does not include the length of the NULL terminator)
+    if(!targetIQN)
+        paramSize[0] = 0;
+    else
+        paramSize[0] = CFStringGetLength(targetIQN) + 1;
+    
+    paramSize[1] = CFStringGetLength(portalAddress) + 1;
+    paramSize[2] = CFStringGetLength(portalPort) + 1;
+    paramSize[3] = CFStringGetLength(hostInterface) + 1;
+    paramSize[4] = sizeof(struct sockaddr_storage);
+    paramSize[5] = sizeof(struct sockaddr_storage);
+    
+    // The input buffer will first have eight bytes to denote the length of
+    // the portion that follows.  So for each of the six input parameters,
+    // we'll have six UInt64 blocks that indicate the size up front.
+    size_t header = kNumParams*sizeof(UInt64);
+    size_t inputStructSize = header;
+    
+    CFIndex paramIdx = 0;
+    while(paramIdx < kNumParams) {
+        inputStructSize += paramSize[paramIdx];
+        paramIdx++;
+    }
+    
+    UInt8 * inputStruct = (UInt8*)malloc(inputStructSize);
+    UInt8 * inputStructPos = inputStruct + header;
+
+    paramIdx = 0;
+    while(paramIdx < kNumParams) {
+        memcpy(inputStructPos,params[paramIdx],paramSize[paramIdx]);
+        inputStructPos += paramSize[paramIdx];
+        
+        UInt64 * header = (UInt64*)(inputStruct + sizeof(UInt64)*paramIdx);
+        *header = paramSize[paramIdx];
+        paramIdx++;
+    }
+    
+    const UInt32 inputCnt = 1;
+    UInt64 inputs[inputCnt];
+    inputs[0] = kNumParams;
     
     const UInt32 expOutputCnt = 3;
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
     
     kern_return_t result =
-        IOConnectCallMethod(connection,kiSCSICreateSession,NULL,0,
-                            inputBuffer,inputBufferSize,output,&outputCnt,0,0);
+        IOConnectCallMethod(connection,kiSCSICreateSession,inputs,inputCnt,
+                            inputStruct,inputStructSize,output,&outputCnt,0,0);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt) {
         *sessionId    = (UInt16)output[0];
@@ -189,35 +230,82 @@ errno_t iSCSIKernelGetSessionConfig(SID sessionId,iSCSIKernelSessionCfg * config
 
 /*! Allocates an additional iSCSI connection for a particular session.
  *  @param sessionId the session to create a new connection for.
- *  @param targetAddress the BSD socket structure used to identify the target.
- *  @param hostAddress the BSD socket structure used to identify the host. This
+ *  @param portalAddress the portal address (IPv4/IPv6, or DNS name).
+ *  @param portalPort the TCP port used to connect to the portal.
+ *  @param hostInterface the name of the host interface adapter to use.
+ *  @param portalSockaddr the BSD socket structure used to identify the target.
+ *  @param hostSockaddr the BSD socket structure used to identify the host. This
  *  specifies the interface that the connection will be bound to.
- *  @param connectionId the identifier of the new connection (returned).
- *  @return An error code if a valid connection could not be created. */
+ *  @param connectionId the identifier of the new connection.
+ *  @return error code indicating result of operation. */
 errno_t iSCSIKernelCreateConnection(SID sessionId,
-                                    const struct sockaddr_storage * targetAddress,
-                                    const struct sockaddr_storage * hostAddress,
+                                    CFStringRef portalAddress,
+                                    CFStringRef portalPort,
+                                    CFStringRef hostInterface,
+                                    const struct sockaddr_storage * portalSockAddr,
+                                    const struct sockaddr_storage * hostSockAddr,
                                     CID * connectionId)
 {
     // Check parameters
-    if(!targetAddress || !hostAddress || sessionId == kiSCSIInvalidSessionId)
+    if(!sessionId == kiSCSIInvalidSessionId || !portalAddress || !portalPort || !hostInterface ||
+       portalSockAddr || hostSockAddr || connectionId)
         return kiSCSIInvalidConnectionId;
+    
+    // Pack the input parameters into a single buffer to send to the kernel
+    const int kNumParams = 5;
+    void * params[kNumParams];
+    size_t paramSize[kNumParams];
+    
+    params[0] = (void*)CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII);
+    params[1] = (void*)CFStringGetCStringPtr(portalPort,kCFStringEncodingASCII);
+    params[2] = (void*)CFStringGetCStringPtr(hostInterface,kCFStringEncodingASCII);
+    params[3] = (void*)portalSockAddr;
+    params[4] = (void*)hostSockAddr;
+    
+    // Add one for string lengths to copy the NULL character (CFGetStringLength
+    // does not include the length of the NULL terminator)
+    paramSize[0] = CFStringGetLength(portalAddress) + 1;
+    paramSize[1] = CFStringGetLength(portalPort) + 1;
+    paramSize[2] = CFStringGetLength(hostInterface) + 1;
+    paramSize[3] = sizeof(struct sockaddr_storage);
+    paramSize[4] = sizeof(struct sockaddr_storage);
+    
+    // The input buffer will first have eight bytes to denote the length of
+    // the portion that follows.  So for each of the six input parameters,
+    // we'll have six UInt64 blocks that indicate the size up front.
+    size_t header = kNumParams*sizeof(UInt64);
+    size_t inputStructSize = header;
+    
+    CFIndex paramIdx = 0;
+    while(paramIdx < kNumParams) {
+        inputStructSize += paramSize[paramIdx];
+        paramIdx++;
+    }
+    
+    UInt8 * inputStruct = (UInt8*)malloc(inputStructSize);
+    UInt8 * inputStructPos = inputStruct + header;
+    
+    paramIdx = 0;
+    while(paramIdx < kNumParams) {
+        memcpy(inputStructPos,params[paramIdx],paramSize[paramIdx]);
+        inputStructPos += paramSize[paramIdx];
+        
+        UInt64 * header = (UInt64*)(inputStruct + sizeof(UInt64)*paramIdx);
+        *header = paramSize[paramIdx];
+        paramIdx++;
+    }
     
     // Tell the kernel to drop this session and all of its related resources
     const UInt32 inputCnt = 1;
-    const UInt64 inputs[] = {sessionId};
-    
-    const UInt32 inputStructCnt = 2;
-    const struct sockaddr_storage addresses[] = {*targetAddress,*hostAddress};
+    const UInt64 inputs[] = {sessionId,kNumParams};
     
     const UInt32 expOutputCnt = 2;
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
-
     
     kern_return_t result =
-        IOConnectCallMethod(connection,kiSCSICreateConnection,inputs,inputCnt,addresses,
-                            inputStructCnt*sizeof(struct sockaddr_storage),output,&outputCnt,0,0);
+        IOConnectCallMethod(connection,kiSCSICreateConnection,inputs,inputCnt,inputStruct,
+                            inputStructSize,output,&outputCnt,0,0);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt) {
         *connectionId = (UInt32)output[0];
@@ -493,9 +581,8 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections)
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
     
-    kern_return_t result =
-        IOConnectCallScalarMethod(connection,kiSCSIGetNumConnections,&input,inputCnt,
-                                  output,&outputCnt);
+    kern_return_t result = IOConnectCallScalarMethod(
+        connection,kiSCSIGetNumConnections,&input,inputCnt,output,&outputCnt);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
         *numConnections = (UInt32)output[0];
@@ -505,69 +592,40 @@ errno_t iSCSIKernelGetNumConnections(SID sessionId,UInt32 * numConnections)
 
 /*! Looks up the session identifier associated with a particular target name.
  *  @param targetIQN the IQN name of the target (e.q., iqn.2015-01.com.example)
- *  @param targetIQNLen the length of the targetIQN string, including
- *  the NULL terminator.
- *  @param sessionId the session identifier.
- *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionIdForTargetIQN(const char * targetIQN,
-                                             size_t targetIQNLen,
-                                             SID * sessionId)
+ *  @return sessionId the session identifier. */
+SID iSCSIKernelGetSessionIdForTargetIQN(CFStringRef targetIQN)
 {
-    if(!targetIQN || !sessionId)
-        return EINVAL;
+    if(!targetIQN)
+        return kiSCSIInvalidSessionId;
     
     const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
-    
-    kern_return_t result =
-        IOConnectCallMethod(connection,kiSCSIGetSessionIdForTargetIQN,0,0,targetIQN,
-                            targetIQNLen,output,&outputCnt,0,0);
+
+    kern_return_t result = IOConnectCallMethod(
+        connection,
+        kiSCSIGetSessionIdForTargetIQN,0,0,
+        (const void*)CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+        CFStringGetLength(targetIQN)+1,
+        output,&outputCnt,0,0);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
-        *sessionId = (UInt16)output[0];
-
-    return IOReturnToErrno(result);
+        return (SID)output[0];
+    
+    return kiSCSIInvalidSessionId;
 }
 
-/*! Looks up the connection identifier associated with a particular connection address.
+/*! Looks up the connection identifier associated with a particular portal address.
  *  @param sessionId the session identifier.
- *  @param address the name used when adding the connection (e.g., IP or DNS).
- *  @param port the port used when adding the connection.
- *  @param connectionId the associated connection identifier.
- *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionIdForAddress(SID sessionId,
-                                             const char * targetAddr,
-                                             const char * targetPort,
-                                             CID * connectionId)
+ *  @param portalAddress the address passed to iSCSIKernelCreateSession() or
+ *  iSCSIKernelCreateConnection() when the connection was created.
+ *  @return the associated connection identifier. */
+CID iSCSIKernelGetConnectionIdForPortalAddress(SID sessionId,
+                                               CFStringRef portalAddress)
 {
-    if(!targetAddr || !targetPort || !connectionId)
+    if(sessionId == kiSCSIInvalidSessionId || !portalAddress)
         return EINVAL;
     
-    // Convert address string to an address structure
-    errno_t error = 0;
-    
-    struct addrinfo hints =  {
-        .ai_family = AF_UNSPEC,
-        .ai_socktype = SOCK_STREAM,
-        .ai_protocol = IPPROTO_TCP,
-    };
-    
-    struct addrinfo * aiTarget = NULL;
-    if((error = getaddrinfo(targetAddr,targetPort,&hints,&aiTarget)))
-        return error;
-    
-    struct sockaddr_storage ssTarget;
-    
-    // Copy the sock_addr structure into a sockaddr_storage structure (this
-    // may be either an IPv4 or IPv6 sockaddr structure)
-    memcpy(&ssTarget,aiTarget->ai_addr,aiTarget->ai_addrlen);
-    
-    // The occupied length of the socket address structure (AF-dependent)
-    socklen_t ssTargetLen = aiTarget->ai_addrlen;
-    
-    freeaddrinfo(aiTarget);
-
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
@@ -576,13 +634,16 @@ errno_t iSCSIKernelGetConnectionIdForAddress(SID sessionId,
     UInt32 outputCnt = expOutputCnt;
     
     kern_return_t result =
-        IOConnectCallMethod(connection,kiSCSIGetConnectionIdForAddress,&input,inputCnt,
-                           &ssTarget,ssTargetLen,output,&outputCnt,0,0);
+        IOConnectCallMethod(connection,kiSCSIGetConnectionIdForPortalAddress,
+                            &input,inputCnt,
+                            CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
+                            CFStringGetLength(portalAddress)+1,
+                            output,&outputCnt,0,0);
     
-    if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
-        *connectionId = (UInt16)output[0];
-
-    return IOReturnToErrno(result);
+    if(result != kIOReturnSuccess || outputCnt != expOutputCnt)
+        return kiSCSIInvalidConnectionId;
+    
+    return (CID)output[0];
 }
 
 /*! Gets an array of session identifiers for each session.
@@ -645,58 +706,113 @@ errno_t iSCSIKernelGetConnectionIds(SID sessionId,
     return IOReturnToErrno(result);
 }
 
-/*! Gets the name of the target associated with a particular session.
+/*! Creates a string containing the target IQN associated with a session.
  *  @param sessionId session identifier.
- *  @param targetIQNCString the name of the target.
+ *  @param targetIQN the name of the target.
  *  @param size the size of the targetIQNCString buffer.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetTargetIQNForSessionId(SID sessionId,
-                                             char * targetIQNCString,
-                                             size_t * size)
+CFStringRef iSCSIKernelCreateTargetIQNForSessionId(SID sessionId)
 {
-    if(sessionId == kiSCSIInvalidSessionId || !targetIQNCString || !size)
-        return EINVAL;
+    if(sessionId == kiSCSIInvalidSessionId)
+        return NULL;
     
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetTargetIQNForSessionId,
-                                               &input,inputCnt,0,0,0,0,targetIQNCString,size);
+    const UInt32 expOutputCnt = 1;
+    UInt64 output;
+    UInt32 outputCnt = expOutputCnt;
     
-    return IOReturnToErrno(result);
+    const char targetIQN[NI_MAXHOST];
+    size_t targetIQNLength = NI_MAXHOST;
+    
+    kern_return_t result = IOConnectCallMethod(connection,kiSCSICreateTargetIQNForSessionId,
+                                               &input,inputCnt,0,0,0,0,
+                                               targetIQN,&targetIQNLength);
+    if(result != kIOReturnSuccess)
+        return NULL;
+    
+    return CFStringCreateWithCString(kCFAllocatorDefault,targetIQN,kCFStringEncodingASCII);
 }
 
-/*! Gets the target and host address associated with a particular connection.
+/*! Creates a string containing the address of the portal associated with 
+ *  the specified connection.
  *  @param sessionId session identifier.
  *  @param connectionId connection identifier.
- *  @param targetAddress the target address.
- *  @param hostAddress the host address.
- *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetAddressForConnectionId(SID sessionId,
-                                             CID connectionId,
-                                             struct sockaddr_storage * targetAddress,
-                                             struct sockaddr_storage * hostAddress)
+ *  @return a string containing the portal address, or NULL if the session or
+ *  connection was invalid. */
+CFStringRef iSCSIKernelCreatePortalAddressForConnectionId(SID sessionId,CID connectionId)
 {
-    if(sessionId == kiSCSIInvalidSessionId       || !targetAddress ||
-       connectionId == kiSCSIInvalidConnectionId || !hostAddress)
-        return EINVAL;
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+        return NULL;
     
     const UInt32 inputCnt = 2;
     UInt64 input[] = {sessionId,connectionId};
     
-    const UInt32 sockaddrCnt = 2;
-    struct sockaddr_storage addresses[sockaddrCnt];
-    size_t addressesSize = sizeof(addresses);
+    const char portalAddress[NI_MAXHOST];
+    size_t portalAddressLength = NI_MAXHOST;
     
+    kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetPortalAddressForConnectionId,
+                                               &input,inputCnt,0,0,0,0,
+                                               portalAddress,&portalAddressLength);
+    if(result != kIOReturnSuccess)
+        return NULL;
     
-    kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetAddressForConnectionId,
-                                               &input,inputCnt,0,0,0,0,addresses,&addressesSize);
-    
-    if(result == kIOReturnSuccess) {
-        *targetAddress = addresses[0];
-        *hostAddress = addresses[1];
-    }
-    return IOReturnToErrno(result);
+    return CFStringCreateWithCString(kCFAllocatorDefault,portalAddress,kCFStringEncodingASCII);
 }
+
+/*! Creates a string containing the TCP port of the portal associated with
+ *  the specified connection.
+ *  @param sessionId session identifier.
+ *  @param connectionId connection identifier.
+ *  @return a string containing the TCP port of the portal, or NULL if the
+ *  session or connection was invalid. */
+CFStringRef iSCSIKernelCreatePortalPortForConnectionId(SID sessionId,CID connectionId)
+{
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+        return NULL;
+    
+    const UInt32 inputCnt = 2;
+    UInt64 input[] = {sessionId,connectionId};
+
+    
+    const char portalPort[NI_MAXSERV];
+    size_t portalPortLength = NI_MAXSERV;
+    
+    kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetPortalPortForConnectionId,
+                                               &input,inputCnt,0,0,0,0,
+                                               portalPort,&portalPortLength);
+    if(result != kIOReturnSuccess)
+        return NULL;
+    
+    return CFStringCreateWithCString(kCFAllocatorDefault,portalPort,kCFStringEncodingASCII);
+}
+
+/*! Creates a string containing the host interface used for the connection.
+ *  @param sessionId session identifier.
+ *  @param connectionId connection identifier.
+ *  @return a string containing the host interface name, or NULL if the 
+ *  session or connection was invalid. */
+CFStringRef iSCSIKernelCreateHostInterfaceForConnectionId(SID sessionId,CID connectionId)
+{
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+        return NULL;
+    
+    const UInt32 inputCnt = 2;
+    UInt64 input[] = {sessionId,connectionId};
+    
+    
+    const char hostInterface[NI_MAXHOST];
+    size_t hostInterfaceLength = NI_MAXHOST;
+    
+    kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetHostInterfaceForConnectionId,
+                                               &input,inputCnt,0,0,0,0,
+                                               hostInterface,&hostInterfaceLength);
+    if(result != kIOReturnSuccess)
+        return NULL;
+    
+    return CFStringCreateWithCString(kCFAllocatorDefault,hostInterface,kCFStringEncodingASCII);
+}
+
 
 

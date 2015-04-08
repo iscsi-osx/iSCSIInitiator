@@ -9,12 +9,17 @@
 #include "iSCSIDA.h"
 #include "iSCSIIORegistry.h"
 
+void iSCSIDAUnmountCallback(DADiskRef disk,DADissenterRef dissenter,void *context)
+{
+    CFRunLoopStop(CFRunLoopGetCurrent());
+}
+
 /*! Callback function used to unmount all IOMedia objects. */
 void iSCSIDAUnmountApplierFunc(io_object_t entry, void * context)
 {
     DASessionRef session = (DASessionRef)context;
     DADiskRef disk = DADiskCreateFromIOMedia(kCFAllocatorDefault,session,entry);
-    DADiskUnmount(disk,kDADiskUnmountOptionWhole,NULL,NULL);
+    DADiskUnmount(disk,kDADiskUnmountOptionWhole,iSCSIDAUnmountCallback,NULL);
 }
 
 /*! Unmounts all IOMedia associated with a particular iSCSI session.
@@ -27,10 +32,19 @@ void iSCSIDAUnmountIOMediaForTarget(CFStringRef targetIQN)
     
     // Find the target associated with the session
     io_object_t target = iSCSIIORegistryGetTargetEntry(targetIQN);
-    
+
     // Queue unmount all IOMedia objects & run CFRunLoop
-    iSCSIIORegistryIOMediaApplyFunction(target,&iSCSIDAUnmountApplierFunc,diskArbSession);
-    CFRunLoopRunInMode(kCFRunLoopDefaultMode,1,true);
+    if(target != IO_OBJECT_NULL) {
+        iSCSIIORegistryIOMediaApplyFunction(target,&iSCSIDAUnmountApplierFunc,diskArbSession);
+        CFRunLoopRun();
+    }
+    
+    CFRelease(diskArbSession);
+}
+
+void iSCSIDAMountCallback(DADiskRef disk,DADissenterRef dissenter,void *context)
+{
+    CFRunLoopStop(CFRunLoopGetCurrent());
 }
 
 /*! Callback function used to unmount all IOMedia objects. */
@@ -38,7 +52,7 @@ void iSCSIDAMountApplierFunc(io_object_t entry, void * context)
 {
     DASessionRef session = (DASessionRef)context;
     DADiskRef disk = DADiskCreateFromIOMedia(kCFAllocatorDefault,session,entry);
-    DADiskMount(disk,NULL,kDADiskMountOptionWhole,NULL,NULL);
+    DADiskMount(disk,NULL,kDADiskMountOptionWhole,iSCSIDAMountCallback,NULL);
 }
 
 /*! Mounts all IOMedia associated with a particular iSCSI session.
@@ -47,13 +61,17 @@ void iSCSIDAMountIOMediaForTarget(CFStringRef targetIQN)
 {
     // Create a disk arbitration session and associate it with current runloop
     DASessionRef diskArbSession = DASessionCreate(kCFAllocatorDefault);
-    DASessionScheduleWithRunLoop(diskArbSession,CFRunLoopGetCurrent(),kCFRunLoopDefaultMode);
+    DASessionScheduleWithRunLoop(diskArbSession,CFRunLoopGetCurrent(),kCFRunLoopCommonModes);
     
     // Find the target associated with the session
     io_object_t target = iSCSIIORegistryGetTargetEntry(targetIQN);
     
     // Queue mount all IOMedia objects & run CFRunLoop
-    iSCSIIORegistryIOMediaApplyFunction(target,&iSCSIDAMountApplierFunc,diskArbSession);
-    CFRunLoopRunInMode(kCFRunLoopDefaultMode,1,true);
+    if(target != IO_OBJECT_NULL) {
+        iSCSIIORegistryIOMediaApplyFunction(target,&iSCSIDAMountApplierFunc,diskArbSession);
+        CFRunLoopRun();
+    }
+    
+    CFRelease(diskArbSession);
 }
 

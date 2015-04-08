@@ -151,7 +151,7 @@ public:
                                              iSCSISession * session,
                                              iSCSIConnection * connection);
     
-    /** This function has been overloaded to provide additional task-timing
+    /*! This function has been overloaded to provide additional task-timing
      *  support for multiple connections.
      *  @param session the session associated with the task.
      *  @param connection the connection associated with the task.
@@ -163,23 +163,31 @@ public:
                               SCSIParallelTaskIdentifier parallelRequest,
                               SCSITaskStatus completionStatus,
                               SCSIServiceResponse serviceResponse);
-        
+
     
     /////////////////////  FUNCTIONS TO MANIPULATE ISCSI ///////////////////////
     
     /*! Allocates a new iSCSI session and returns a session qualifier ID.
      *  @param targetIQN the name of the target, or NULL if discovery session.
-     *  @param targetIQNLen the length of the target name.
-     *  @param targetaddress the BSD socket structure used to identify the target.
-     *  @param hostaddress the BSD socket structure used to identify the host adapter.
+     *  @param portalAddress the IPv4/IPv6 or hostname of the portal.
+     *  @param portalPort the TCP port used for the connection.
+     *  @param hostInterface the host interface to use for the connection.
+     *  @param portalSockaddr the BSD socket structure used to identify the target.
+     *  @param hostSockaddr the BSD socket structure used to identify the host adapter.
      *  @param sessionId identifier for the new session.
      *  @param connectionId identifier for the new connection.
      *  @return error code indicating result of operation. */
     errno_t CreateSession(OSString * targetIQN,
-                          const struct sockaddr_storage * targetAddress,
-                          const struct sockaddr_storage * hostAddress,
+                          OSString * portalAddress,
+                          OSString * portalPort,
+                          OSString * hostInterface,
+                          const struct sockaddr_storage * portalSockaddr,
+                          const struct sockaddr_storage * hostSockaddr,
                           SID * sessionId,
                           CID * connectionId);
+    
+    /*! Releases all iSCSI sessions. */
+    void ReleaseAllSessions();
     
     /*! Releases an iSCSI session, including all connections associated with that
      *  session.  Connections may be active or inactive when this function is
@@ -189,13 +197,19 @@ public:
         
     /*! Allocates a new iSCSI connection associated with the particular session.
      *  @param sessionId the session to create a new connection for.
-     *  @param targetaddress the BSD socket structure used to identify the target.
-     *  @param hostaddress the BSD socket structure used to identify the host adapter.
+     *  @param portalAddress the IPv4/IPv6 or hostname of the portal.
+     *  @param portalPort the TCP port used for the connection.
+     *  @param hostInterface the host interface to use for the connection.
+     *  @param portalSockaddr the BSD socket structure used to identify the target.
+     *  @param hostSockaddr the BSD socket structure used to identify the host adapter.
      *  @param connectionId identifier for the new connection.
      *  @return error code indicating result of operation. */
     errno_t CreateConnection(SID sessionId,
-                             const struct sockaddr_storage * targetAddress,
-                             const struct sockaddr_storage * hostAddress,
+                             OSString * portalAddress,
+                             OSString * portalPort,
+                             OSString * hostInterface,
+                             const struct sockaddr_storage * portalSockaddr,
+                             const struct sockaddr_storage * hostSockaddr,
                              CID * connectionId);
     
     /*! Frees a given iSCSI connection associated with a given session.
@@ -307,7 +321,6 @@ private:
                       iSCSIConnection * connection,
                       iSCSIPDU::iSCSIPDUNOPInBHS * bhs);
     
-    
     /*! Process an incoming SCSI response PDU.
      *  @param session the session associated with the SCSI response.
      *  @param connection the connection associated with the SCSI response.
@@ -332,7 +345,6 @@ private:
                          iSCSIConnection * connection,
                          iSCSIPDU::iSCSIPDUAsyncMsgBHS * bhs);
 
-
     /*! Process an incoming R2T PDU.
      *  @param session the session associated with the R2T PDU.
      *  @param connection the connection associated with the R2T PDU.
@@ -341,7 +353,6 @@ private:
                     iSCSIConnection * connection,
                     iSCSIPDU::iSCSIPDUR2TBHS * bhs);
     
-    
     /*! Process an incoming reject PDU.
      *  @param session the session associated with the reject PDU.
      *  @param connection the connection associated with the reject PDU.
@@ -349,7 +360,6 @@ private:
     void ProcessReject(iSCSISession * session,
                        iSCSIConnection * connection,
                        iSCSIPDU::iSCSIPDURejectBHS * bhs);
-
     
     /*! Adjusts the timeouts associated with a particular connection.  This
      *  function uses a NOP out PDU to measure the latency of particular

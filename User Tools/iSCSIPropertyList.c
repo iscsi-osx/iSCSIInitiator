@@ -147,10 +147,8 @@ CFMutableDictionaryRef iSCSIPLGetTargetInfo(CFStringRef targetIQN,
     {
         if(createIfMissing && CFDictionaryGetCountOfKey(targetsList,targetIQN) == 0)
         {
-            CFMutableDictionaryRef targetInfo = CFDictionaryCreateMutable(kCFAllocatorDefault,
-                                                                          0,
-                                                                          &kCFTypeDictionaryKeyCallBacks,
-                                                                          &kCFTypeDictionaryValueCallBacks);
+            CFMutableDictionaryRef targetInfo = CFDictionaryCreateMutable(
+                kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
             
             CFDictionarySetValue(targetsList,targetIQN,targetInfo);
             CFRelease(targetInfo);
@@ -173,13 +171,10 @@ CFMutableDictionaryRef iSCSIPLGetPortalsList(CFStringRef targetIQN,
     {
         if(createIfMissing && CFDictionaryGetCountOfKey(targetInfo,kiSCSIPKPortalsKey) == 0)
         {
-            CFMutableDictionaryRef portalsList = CFDictionaryCreateMutable(kCFAllocatorDefault,
-                                                                           0,
-                                                                           &kCFTypeDictionaryKeyCallBacks,
-                                                                           &kCFTypeDictionaryValueCallBacks);
+            CFMutableDictionaryRef portalsList = CFDictionaryCreateMutable(
+                kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
             
             CFDictionarySetValue(targetInfo,kiSCSIPKPortalsKey,portalsList);
-            
             CFRelease(portalsList);
         }
         return (CFMutableDictionaryRef)CFDictionaryGetValue(targetInfo,kiSCSIPKPortalsKey);
@@ -474,7 +469,7 @@ void iSCSIPLAddDiscoveryRecord(iSCSIDiscoveryRecRef discoveryRecord)
 {
     // Iterate over the dictionary and add keys to the existing cache
     CFDictionaryRef discoveryDict = iSCSIDiscoveryRecCreateDictionary(discoveryRecord);
-    
+
     if(!discoveryDict)
         return;
     
@@ -490,7 +485,7 @@ void iSCSIPLAddDiscoveryRecord(iSCSIDiscoveryRecRef discoveryRecord)
         CFDictionarySetValue(discoveryCache,keys[idx],values[idx]);
     }
     
-//    CFRelease(discoveryDict);
+    CFRelease(discoveryDict);
     discoveryCacheModified = true;
 }
 

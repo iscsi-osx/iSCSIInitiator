@@ -66,6 +66,19 @@ errno_t iSCSILogoutConnection(SID sessionId,
                               CID connectionId,
                               enum iSCSILogoutStatusCode * statusCode);
 
+/*! Prepares the active sessions in the kernel for a sleep event.  After the
+ *  system wakes up, the function iSCSIRestoreForSystemWake() should be
+ *  called before using any other functions.  Failure to do so may lead to
+ *  undefined behavior.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSIPrepareForSystemSleep();
+
+/*! Restores iSCSI sessions after a system has been woken up.  Before
+ *  sleeping, the function iSCSIPrepareForSleep() must have been called.
+ *  Otherwise, the behavior of this function is undefined. 
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSIRestoreForSystemWake();
+
 /*! Queries a portal for available targets (utilizes iSCSI SendTargets).
  *  @param portal the iSCSI portal to query.
  *  @param auth specifies the authentication parameters to use.

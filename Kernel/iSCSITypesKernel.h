@@ -29,6 +29,15 @@ typedef struct iSCSIConnection {
     /*! Connection ID. */
     CID CID; // Might need this for ErrorRecovery (otherwise have to search through list for it)
     
+    /*! Portal address (IPv4/IPv6/DNS address). */
+    OSString * portalAddress;
+    
+    /*! TCP port used for the connection. */
+    OSString * portalPort;
+    
+    /*! Host inteface used for the connection. */
+    OSString * hostInteface;
+    
     /*! Target tag for current transfer. */
     //    UInt32 targetTransferTag;  /// NEED THIS???
     
@@ -83,6 +92,7 @@ typedef struct iSCSIConnection {
     
     /*! Keeps track of the index in the above array should be populated next. */
     UInt8 bytesPerSecHistoryIdx;
+    
 } iSCSIConnection;
 
 

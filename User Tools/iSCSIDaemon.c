@@ -3,7 +3,7 @@
  * @file		iSCSIDaemon.c
  * @version		1.0
  * @copyright	(c) 2014-2015 Nareg Sinenian. All rights reserved.
- * @brief		iSCSI daemon
+ * @brief		iSCSI user-space daemon
  */
 
 #include <sys/socket.h>
@@ -19,15 +19,28 @@
 #include <string.h>
 
 #include <launch.h>
+#include <CoreFoundation/CFPreferences.h>
+
+#include <mach/mach_port.h>
+#include <mach/mach_init.h>
+#include <mach/mach_interface.h>
+
+#include <IOKit/pwr_mgt/IOPMLib.h>
+#include <IOKit/IOMessage.h>
 
 #include "iSCSISession.h"
 #include "iSCSIKernelInterface.h"
 #include "iSCSIDaemonInterfaceShared.h"
 #include "iSCSIPropertyList.h"
 
-#include <CoreFoundation/CFPreferences.h>
 
 static const CFStringRef applicationId = CFSTR("com.NSinenian.iscsix");
+
+// Used to notify daemon of power state changes
+io_connect_t powerPlaneRoot;
+io_object_t powerNotifier;
+IONotificationPortRef powerNotifyPortRef;
+
 
 const struct iSCSIDRspLoginSession iSCSIDRspLoginSessionInit  = {
     .funcCode = kiSCSIDLoginSession,
@@ -303,17 +316,17 @@ errno_t iSCSIDGetSessionIdForTarget(int fd,struct iSCSIDCmdGetSessionIdForTarget
     // Grab objects from stream
     iSCSITargetRef target = iSCSIDCreateObjectFromSocket(fd,cmd->targetLength,
                             (void *(* )(CFDataRef))&iSCSITargetCreateWithData);
-    
+
     SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
     
     // Compose a response to send back to the client
     struct iSCSIDRspGetSessionIdForTarget rsp = iSCSIDRspGetSessionIdForTargetInit;
     rsp.errorCode = 0;
     rsp.sessionId = sessionId;
-    
+
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EAGAIN;
-    
+
     return 0;
 }
 
@@ -558,13 +571,148 @@ errno_t iSCSIDCopyConnectionConfig(int fd,struct iSCSIDCmdCopyConnectionConfig *
     return 0;
 }
 
+/*! Handles power event messages received from the kernel.  This callback
+ *  is only active when iSCSIDRegisterForPowerEvents() has been called.
+ *  @param refCon always NULL (not used).
+ *  @param service the service associated with the notification port.
+ *  @param messageType the type of notification message.
+ *  @param messageArgument argument associated with the notification message. */
+void iSCSIDHandlePowerEvent(void * refCon,
+                            io_service_t service,
+                            natural_t messageType,
+                            void * messageArgument)
+{
+    switch(messageType)
+    {
+        case kIOMessageSystemHasPoweredOn:
+            iSCSIRestoreForSystemWake();
+            fprintf(stderr,"Wakeup event");
+        break;
+/*        case kIOMessageSystemWillSleep:
+        case kIOMessageSystemWillRestart:
+        case kIOMessageSystemWillPowerOff:*/
+        case kIOMessageCanSystemSleep:
+            fprintf(stderr,"Sleeping...");
+            iSCSIPrepareForSystemSleep();
+            
+            
+        break;
+    };
+
+}
+
+/*! Registers the daemon with the kernel to receive power events
+ *  (e.g., sleep/wake notifications).
+ *  @return true if the daemon was successfully registered. */
+bool iSCSIDRegisterForPowerEvents()
+{
+    powerPlaneRoot = IORegisterForSystemPower(NULL,
+                                              &powerNotifyPortRef,
+                                              iSCSIDHandlePowerEvent,
+                                              &powerNotifier);
+   
+    if(powerPlaneRoot == 0)
+        return false;
+    
+    CFRunLoopAddSource(CFRunLoopGetMain(),
+                       IONotificationPortGetRunLoopSource(powerNotifyPortRef),
+                       kCFRunLoopDefaultMode);
+    return true;
+}
+
+/*! Deregisters the daemon with the kernel to no longer receive power events. */
+void iSCSIDDeregisterForPowerEvents()
+{
+    CFRunLoopRemoveSource(CFRunLoopGetCurrent(),
+                          IONotificationPortGetRunLoopSource(powerNotifyPortRef),
+                          kCFRunLoopDefaultMode);
+    
+    IODeregisterForSystemPower(&powerNotifier);
+    IOServiceClose(powerPlaneRoot);
+    IONotificationPortDestroy(powerNotifyPortRef);
+}
+
+void iSCSIDProcessIncomingRequest(CFSocketRef socket,
+                                  CFSocketCallBackType callbackType,
+                                  CFDataRef address,
+                                  const void * data,
+                                  void * info)
+{
+    // File descriptor associated with the socket we're using
+    static fd = 0;
+    
+    // If this is the first connection, initialize the user client for the
+    // iSCSI initiator kernel extension
+    if(fd == 0) {
+        iSCSIKernelInitialize();
+
+        // Wait for an incoming connection; upon timeout quit
+        struct sockaddr_storage peerAddress;
+        socklen_t length = sizeof(peerAddress);
+        
+        // Get file descriptor associated with the connection
+        fd = accept(CFSocketGetNative(socket),(struct sockaddr *)&peerAddress,&length);
+    }
+
+    struct iSCSIDCmd cmd;
+
+    while(recv(fd,&cmd,sizeof(cmd),MSG_PEEK) == sizeof(cmd)) {
+        
+        recv(fd,&cmd,sizeof(cmd),MSG_WAITALL);
+    /*
+    // Receive a command from a client and then process the command
+    if(recv(sock,&cmd,sizeof(cmd),0) != sizeof(cmd))
+    {
+        fprintf(stderr,"error: %d",errno);
+        iSCSIKernelCleanUp();
+        close(sock);
+        return;
+    }
+    */
+    errno_t error = 0;
+    switch(cmd.funcCode)
+    {
+        
+        case kiSCSIDLoginSession:
+            error = iSCSIDLoginSession(fd,(iSCSIDCmdLoginSession*)&cmd); break;
+        case kiSCSIDLogoutSession:
+            error = iSCSIDLogoutSession(fd,(iSCSIDCmdLogoutSession*)&cmd); break;
+        case kiSCSIDLoginConnection:
+            error = iSCSIDLoginConnection(fd,(iSCSIDCmdLoginConnection*)&cmd); break;
+        case kiSCSIDLogoutConnection:
+            error = iSCSIDLogoutConnection(fd,(iSCSIDCmdLogoutConnection*)&cmd); break;
+        case kiSCSIDQueryPortalForTargets:
+            error = iSCSIDQueryPortalForTargets(fd,(iSCSIDCmdQueryPortalForTargets*)&cmd); break;
+        case kiSCSIDQueryTargetForAuthMethod:
+            error = iSCSIDQueryTargetForAuthMethod(fd,(iSCSIDCmdQueryTargetForAuthMethod*)&cmd); break;
+        case kiSCSIDGetSessionIdForTarget:
+            error = iSCSIDGetSessionIdForTarget(fd,(iSCSIDCmdGetSessionIdForTarget*)&cmd); break;
+        case kiSCSIDGetConnectionIdForPortal:
+            error = iSCSIDGetConnectionIdForPortal(fd,(iSCSIDCmdGetConnectionIdForPortal*)&cmd); break;
+        case kiSCSIDGetSessionIds:
+            error = iSCSIDGetSessionIds(fd,(iSCSIDCmdGetSessionIds*)&cmd); break;
+        case kiSCSIDGetConnectionIds:
+            error = iSCSIDGetConnectionIds(fd,(iSCSIDCmdGetConnectionIds*)&cmd); break;
+        case kiSCSIDCreateTargetForSessionId:
+            error = iSCSIDCreateTargetForSessionId(fd,(iSCSIDCmdCreateTargetForSessionId*)&cmd); break;
+        case kiSCSIDCreatePortalForConnectionId:
+            error = iSCSIDCreatePortalForConnectionId(fd,(iSCSIDCmdCreatePortalForConnectionId*)&cmd); break;
+        case kiSCSIDCopySessionConfig:
+            error = iSCSIDCopySessionConfig(fd,(iSCSIDCmdCopySessionConfig*)&cmd); break;
+        case kiSCSIDCopyConnectionConfig:
+            error = iSCSIDCopyConnectionConfig(fd,(iSCSIDCmdCopyConnectionConfig*)&cmd); break;
+        default:
+            // Close our connection to the iSCSI kernel extension
+            iSCSIKernelCleanUp();
+            close(fd);
+            fd = 0;
+    };
+    }
+}
+
 /*! iSCSI daemon entry point. */
 int main(void)
 {
-    // Verify that the iSCSI kernel extension is running
-    if(iSCSIKernelInitialize() != kIOReturnSuccess)
-        return ENOTSUP;
- 
     // Connect to the preferences .plist file associated with "iscsid" and
     // read configuration parameters for the initiator
     iSCSIPLSynchronize();
@@ -587,21 +735,27 @@ int main(void)
     launch_data_t reg_request = launch_data_new_string(LAUNCH_KEY_CHECKIN);
     
     // Quit if we are unable to checkin...
-    if(!reg_request)
-        return -1;
+    if(!reg_request) {
+        fprintf(stderr,"Failed to checkin with launchd.\n");
+        goto ERROR_LAUNCH_DATA;
+    }
     
     launch_data_t reg_response = launch_msg(reg_request);
     
     // Ensure registration was successful
-    if((launch_data_get_type(reg_response) == LAUNCH_DATA_ERRNO))
+    if((launch_data_get_type(reg_response) == LAUNCH_DATA_ERRNO)) {
+        fprintf(stderr,"Failed to checkin with launchd.\n");
         goto ERROR_LAUNCH_DATA;
+    }
     
     // Grab label and socket dictionary from daemon's property list
     launch_data_t label = launch_data_dict_lookup(reg_response,LAUNCH_JOBKEY_LABEL);
     launch_data_t sockets = launch_data_dict_lookup(reg_response,LAUNCH_JOBKEY_SOCKETS);
     
-    if(!label || !sockets)
+    if(!label || !sockets) {
+        fprintf(stderr,"Could not find socket ");
         goto ERROR_NO_SOCKETS;
+    }
     
     launch_data_t listen_socket_array = launch_data_dict_lookup(sockets,"iscsid");
     
@@ -611,103 +765,33 @@ int main(void)
     // Grab handle to socket we want to listen on...
     launch_data_t listen_socket = launch_data_array_get_index(listen_socket_array,0);
     
-    // Create a new kernel event queues. The socket descriptors are registered
-    // with the kernel, and the kernel notifies us (using events) when there
-    // are incoming connections on a socket.
-    int kernelQueue;
-    if((kernelQueue = kqueue()) == -1)
-        goto ERROR_KQUEUE_FAIL;
+    if(!iSCSIDRegisterForPowerEvents())
+        goto ERROR_PWR_MGMT_FAIL;
     
-    // Wait for an incoming connection; upon timeout quit
-    struct sockaddr_storage peerAddress;
-    socklen_t length = sizeof(peerAddress);
+    // Create a socket that will
+    CFSocketRef socket = CFSocketCreateWithNative(kCFAllocatorDefault,
+                                                  launch_data_get_fd(listen_socket),
+                                                  kCFSocketReadCallBack,
+                                                  iSCSIDProcessIncomingRequest,0);
+  
+    CFRunLoopSourceRef runLoopSource = CFSocketCreateRunLoopSource(kCFAllocatorDefault,socket,0);
+    CFRunLoopAddSource(CFRunLoopGetMain(),runLoopSource,kCFRunLoopDefaultMode);
+    CFRunLoopRun();
     
-    // Get file descriptor associated with the connection
-    int fd = accept(launch_data_get_fd(listen_socket),(struct sockaddr *)&peerAddress,&length);
+    // Deregister for power
+    iSCSIDDeregisterForPowerEvents();
     
-    // Associate a new kernel event with the socket
-    struct kevent kernelEvent;
-    EV_SET(&kernelEvent,fd,EVFILT_READ,EV_ADD,0,0,NULL);
-    
-    // Keep track of events as we get them and errors as we do processing
-    errno_t error = 0;
-    bool shutdownDaemon = false;
-
-    do
-    {
-        // Receive data
-        struct iSCSIDCmd cmd;
-        if(recv(fd,&cmd,sizeof(cmd),0) != sizeof(cmd))
-            goto ERROR_COMM_FAIL;
-
-        switch(cmd.funcCode)
-        {
-            case kiSCSIDLoginSession:
-                error = iSCSIDLoginSession(fd,(iSCSIDCmdLoginSession*)&cmd); break;
-            case kiSCSIDLogoutSession:
-                error = iSCSIDLogoutSession(fd,(iSCSIDCmdLogoutSession*)&cmd); break;
-            case kiSCSIDLoginConnection:
-                error = iSCSIDLoginConnection(fd,(iSCSIDCmdLoginConnection*)&cmd); break;
-            case kiSCSIDLogoutConnection:
-                error = iSCSIDLogoutConnection(fd,(iSCSIDCmdLogoutConnection*)&cmd); break;
-            case kiSCSIDQueryPortalForTargets:
-                error = iSCSIDQueryPortalForTargets(fd,(iSCSIDCmdQueryPortalForTargets*)&cmd); break;
-            case kiSCSIDQueryTargetForAuthMethod:
-                error = iSCSIDQueryTargetForAuthMethod(fd,(iSCSIDCmdQueryTargetForAuthMethod*)&cmd); break;
-            case kiSCSIDGetSessionIdForTarget:
-                error = iSCSIDGetSessionIdForTarget(fd,(iSCSIDCmdGetSessionIdForTarget*)&cmd); break;
-            case kiSCSIDGetConnectionIdForPortal:
-                error = iSCSIDGetConnectionIdForPortal(fd,(iSCSIDCmdGetConnectionIdForPortal*)&cmd); break;
-            case kiSCSIDGetSessionIds:
-                error = iSCSIDGetSessionIds(fd,(iSCSIDCmdGetSessionIds*)&cmd); break;
-            case kiSCSIDGetConnectionIds:
-                error = iSCSIDGetConnectionIds(fd,(iSCSIDCmdGetConnectionIds*)&cmd); break;
-            case kiSCSIDCreateTargetForSessionId:
-                error = iSCSIDCreateTargetForSessionId(fd,(iSCSIDCmdCreateTargetForSessionId*)&cmd); break;
-            case kiSCSIDCreatePortalForConnectionId:
-                error = iSCSIDCreatePortalForConnectionId(fd,(iSCSIDCmdCreatePortalForConnectionId*)&cmd); break;
-            case kiSCSIDCopySessionConfig:
-                error = iSCSIDCopySessionConfig(fd,(iSCSIDCmdCopySessionConfig*)&cmd); break;
-            case kiSCSIDCopyConnectionConfig:
-                error = iSCSIDCopyConnectionConfig(fd,(iSCSIDCmdCopyConnectionConfig*)&cmd); break;
-            case kiSCSIDShutdownDaemon:
-                shutdownDaemon = true; break;
-            default:
-                error = EIO;
-        };
-        
-    } while(!error && !shutdownDaemon);
-    
-    close(fd);
-    
-    // Close our connection to the iSCSI kernel extension
-    iSCSIKernelCleanUp();
-    
-    launch_data_free(reg_response);
-    
+ //   launch_data_free(reg_response);
     return 0;
-        
-ERROR_KQUEUE_FAIL:
-    fprintf(stderr,"Failed to create kernel event queue.\n");
-
-ERROR_KEVENT_REG_FAIL:
-    fprintf(stderr,"Failed to register socket with kernel.\n");
+    
+ERROR_PWR_MGMT_FAIL:
+    
     
 ERROR_NO_SOCKETS:
-    fprintf(stderr,"Could not find socket ");
-
-    launch_data_free(reg_response);
     
 ERROR_LAUNCH_DATA:
-    fprintf(stderr,"Failed to checkin with launchd.\n");
-    
-ERROR_COMM_FAIL:
-    
-    // Close our connection to the iSCSI kernel extension
-    iSCSIKernelCleanUp();
-    
-    launch_data_free(reg_response);
-    
+
+   // launch_data_free(reg_response);
     return ENOTSUP;
 }
 
