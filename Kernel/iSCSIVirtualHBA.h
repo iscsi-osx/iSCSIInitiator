@@ -27,6 +27,7 @@
 #include <sys/socket.h>
 #include <sys/kern_control.h>
 #include <sys/signal.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 
 
@@ -391,8 +392,12 @@ private:
      *  for the connection. */
     static const UInt32 kNumBytesPerAvgBW;
     
-    /*! Default task timeout for new tasks. */
+    /*! Default task timeout for new tasks (milliseconds). */
     static const UInt32 kiSCSITaskTimeoutMs;
+    
+    /*! Default timeout for new connections (milliseconds). */
+    static const UInt32 kiSCSITCPTimeoutMs;
+
     
     /*! Used as part of the iSCSI layer intiator task tag to specify the 
      *  type of task. */

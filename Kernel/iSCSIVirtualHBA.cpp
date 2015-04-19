@@ -17,9 +17,6 @@
 
 #include <IOKit/IORegistryEntry.h>
 
-
-#undef DEBUG
-
 // Use DBLog() for debug outputs and IOLog() for all outputs
 // DBLog() is only enabled for debug builds
 #ifdef DEBUG
@@ -57,8 +54,12 @@ const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
  *  for the connection (1024^2 = 1048576). */
 const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 
-/*! Default task timeout for new tasks. */
+/*! Default task timeout for new tasks (milliseconds). */
 const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 2000;
+
+/*! Default timeout for new connections (milliseconds). */
+const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutMs = 1000;
+
 
 OSDefineMetaClassAndStructors(iSCSIVirtualHBA,IOSCSIParallelInterfaceController);
 
@@ -366,6 +367,15 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
     if(!connection)
         return;
     
+    // If the task timeout is due to a broken connection, handle it.
+    // Otherwise the target may be taking too long, just report it up the
+    // driver stack
+    struct sockaddr peername;
+    if(sock_getpeername(connection->socket,&peername,sizeof(peername))) {
+        HandleConnectionTimeout(sessionId,connectionId);
+        return;
+    }
+
     // Let task queue know that the last (current) task should be removed
     connection->taskQueue->completeCurrentTask();
     
@@ -382,7 +392,24 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
  *  @param connectionId the connection that timed out. */
 void iSCSIVirtualHBA::HandleConnectionTimeout(SID sessionId,CID connectionId)
 {
-    ReleaseConnection(sessionId,connectionId);
+    // If this is the last connection, release the session...
+    iSCSISession * session;
+    
+    if(!(session = sessionList[sessionId]))
+       return;
+    
+    CID connectionCount = 0;
+    for(CID connectionId = 0; connectionId < kiSCSIMaxConnectionsPerSession; connectionId++)
+        if(session->connections[connectionId])
+            connectionCount++;
+
+    // In the future add recovery here...
+    
+    if(connectionCount > 1)
+        ReleaseConnection(sessionId,connectionId);
+    else
+        ReleaseSession(sessionId);
+
 }
 
 SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask)
@@ -1459,6 +1486,13 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     // Connect the socket to the target node
     if((error = sock_connect(newConn->socket,(sockaddr*)portalSockaddr,0)))
         goto SOCKET_CONNECT_FAILURE;
+    
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = kiSCSITCPTimeoutMs*1e3;
+    
+    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_SNDTIMEO,(const void*)&timeout,sizeof(struct timeval));
+    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_RCVTIMEO,(const void*)&timeout,sizeof(struct timeval));
 
     // Initialize queue that keeps track of connection speed
     memset(newConn->bytesPerSecondHistory,0,sizeof(UInt8)*newConn->kBytesPerSecAvgWindowSize);
