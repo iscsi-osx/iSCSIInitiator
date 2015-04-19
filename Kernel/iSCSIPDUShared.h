@@ -95,6 +95,29 @@ typedef struct __iSCSIPDUTargetBHS {
     UInt32 reserved3;
 } __attribute__((packed)) iSCSIPDUTargetBHS;
 
+
+/*! Asynchronous iSCSI events to be handled by the session layer. */
+enum iSCSIPDUAsyncMsgEvent {
+    
+    /*! SCSI asynchronous event (with sense data). */
+    kiSCSIPDUAsyncMsgSCSIAsyncMsg = 0x00,
+    
+    /*! Target requests logout. */
+    kiSCSIPDUAsyncMsgLogout = 0x01,
+    
+    /*! Target will drop connection. */
+    kiSCSIPDUAsynMsgDropConnection = 0x02,
+    
+    /*! Target will drop all connections. */
+    kiSCSIPDUAsyncMsgDropAllConnections = 0x03,
+    
+    /*! Target requests parameter renegotiation. */
+    kiSCSIPDUAsyncMsgNegotiateParams = 0x04,
+    
+    /*! Vendor specific event. */
+    kiSCSIPDUAsyncMsgVendorCode = 0xFF
+};
+
 /*!	Op codes are used to code PDUs sent form the initiator to the target.
  *  They specify the type of commands or data encoded witin the PDU. */
 enum iSCSIPDUInitiatorOpCodes {

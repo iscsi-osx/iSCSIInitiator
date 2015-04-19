@@ -196,11 +196,42 @@ public:
 	/*! Invoked when the user-space application is terminated without calling
 	 *	IOServiceClose or remotely invoking close(). */
 	virtual IOReturn clientDied();
-	
+    
+    /*! Invoked when a user-space application registers a notification port
+     *  with this user client.
+     *  @param port the port associated with the client connection.
+     *  @param type the type.
+     *  @param refCon a user reference value.
+     *  @return an error code indicating the result of the operation. */
+    virtual IOReturn registerNotificationPort(mach_port_t port,
+                                              UInt32 type,
+                                              io_user_reference_t refCon);
+    
+    /*! Send a notification message to the user-space application.
+     *  @param message details regarding the notification message.
+     *  @return an error code indicating the result of the operation. */
+    IOReturn sendNotification(iSCSIKernelNotificationMessage * message);
+
+    /*! Sends a notification message to the user indicating that an
+     *  iSCSI asynchronous event has occured.
+     *  @param sessionId the session identifier.
+     *  @param connectionId the connection identifier.
+     *  @param event the asynchronsou event.
+     *  @return an error code indicating the result of the operation. */
+    IOReturn sendAsyncMessageNotification(SID sessionId,
+                                          CID connectionId,
+                                          enum iSCSIPDUAsyncMsgEvent event);
+    
+    /*! Sends a notification message to the user indicating that the kernel
+     *  extension will be terminating. 
+     *  @return an error code indicating the result of the operation. */
+    IOReturn sendTerminateMessageNotification();
+
 	/*! Array of methods that can be called by user-space. */
 	static const IOExternalMethodDispatch methods[kiSCSIInitiatorNumMethods];
 	
 private:
+
 	/*! Points to the provider object (driver). The pointer is assigned
 	 *	when the start() function is called by the I/O Kit. */
 	iSCSIVirtualHBA * provider;
@@ -218,6 +249,9 @@ private:
 	
 	/*! A security type that identifies user privileges. */
 	UInt32 type;
+    
+    /*! The notification port associated with a user-space connection. */
+    mach_port_t notificationPort;
 };
 
 #endif /* defined(__ISCSI_INITIATOR_CLIENT_H__) */

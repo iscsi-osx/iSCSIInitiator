@@ -12,7 +12,6 @@
 
 namespace iSCSIPDU {
     
-    // final
     const iSCSIPDUDataOutBHS iSCSIPDUDataOutBHSInit = {
         .opCode             = kiSCSIPDUOpCodeDataOut,
         .flags              = 0,
@@ -27,7 +26,6 @@ namespace iSCSIPDU {
         .bufferOffset       = 0,
         .reserved4          = 0 };
 
-    // final
     const iSCSIPDUSCSICmdBHS iSCSIPDUSCSICmdBHSInit = {
         .opCode             = kiSCSIPDUOpCodeSCSICmd,
         .flags              = 0,
@@ -37,7 +35,6 @@ namespace iSCSIPDU {
         .initiatorTaskTag   = 0,
         .dataTransferLength = 0 };
     
-    // final
     const iSCSIPDUTaskMgmtReqBHS iSCSIPDUTaskMgmtReqBHSInit = {
         .opCode             = kiSCSIPDUOpCodeTaskMgmtReq,
         .function           = 0,
@@ -54,7 +51,6 @@ namespace iSCSIPDU {
         .flags = 0,
         .totalAHSLength = 0};
 
-    // final
     const iSCSIPDUNOPOutBHS iSCSIPDUNOPOutBHSInit = {
         .opCode             = kiSCSIPDUOpCodeNOPOut,
         .flags              = 0,

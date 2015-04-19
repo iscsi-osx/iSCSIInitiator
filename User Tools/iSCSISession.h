@@ -5,7 +5,8 @@
  * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
  * @brief		User-space iSCSI session management functions.  This library
  *              depends on the user-space iSCSI PDU library to login, logout
- *              and perform discovery functions on iSCSI target nodes.
+ *              and perform discovery functions on iSCSI target nodes.  It
+ *              also relies on the kernel layer for access to kext.
  */
 
 #ifndef __ISCSI_SESSION_H__
@@ -16,6 +17,19 @@
 #include <ifaddrs.h>
 
 #include "iSCSITypes.h"
+
+/*! Call to initialize iSCSI session management functions.  This function will
+ *  initialize the kernel layer after which other session-related functions
+ *  may be called.
+ *  @param rl the runloop to use for executing session-related functions.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSIInitialize(CFRunLoopRef rl);
+
+/*! Called to cleanup kernel resources used by the iSCSI session management
+ *  functions.  This function will close any connections to the kernel
+ *  and stop processing messages related to the kernel.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSICleanup();
 
 /*! Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionClose to close this session and free resources.

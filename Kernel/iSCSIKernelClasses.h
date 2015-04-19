@@ -11,10 +11,19 @@
 #ifndef __ISCSI_KERNEL_CLASSES_H__
 #define __ISCSI_KERNEL_CLASSES_H__
 
-#define iSCSIVirtualHBA         com_NSinenian_iSCSIVirtualHBA
-#define iSCSITaskQueue          com_NSinenian_iSCSITaskQueue
-#define iSCSIIOEventSource      com_NSinenian_iSCSIIOEventSource
-#define iSCSIInitiatorClient    com_NSinenian_iSCSIInitiatorClient
-#define iSCSIInitiator          com_NSinenian_iSCSIInitiator
+#define NAME_CONCAT(PREFIX, SUFFIX) PREFIX##_##SUFFIX
+#define NAME_EVAL(PREFIX,SUFFIX)    NAME_CONCAT(PREFIX,SUFFIX)
+#define ADD_PREFIX(NAME)            NAME_EVAL(NAME_PREFIX_U,NAME)
+
+#define STRINGIFY(NAME)             #NAME
+#define STRINGIFY_EVAL(NAME)        STRINGIFY(NAME)
+
+#define iSCSIVirtualHBA         ADD_PREFIX(iSCSIVirtualHBA)
+#define iSCSITaskQueue          ADD_PREFIX(iSCSITaskQueue)
+#define iSCSIIOEventSource      ADD_PREFIX(iSCSIIOEventSource)
+#define iSCSIInitiatorClient    ADD_PREFIX(iSCSIInitiatorClient)
+#define iSCSIInitiator          ADD_PREFIX(iSCSIInitiator)
+
+#define kiSCSIVirtualHBA_IOClassName STRINGIFY_EVAL(iSCSIVirtualHBA)
 
 #endif

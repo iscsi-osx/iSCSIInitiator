@@ -18,13 +18,15 @@
 #include <IOKit/storage/IOMedia.h>
 #include <IOKit/storage/IOBlockStorageDriver.h>
 
+#include "iSCSIKernelInterfaceShared.h"
+
 
 /*! Gets the iSCSIVirtualHBA object in the IO registry.*/
 io_object_t iSCSIIORegistryGetiSCSIHBAEntry()
 {
     // Create a dictionary to match iSCSIkext
     CFMutableDictionaryRef matchingDict = NULL;
-    matchingDict = IOServiceMatching("com_NSinenian_iSCSIVirtualHBA");
+    matchingDict = IOServiceMatching(kiSCSIVirtualHBA_IOClassName);
     
     io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault,matchingDict);
     

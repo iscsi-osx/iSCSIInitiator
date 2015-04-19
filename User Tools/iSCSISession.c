@@ -1,16 +1,18 @@
 /*!
  * @author		Nareg Sinenian
- * @file		iSCSISession.h
+ * @file		iSCSISession.c
  * @version		1.0
  * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
  * @brief		User-space iSCSI session management functions.  This library
  *              depends on the user-space iSCSI PDU library to login, logout
- *              and perform discovery functions on iSCSI target nodes.
+ *              and perform discovery functions on iSCSI target nodes.  It 
+ *              also relies on the kernel layer for access to kext.
  */
 
 #include "iSCSISession.h"
 #include "iSCSIPDUUser.h"
 #include "iSCSIKernelInterface.h"
+#include "iSCSIKernelInterfaceShared.h"
 #include "iSCSIAuth.h"
 #include "iSCSIQueryTarget.h"
 #include "iSCSITypes.h"
@@ -115,9 +117,10 @@ void iSCSINegotiateBuildSWDictNormal(iSCSISessionConfigRef sessCfg,
     UInt32 maxConnections = iSCSISessionConfigGetMaxConnections(sessCfg);
     
     if(maxConnections == 0)
-        value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),maxConnections);
-    else
         value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxConnections);
+    else
+        value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),maxConnections);
+    
     CFDictionaryAddValue(sessCmd,kiSCSILKMaxConnections,value);
     CFRelease(value);
     
@@ -788,6 +791,7 @@ errno_t iSCSIPrepareForSystemSleep()
     
     CFIndex sessionCount = CFArrayGetCount(sessionIds);
 
+    // Unmount all disk drives associated with each session
     for(CFIndex idx = 0; idx < sessionCount; idx++) {
         SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
         
@@ -808,51 +812,7 @@ errno_t iSCSIPrepareForSystemSleep()
  *  @return an error code indicating the result of the operation. */
 errno_t iSCSIRestoreForSystemWake()
 {
-    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
-    
-    if(!sessionIds)
-        return 0;
-    
-    CFIndex sessionCount = CFArrayGetCount(sessionIds);
-    
-    for(CFIndex idx = 0; idx < sessionCount; idx++) {
-        
-        SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
-        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
-        
-        CFArrayRef connectionIds = iSCSICreateArrayOfConnectionsIds(sessionId);
-        
-        if(!connectionIds)
-            continue;
-        
-        Boolean leadingLogin = false;
-        
-        CFIndex connectionCount = CFArrayGetCount(connectionIds);
-        
-        for(CFIndex idx = 0; idx < connectionCount; idx++)
-        {
-            CID connectionId = CFArrayGetValueAtIndex(connectionIds,idx);
-            iSCSIPortalRef portal = iSCSICreatePortalForConnectionId(sessionId,connectionId);
-            
-            iSCSIKernelReleaseConnection(sessionId,connectionId);
-            SID sid;
-            CID cid;
-            enum iSCSILoginStatusCode statusCode;
-            
-            iSCSILoginSession(target,portal,iSCSIAuthCreateNone(),iSCSISessionConfigCreateMutable(),
-                              iSCSIConnectionConfigCreateMutable(),&sid,&cid,&statusCode);
-            
-            
-        
 
-        }
-        
-
-        
-        iSCSIKernelDeactivateAllConnections(sessionId);
-    }
-    
-    CFRelease(sessionIds);
     return 0;
 }
 
@@ -1334,4 +1294,43 @@ void iSCSISetInitiatorAlias(CFStringRef initiatorAlias)
     
     CFRelease(kiSCSIInitiatorAlias);
     kiSCSIInitiatorAlias = CFStringCreateCopy(kCFAllocatorDefault,initiatorAlias);
+}
+
+void iSCSISessionHandleNotifications(enum iSCSIKernelNotificationTypes type,
+                                     iSCSIKernelNotificationMessage * msg)
+{
+    // Process an asynchronous message
+    if(type == kiSCSIKernelNotificationAsyncMessage)
+    {
+        iSCSIKernelNotificationAsyncMessage * asyncMsg = (iSCSIKernelNotificationAsyncMessage *)msg;
+     
+        // If the asynchronous message is invalid ignore it
+        enum iSCSIPDUAsyncMsgEvent asyncEvent = asyncMsg->asyncEvent;
+        
+        fprintf(stderr,"Async event occured");
+    }
+}
+
+
+/*! Call to initialize iSCSI session management functions.  This function will
+ *  initialize the kernel layer after which other session-related functions
+ *  may be called.
+ *  @param rl the runloop to use for executing session-related functions.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSIInitialize(CFRunLoopRef rl)
+{
+    errno_t error = iSCSIKernelInitialize(&iSCSISessionHandleNotifications);
+
+    CFRunLoopSourceRef source = iSCSIKernelCreateRunLoopSource();
+    
+    return error;
+}
+
+/*! Called to cleanup kernel resources used by the iSCSI session management
+ *  functions.  This function will close any connections to the kernel
+ *  and stop processing messages related to the kernel.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSICleanup()
+{
+    return iSCSIKernelCleanup();
 }

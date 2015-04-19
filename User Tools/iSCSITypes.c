@@ -519,6 +519,13 @@ iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutable()
     return config;
 }
 
+/*! Creates a mutable session configuration object from an existing one. */
+iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutableWithExisting(iSCSISessionConfigRef config)
+{
+    return (iSCSIMutableSessionConfigRef)CFPropertyListCreateDeepCopy(
+        kCFAllocatorDefault,config,kCFPropertyListMutableContainersAndLeaves);
+}
+
 /*! Gets the error recovery level associated with a target (session). */
 enum iSCSIErrorRecoveryLevels iSCSISessionConfigGetErrorRecoveryLevel(iSCSISessionConfigRef target)
 {
@@ -644,38 +651,45 @@ iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutable()
     return portal;
 }
 
-/*! Gets whether a header digest is enabled in the portal object. */
-bool iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef portal)
+/*! Creates a mutable connection configuration object from an existing one. */
+iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableWithExisting(iSCSIConnectionConfigRef config)
 {
-    CFBooleanRef headerDigest = CFDictionaryGetValue(portal,kiSCSIConnectionConfigHeaderDigestKey);
+    return (iSCSIMutableConnectionConfigRef)CFPropertyListCreateDeepCopy(
+        kCFAllocatorDefault,config,kCFPropertyListMutableContainersAndLeaves);
+}
+
+/*! Gets whether a header digest is enabled in the portal object. */
+bool iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config)
+{
+    CFBooleanRef headerDigest = CFDictionaryGetValue(config,kiSCSIConnectionConfigHeaderDigestKey);
     return CFBooleanGetValue(headerDigest);
 }
 
 /*! Sets whether a header digest is enabled in the portal object. */
-void iSCSIConnectionConfigSetHeaderDigest(iSCSIMutableConnectionConfigRef portal,bool enable)
+void iSCSIConnectionConfigSetHeaderDigest(iSCSIMutableConnectionConfigRef config,bool enable)
 {
     CFBooleanRef headerDigest = kCFBooleanFalse;
     if(enable)
         headerDigest = kCFBooleanTrue;
     
-    CFDictionarySetValue(portal,kiSCSIConnectionConfigDataDigestKey,headerDigest);
+    CFDictionarySetValue(config,kiSCSIConnectionConfigHeaderDigestKey,headerDigest);
 }
 
 /*! Gets whether a data digest is enabled in the portal object. */
-bool iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef portal)
+bool iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config)
 {
-    CFBooleanRef dataDigest = (CFBooleanRef)CFDictionaryGetValue(portal,kiSCSIConnectionConfigDataDigestKey);
+    CFBooleanRef dataDigest = (CFBooleanRef)CFDictionaryGetValue(config,kiSCSIConnectionConfigDataDigestKey);
     return CFBooleanGetValue(dataDigest);
 }
 
 /*! Sets whether a data digest is enabled in the portal object. */
-void iSCSIConnectionConfigSetDataDigest(iSCSIMutableConnectionConfigRef portal,bool enable)
+void iSCSIConnectionConfigSetDataDigest(iSCSIMutableConnectionConfigRef config,bool enable)
 {
     CFBooleanRef dataDigest = kCFBooleanFalse;
     if(enable)
         dataDigest = kCFBooleanTrue;
     
-    CFDictionarySetValue(portal,kiSCSIConnectionConfigDataDigestKey,dataDigest);
+    CFDictionarySetValue(config,kiSCSIConnectionConfigDataDigestKey,dataDigest);
 }
 
 /*! Releases memory associated with an iSCSI connection configuration object.

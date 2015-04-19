@@ -6,6 +6,8 @@
  * @brief		iSCSI user-space daemon
  */
 
+
+// BSD includes
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -18,23 +20,26 @@
 #include <unistd.h>
 #include <string.h>
 
+// Foundation includes
 #include <launch.h>
 #include <CoreFoundation/CFPreferences.h>
 
+// Mach kernel includes
 #include <mach/mach_port.h>
 #include <mach/mach_init.h>
 #include <mach/mach_interface.h>
 
+// I/O Kit includes
 #include <IOKit/pwr_mgt/IOPMLib.h>
 #include <IOKit/IOMessage.h>
 
+// iSCSI includes
 #include "iSCSISession.h"
-#include "iSCSIKernelInterface.h"
 #include "iSCSIDaemonInterfaceShared.h"
 #include "iSCSIPropertyList.h"
 
 
-static const CFStringRef applicationId = CFSTR("com.NSinenian.iscsix");
+static const CFStringRef applicationId = CFSTR("test.com");
 
 // Used to notify daemon of power state changes
 io_connect_t powerPlaneRoot;
@@ -639,12 +644,12 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
                                   void * info)
 {
     // File descriptor associated with the socket we're using
-    static fd = 0;
+    static int fd = 0;
     
     // If this is the first connection, initialize the user client for the
     // iSCSI initiator kernel extension
     if(fd == 0) {
-        iSCSIKernelInitialize();
+        iSCSIInitialize(CFRunLoopGetCurrent());
 
         // Wait for an incoming connection; upon timeout quit
         struct sockaddr_storage peerAddress;
@@ -703,7 +708,7 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
             error = iSCSIDCopyConnectionConfig(fd,(iSCSIDCmdCopyConnectionConfig*)&cmd); break;
         default:
             // Close our connection to the iSCSI kernel extension
-            iSCSIKernelCleanUp();
+            iSCSICleanup();
             close(fd);
             fd = 0;
     };
@@ -774,14 +779,16 @@ int main(void)
                                                   kCFSocketReadCallBack,
                                                   iSCSIDProcessIncomingRequest,0);
   
-    CFRunLoopSourceRef runLoopSource = CFSocketCreateRunLoopSource(kCFAllocatorDefault,socket,0);
-    CFRunLoopAddSource(CFRunLoopGetMain(),runLoopSource,kCFRunLoopDefaultMode);
+    // Runloop sources associated with socket events of connected clients
+    CFRunLoopSourceRef clientSockSource = CFSocketCreateRunLoopSource(kCFAllocatorDefault,socket,0);
+    CFRunLoopAddSource(CFRunLoopGetMain(),clientSockSource,kCFRunLoopDefaultMode);
+    
     CFRunLoopRun();
     
     // Deregister for power
     iSCSIDDeregisterForPowerEvents();
     
- //   launch_data_free(reg_response);
+    launch_data_free(reg_response);
     return 0;
     
 ERROR_PWR_MGMT_FAIL:
@@ -791,7 +798,7 @@ ERROR_NO_SOCKETS:
     
 ERROR_LAUNCH_DATA:
 
-   // launch_data_free(reg_response);
+    launch_data_free(reg_response);
     return ENOTSUP;
 }
 

@@ -359,28 +359,6 @@ namespace iSCSIPDU {
         kiSCSIPDUSCSICmdTargetFailure = 0x01
     };
     
-    /*! Asynchronous message event codes. */
-    enum iSCSIPDUAsyncMsgEvent {
-        
-        /*! SCSI asynchronous event (with sense data). */
-        kiSCSIPDUAsyncMsgSCSIAsyncMsg = 0x00,
-        
-        /*! Target requests logout. */
-        kiSCSIPDUAsyncMsgLogout = 0x01,
-        
-        /*! Target will drop connection. */
-        kiSCSIPDUAsynMsgDropConnection = 0x02,
-        
-        /*! Target will drop all connections. */
-        kiSCSIPDUAsyncMsgDropAllConnections = 0x03,
-        
-        /*! Target requests parameter renegotiation. */
-        kiSCSIPDUAsyncMsgNegotiateParams = 0x04,
-        
-        /*! Vendor specific event. */
-        kiSCSIPDUAsyncMsgVendorCode = 0xFF
-    };
-    
     inline size_t iSCSIPDUGetDataSegmentLength(iSCSIPDUTargetBHS * bhs)
     {
         UInt32 length = 0;

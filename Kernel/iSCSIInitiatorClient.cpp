@@ -300,6 +300,69 @@ IOReturn iSCSIInitiatorClient::clientDied()
 	return super::clientDied();
 }
 
+/*! Invoked when a user-space application registers a notification port
+ *  with this user client.
+ *  @param port the port associated with the client connection.
+ *  @param type the type.
+ *  @param refCon a user reference value.
+ *  @return an error code indicating the result of the operation. */
+IOReturn iSCSIInitiatorClient::registerNotificationPort(mach_port_t port,
+                                                        UInt32 type,
+                                                        io_user_reference_t refCon)
+{
+    notificationPort = port;
+    return kIOReturnSuccess;
+}
+
+/*! Send a notification message to the user-space application.
+ *  @param message details regarding the notification message.
+ *  @return an error code indicating the result of the operation. */
+IOReturn iSCSIInitiatorClient::sendNotification(iSCSIKernelNotificationMessage * message)
+{
+    if(notificationPort == MACH_PORT_NULL)
+        return kIOReturnNotOpen;
+    
+    message->header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND,0);
+    message->header.msgh_size = sizeof(message);
+    message->header.msgh_remote_port = notificationPort;
+    message->header.msgh_local_port = MACH_PORT_NULL;
+    message->header.msgh_reserved = 0;
+    message->header.msgh_id = 0;
+    
+    mach_msg_send_from_kernel_proper(&message->header,sizeof(message));
+    return kIOReturnSuccess;
+}
+
+/*! Sends a notification message to the user indicating that an
+ *  iSCSI asynchronous event has occured.
+ *  @param sessionId the session identifier.
+ *  @param connectionId the connection identifier.
+ *  @param event the asynchronsou event.
+ *  @return an error code indicating the result of the operation. */
+IOReturn iSCSIInitiatorClient::sendAsyncMessageNotification(SID sessionId,
+                                                            CID connectionId,
+                                                            enum iSCSIPDUAsyncMsgEvent event)
+{
+    iSCSIKernelNotificationAsyncMessage message;
+    message.notificationType = kiSCSIKernelNotificationAsyncMessage;
+    message.asyncEvent = event;
+    message.sessionId = sessionId;
+    message.connectionId = connectionId;
+    
+    return sendNotification((iSCSIKernelNotificationMessage*)&message);
+}
+
+/*! Sends a notification message to the user indicating that the kernel
+ *  extension will be terminating.
+ *  @return an error code indicating the result of the operation. */
+IOReturn iSCSIInitiatorClient::sendTerminateMessageNotification()
+{
+    iSCSIKernelNotificationMessage message;
+    message.notificationType = kISCSIKernelNotificationTerminate;
+    
+    return sendNotification(&message);
+}
+
 // Invoked from user space remotely by calling iSCSIInitiatorOpen()
 IOReturn iSCSIInitiatorClient::open()
 {

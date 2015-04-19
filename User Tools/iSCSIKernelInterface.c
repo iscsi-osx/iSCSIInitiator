@@ -3,15 +3,25 @@
  * @file		iSCSIKernelInterface.c
  * @version		1.0
  * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
+ * @brief		Interface to the iSCSI kernel extension.  Do not include this
+ *              file directly or call these functions.  They are used internally
+ *              by the session layer to process login, logout, and other iSCSI
+ *              requests.
  */
 
 #include "iSCSIKernelInterface.h"
+#include "iSCSIKernelInterfaceShared.h"
 #include "iSCSIPDUUser.h"
+#include "iSCSIKernelClasses.h"
+
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IOReturn.h>
 
 static io_service_t service;
 static io_connect_t connection;
+static CFMachPortContext notificationContext;
+static CFMachPortRef     notificationPort;
+static iSCSIKernelNotificationCallback callback;
 
 /*! Select error codes used by the iSCSI user client. */
 errno_t IOReturnToErrno(kern_return_t result)
@@ -34,16 +44,44 @@ errno_t IOReturnToErrno(kern_return_t result)
     return EIO;
 }
 
+/*! Handles messages sent from the kernel. */
+void iSCSIKernelNotificationHandler(CFMachPortRef port,void * msg,CFIndex size,void * info)
+{
+    // The parameter is a notification message
+    iSCSIKernelNotificationMessage * notificationMsg;
+    if(!(notificationMsg = msg))
+        return;
+
+    // Process notification type and return if invalid
+    enum iSCSIKernelNotificationTypes type = (enum iSCSIKernelNotificationTypes)notificationMsg->notificationType;
+    
+    if(type == kiSCSIKernelNotificationInvalid)
+        return;
+    
+    // Call the callback function with the message type and body
+    if(callback)
+        callback(type,msg);
+}
+
+/*! Creates a run loop source that is used to run the the notification callback
+ *  function that was registered during the call to iSCSIKernelInitialize(). */
+CFRunLoopSourceRef iSCSIKernelCreateRunLoopSource()
+{
+    if(notificationPort)
+        return CFMachPortCreateRunLoopSource(kCFAllocatorDefault,notificationPort,0);
+    return NULL;
+}
+
 /*! Opens a connection to the iSCSI initiator.  A connection must be
  *  successfully opened before any of the supporting functions below can be
  *  called. */
-kern_return_t iSCSIKernelInitialize()
+errno_t iSCSIKernelInitialize(iSCSIKernelNotificationCallback callback)
 {
     kern_return_t result;
      	
 	// Create a dictionary to match iSCSIkext
 	CFMutableDictionaryRef matchingDict = NULL;
-	matchingDict = IOServiceMatching("com_NSinenian_iSCSIVirtualHBA");
+	matchingDict = IOServiceMatching(kiSCSIVirtualHBA_IOClassName);
     
     service = IOServiceGetMatchingService(kIOMasterPortDefault,matchingDict);
     
@@ -58,12 +96,25 @@ kern_return_t iSCSIKernelInitialize()
         IOObjectRelease(service);
         return kIOReturnNotFound;
     }
+    
+    notificationContext.info = (void *)&notificationContext;
+    notificationContext.version = 0;
+    notificationContext.release = NULL;
+    notificationContext.retain  = NULL;
+    notificationContext.copyDescription = NULL;
+    
+    // Create a mach port to receive notifications from the kernel
+    notificationPort = CFMachPortCreate(kCFAllocatorDefault,
+                                        iSCSIKernelNotificationHandler,
+                                        &notificationContext,NULL);
+    IOConnectSetNotificationPort(connection,0,CFMachPortGetPort(notificationPort),0);
+    
 
-    return IOConnectCallScalarMethod(connection,kiSCSIOpenInitiator,0,0,0,0);
+    return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSIOpenInitiator,0,0,0,0));
 }
 
 /*! Closes a connection to the iSCSI initiator. */
-kern_return_t iSCSIKernelCleanUp()
+errno_t iSCSIKernelCleanup()
 {
     kern_return_t kernResult =
         IOConnectCallScalarMethod(connection,kiSCSICloseInitiator,0,0,0,0);
@@ -72,7 +123,9 @@ kern_return_t iSCSIKernelCleanUp()
     IOObjectRelease(service);
     IOServiceClose(connection);
     
-    return kernResult;
+    CFRelease(notificationPort);
+    
+    return IOReturnToErrno(kernResult);
 }
 
 /*! Allocates a new iSCSI session in the kernel and creates an associated
@@ -247,9 +300,11 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
                                     CID * connectionId)
 {
     // Check parameters
-    if(!sessionId == kiSCSIInvalidSessionId || !portalAddress || !portalPort || !hostInterface ||
-       portalSockAddr || hostSockAddr || connectionId)
-        return kiSCSIInvalidConnectionId;
+    if(sessionId == kiSCSIInvalidSessionId || !portalAddress || !portalPort ||
+       !hostInterface || !portalSockAddr || !hostSockAddr || !connectionId)
+    {
+        return EINVAL;
+    }
     
     // Pack the input parameters into a single buffer to send to the kernel
     const int kNumParams = 5;
@@ -296,7 +351,7 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
     }
     
     // Tell the kernel to drop this session and all of its related resources
-    const UInt32 inputCnt = 1;
+    const UInt32 inputCnt = 2;
     const UInt64 inputs[] = {sessionId,kNumParams};
     
     const UInt32 expOutputCnt = 2;
@@ -775,7 +830,6 @@ CFStringRef iSCSIKernelCreatePortalPortForConnectionId(SID sessionId,CID connect
     const UInt32 inputCnt = 2;
     UInt64 input[] = {sessionId,connectionId};
 
-    
     const char portalPort[NI_MAXSERV];
     size_t portalPortLength = NI_MAXSERV;
     

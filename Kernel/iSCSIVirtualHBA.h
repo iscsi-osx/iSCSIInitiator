@@ -8,22 +8,27 @@
 #ifndef __ISCSI_VIRTUAL_HBA_H__
 #define __ISCSI_VIRTUAL_HBA_H__
 
+// IOKit includes
 #include <IOKit/IOService.h>
 #include <IOKit/scsi/spi/IOSCSIParallelInterfaceController.h>
 #include <IOKit/scsi/IOSCSIProtocolInterface.h>
 
+// Libkern includes
 #include <libkern/c++/OSArray.h>
 
+// iSCSI includes
 #include "iSCSIKernelClasses.h"
 #include "iSCSITypesKernel.h"
 #include "iSCSITypesShared.h"
 #include "iSCSIKernelInterfaceShared.h"
 #include "iSCSIPDUKernel.h"
 
-// BSD Socket Includes
+// BSD socket includes
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <sys/kern_control.h>
 #include <sys/signal.h>
+#include <netinet/in.h>
+
 
 /*! This class implements the iSCSI virtual host bus adapter (HBA).  The HBA
  *	creates and removes targets and processes SCSI requested by the operating
@@ -96,10 +101,6 @@ public:
 	/*! Gets whether the virtual HBA creates and removes targets on its own.
 	 *  @return true if HBA creates and remove targtes on its own. */
 	virtual bool DoesHBAPerformDeviceManagement();
-    
-    /*! Gets whether the virtual HBA retrieve sense data for each I/O.
-     *  @return true if HBA does its own sensing for each I/O operation. */
-//    virtual bool DoesHBAPerformAutoSense();
 
 	/*! Initializes the virtual HBA.
 	 *	@return true if controller was successfully initialized. */
@@ -390,6 +391,9 @@ private:
      *  for the connection. */
     static const UInt32 kNumBytesPerAvgBW;
     
+    /*! Default task timeout for new tasks. */
+    static const UInt32 kiSCSITaskTimeoutMs;
+    
     /*! Used as part of the iSCSI layer intiator task tag to specify the 
      *  type of task. */
     enum InitiatorTaskTypes {
@@ -430,22 +434,29 @@ private:
         return (UInt32)(initiatorTaskTag & 0xFFFF);
     }
     
-    /*! Helper function.  Sends a burst of data out PDUs, either as a response
-     *  to an R2T from the target or as unsolicited data. */
- //   void SendDataOutBurst(IOMemoryDescriptor )
-/*
-    inline UInt32 ParseInitiatorTaskTag(UInt32 initiatorTaskTag,
-                                        SCSILogicalUnitNumber & LUN,
-                                        SCSITaggedTaskIdentifier taskId)
-  */
-    /*! Initiator ID of the virtual HBA.  This value is auto-generated upon 
+    inline void SetDataSegmentLength(iSCSIPDUInitiatorBHS * bhs,UInt32 length)
+    {
+        // Set data segment length field
+        UInt32 dataSegLength = (OSSwapHostToBigInt32((UInt32)length)>>8);
+        memcpy(bhs->dataSegmentLength,&dataSegLength,kiSCSIPDUDataSegmentLengthSize);
+    }
+    
+    inline UInt32 GetDataSegmentLength(iSCSIPDUTargetBHS * bhs)
+    {
+        // Length of the data segment of the PDU
+        UInt32 length = 0;
+        memcpy(&length,bhs->dataSegmentLength,kiSCSIPDUDataSegmentLengthSize);
+        return OSSwapBigToHostInt32(length<<8);
+    }
+    
+    /*! Initiator ID of the virtual HBA.  This value is auto-generated upon
      *  initialization of the initiator and the 24 least significant bits
      *  are used to form part of the iSCSI ISID. */
     SCSIInitiatorIdentifier kInitiatorId;
 	
 	/*! Lookup table that maps iSCSI sessions to ISID qualifiers
      *  (session qualifier IDs). */
-    iSCSISession * * sessionList;
+    iSCSISession ** sessionList;
     
     /*! Lookup table mapping target names (IQN names) to session identifiers. */
     OSDictionary * targetList;

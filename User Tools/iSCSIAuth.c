@@ -22,9 +22,6 @@ extern unsigned int kiSCSISessionMaxTextKeyValuePairs;
 extern CFStringRef kiSCSIInitiatorIQN;
 extern CFStringRef kiSCSIInitiatorAlias;
 
-
-
-
 /*! Helper function.  Create a null-terminated byte array that holds the
  *  value represented by the hexidecimal string. Handles strings with or
  *  without a 0x prefix.  Use free() to free the allocated byte array. */
@@ -98,6 +95,9 @@ CFStringRef CreateHexStringFromByteArray(UInt8 * bytes, size_t length)
     return CFStringCreateWithCString(kCFAllocatorDefault,hexStr,kCFStringEncodingASCII);
 }
 
+/*! Helper function.  Creates a CHAP response from a given identifier, 
+ *  secret and challenge (see RFC1994). Use CFRelease() to free the 
+ *  returned CHAP response string. */
 CFStringRef iSCSIAuthNegotiateCHAPCreateResponse(CFStringRef identifier,
                                                  CFStringRef secret,
                                                  CFStringRef challenge)

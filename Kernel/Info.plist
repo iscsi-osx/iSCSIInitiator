@@ -9,7 +9,7 @@
 	<key>CFBundleIconFile</key>
 	<string></string>
 	<key>CFBundleIdentifier</key>
-	<string>com.NSinenian.${PRODUCT_NAME:rfc1034identifier}</string>
+	<string>${NAME_PREFIX_D}.${PRODUCT_NAME}</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -24,16 +24,16 @@
 	<string>1</string>
 	<key>IOKitPersonalities</key>
 	<dict>
-		<key>iSCSIInitiatorVirtualHBA</key>
+		<key>iSCSIVirtualHBA</key>
 		<dict>
 			<key>IOUserClientClass</key>
-			<string>com_NSinenian_iSCSIInitiatorClient</string>
+			<string>${NAME_PREFIX_U}_iSCSIInitiatorClient</string>
 			<key>CFBundleIdentifier</key>
-			<string>com.NSinenian.iSCSIInitiator</string>
+			<string>${NAME_PREFIX_D}.${PRODUCT_NAME}</string>
 			<key>IOClass</key>
-			<string>com_NSinenian_iSCSIVirtualHBA</string>
+			<string>${NAME_PREFIX_U}_iSCSIVirtualHBA</string>
 			<key>IOProviderClass</key>
-			<string>com_NSinenian_iSCSIInitiator</string>
+			<string>${NAME_PREFIX_U}_iSCSIInitiator</string>
 			<key>Protocol Characteristics</key>
 			<dict>
 				<key>Physical Interconnect</key>
@@ -45,13 +45,13 @@
 		<key>iSCSIInitiator</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
-			<string>com.NSinenian.iSCSIInitiator</string>
+			<string>${NAME_PREFIX_D}.${PRODUCT_NAME}</string>
 			<key>IOClass</key>
-			<string>com_NSinenian_iSCSIInitiator</string>
+			<string>${NAME_PREFIX_U}_iSCSIInitiator</string>
 			<key>IOKitDebug</key>
 			<integer>65535</integer>
 			<key>IOMatchCategory</key>
-			<string>com_NSinenian_iSCSIInitiator</string>
+			<string>${NAME_PREFIX_U}_iSCSIInitiator</string>
 			<key>IOProviderClass</key>
 			<string>IOResources</string>
 			<key>IOResourceMatch</key>

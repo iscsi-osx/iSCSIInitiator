@@ -31,7 +31,7 @@ CFMutableDictionaryRef initiatorCache = NULL;
 Boolean initiatorCacheModified = false;
 
 /*! App ID. */
-CFStringRef kiSCSIPKAppId = CFSTR("com.NSinenian.iSCSI");
+CFStringRef kiSCSIPKAppId = CFSTR(CF_PREFERENCES_APP_ID);
 
 /*! Preference key name for iSCSI target dictionary. */
 CFStringRef kiSCSIPKTargetsKey = CFSTR("Targets");
@@ -69,11 +69,13 @@ CFStringRef kiSCSIPKInitiatorAlias = CFSTR("Alias");
 /*! Retrieves a mutable dictionary for the specified key. 
  *  @param key the name of the key, which can be either kiSCSIPKTargetsKey,
  *  kiSCSIPKDiscoveryKey, or kiSCSIPKInitiatorKey.
- *  @return mutable dictionary with list of properties for the specified key.*/
+ *  @return mutable dictionary with list of properties for the specified key. */
 CFMutableDictionaryRef iSCSIPLCopyPropertyDict(CFStringRef key)
 {
     // Retrieve the desired property from the property list
-    CFDictionaryRef propertyList = CFPreferencesCopyAppValue(key,kiSCSIPKAppId);
+    CFDictionaryRef propertyList = CFPreferencesCopyValue(key,kiSCSIPKAppId,
+                                                          kCFPreferencesAnyUser,
+                                                          kCFPreferencesCurrentHost);
     
     if(!propertyList)
         return NULL;
@@ -514,13 +516,16 @@ void iSCSIPLSynchronize()
     // If we have modified our targets dictionary, we write changes back and
     // otherwise we'll read in the latest.
     if(targetsCacheModified)
-        CFPreferencesSetAppValue(kiSCSIPKTargetsKey,targetsCache,kiSCSIPKAppId);
+        CFPreferencesSetValue(kiSCSIPKTargetsKey,targetsCache,kiSCSIPKAppId,
+                              kCFPreferencesAnyUser,kCFPreferencesCurrentHost );
     
     if(initiatorCacheModified)
-        CFPreferencesSetAppValue(kiSCSIPKInitiatorKey,initiatorCache,kiSCSIPKAppId);
+        CFPreferencesSetValue(kiSCSIPKInitiatorKey,initiatorCache,kiSCSIPKAppId,
+                              kCFPreferencesAnyUser,kCFPreferencesCurrentHost );
     
     if(discoveryCacheModified)
-        CFPreferencesSetAppValue(kiSCSIPKDiscoveryKey,discoveryCache,kiSCSIPKAppId);
+        CFPreferencesSetValue(kiSCSIPKDiscoveryKey,discoveryCache,kiSCSIPKAppId,
+                              kCFPreferencesAnyUser,kCFPreferencesCurrentHost);
 
     CFPreferencesAppSynchronize(kiSCSIPKAppId);
     

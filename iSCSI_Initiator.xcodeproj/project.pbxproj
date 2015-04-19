@@ -30,7 +30,7 @@
 		2BC5F75F1ACB9CD600829DD6 /* iSCSIUtils.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BC5F75C1ACB9CD600829DD6 /* iSCSIUtils.c */; };
 		2BC5F7601ACB9CD600829DD6 /* iSCSIUtils.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BC5F75C1ACB9CD600829DD6 /* iSCSIUtils.c */; };
 		2BCB2B331A7015CF00A81C80 /* crc32c.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B201A7015CF00A81C80 /* crc32c.h */; };
-		2BCB2B351A7015CF00A81C80 /* iSCSIInitiator-Prefix.pch in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B221A7015CF00A81C80 /* iSCSIInitiator-Prefix.pch */; };
+		2BCB2B351A7015CF00A81C80 /* Prefix.pch in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B221A7015CF00A81C80 /* Prefix.pch */; };
 		2BCB2B361A7015CF00A81C80 /* iSCSIInitiator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B231A7015CF00A81C80 /* iSCSIInitiator.cpp */; };
 		2BCB2B371A7015CF00A81C80 /* iSCSIInitiator.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B241A7015CF00A81C80 /* iSCSIInitiator.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		2BCB2B381A7015CF00A81C80 /* iSCSIInitiatorClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B251A7015CF00A81C80 /* iSCSIInitiatorClient.cpp */; };
@@ -132,7 +132,7 @@
 		2BCB2B1D1A70157200A81C80 /* iSCSITypesShared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSITypesShared.h; path = "User Tools/iSCSITypesShared.h"; sourceTree = "<group>"; };
 		2BCB2B1F1A7015CF00A81C80 /* crc32c.c */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = crc32c.c; path = Kernel/crc32c.c; sourceTree = "<group>"; };
 		2BCB2B201A7015CF00A81C80 /* crc32c.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = crc32c.h; path = Kernel/crc32c.h; sourceTree = "<group>"; };
-		2BCB2B221A7015CF00A81C80 /* iSCSIInitiator-Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "iSCSIInitiator-Prefix.pch"; path = "Kernel/iSCSIInitiator-Prefix.pch"; sourceTree = "<group>"; };
+		2BCB2B221A7015CF00A81C80 /* Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Prefix.pch; path = Kernel/Prefix.pch; sourceTree = "<group>"; };
 		2BCB2B231A7015CF00A81C80 /* iSCSIInitiator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = iSCSIInitiator.cpp; path = Kernel/iSCSIInitiator.cpp; sourceTree = "<group>"; };
 		2BCB2B241A7015CF00A81C80 /* iSCSIInitiator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iSCSIInitiator.h; path = Kernel/iSCSIInitiator.h; sourceTree = "<group>"; };
 		2BCB2B251A7015CF00A81C80 /* iSCSIInitiatorClient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = iSCSIInitiatorClient.cpp; path = Kernel/iSCSIInitiatorClient.cpp; sourceTree = "<group>"; };
@@ -148,7 +148,7 @@
 		2BCB2B311A7015CF00A81C80 /* iSCSIVirtualHBA.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iSCSIVirtualHBA.h; path = Kernel/iSCSIVirtualHBA.h; sourceTree = "<group>"; };
 		2BCB2B451A70168B00A81C80 /* iSCSIKernelInterface.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iSCSIKernelInterface.c; path = "User Tools/iSCSIKernelInterface.c"; sourceTree = "<group>"; };
 		2BCB2B461A70168B00A81C80 /* iSCSIKernelInterface.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSIKernelInterface.h; path = "User Tools/iSCSIKernelInterface.h"; sourceTree = "<group>"; };
-		2BCB2B471A70182D00A81C80 /* iSCSIInitiator-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "iSCSIInitiator-Info.plist"; path = "Kernel/iSCSIInitiator-Info.plist"; sourceTree = "<group>"; };
+		2BCB2B471A70182D00A81C80 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Kernel/Info.plist; sourceTree = "<group>"; };
 		2BCB2B4B1A70195600A81C80 /* iSCSIPDUShared.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iSCSIPDUShared.h; path = Kernel/iSCSIPDUShared.h; sourceTree = "<group>"; };
 		2BDEA9401A715C7B00D5B48B /* iSCSIInitiator.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iSCSIInitiator.kext; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BDEA9411A715C7B00D5B48B /* iscsid */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iscsid; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -295,8 +295,8 @@
 		2BCB2B4A1A7018D000A81C80 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
-				2BCB2B221A7015CF00A81C80 /* iSCSIInitiator-Prefix.pch */,
-				2BCB2B471A70182D00A81C80 /* iSCSIInitiator-Info.plist */,
+				2BCB2B221A7015CF00A81C80 /* Prefix.pch */,
+				2BCB2B471A70182D00A81C80 /* Info.plist */,
 			);
 			name = "Supporting Files";
 			sourceTree = "<group>";
@@ -319,7 +319,7 @@
 				2BCB2B4C1A70195600A81C80 /* iSCSIPDUShared.h in Headers */,
 				2BCB2B371A7015CF00A81C80 /* iSCSIInitiator.h in Headers */,
 				2BA046951AA22DFF00E086DF /* iSCSITypesKernel.h in Headers */,
-				2BCB2B351A7015CF00A81C80 /* iSCSIInitiator-Prefix.pch in Headers */,
+				2BCB2B351A7015CF00A81C80 /* Prefix.pch in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -592,8 +592,16 @@
 		2B5935591810CE6800FFC3D3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CF_PREFERENCES_APP_ID = "$(NAME_PREFIX_D).iSCSIInitiator";
+				CODE_SIGN_IDENTITY = "";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"CF_PREFERENCES_APP_ID=\\\"$(NAME_PREFIX_D).iSCSIInitiator\\\"",
+					"NAME_PREFIX_U=$(NAME_PREFIX_U)",
+				);
 				GCC_WARN_PEDANTIC = NO;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				NAME_PREFIX_D = "com.github.iscsi-osx";
+				NAME_PREFIX_U = com_github_iscsi_osx;
 				ONLY_ACTIVE_ARCH = YES;
 			};
 			name = Debug;
@@ -601,8 +609,17 @@
 		2B59355A1810CE6800FFC3D3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CF_PREFERENCES_APP_ID = "$(NAME_PREFIX_D).iSCSIInitiator";
+				CODE_SIGN_IDENTITY = "";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"CF_PREFERENCES_APP_ID=\\\"$(NAME_PREFIX_D).iSCSIInitiator\\\"",
+					"NAME_PREFIX_U=$(NAME_PREFIX_U)",
+				);
 				GCC_WARN_PEDANTIC = NO;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				NAME_PREFIX_D = "com.github.iscsi-osx";
+				NAME_PREFIX_U = com_github_iscsi_osx;
+				ONLY_ACTIVE_ARCH = YES;
 			};
 			name = Release;
 		};
@@ -630,7 +647,7 @@
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "Kernel/iSCSIInitiator-Prefix.pch";
+				GCC_PREFIX_HEADER = Kernel/Prefix.pch;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
@@ -642,13 +659,13 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = "Kernel/iSCSIInitiator-Info.plist";
+				INFOPLIST_FILE = Kernel/Info.plist;
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SDKROOT)/usr/lib/system",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				MODULE_NAME = com.NSinenian.iSCSIInitiator;
+				MODULE_NAME = "$(NAME_PREFIX_D).$(PRODUCT_NAME)";
 				MODULE_VERSION = 1.0.0d1;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -681,20 +698,21 @@
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "Kernel/iSCSIInitiator-Prefix.pch";
+				GCC_PREFIX_HEADER = Kernel/Prefix.pch;
+				GCC_PREPROCESSOR_DEFINITIONS = "NAME_PREFIX_U=$(NAME_PREFIX_U)";
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = "Kernel/iSCSIInitiator-Info.plist";
+				INFOPLIST_FILE = Kernel/Info.plist;
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SDKROOT)/usr/lib/system",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				MODULE_NAME = com.NSinenian.iSCSIInitiator;
+				MODULE_NAME = "$(NAME_PREFIX_D).$(PRODUCT_NAME)";
 				MODULE_VERSION = 1.0.0d1;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

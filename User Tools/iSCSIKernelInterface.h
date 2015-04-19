@@ -3,6 +3,10 @@
  * @file		iSCSIKernelInterface.h
  * @version		1.0
  * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
+ * @brief		Interface to the iSCSI kernel extension.  Do not include this
+ *              file directly or call these functions.  They are used internally
+ *              by the session layer to process login, logout, and other iSCSI
+ *              requests.
  */
 
 #ifndef __ISCSI_KERNEL_INTERFACE_H__
@@ -19,14 +23,26 @@
 
 #include <IOKit/IOKitLib.h>
 #include <stdint.h>
-	
+
+/*! Callback function used to relay notifications from the kernel. */
+typedef void (*iSCSIKernelNotificationCallback)(enum iSCSIKernelNotificationTypes type,
+                                                iSCSIKernelNotificationMessage * msg);
+
 /*! Opens a connection to the iSCSI initiator.  A connection must be
  *  successfully opened before any of the supporting functions below can be
- *  called. */
-kern_return_t iSCSIKernelInitialize();
+ *  called.  A callback function is used to process notifications from the 
+ *  iSCSI kernel extension.
+ *  @param callback the callback function to process notifications.
+ *  @return error code indicating the result of the operation. */
+errno_t iSCSIKernelInitialize(iSCSIKernelNotificationCallback callback);
 
-/*! Closes a connection to the iSCSI initiator. */
-kern_return_t iSCSIKernelCleanUp();
+/*! Closes a connection to the iSCSI initiator.
+ *  @return error code indicating the result of the operation. */
+errno_t iSCSIKernelCleanup();
+
+/*! Creates a run loop source that is used to run the the notification callback
+ *  function that was registered during the call to iSCSIKernelInitialize(). */
+CFRunLoopSourceRef iSCSIKernelCreateRunLoopSource();
 
 /*! Allocates a new iSCSI session in the kernel and creates an associated
  *  connection to the target portal. Additional connections may be added to the
@@ -40,7 +56,7 @@ kern_return_t iSCSIKernelCleanUp();
  *  specifies the interface that the connection will be bound to.
  *  @param sessionId the session identifier for the new session (returned).
  *  @param connectionId the identifier of the new connection (returned).
- *  @return An error code if a valid session could not be created. */
+ *  @return error code indicating the result of the operation. */
 errno_t iSCSIKernelCreateSession(CFStringRef targetIQN,
                                  CFStringRef portalAddress,
                                  CFStringRef portalPort,

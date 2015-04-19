@@ -64,33 +64,81 @@ enum iSCSIAuthMethods {
 
 /*! Detailed login response from a target. */
 enum iSCSILoginStatusCode {
+    
+    /*! Login was successful. */
     kiSCSILoginSuccess = 0x0000,
+    
+    /*! The target has been temporarily moved. */
     kiSCSILoginTargetMovedTemp = 0x0101,
+    
+    /*! The target has been permanently moved. */
     kiSCSILoginTargetMovedPerm = 0x0102,
+    
+    /*! An initiator error has occured. */
     kiSCSILoginInitiatorError = 0x0200,
+    
+    /*! Authentication has failed. */
     kiSCSILoginAuthFail = 0x0201,
+    
+    /*! Access was denied. */
     kiSCSILoginAccessDenied = 0x0202,
+    
+    /*! THe target was not found. */
     kiSCSILoginNotFound = 0x0203,
+    
+    /*! The target has been removed. */
     kiSCSILoginTargetRemoved = 0x0204,
+    
+    /*! Unsupported iSCSI protocol version. */
     kiSCSILoginUnsupportedVer = 0x0205,
+    
+    /*! Too many connections. */
     kiSCSILoginTooManyConnections = 0x0206,
+    
+    /*! Missing login parameters. */
     kiSCSILoginMissingParam = 0x0207,
+    
+    /*! Cannot include connection in this sesssion. */
     kiSCSILoginCantIncludeInSeession = 0x0208,
+    
+    /*! The requested session type is unsupported. */
     kiSCSILoginSessionTypeUnsupported = 0x0209,
+    
+    /*! The requested session does not exist. */
     kiSCSILoginSessionDoesntExist = 0x020a,
+    
+    /*! Invalid request during login. */
     kiSCSILoginInvalidReqDuringLogin = 0x020b,
+    
+    /*! A target hardware or software error has occurred. */
     kiSCSILoginTargetHWorSWError = 0x0300,
+    
+    /*! Login service is unavailable. */
     kiSCSILoginServiceUnavailable = 0x0301,
+    
+    /*! Out of resources. */
     kiSCSILoginOutOfResources = 0x0302,
+    
+    /*! An invalid login status code. */
     kiSCSILoginInvalidStatusCode
 };
 
 /*! Detailed logout response from a target. */
 enum iSCSILogoutStatusCode {
+    
+    /*! Login was successful. */
     kiSCSILogoutSuccess = 0x0000,
+    
+    /*! The connection identifier was not found. */
     kiSCSILogoutCIDNotFound = 0x0001,
+    
+    /*! Recovery is not supported for this session. */
     kiSCSILogoutRecoveryNotSupported = 0x0002,
+    
+    /*! Cleanup of the connection resources failed. */
     kiSCSILogoutCleanupFailed = 0x0003,
+    
+    /*! Invalid status code. */
     kiSCSILogoutInvalidStatusCode
 };
 
@@ -368,6 +416,9 @@ iSCSISessionConfigRef iSCSISessionConfigCreateWithData(CFDataRef data);
 /*! Creates a new iSCSISessionConfigRef with default values. */
 iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutable();
 
+/*! Creates a mutable session configuration object from an existing one. */
+iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutableWithExisting(iSCSISessionConfigRef config);
+
 /*! Gets the error recovery level associated with a  session. */
 enum iSCSIErrorRecoveryLevels iSCSISessionConfigGetErrorRecoveryLevel(iSCSISessionConfigRef config);
 
@@ -424,6 +475,9 @@ iSCSIConnectionConfigRef iSCSIConnectionConfigCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIConnectionConfigRef with default values. */
 iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutable();
+
+/*! Creates a mutable connection configuration object from an existing one. */
+iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableWithExisting(iSCSIConnectionConfigRef config);
 
 /*! Gets whether a header digest is enabled in the config object.
  *  @param config the iSCSI config object.
