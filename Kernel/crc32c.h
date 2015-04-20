@@ -1,5 +1,5 @@
 /*!
- * @author		Nareg Sinenian
+ * @author		Nareg Sinenian (implementation in crc32c.c by Mark Adler)
  * @file		crc32c.h
  * @date		December 10, 2014
  * @version		1.0

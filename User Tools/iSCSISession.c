@@ -677,8 +677,7 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
                 error = 0;
                 break;
             }
-        }
-        
+        }  
         interface = interface->ifa_next;
     }
         
@@ -784,6 +783,8 @@ errno_t iSCSILogoutConnection(SID sessionId,
  *  @return an error code indicating the result of the operation. */
 errno_t iSCSIPrepareForSystemSleep()
 {
+// TODO: finish implementing this function, verify, test
+    
     CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
     
     if(!sessionIds)
@@ -812,7 +813,7 @@ errno_t iSCSIPrepareForSystemSleep()
  *  @return an error code indicating the result of the operation. */
 errno_t iSCSIRestoreForSystemWake()
 {
-
+// TODO:
     return 0;
 }
 
@@ -1299,6 +1300,12 @@ void iSCSISetInitiatorAlias(CFStringRef initiatorAlias)
 void iSCSISessionHandleNotifications(enum iSCSIKernelNotificationTypes type,
                                      iSCSIKernelNotificationMessage * msg)
 {
+// TODO: implement this function to handle async PDUs (these are handled
+// in user-space).  They might invovled dropped connections, etc., which may
+// need to be handled differently depending on error recovery levels
+// (Note: kernel should handle async SCSI event, this is for iSCSI events only
+//  see RFC3720 for more inforation).
+
     // Process an asynchronous message
     if(type == kiSCSIKernelNotificationAsyncMessage)
     {
@@ -1322,6 +1329,7 @@ errno_t iSCSIInitialize(CFRunLoopRef rl)
     errno_t error = iSCSIKernelInitialize(&iSCSISessionHandleNotifications);
 
     CFRunLoopSourceRef source = iSCSIKernelCreateRunLoopSource();
+//    CFRunLoopAddSource(rl,source,kCFRunLoopDefaultMode);
     
     return error;
 }

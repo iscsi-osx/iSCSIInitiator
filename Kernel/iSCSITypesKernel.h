@@ -123,14 +123,7 @@ typedef struct iSCSISession {
     
     /*! Number of active connections. */
     UInt32 numActiveConnections;
-    
-    //////// CONSIDER REMOVING THIS BELOW.....
-    /*! Total number of connections (either active or inactive). */
-    //    UInt32 numConnections; NEED THIS?? COMPUTED BY ITERATING IN ONE INSTANCE....
-    
-    /*! Initiator tag for the newest task. */
-    //   UInt32 initiatorTaskTag;  NEED THIS????
-    
+        
     /*! Indicates whether session is active, which means that a SCSI target
      *  exists and is backing the the iSCSI session. */
     bool active;

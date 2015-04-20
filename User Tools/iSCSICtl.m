@@ -91,13 +91,10 @@ CFStringRef kOptMutualUser = CFSTR("mutualUser");
 CFStringRef kOptMutualSecret = CFSTR("mutualSecret");
 
 
-
+// TODO: the "all" flag should be used to remove/login/logout "all" sessions
+// it needs to be impelemented in respective functions below
 /*! All command-line option. */
 CFStringRef kOptAll = CFSTR("all");
-
-/*! Nickname command-line option. */  ////// TODO
-CFStringRef kOptNickname = CFSTR("nickname");
-
 
 
 /*! Name of this command-line executable. */
@@ -134,12 +131,9 @@ void iSCSICtlDisplayString(CFStringRef string)
 /*! Displays a list of valid command-line options. */
 void iSCSICtlDisplayUsage()
 {
+// TODO: print usage string
     CFStringRef usage = CFSTR(
-        "usage: iscisctl -A -t target -p portal [-f interface] [-u user -s secret]\n"
-        "       iscsictl -A -d discovery-host [-u user -s secret]\n"
-        "       iscsictl -A -a\n"
-        "       iscisctl -M -i session-id [-p portal] [-t target]\n"
-        "       iscsictl -L [-v]\n");
+        "usage: iscisctl ...");
     
     iSCSICtlDisplayString(usage);
     CFRelease(usage);
@@ -482,7 +476,11 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
         iSCSIPortalSetPort(portal,CFSTR("3260"));
     
     CFRelease(portalParts);
-//////// TODO: remove "en0" ----> if no interface specified leave blank - this should be handled by the daemon/kernel layer
+    
+// TODO: remove hardcoded "en0" ----> if no interface specified leave blank - this should be handled by the daemon/kernel layer
+// (the daemon/kernel doesn't have this functionality it needs to be implemented - the daemon - iSCSISession.c should
+//  find the first available interface and use that)
+    
     if(!CFDictionaryGetValueIfPresent(options,kOptInterface,(const void **)&hostInterface))
         iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
     else
@@ -1344,25 +1342,13 @@ errno_t iSCSICtlUnmountForTarget(iSCSIDaemonHandle handle,CFDictionaryRef option
 
 errno_t iSCSICtlSetInitiatorName(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
-    /*
-    if(!CFDictionaryGetValueIfPresent(options,kOptPortal,(const void **)&portalAddress))
-    {
-        iSCSICtlDisplayMissingOptionError(kOptPortal);
-        return NULL;
-    }
-*/
+// TODO: implement
     return 0;
 }
 
 errno_t iSCSICtlSetInitiatorAlias(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
-    /*
-    if(!CFDictionaryGetValueIfPresent(options,(const void **)&portalAddress))
-    {
-        iSCSICtlDisplayMissingOptionError(kOptPortal);
-        return NULL;
-    }
-*/
+// TODO: implement
     return 0;
 }
 
@@ -1500,8 +1486,14 @@ int main(int argc, char * argv[])
     
     // Get the mode of operation (e.g., add, modify, remove, etc).
     CFStringRef mode = NULL;
-    if(CFArrayGetCount(arguments) > 0)
+    if(CFArrayGetCount(arguments) > 1)
         mode = CFArrayGetValueAtIndex(arguments,1);
+    else {
+        iSCSIDaemonDisconnect(handle);
+        CFWriteStreamClose(stdoutStream);
+        return 0;
+    }
+    
     
     // Process add, modify, remove or list
     if(CFStringCompare(mode,kModeAdd,0) == kCFCompareEqualTo)

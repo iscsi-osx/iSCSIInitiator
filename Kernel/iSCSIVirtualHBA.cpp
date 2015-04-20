@@ -506,9 +506,6 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     UInt8   transferDirection       = owner->GetDataTransferDirection(parallelTask);
     UInt32  transferSize            = (UInt32)owner->GetRequestedDataTransferCount(parallelTask);
     UInt8   cdbSize                 = owner->GetCommandDescriptorBlockSize(parallelTask);
-
-
-    DBLog("iSCSI: Processing task %llx\n",taskId);
     
     // Now that we know task is valid, timestamp the connection indicating
     // when we started processing the task
@@ -1912,6 +1909,9 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
     {
         DBLog("iSCSI: Received incomplete PDU header: %zu\n bytes",bytesRecv);
+        
+// TODO: handle error
+        
         return EIO;
     }
     
@@ -1921,9 +1921,11 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
         // Compute digest (should be 0 since we start with the digest)
         if(headerDigest != crc32c(0,bhs,kiSCSIPDUBasicHeaderSegmentSize))
         {
-            // Digest failed, log and quit
-            IOLog("iSCSI: Failed header digest.\n");
-            //return EIO;
+            DBLog("iSCSI: Failed header digest.\n");
+            
+// TODO: handle error
+            
+            return EIO;
         }
     }
     
@@ -2020,9 +2022,11 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
         
         if(dataDigest != calcDigest)
         {
-            // Digest failed, log and quit
-            IOLog("iSCSI: Failed data digest.\n");
-//            return EIO;
+            DBLog("iSCSI: Failed data digest.\n");
+            
+// TODO: handle error
+            
+            return EIO;
         }
     }
 

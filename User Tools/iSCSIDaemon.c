@@ -589,18 +589,7 @@ void iSCSIDHandlePowerEvent(void * refCon,
 {
     switch(messageType)
     {
-        case kIOMessageSystemHasPoweredOn:
-            iSCSIRestoreForSystemWake();
-            fprintf(stderr,"Wakeup event");
-        break;
-/*        case kIOMessageSystemWillSleep:
-        case kIOMessageSystemWillRestart:
-        case kIOMessageSystemWillPowerOff:*/
-        case kIOMessageCanSystemSleep:
-            fprintf(stderr,"Sleeping...");
-            iSCSIPrepareForSystemSleep();
-            
-            
+// TODO: handle sleep
         break;
     };
 
@@ -664,16 +653,7 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
     while(recv(fd,&cmd,sizeof(cmd),MSG_PEEK) == sizeof(cmd)) {
         
         recv(fd,&cmd,sizeof(cmd),MSG_WAITALL);
-    /*
-    // Receive a command from a client and then process the command
-    if(recv(sock,&cmd,sizeof(cmd),0) != sizeof(cmd))
-    {
-        fprintf(stderr,"error: %d",errno);
-        iSCSIKernelCleanUp();
-        close(sock);
-        return;
-    }
-    */
+
     errno_t error = 0;
     switch(cmd.funcCode)
     {
@@ -790,9 +770,12 @@ int main(void)
     
     launch_data_free(reg_response);
     return 0;
+
+// TODO: verify that launch data is freed under all possible execution paths
     
 ERROR_PWR_MGMT_FAIL:
-    
+ 
+
     
 ERROR_NO_SOCKETS:
     

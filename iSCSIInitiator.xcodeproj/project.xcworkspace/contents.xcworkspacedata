@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:iSCSI_Initiator.xcodeproj">
+      location = "self:iSCSIInitiator.xcodeproj">
    </FileRef>
 </Workspace>

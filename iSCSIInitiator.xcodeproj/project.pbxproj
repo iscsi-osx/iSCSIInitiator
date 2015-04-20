@@ -114,7 +114,7 @@
 		2BCB2B0A1A70157200A81C80 /* iSCSIAuth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSIAuth.h; path = "User Tools/iSCSIAuth.h"; sourceTree = "<group>"; };
 		2BCB2B0B1A70157200A81C80 /* iSCSICtl.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = iSCSICtl.m; path = "User Tools/iSCSICtl.m"; sourceTree = "<group>"; };
 		2BCB2B0C1A70157200A81C80 /* iSCSIDaemon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iSCSIDaemon.c; path = "User Tools/iSCSIDaemon.c"; sourceTree = "<group>"; };
-		2BCB2B0D1A70157200A81C80 /* iSCSIDaemon.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = iSCSIDaemon.plist; path = "User Tools/iSCSIDaemon.plist"; sourceTree = "<group>"; };
+		2BCB2B0D1A70157200A81C80 /* com.github.iscsi-osx.iscsid.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "com.github.iscsi-osx.iscsid.plist"; path = "User Tools/com.github.iscsi-osx.iscsid.plist"; sourceTree = "<group>"; };
 		2BCB2B0E1A70157200A81C80 /* iSCSIDaemonInterface.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iSCSIDaemonInterface.c; path = "User Tools/iSCSIDaemonInterface.c"; sourceTree = "<group>"; };
 		2BCB2B0F1A70157200A81C80 /* iSCSIDaemonInterface.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSIDaemonInterface.h; path = "User Tools/iSCSIDaemonInterface.h"; sourceTree = "<group>"; };
 		2BCB2B101A70157200A81C80 /* iSCSIDaemonInterfaceShared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSIDaemonInterfaceShared.h; path = "User Tools/iSCSIDaemonInterfaceShared.h"; sourceTree = "<group>"; };
@@ -270,7 +270,7 @@
 				2BC5F75C1ACB9CD600829DD6 /* iSCSIUtils.c */,
 				2BC5F75D1ACB9CD600829DD6 /* iSCSIUtils.h */,
 				2BCB2B0C1A70157200A81C80 /* iSCSIDaemon.c */,
-				2BCB2B0D1A70157200A81C80 /* iSCSIDaemon.plist */,
+				2BCB2B0D1A70157200A81C80 /* com.github.iscsi-osx.iscsid.plist */,
 				2BCB2B0E1A70157200A81C80 /* iSCSIDaemonInterface.c */,
 				2BCB2B0F1A70157200A81C80 /* iSCSIDaemonInterface.h */,
 				2BCB2B101A70157200A81C80 /* iSCSIDaemonInterfaceShared.h */,
@@ -409,7 +409,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 2B5935581810CE6800FFC3D3 /* Build configuration list for PBXProject "iSCSI_Initiator" */;
+			buildConfigurationList = 2B5935581810CE6800FFC3D3 /* Build configuration list for PBXProject "iSCSIInitiator" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
@@ -879,7 +879,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2B5935581810CE6800FFC3D3 /* Build configuration list for PBXProject "iSCSI_Initiator" */ = {
+		2B5935581810CE6800FFC3D3 /* Build configuration list for PBXProject "iSCSIInitiator" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2B5935591810CE6800FFC3D3 /* Debug */,

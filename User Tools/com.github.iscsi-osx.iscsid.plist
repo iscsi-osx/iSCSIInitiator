@@ -19,6 +19,6 @@
 	<key>Program</key>
 	<string>/tmp/iscsid</string>
 	<key>Label</key>
-	<string>com.NSinenian.iscsid</string>
+	<string>com.github.iscsi-osx.iscsid</string>
 </dict>
 </plist>
