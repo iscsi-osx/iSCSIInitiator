@@ -18,19 +18,19 @@ To add a target to the database (property list):
 
 To login to the target:
 
-`# sudo iscsictl -login -target <iSCSI-qualified-name> -portal <host:port>`
+`# iscsictl -login -target <iSCSI-qualified-name> -portal <host:port>`
 
 To logout of the target:
 
-`# sudo iscsictl -logout -target <iSCSI-qualified-name>`
+`# iscsictl -logout -target <iSCSI-qualified-name>`
 
 To list defined target and active sessions:
 
-`# sudo iscsictl -targets`
+`# iscsictl -targets`
 
 To list active LUNs:
 
-`# sudo iscsictl -luns`
+`# iscsictl -luns`
 
 
 
