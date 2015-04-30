@@ -27,8 +27,8 @@
 
 #define super IOSCSIParallelInterfaceController
 
-#define ISCSI_PRODUCT_NAME  "iSCSI Virtual Host Bus Adapter"
-#define ISCSI_PRODUCT_REVISION_LEVEL "1.0"
+#define ISCSI_PRODUCT_NAME              "iSCSI Virtual Host Bus Adapter"
+#define ISCSI_PRODUCT_REVISION_LEVEL    "1.0"
 
 using namespace iSCSIPDU;
 
@@ -57,7 +57,7 @@ const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 /*! Default task timeout for new tasks (milliseconds). */
 const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 2000;
 
-/*! Default timeout for new connections (milliseconds). */
+/*! Default TCP timeout for new connections (milliseconds). */
 const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutMs = 1000;
 
 
@@ -306,7 +306,7 @@ bool iSCSIVirtualHBA::InitializeController()
     
     memset(sessionList,0,kMaxSessions*sizeof(iSCSISession *));
     
-    /* Set product name. */
+    // Set product name.
     SetHBAProperty(kIOPropertyProductNameKey,OSString::withCString(ISCSI_PRODUCT_NAME));
     SetHBAProperty(kIOPropertyProductRevisionLevelKey,OSString::withCString(ISCSI_PRODUCT_REVISION_LEVEL));
 
@@ -409,7 +409,6 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SID sessionId,CID connectionId)
         ReleaseConnection(sessionId,connectionId);
     else
         ReleaseSession(sessionId);
-
 }
 
 SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask)
@@ -551,7 +550,6 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         case kSCSITask_SIMPLE:
             bhs.flags |= kiSCSIPDUSCSICmdTaskAttrSimple; break;
     };
-    
     
     // Default timeout for new tasks...
     owner->SetTimeoutForTask(parallelTask,kiSCSITaskTimeoutMs);
@@ -1439,9 +1437,6 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     // Initialize default error (try again)
     errno_t error = EAGAIN;
     
-    if(!(newConn->PDUIOLock = IOLockAlloc()))
-        goto IOLOCK_ALLOC_FAILURE;
-    
     if(!(newConn->taskQueue = OSTypeAlloc(iSCSITaskQueue)))
         goto TASKQUEUE_ALLOC_FAILURE;
     
@@ -1526,9 +1521,7 @@ TASKQUEUE_INIT_FAILURE:
     newConn->taskQueue->release();
     
 TASKQUEUE_ALLOC_FAILURE:
-    IOLockFree(newConn->PDUIOLock);
-    
-IOLOCK_ALLOC_FAILURE:
+
     session->connections[index] = 0;
     IOFree(newConn,sizeof(iSCSIConnection));
     
@@ -1555,8 +1548,6 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
     if(!connection)
         return;
     
-    IOLockLock(connection->PDUIOLock);
-    
     // First deactivate connection before proceeding
     if(connection->taskQueue->isEnabled())
         DeactivateConnection(sessionId,connectionId);
@@ -1574,8 +1565,6 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
     connection->taskQueue->release();
     connection->dataToTransfer = 0;
     
-    IOLockUnlock(connection->PDUIOLock);
-    IOLockFree(connection->PDUIOLock);
     IOFree(connection,sizeof(iSCSIConnection));
     session->connections[connectionId] = NULL;
     
@@ -1834,9 +1823,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     // Update io vector count, send data
     msg.msg_iovlen = iovecCnt;
     size_t bytesSent = 0;
-    IOLockLock(connection->PDUIOLock);
     int result = sock_send(connection->socket,&msg,0,&bytesSent);
-    IOLockUnlock(connection->PDUIOLock);
     
     return result;
 }
@@ -1898,9 +1885,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     
     // Bytes received from sock_receive call
     size_t bytesRecv;
-    IOLockLock(connection->PDUIOLock);
     errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
-    IOLockUnlock(connection->PDUIOLock);
     
     if(result != 0)
         DBLog("iSCSI: sock_receive error returned with code %d\n",result);
@@ -2007,9 +1992,7 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     msg.msg_iovlen = iovecCnt;
     
     size_t bytesRecv;
-    IOLockLock(connection->PDUIOLock);
     errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
-    IOLockUnlock(connection->PDUIOLock);
     
     // Verify digest if present
     if(connection->opts.useDataDigest)

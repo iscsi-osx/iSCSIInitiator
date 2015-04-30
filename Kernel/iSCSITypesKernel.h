@@ -47,10 +47,6 @@ typedef struct iSCSIConnection {
     /*! Used to keep track of R2T PDUs. */
     UInt32 R2TSN;
     
-    /*! Mutex lock used to prevent simultaneous Send/Recv from different
-     *  threads (e.g., workloop thread and other threads). */
-    IOLock * PDUIOLock;
-    
     /*! iSCSI task queue used to manage tasks for this connection. */
     iSCSITaskQueue * taskQueue;
 

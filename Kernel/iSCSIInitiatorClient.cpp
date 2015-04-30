@@ -278,7 +278,6 @@ IOReturn iSCSIInitiatorClient::clientClose()
 	// Ensure that the connection has been closed (in case the user calls
 	// IOServiceClose() before calling our close() method
 	close();
-    
 	
 	// Terminate ourselves
 	terminate();
@@ -292,7 +291,6 @@ IOReturn iSCSIInitiatorClient::clientDied()
 {
     // Tell HBA to release any resources that aren't active (e.g.,
     // connections we started to establish but didn't activate)
-    
     
     // Close the provider (decrease retain count)
     close();
