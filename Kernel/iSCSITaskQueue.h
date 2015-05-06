@@ -84,10 +84,6 @@ private:
     
     queue_head_t taskQueue;
     
-    /*! Mutex lock used to prevent simultaneous access to the iSCSI task queue
-     *  (e.g., simultaneous calls to addTaskToQueue() and removeTaskFromQueue(). */
-    IOSimpleLock * taskQueueLock;
-    
     bool newTask;
     
 };

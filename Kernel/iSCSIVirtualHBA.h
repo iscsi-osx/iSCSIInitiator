@@ -466,6 +466,7 @@ private:
     /*! Lookup table mapping target names (IQN names) to session identifiers. */
     OSDictionary * targetList;
     
+    friend class iSCSITaskQueue;
 };
 
 

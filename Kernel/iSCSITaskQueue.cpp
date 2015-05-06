@@ -1,8 +1,8 @@
 /*!
- * @author		Nareg Sinenian
- * @file		iSCSITaskQueue.cpp
- * @version		1.0
- * @copyright	(c) 2014-2015 Nareg Sinenian. All rights reserved.
+ * @author      Nareg Sinenian
+ * @file        iSCSITaskQueue.cpp
+ * @version     1.0
+ * @copyright   (c) 2014-2015 Nareg Sinenian. All rights reserved.
  */
 
 #include "iSCSITaskQueue.h"
@@ -30,7 +30,7 @@ bool iSCSITaskQueue::init(iSCSIVirtualHBA * owner,
     
     // Initialize task queue to store parallel SCSI tasks for processing
     queue_init(&taskQueue);
-    taskQueueLock = IOSimpleLockAlloc();
+
     newTask = false;
     
 	return true;
@@ -46,7 +46,8 @@ void iSCSITaskQueue::queueTask(UInt32 initiatorTaskTag)
     iSCSITask * task = (iSCSITask*)IOMalloc(sizeof(iSCSITask));
     task->initiatorTaskTag = initiatorTaskTag;
     
-    IOSimpleLockLock(taskQueueLock);
+    if(!onThread())
+        OSDynamicCast(iSCSIVirtualHBA,owner)->GetCommandGate();
     
     bool firstTaskInQueue = false;
     if(queue_empty(&taskQueue))
@@ -54,11 +55,10 @@ void iSCSITaskQueue::queueTask(UInt32 initiatorTaskTag)
     
     queue_enter(&taskQueue,task,iSCSITask *,queueChain);
     
-    IOSimpleLockUnlock(taskQueueLock);
-    
     // Signal the workloop to process a new task...
     if(firstTaskInQueue) {
         newTask = true;
+        
         if(getWorkLoop())
             signalWorkAvailable();
     }
@@ -78,10 +78,11 @@ UInt32 iSCSITaskQueue::completeCurrentTask()
     
     // Remove the completed task (at the head of the queue) and then
     // move onto the next task if one exists
-    IOSimpleLockLock(taskQueueLock);
+    if(!onThread())
+        OSDynamicCast(iSCSIVirtualHBA,owner)->GetCommandGate();
+
     queue_remove_first(&taskQueue,task,iSCSITask *, queueChain);
-    IOSimpleLockUnlock(taskQueueLock);
-    
+
     if(task) {
         taskTag = task->initiatorTaskTag;
         IOFree(task,sizeof(iSCSITask));
@@ -103,7 +104,6 @@ UInt32 getCurrentTask()
     return 0;
 }
 
-
 bool iSCSITaskQueue::checkForWork()
 {
     if(!isEnabled())
@@ -112,6 +112,7 @@ bool iSCSITaskQueue::checkForWork()
     // Check task flag before proceeding
     if(!newTask)
         return false;
+    
     newTask = false;
 
     // Validate action & owner, then call action on our owner & pass in socket
@@ -120,16 +121,14 @@ bool iSCSITaskQueue::checkForWork()
  
         UInt32 taskTag;
         
-        IOSimpleLockLock(taskQueueLock);
+        if(!onThread())
+            OSDynamicCast(iSCSIVirtualHBA,owner)->GetCommandGate();
         
-        if(queue_empty(&taskQueue)) {
-            IOSimpleLockUnlock(taskQueueLock);
+        if(queue_empty(&taskQueue))
             return false;
-        }
         
         iSCSITask * task = (iSCSITask *)queue_first(&taskQueue);
         taskTag = task->initiatorTaskTag;
-        IOSimpleLockUnlock(taskQueueLock);
         
         (*action)(owner,session,connection,taskTag);
     }
@@ -146,7 +145,9 @@ void iSCSITaskQueue::clearTasksFromQueue()
     
     // Iterate over queue and clear all tasks (free memory for each task)
     iSCSITask * task = NULL;
-    IOSimpleLockLock(taskQueueLock);
+    
+    if(!onThread())
+        OSDynamicCast(iSCSIVirtualHBA,owner)->GetCommandGate();
     
     while(!queue_empty(&taskQueue))
     {
@@ -154,6 +155,5 @@ void iSCSITaskQueue::clearTasksFromQueue()
         if(task)
             IOFree(task,sizeof(iSCSITask));
     }
-    IOSimpleLockUnlock(taskQueueLock);
 }
 
