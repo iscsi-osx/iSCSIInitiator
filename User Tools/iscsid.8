@@ -1,0 +1,28 @@
+.\" (c) 2013-2015 Nareg Sinenian. All rights reserved.
+.\" This file is the UNIX man page for the iscsid user-space daemon."
+.Dd May 12, 2015
+.Dt ISCSID 8
+.Os "Mac OS X"
+.Sh NAME
+.Nm iscsid
+.Nd iSCSI initiator daemon.
+.Sh DESCRIPTION
+.Nm
+is a user-space daemon that handles iSCSI session management functions, including login, logout and target discovery.  The
+.Xr iscsictl 8
+command-line utility provides users with access to daemon functions.
+.Pp
+.Pp
+.Sh FILES
+.Bl -tag -width Ds -compact
+.It Pa /System/Library/LaunchDaemons/com.github.iscsi-osx.iscsid.plist
+This file contains configuration information that is used by
+.Xr launchctl 1
+to load the daemon.  Superuser access is required to edit this file.
+.El
+.Pp
+.Sh SEE ALSO
+.Xr iscsictl 8
+.Sh AUTHORS
+.An Nareg Sinenian
+.Aq nareg@alum.mit.edu

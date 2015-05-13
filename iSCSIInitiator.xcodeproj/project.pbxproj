@@ -103,6 +103,8 @@
 		2B59357F1810D3C800FFC3D3 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
 		2B5935801810D3C800FFC3D3 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		2B5935C21810DF7100FFC3D3 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		2B7B6A701AFAFA580098FAF6 /* iscsictl.8 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; name = iscsictl.8; path = "User Tools/iscsictl.8"; sourceTree = "<group>"; usesTabs = 1; };
+		2B7B6A971B03122A0098FAF6 /* iscsid.8 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = iscsid.8; path = "User Tools/iscsid.8"; sourceTree = "<group>"; };
 		2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		2BA046931AA22DFF00E086DF /* iSCSITypesKernel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iSCSITypesKernel.h; path = Kernel/iSCSITypesKernel.h; sourceTree = "<group>"; };
 		2BA046971AA23AAF00E086DF /* iSCSIKernelClasses.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSIKernelClasses.h; path = Kernel/iSCSIKernelClasses.h; sourceTree = "<group>"; };
@@ -266,6 +268,8 @@
 		2B97E4431A5B84E000A8EE9C /* User Tools */ = {
 			isa = PBXGroup;
 			children = (
+				2B7B6A701AFAFA580098FAF6 /* iscsictl.8 */,
+				2B7B6A971B03122A0098FAF6 /* iscsid.8 */,
 				2BCB2B451A70168B00A81C80 /* iSCSIKernelInterface.c */,
 				2BCB2B461A70168B00A81C80 /* iSCSIKernelInterface.h */,
 				2BC5AF241AC4FEFF00DE67D4 /* iSCSIIORegistry.c */,

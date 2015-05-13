@@ -1,0 +1,109 @@
+.\" (c) 2013-2015 Nareg Sinenian. All rights reserved.
+.\" This file is the UNIX man page for the iscsictl command-line utility."
+.Dd May 12, 2015
+.Dt ISCSICTL 8
+.Os "Mac OS X"
+.Sh NAME
+.Nm iscsictl
+.Nd iSCSI initiator configuration and management tool.
+.Sh SYNOPSIS
+.Nm
+.Op Fl add Fl target Ar target Fl portal Ar portal Op Fl interface Ar interface
+.Op ...
+.Nm
+.Op Fl modify Fl target Op Fl portal Ar portal
+.Op ...
+.Nm
+.Op Fl remove Fl target Ar target Op Fl portal Ar portal
+.Nm
+.Op Fl login Fl target Ar target Op Fl portal Ar portal
+.Nm
+.Op Fl logout Fl target Ar target Op Fl portal Ar portal
+.Nm
+.Op Fl targets
+.Nm
+.Op Fl luns
+.Nm
+.Op Fl mount Ar target
+.Nm
+.Op	Fl unmount Ar target
+.Nm
+.Op Fl probe Ar target  Fl portal Ar portal
+.Nm
+.Op Fl discovery Fl portal Ar portal
+.Sh DESCRIPTION
+The
+.B iscsictl
+utility is used to configure the iSCSI initiator and manage sessions.  Users may login or logout of targets after they have been defined with appropriate portals and optional authentication method, session parameters and connection parameters.  Superuser access is required to modify the targets database.
+.Pp
+The options are as follows:
+.Bl -tag -width "-discovery"
+.It Fl add
+Adds a target or portal to the database.
+.It Fl modify
+Modifies an existing target in the database.
+.It Fl remove
+Removes a target or portal from the database.
+.It Fl login
+Logs into a target or connection.
+.It Fl logout
+Logs out of a target or connection.
+.It Fl targets
+Lists all of the targets in the database.
+.It Fl luns
+Lists any LUNs that may be active.
+.It Fl mount
+Mounts all volumes associated with the specified target.
+.It Fl unmount
+Unmounts all volumes associated with the specified target.
+.It Fl probe
+Probes the specified target and portal for authentication parameters.
+.It Fl discovery
+Performs iSCSI discovery using the specified portal.
+.El
+.Pp
+The
+.Ar target
+must be an iSCSI Qualified Name (IQN) as defined in RFC3720.  The
+.Ar portal
+must be a valid IP address (version 4 or 6) or a valid DNS name.  If a port other than 3620 is used, the
+.Ar portal
+can include a port number (e.g., <address:port>). The
+.Ar interface
+when specified must be a valid network interface (i.e., as listed by ifconfig). Otherwise the first available interface that supports the specified protocol is automatically used.
+.Pp
+If multiple connections are to be used with a single target, it is important to indicate the interfaces to be used in order to prevent conflicts.
+.Pp
+If the
+.Ar portal
+is omitted where optional, the command acts on all portals.  For example, when logging into or out of a target, a specific portal can be used otherwise the initiator will login to or logout of all portals.  Similarly, if a
+.Ar portal
+is specified for a remove operation, only that portal is removed from the database.  If omitted, the target including all portals are removed.
+.Pp
+.Pp
+.Sh FILES
+.Bl -tag -width Ds -compact
+.It Pa /Library/Preferences/com.github.iscsi-osx.iSCSIInitiator.plist
+Initiator configuration and targets database file.  Stores the initiator name and alias, a list of defined targets, their associated portals, authentication parameters, session-wide and connection-wide options, and a list of discovered targets and portals.  Superuser access is required to edit this file.
+.Pp
+.Sh EXAMPLES
+.Bl -tag -width Ds -compact
+.It Add a target to the database with a single portal that uses interface en0:
+sudo iscsictl -add -target iqn.2015-01.com.example:target -portal 192.168.1.100:3260 -interface en0
+.Pp
+.It Add a second portal to the existing target that uses interface en1:
+sudo iscsictl -add -target iqn.2015-01.com.example:target -portal 192.168.1.101:3260 -interface en1
+.Pp
+.It Login to the target using a particular portal:
+iscsictl -login -target iqn.2015-01.com.example:target -portal 192.168.1.1.100
+.Pp
+.It Logout of the target:
+iscsictl -logout -target iqn.2015-01.com.example:target
+.Pp
+.It Modify the first portal to use the interface en2:
+sudo iscsictl -modify -target iqn.2015-01.com.example:target -portal 192.168.1.1.100:3260 -interface en2
+.Sh SEE ALSO
+.Xr iscsid 8
+.Sh AUTHORS
+.An Nareg Sinenian
+.Aq nareg@alum.mit.edu
