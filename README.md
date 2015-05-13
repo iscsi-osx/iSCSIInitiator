@@ -12,7 +12,7 @@ The load script copies the kernel extension `iSCSIInitiator.kext` to `/tmp/iSCSI
 
 Once the kernel extension and daemon have been loaded, the command-line utility `iscsictl` can be used to manage iSCSI functions.  The utility operates on a property list that keeps track of defined targets and communicates with the daemon to manage iSCSI sessions.
 
-See the [iscsictl(8)](iscsictl(8)) man page for more information.
+See the [iscsictl(8)](https://github.com/iscsi-osx/iSCSIInitiator/wiki/iscsictl(8)) man page for more information.
 
 
 # Implementation Overview
