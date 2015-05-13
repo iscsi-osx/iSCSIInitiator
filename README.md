@@ -12,27 +12,7 @@ The load script copies the kernel extension `iSCSIInitiator.kext` to `/tmp/iSCSI
 
 Once the kernel extension and daemon have been loaded, the command-line utility `iscsictl` can be used to manage iSCSI functions.  The utility operates on a property list that keeps track of defined targets and communicates with the daemon to manage iSCSI sessions.
 
-To add a target to the database (property list):
-
-`# sudo iscsictl -add -target <target IQN> -portal <host:port> -interface <interface name>`
-
-To login to the target:
-
-`# iscsictl -login -target <iSCSI-qualified-name> -portal <host:port>`
-
-To logout of the target:
-
-`# iscsictl -logout -target <iSCSI-qualified-name>`
-
-To list defined target and active sessions:
-
-`# iscsictl -targets`
-
-To list active LUNs:
-
-`# iscsictl -luns`
-
-
+See the [iscsictl(8)](iscsictl(8)) man page for more information.
 
 
 # Implementation Overview
