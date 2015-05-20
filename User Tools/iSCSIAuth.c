@@ -294,10 +294,9 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
         CFDictionaryAddValue(authCmd,kiSCSILKSessionType,kiSCSILVSessionTypeNormal);
         CFDictionaryAddValue(authCmd,kiSCSILKTargetName,iSCSITargetGetIQN(target));
     }
-/// TODO: fix initiator name (read from globals?)
-    
+
     // Read global variables for initiator name & alias and add them to dict.
-    CFDictionaryAddValue(authCmd,kiSCSILKInitiatorName,kiSCSILKInitiatorName);
+    CFDictionaryAddValue(authCmd,kiSCSILKInitiatorName,kiSCSIInitiatorIQN);
     CFDictionaryAddValue(authCmd,kiSCSILKInitiatorAlias,kiSCSIInitiatorAlias);
 
     // Determine authentication method used and add to dictionary
@@ -455,8 +454,7 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
     CFDictionaryAddValue(authCmd,kiSCSILKSessionType,kiSCSILVSessionTypeNormal);
     CFDictionaryAddValue(authCmd,kiSCSILKTargetName,iSCSITargetGetIQN(target));
     
-// TODO: grab name from the daemon / local variable?
-    CFDictionaryAddValue(authCmd,kiSCSILKInitiatorName,kiSCSILKInitiatorName);
+    CFDictionaryAddValue(authCmd,kiSCSILKInitiatorName,kiSCSIInitiatorIQN);
     CFDictionaryAddValue(authCmd,kiSCSILKInitiatorAlias,kiSCSIInitiatorAlias);
     CFDictionaryAddValue(authCmd,kiSCSILKAuthMethod,kiSCSILVAuthMethodAll);
 

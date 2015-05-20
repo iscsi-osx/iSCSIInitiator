@@ -38,9 +38,6 @@
 #include "iSCSIDaemonInterfaceShared.h"
 #include "iSCSIPropertyList.h"
 
-
-static const CFStringRef applicationId = CFSTR("test.com");
-
 // Used to notify daemon of power state changes
 io_connect_t powerPlaneRoot;
 io_object_t powerNotifier;
@@ -701,9 +698,9 @@ int main(void)
     // Connect to the preferences .plist file associated with "iscsid" and
     // read configuration parameters for the initiator
     iSCSIPLSynchronize();
-    
+
     CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
-    
+
     if(initiatorIQN) {
         iSCSISetInitiatiorName(initiatorIQN);
         CFRelease(initiatorIQN);
@@ -715,7 +712,7 @@ int main(void)
         iSCSISetInitiatiorName(initiatorAlias);
         CFRelease(initiatorAlias);
     }
-  
+ 
     // Register with launchd so it can manage this daemon
     launch_data_t reg_request = launch_data_new_string(LAUNCH_KEY_CHECKIN);
     

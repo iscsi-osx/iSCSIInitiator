@@ -21,7 +21,7 @@
 #include "iSCSIRFC3720Defaults.h"
 
 /*! Name of the initiator. */
-CFStringRef kiSCSIInitiatorName = CFSTR("default");
+CFStringRef kiSCSIInitiatorIQN = CFSTR("iqn.2015-01.com.localhost");
 
 /*! Alias of the initiator. */
 CFStringRef kiSCSIInitiatorAlias = CFSTR("default");
@@ -1281,8 +1281,8 @@ void iSCSISetInitiatiorName(CFStringRef initiatorIQN)
     if(!initiatorIQN)
         return;
     
-    CFRelease(kiSCSIInitiatorName);
-    kiSCSIInitiatorName = CFStringCreateCopy(kCFAllocatorDefault,initiatorIQN);
+    CFRelease(kiSCSIInitiatorIQN);
+    kiSCSIInitiatorIQN = CFStringCreateCopy(kCFAllocatorDefault,initiatorIQN);
 }
 
 /*! Sets the alias of this initiator.  This is the IQN-format alias that is

@@ -34,6 +34,26 @@ int main(int argc, const char * argv[]) {
     iSCSIInitialize(CFRunLoopGetCurrent());
 
     // Test commands here
+    enum iSCSILoginStatusCode statusCode;
+    iSCSISessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
+    iSCSIConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
+    CID connectionId;
+    SID sessionId;
+    iSCSITargetRef target = iSCSITargetCreateMutable();
+    iSCSITargetSetName(target,CFSTR("iqn.2012-06.com.example:target0"));
+    
+    iSCSISetInitiatiorName(CFSTR("iqn.2015-01.com.test"));
+    iSCSISetInitiatorAlias(CFSTR("default"));
+    
+    iSCSIPortalRef portal = iSCSIPortalCreateMutable();
+    iSCSIPortalSetAddress(portal,CFSTR("192.168.56.2"));
+    iSCSIPortalSetHostInterface(portal,CFSTR("vboxnet0"));
+    iSCSIPortalSetPort(portal,CFSTR("3260"));
+    
+    
+    
+    iSCSILoginSession(target,portal,iSCSIAuthCreateNone(),sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
+    
     
     iSCSICleanup();
     return 0;

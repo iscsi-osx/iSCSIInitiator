@@ -258,7 +258,7 @@ void iSCSIPDUPopulateWithTextCommand(const void * key,
  *  @param textDict the user-specified dictionary to use.
  *  @param data a pointer to a pointer the data, returned by this function.
  *  @param length the length of the data block, returned by this function. */
-void iSCSIPDUDataCreateFromDict(CFDictionaryRef textDict,void * * data,size_t * length)
+void iSCSIPDUDataCreateFromDict(CFDictionaryRef textDict,void ** data,size_t * length)
 {
     if(!length || !data)
         return;
@@ -269,15 +269,12 @@ void iSCSIPDUDataCreateFromDict(CFDictionaryRef textDict,void * * data,size_t * 
     CFDictionaryApplyFunction(textDict,
                               &iSCSIPDUCalculateTextCommandByteSize,
                               &cmdByteSize);
-    
-    // Add padding to command byte size
-    cmdByteSize += (kiSCSIPDUByteAlignment - (cmdByteSize % kiSCSIPDUByteAlignment));
-    
+
     if((*data = malloc(cmdByteSize)) == NULL) {
         *length = 0;
         return;
     }
-    
+ 
     *length = cmdByteSize;
     
     iSCSIPDUDataSegmentTracker posTracker;
