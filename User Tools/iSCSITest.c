@@ -52,7 +52,11 @@ int main(int argc, const char * argv[]) {
     
     
     
-    iSCSILoginSession(target,portal,iSCSIAuthCreateNone(),sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
+ //   iSCSILoginSession(target,portal,iSCSIAuthCreateNone(),sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
+    
+    iSCSIDiscoveryRecRef discRec;
+    errno_t error = iSCSIQueryPortalForTargets(portal,iSCSIAuthCreateNone(),&discRec,&statusCode);
+
     
     
     iSCSICleanup();

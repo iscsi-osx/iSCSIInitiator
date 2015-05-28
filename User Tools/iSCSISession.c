@@ -925,6 +925,8 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
     if(CFStringCompare(key,kiSCSILKTargetName,0) == kCFCompareEqualTo)
     {
         targetIQN = CFStringCreateCopy(kCFAllocatorDefault,val);
+        iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)(valContainer);
+        iSCSIDiscoveryRecAddTarget(discoveryRec,targetIQN);
     }
     // Otherwise we're dealing with a portal entry. Per RFC3720, this is
     // of the form "TargetAddress = <address>:<port>,<portalGroupTag>
@@ -1062,6 +1064,38 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     enum iSCSILogoutStatusCode logoutStatusCode;
     iSCSILogoutSession(sessionId,&logoutStatusCode);
 
+    // Per RFC3720, the "TargetAddress" key is optional in a SendTargets
+    // discovery operation.  Therefore, certain targets may respond with
+    // a "TargetName" only, implying that the portal used for discovery
+    // can also be used for access to the target.  For these targets, we must
+    // add the discovery portal to the discovery record.
+    CFArrayRef targets;
+
+    if(!(targets = iSCSIDiscoveryRecCreateArrayOfTargets(*discoveryRec)))
+       return error;
+
+    for(CFIndex idx = 0; idx < CFArrayGetCount(targets); idx++) {
+        CFStringRef targetIQN;
+
+        if(!(targetIQN = CFArrayGetValueAtIndex(targets,idx)))
+            continue;
+
+        CFArrayRef portalGroups = iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(
+            *discoveryRec,targetIQN);
+
+        // If at least one portal group exists then we can skip this target...
+        if(CFArrayGetCount(portalGroups) != 0) {
+            CFRelease(portalGroups);
+            continue;
+        }
+
+        // Otherwise we need to create a new portal group and add the discovery
+        // portal for this target
+        iSCSIDiscoveryRecAddPortal(*discoveryRec,targetIQN,CFSTR("0"),portal);
+        CFRelease(portalGroups);
+    }
+
+    CFRelease(targets);
     return error;
 }
 

@@ -48,7 +48,7 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
     void * data;
     size_t length;
     iSCSIPDUDataCreateFromDict(textCmd,&data,&length);
-    
+
     errno_t error = iSCSIKernelSend(context->sessionId,context->connectionId,
                                     (iSCSIPDUInitiatorBHS *)&cmd,
                                     data,length);

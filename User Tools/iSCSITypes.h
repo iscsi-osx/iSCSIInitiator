@@ -346,7 +346,8 @@ iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutableWithData(CFDataRef dat
  * @return an iSCSI discovery object or NULL if object creation failed. */
 iSCSIDiscoveryRecRef iSCSIDiscoveryRecCreateWithDictionary(CFDictionaryRef dict);
 
-/*! Add a portal to a specified portal group tag for a given target.
+/*! Add a portal to a specified portal group tag for a given target.  If the 
+ *  target does not exist, it is added to the discovery record.
  *  @param discoveryRec the discovery record.
  *  @param targetIQN the name of the target to add.
  *  @param portalGroupTag the target portal group tag to add.
@@ -355,6 +356,12 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
                                 CFStringRef targetIQN,
                                 CFStringRef portalGroupTag,
                                 iSCSIPortalRef portal);
+
+/*! Add a target to the discovery record (without any portals).
+ *  @param discoveryRec the discovery record.
+ *  @param targetIQN the name of the target to add. */
+void iSCSIDiscoveryRecAddTarget(iSCSIMutableDiscoveryRecRef discoveryRec,
+                                CFStringRef targetIQN);
 
 /*! Creates a CFArray object containing CFString objects with names of
  *  all of the targets in the discovery record.

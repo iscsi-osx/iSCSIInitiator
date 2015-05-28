@@ -1471,6 +1471,13 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     if(error)
         goto SOCKET_CREATE_FAILURE;
     
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = kiSCSITCPTimeoutMs*1e3;
+    
+    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_SNDTIMEO,(const void*)&timeout,sizeof(struct timeval));
+    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_RCVTIMEO,(const void*)&timeout,sizeof(struct timeval));
+    
     // Bind socket to a particular host connection
     if((error = sock_bind(newConn->socket,(sockaddr*)hostSockaddr)))
         goto SOCKET_BIND_FAILURE;
@@ -1479,13 +1486,6 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     if((error = sock_connect(newConn->socket,(sockaddr*)portalSockaddr,0)))
         goto SOCKET_CONNECT_FAILURE;
     
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = kiSCSITCPTimeoutMs*1e3;
-    
-    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_SNDTIMEO,(const void*)&timeout,sizeof(struct timeval));
-    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_RCVTIMEO,(const void*)&timeout,sizeof(struct timeval));
-
     // Initialize queue that keeps track of connection speed
     memset(newConn->bytesPerSecondHistory,0,sizeof(UInt8)*newConn->kBytesPerSecAvgWindowSize);
     newConn->bytesPerSecHistoryIdx = 0;

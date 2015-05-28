@@ -345,8 +345,8 @@ iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutableWithData(CFDataRef dat
     return NULL;
 }
 
-
-/*! Add a portal to a specified portal group tag for a given target.
+/*! Add a portal to a specified portal group tag for a given target.  If the
+ *  target does not exist, it is added to the discovery record.
  *  @param discoveryRec the discovery record.
  *  @param targetIQN the name of the target to add.
  *  @param portalGroupTag the target portal group tag to add.
@@ -388,6 +388,31 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
     CFDictionarySetValue(discoveryRec,targetIQN,targetDict);
     
     CFRelease(portalDict);
+}
+
+
+/*! Add a target to the discovery record (without any portals).
+ *  @param discoveryRec the discovery record.
+ *  @param targetIQN the name of the target to add. */
+void iSCSIDiscoveryRecAddTarget(iSCSIMutableDiscoveryRecRef discoveryRec,
+                                CFStringRef targetIQN)
+{
+    // Validate inputs
+    if(!discoveryRec || !targetIQN)
+        return;
+
+    CFMutableDictionaryRef targetDict;
+
+    // If target doesn't exist add it
+    if(!CFDictionaryGetValueIfPresent(discoveryRec,targetIQN,(void *)&targetDict))
+    {
+        targetDict = CFDictionaryCreateMutable(kCFAllocatorDefault,0,
+                                               &kCFTypeDictionaryKeyCallBacks,
+                                               &kCFTypeDictionaryValueCallBacks);
+    }
+
+    // Add target to discovery record
+    CFDictionarySetValue(discoveryRec,targetIQN,targetDict);
 }
 
 /*! Creates a CFArray object containing CFString objects with names of

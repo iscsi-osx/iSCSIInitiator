@@ -376,28 +376,34 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
         goto ERROR_AUTHENTICATION;
     }
     
-    // Ensure that the target returned a portal group tag (TPGT)...
-    if(!CFDictionaryContainsKey(authRsp,kiSCSILKTargetPortalGroupTag)) {
-        error = EAUTH;
-        goto ERROR_TPGT_MISSING;
+    
+    // If this is not a discovery session, we expect to receive a target
+    // portal group tag (TPGT)...
+    if(iSCSITargetGetIQN(target) != NULL)
+    {
+        // Ensure that the target returned a portal group tag (TPGT)...
+        if(!CFDictionaryContainsKey(authRsp,kiSCSILKTargetPortalGroupTag)) {
+            error = EAUTH;
+            goto ERROR_TPGT_MISSING;
+        }
+
+        // Extract target portal group tag
+        CFStringRef TPGT = (CFStringRef)CFDictionaryGetValue(authRsp,kiSCSILKTargetPortalGroupTag);
+        
+        // If this is leading login (TSIH = 0 for leading login), store TPGT
+        if(sessCfgKernel.targetSessionId == 0) {
+            sessCfgKernel.targetPortalGroupTag = CFStringGetIntValue(TPGT);
+            
+            // Save the configuration since we've updated the TSIH
+            iSCSIKernelSetSessionConfig(sessionId,&sessCfgKernel);
+        }
+        // Otherwise compare TPGT...
+        else {
+            if(sessCfgKernel.targetPortalGroupTag != CFStringGetIntValue(TPGT))
+                goto ERROR_AUTHENTICATION;
+        }
     }
 
-    // Extract target portal group tag
-    CFStringRef TPGT = (CFStringRef)CFDictionaryGetValue(authRsp,kiSCSILKTargetPortalGroupTag);
-    
-    // If this is leading login (TSIH = 0 for leading login), store TPGT
-    if(sessCfgKernel.targetSessionId == 0) {
-        sessCfgKernel.targetPortalGroupTag = CFStringGetIntValue(TPGT);
-        
-        // Save the configuration since we've updated the TSIH
-        iSCSIKernelSetSessionConfig(sessionId,&sessCfgKernel);
-    }
-    // Otherwise compare TPGT...
-    else {
-        if(sessCfgKernel.targetPortalGroupTag != CFStringGetIntValue(TPGT))
-            goto ERROR_AUTHENTICATION;
-    }
-    
     // Call the appropriate authentication function to proceed
     enum iSCSIAuthMethods authMethod = iSCSIAuthGetMethod(auth);
     

@@ -1415,8 +1415,6 @@ errno_t iSCSICtlDiscoverTargets(iSCSIDaemonHandle handle,CFDictionaryRef options
         iSCSICtlDisplayDiscoveryRecord(discoveryRec);
         iSCSIDiscoveryRecRelease(discoveryRec);
         
-        iSCSIPLSynchronize();
-        
         return EINVAL;
     }
     
