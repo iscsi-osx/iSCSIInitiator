@@ -675,9 +675,11 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
                 // Copy the IPv4 or IPv6 structure into a sockaddr_storage
                 memcpy(ssHost,interface->ifa_addr,interface->ifa_addr->sa_len);
                 error = 0;
+                CFRelease(interfaceName);
                 break;
             }
-        }  
+        }
+        CFRelease(interfaceName);
         interface = interface->ifa_next;
     }
         
