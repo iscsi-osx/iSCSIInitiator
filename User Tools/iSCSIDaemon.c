@@ -396,7 +396,7 @@ errno_t iSCSIDGetSessionIds(int fd,struct iSCSIDCmdGetSessionIds * cmd)
 errno_t iSCSIDGetConnectionIds(int fd,struct iSCSIDCmdGetConnectionIds * cmd)
 {
     CFArrayRef connectionIds = iSCSICreateArrayOfConnectionsIds(cmd->sessionId);
-    
+    errno_t result = EAGAIN;
     // Compose a response to send back to the client
     struct iSCSIDRspGetConnectionIds rsp = iSCSIDRspGetConnectionIdsInit;
     const void ** connIdValues = malloc(CFArrayGetCount(connectionIds)*sizeof(void*));
@@ -417,22 +417,31 @@ errno_t iSCSIDGetConnectionIds(int fd,struct iSCSIDCmdGetConnectionIds * cmd)
     {
         if(connectionIds)
             CFRelease(connectionIds);
-        return EAGAIN;
+        if (connIdValues) {
+            free(connIdValues);
+            connIdValues = NULL;
+        }
+        return result;
     }
     
     if(connIdValues)
     {
         if(send(fd,connIdValues,rsp.dataLength,0) != rsp.dataLength)
         {
-            CFRelease(connectionIds);
-            return EAGAIN;
+            result = EAGAIN;
+        } else {
+            result = 0;
         }
-        
-        CFRelease(connectionIds);
+        if (connIdValues) {
+            free(connIdValues);
+            connIdValues = NULL;
+        }
     }
     
+    if (connectionIds)
+        CFRelease(connectionIds);
     
-    return 0;
+    return result;
 }
 
 errno_t iSCSIDCreateTargetForSessionId(int fd,struct iSCSIDCmdCreateTargetForSessionId * cmd)

@@ -958,8 +958,10 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
         CFRelease(port);
         CFRelease(address);
         CFRelease(targetAddress);
-        
-        CFRelease(targetIQN);
+        if (targetIQN) {
+            CFRelease(targetIQN);
+            targetIQN = NULL;
+        }
         iSCSIPortalRelease(portal);
     }
 }
