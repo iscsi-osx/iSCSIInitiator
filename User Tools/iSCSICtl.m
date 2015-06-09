@@ -688,6 +688,7 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
             CFStringRef portalAddress = CFStringCreateCopy(kCFAllocatorDefault,iSCSIPortalGetAddress(portal));
             iSCSIPortalRelease(portal);
             portal = iSCSIPLCopyPortal(targetIQN,portalAddress);
+            CFRelease(portalAddress);
             
             
             // Grab connection configuration from property list
@@ -716,9 +717,10 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
             
         }
         //else  // At this point the portal was not specified, and the session
+        if (sessCfg)
+            CFRelease(sessCfg);
         
     }
-    
     if(portal)
         iSCSIPortalRelease(portal);
     iSCSITargetRelease(target);

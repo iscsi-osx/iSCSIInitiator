@@ -26,6 +26,7 @@ iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data)
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return portal;
 
+    CFRelease(portal);
     return NULL;
 }
 
@@ -120,6 +121,7 @@ iSCSISessionConfigRef iSCSITargetCreateWithData(CFDataRef data)
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return target;
 
+    CFRelease(target);
     return NULL;
 }
 
