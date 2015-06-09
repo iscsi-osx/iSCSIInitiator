@@ -367,11 +367,10 @@ errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
     CFDataRef discData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,bytes,
                                                      rsp.discoveryLength,
                                                      kCFAllocatorMalloc);
-    
-    if(!(*discoveryRec = iSCSIDiscoveryRecCreateMutableWithData(discData)))
-        return EIO;
-    
+    *discoveryRec = iSCSIDiscoveryRecCreateMutableWithData(discData);
     CFRelease(discData);
+    if(!discoveryRec)
+        return EIO;
     
     *statusCode = rsp.statusCode;
     return rsp.errorCode;

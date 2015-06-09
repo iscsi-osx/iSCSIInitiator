@@ -660,7 +660,8 @@ iSCSISessionConfigRef iSCSISessionConfigCreateWithData(CFDataRef data)
     
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return sessCfg;
-    
+
+    CFRelease(sessCfg);
     return NULL;
 }
 
@@ -773,5 +774,6 @@ iSCSIConnectionConfigRef iSCSIConnectionConfigCreateWithData(CFDataRef data)
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return connCfg;
     
+    CFRelease(connCfg);
     return NULL;
 }
