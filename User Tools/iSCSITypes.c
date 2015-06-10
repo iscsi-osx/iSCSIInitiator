@@ -195,6 +195,7 @@ iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data)
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return auth;
     
+    CFRelease(auth);
     return NULL;
 }
 
