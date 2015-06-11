@@ -353,50 +353,36 @@ void iSCSICtlDisplayLogoutStatus(enum iSCSILogoutStatusCode statusCode,
                                  iSCSIPortalRef portal)
 {
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
-    CFStringRef portalAddress,portalPort,hostInterface;
-
-    // The portal is optional since the entire session (many portals) may
-    // have been logged out...
-    if(portal) {
-        portalAddress = iSCSIPortalGetAddress(portal);
-        portalPort    = iSCSIPortalGetPort(portal);
-        hostInterface = iSCSIPortalGetHostInterface(portal);
-    }
-    
     CFStringRef logoutStatus;
-    
-    if(statusCode == kiSCSILogoutSuccess)
-    {
-        if(portal)
-        {
+    if (portal) {
+        CFStringRef portalAddress = iSCSIPortalGetAddress(portal);
+        CFStringRef portalPort    = iSCSIPortalGetPort(portal);
+        CFStringRef hostInterface = iSCSIPortalGetHostInterface(portal);
+        if (statusCode == kiSCSILogoutSuccess) {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
-                targetIQN,portalAddress,portalPort,hostInterface);
-        }
-        else {
+                                                    CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
+                                                    targetIQN,portalAddress,portalPort,hostInterface);
+        } else {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                CFSTR("Logout of [ target: %@ ] successful.\n"),targetIQN);
+                                                    CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
+                                                    targetIQN,portalAddress,portalPort,
+                                                    hostInterface,iSCSICtlGetStringForLogoutStatus(statusCode));
         }
         
-        iSCSICtlDisplayString(logoutStatus);
-        CFRelease(logoutStatus);
-        return;
+    } else {
+        if (statusCode == kiSCSILogoutSuccess) {
+            logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                                    CFSTR("Logout of [ target: %@ ] successful.\n"),targetIQN);
+        } else {
+            logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                                    CFSTR("Logout of [ target: %@ portal: <all> ] failed: %@.\n"),
+                                                    targetIQN,
+                                                    iSCSICtlGetStringForLogoutStatus(statusCode));
+        }
     }
-
-    if(portal) {
-        logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-            CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
-            targetIQN,portalAddress,portalPort,
-            hostInterface,iSCSICtlGetStringForLogoutStatus(statusCode));
-    }
-    else {
-        logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-            CFSTR("Logout of [ target: %@ portal: <all> ] failed: %@.\n"),
-            targetIQN,portalAddress,portalPort,
-            hostInterface,iSCSICtlGetStringForLogoutStatus(statusCode));
-    }
-    
+    iSCSICtlDisplayString(logoutStatus);
     CFRelease(logoutStatus);
+
 }
 
 /*! Helper function.  Returns true if the user attempted to specify a target
@@ -1465,6 +1451,7 @@ int main(int argc, char * argv[])
     // Setup a stream for writing to stdout
     CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault,CFSTR("/dev/stdout"),kCFURLPOSIXPathStyle,false);
     stdoutStream = CFWriteStreamCreateWithFile(kCFAllocatorDefault,url);
+    CFRelease(url);
     CFWriteStreamOpen(stdoutStream);
     
     // Save command line executable name for later use
@@ -1475,6 +1462,7 @@ int main(int argc, char * argv[])
     
     if(handle < 0) {
         iSCSICtlDisplayError("iscsid is not running.");
+        CFWriteStreamClose(stdoutStream);
         return -1;
     }
     
