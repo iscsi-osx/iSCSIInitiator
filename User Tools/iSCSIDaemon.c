@@ -270,7 +270,7 @@ errno_t iSCSIDQueryPortalForTargets(int fd,struct iSCSIDCmdQueryPortalForTargets
     
     CFDataRef data = iSCSIDiscoveryRecCreateData(discoveryRec);
     iSCSIDiscoveryRecRelease(discoveryRec);
-    rsp.discoveryLength = CFDataGetLength(data);
+    rsp.discoveryLength = (UInt32)CFDataGetLength(data);
     
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
     {

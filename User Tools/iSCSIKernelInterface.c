@@ -773,9 +773,6 @@ CFStringRef iSCSIKernelCreateTargetIQNForSessionId(SID sessionId)
     UInt64 input = sessionId;
     
     const UInt32 expOutputCnt = 1;
-    UInt64 output;
-    UInt32 outputCnt = expOutputCnt;
-    
     const char targetIQN[NI_MAXHOST];
     size_t targetIQNLength = NI_MAXHOST;
     
@@ -806,8 +803,8 @@ CFStringRef iSCSIKernelCreatePortalAddressForConnectionId(SID sessionId,CID conn
     size_t portalAddressLength = NI_MAXHOST;
     
     kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetPortalAddressForConnectionId,
-                                               &input,inputCnt,0,0,0,0,
-                                               portalAddress,&portalAddressLength);
+                                               input,inputCnt,0,0,0,0,
+                                               (void *)portalAddress,&portalAddressLength);
     if(result != kIOReturnSuccess)
         return NULL;
     
@@ -832,8 +829,8 @@ CFStringRef iSCSIKernelCreatePortalPortForConnectionId(SID sessionId,CID connect
     size_t portalPortLength = NI_MAXSERV;
     
     kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetPortalPortForConnectionId,
-                                               &input,inputCnt,0,0,0,0,
-                                               portalPort,&portalPortLength);
+                                               input,inputCnt,0,0,0,0,
+                                               (void *)portalPort,&portalPortLength);
     if(result != kIOReturnSuccess)
         return NULL;
     
@@ -856,10 +853,10 @@ CFStringRef iSCSIKernelCreateHostInterfaceForConnectionId(SID sessionId,CID conn
     
     const char hostInterface[NI_MAXHOST];
     size_t hostInterfaceLength = NI_MAXHOST;
-    
+
     kern_return_t result = IOConnectCallMethod(connection,kiSCSIGetHostInterfaceForConnectionId,
-                                               &input,inputCnt,0,0,0,0,
-                                               hostInterface,&hostInterfaceLength);
+                                               input,inputCnt,0,0,0,0,
+                                               (void *)hostInterface,&hostInterfaceLength);
     if(result != kIOReturnSuccess)
         return NULL;
     

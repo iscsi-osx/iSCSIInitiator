@@ -468,7 +468,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     UInt32 initiatorTaskTag = BuildInitiatorTaskTag(kInitiatorTaskTypeSCSITask,LUN,taskId);
     SetControllerTaskIdentifier(parallelTask,initiatorTaskTag);
     
-    DBLog("iSCSI: Transfer size: %d\n",connection->dataToTransfer);
+    DBLog("iSCSI: Transfer size: %llu\n",connection->dataToTransfer);
     
     // Queue task in the event source (we'll remove it from the queue when were
     // done processing the task)
@@ -1765,7 +1765,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     
     bhs->expStatSN = OSSwapHostToBigInt32(connection->expStatSN);
     
-    SetDataSegmentLength((iSCSIPDUInitiatorBHS*)bhs,length);
+    SetDataSegmentLength((iSCSIPDUInitiatorBHS*)bhs,(UInt32)length);
 
     // Send data over the network, return true if all bytes were sent
     struct msghdr msg;

@@ -660,7 +660,7 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
         // For completeness, setup the sockaddr_in structure
         if(ssHost->ss_family == AF_INET)
         {
-            struct sockaddr_in * sa = ssHost;
+            struct sockaddr_in * sa = (struct sockaddr_in *)ssHost;
             sa->sin_port = 0;
             sa->sin_addr.s_addr = htonl(INADDR_ANY);
             sa->sin_len = sizeof(struct sockaddr_in);
@@ -669,7 +669,7 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
 // TODO: test IPv6 functionality
         else if(ssHost->ss_family == AF_INET6)
         {
-            struct sockaddr_in6 * sa = ssHost;
+            struct sockaddr_in6 * sa = (struct sockaddr_in6 *)ssHost;
             sa->sin6_addr = in6addr_any;
         }
 
@@ -699,7 +699,6 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
             {
                 memcpy(ssHost,interface->ifa_addr,interface->ifa_addr->sa_len);
                 error = 0;
-                CFRelease(interfaceName);
                 break;
             }
         }
@@ -1379,7 +1378,7 @@ void iSCSISessionHandleNotifications(enum iSCSIKernelNotificationTypes type,
         iSCSIKernelNotificationAsyncMessage * asyncMsg = (iSCSIKernelNotificationAsyncMessage *)msg;
      
         // If the asynchronous message is invalid ignore it
-        enum iSCSIPDUAsyncMsgEvent asyncEvent = asyncMsg->asyncEvent;
+        enum iSCSIPDUAsyncMsgEvent asyncEvent = (enum iSCSIPDUAsyncMsgEvent)asyncMsg->asyncEvent;
         
         fprintf(stderr,"Async event occured");
     }
