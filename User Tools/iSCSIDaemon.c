@@ -726,7 +726,7 @@ int main(void)
     // Ensure registration was successful
     if((launch_data_get_type(reg_response) == LAUNCH_DATA_ERRNO)) {
         fprintf(stderr,"Failed to checkin with launchd.\n");
-        goto ERROR_LAUNCH_DATA;
+        goto ERROR_NO_SOCKETS;
     }
     
     // Grab label and socket dictionary from daemon's property list
@@ -770,14 +770,11 @@ int main(void)
 // TODO: verify that launch data is freed under all possible execution paths
     
 ERROR_PWR_MGMT_FAIL:
- 
-
-    
 ERROR_NO_SOCKETS:
+    launch_data_free(reg_response);
     
 ERROR_LAUNCH_DATA:
 
-    launch_data_free(reg_response);
     return ENOTSUP;
 }
 
