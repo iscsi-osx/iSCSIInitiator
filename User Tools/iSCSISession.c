@@ -693,9 +693,11 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
         {
             CFStringRef currIface = CFStringCreateWithCStringNoCopy(
                 kCFAllocatorDefault,interface->ifa_name,kCFStringEncodingUTF8,kCFAllocatorNull);
-
+            Boolean ifaceNameMatch = CFStringCompare(currIface,hostIface,kCFCompareCaseInsensitive)
+                                        == kCFCompareEqualTo;
+            CFRelease(currIface);
             // Check if interface names match...
-            if(CFStringCompare(currIface,hostIface,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            if(ifaceNameMatch)
             {
                 memcpy(ssHost,interface->ifa_addr,interface->ifa_addr->sa_len);
                 error = 0;
@@ -1217,7 +1219,7 @@ CFArrayRef iSCSICreateArrayOfSessionIds()
     if(iSCSIKernelGetSessionIds(sessionIds,&sessionCount))
         return NULL;
     
-    return CFArrayCreate(kCFAllocatorDefault,(const void**)&sessionIds,sessionCount,NULL);
+    return CFArrayCreate(kCFAllocatorDefault,(const void **) sessionIds,sessionCount,NULL);
 }
 
 /*! Gets an array of connection identifiers for each session.
@@ -1281,7 +1283,8 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId)
     
     if(!(hostInterface = iSCSIKernelCreateHostInterfaceForConnectionId(sessionId,connectionId)))
     {
-        CFRelease(hostInterface);
+        CFRelease(address);
+        CFRelease(port);
         return NULL;
     }
     
