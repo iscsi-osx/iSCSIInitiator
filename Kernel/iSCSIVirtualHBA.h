@@ -395,8 +395,8 @@ private:
     /*! Default task timeout for new tasks (milliseconds). */
     static const UInt32 kiSCSITaskTimeoutMs;
     
-    /*! Default timeout for new connections (milliseconds). */
-    static const UInt32 kiSCSITCPTimeoutMs;
+    /*! Default timeout for new connections (seconds). */
+    static const UInt32 kiSCSITCPTimeoutSec;
 
     
     /*! Used as part of the iSCSI layer intiator task tag to specify the 

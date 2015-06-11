@@ -14,6 +14,17 @@
 #include "iSCSITypesShared.h"
 #include "iSCSIRFC3720Defaults.h"
 
+/*! The host interface name to use when the default interface is to be used. */
+static CFStringRef kiSCSIDefaultHostInterface = CFSTR("default");
+
+/*! The default port to use when one has not been specified. */
+static CFStringRef kiSCSIDefaultPort = CFSTR("3260");
+
+/*! The value for the target IQN in an iSCSITarget when the name has not
+ *  been specified. */
+static CFStringRef kiSCSIUnspecifiedTargetIQN = CFSTR("");
+
+
 typedef CFMutableDictionaryRef iSCSIMutablePortalRef;
 typedef CFDictionaryRef iSCSIPortalRef;
 
@@ -226,7 +237,7 @@ iSCSIMutableTargetRef iSCSITargetCreateMutable();
 
 /*! Gets the name associated with the iSCSI target.
   * @param target the iSCSI target object.
- *  @return the target name or NULL if one was not set.  */
+ *  @return the target name or kiSCSITargetUnspecified if one was not set.  */
 CFStringRef iSCSITargetGetIQN(iSCSITargetRef target);
 
 /*! Sets the name associated with the iSCSI target.  This function has no

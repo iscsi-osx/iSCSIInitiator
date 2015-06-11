@@ -34,8 +34,8 @@ iSCSIMutablePortalRef iSCSIPortalCreateMutable()
 {
     iSCSIMutablePortalRef portal = CFDictionaryCreateMutable(kCFAllocatorDefault,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     CFDictionaryAddValue(portal,kiSCSIPortalAddresssKey,CFSTR(""));
-    CFDictionaryAddValue(portal,kiSCSIPortalPortKey,CFSTR("3260"));
-    CFDictionaryAddValue(portal,kiSCSIPortalHostInterfaceKey,CFSTR(""));
+    CFDictionaryAddValue(portal,kiSCSIPortalPortKey,kiSCSIDefaultPort);
+    CFDictionaryAddValue(portal,kiSCSIPortalHostInterfaceKey,kiSCSIDefaultHostInterface);
     
     return portal;
 }
@@ -131,6 +131,8 @@ CFStringRef kiSCSITargetIQNKey = CFSTR("Target Name");
 iSCSIMutableTargetRef iSCSITargetCreateMutable()
 {
     iSCSIMutableTargetRef target = CFDictionaryCreateMutable(kCFAllocatorDefault,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
+
+    CFDictionarySetValue(target,kiSCSITargetIQNKey,kiSCSIUnspecifiedTargetIQN);
     return target;
 }
 

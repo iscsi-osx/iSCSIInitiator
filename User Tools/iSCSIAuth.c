@@ -288,7 +288,7 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
 {
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
     
-    if(targetIQN == NULL)
+    if(CFStringCompare(targetIQN,kiSCSIUnspecifiedTargetIQN,0) == kCFCompareEqualTo)
         CFDictionaryAddValue(authCmd,kiSCSILKSessionType,kiSCSILVSessionTypeDiscovery);
     else {
         CFDictionaryAddValue(authCmd,kiSCSILKSessionType,kiSCSILVSessionTypeNormal);
@@ -379,7 +379,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     
     // If this is not a discovery session, we expect to receive a target
     // portal group tag (TPGT)...
-    if(iSCSITargetGetIQN(target) != NULL)
+    if(CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
     {
         // Ensure that the target returned a portal group tag (TPGT)...
         if(!CFDictionaryContainsKey(authRsp,kiSCSILKTargetPortalGroupTag)) {

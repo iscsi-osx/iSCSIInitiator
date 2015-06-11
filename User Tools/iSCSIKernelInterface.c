@@ -20,7 +20,7 @@
 static io_service_t service;
 static io_connect_t connection;
 static CFMachPortContext notificationContext;
-static CFMachPortRef     notificationPort;
+static CFMachPortRef     notificationPort = NULL;
 static iSCSIKernelNotificationCallback callback;
 
 /*! Select error codes used by the iSCSI user client. */
@@ -123,7 +123,8 @@ errno_t iSCSIKernelCleanup()
     IOObjectRelease(service);
     IOServiceClose(connection);
     
-    CFRelease(notificationPort);
+    if(notificationPort)
+        CFRelease(notificationPort);
     
     return IOReturnToErrno(kernResult);
 }
@@ -131,7 +132,7 @@ errno_t iSCSIKernelCleanup()
 /*! Allocates a new iSCSI session in the kernel and creates an associated
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
- *  @param targetIQN the name of the target, or NULL if discovery session.
+ *  @param targetIQN the name of the target.
  *  @param portalAddress the portal address (IPv4/IPv6, or DNS name).
  *  @param portalPort the TCP port used to connect to the portal.
  *  @param hostInterface the name of the host interface adapter to use.
@@ -169,11 +170,7 @@ errno_t iSCSIKernelCreateSession(CFStringRef targetIQN,
     
     // Add one for string lengths to copy the NULL character (CFGetStringLength
     // does not include the length of the NULL terminator)
-    if(!targetIQN)
-        paramSize[0] = 0;
-    else
-        paramSize[0] = CFStringGetLength(targetIQN) + 1;
-    
+    paramSize[0] = CFStringGetLength(targetIQN) + 1;
     paramSize[1] = CFStringGetLength(portalAddress) + 1;
     paramSize[2] = CFStringGetLength(portalPort) + 1;
     paramSize[3] = CFStringGetLength(hostInterface) + 1;
@@ -301,13 +298,14 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
 {
     // Check parameters
     if(sessionId == kiSCSIInvalidSessionId || !portalAddress || !portalPort ||
-       !hostInterface || !portalSockAddr || !hostSockAddr || !connectionId)
+       !hostInterface || !portalSockAddr || !connectionId)
     {
         return EINVAL;
     }
     
     // Pack the input parameters into a single buffer to send to the kernel
     const int kNumParams = 5;
+
     void * params[kNumParams];
     size_t paramSize[kNumParams];
     

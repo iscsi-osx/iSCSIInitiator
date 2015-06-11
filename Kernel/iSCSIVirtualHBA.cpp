@@ -14,6 +14,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/unistd.h>
+#include <sys/select.h>
 
 #include <IOKit/IORegistryEntry.h>
 
@@ -57,8 +58,8 @@ const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 /*! Default task timeout for new tasks (milliseconds). */
 const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 2000;
 
-/*! Default TCP timeout for new connections (milliseconds). */
-const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutMs = 1000;
+/*! Default TCP timeout for new connections (seconds). */
+const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 1;
 
 
 OSDefineMetaClassAndStructors(iSCSIVirtualHBA,IOSCSIParallelInterfaceController);
@@ -829,10 +830,10 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
 {
     const UInt32 length = GetDataSegmentLength((iSCSIPDUTargetBHS*)bhs);
     
-    // Grab data payload (ping data)
+    // Grab data payload (could be ping data or other data, if it exists)
     UInt8 data[length];
-    
-    if(RecvPDUData(session,connection,data,length,MSG_WAITALL) != 0) {
+
+    if(length > 0 && RecvPDUData(session,connection,data,length,MSG_WAITALL) != 0) {
         DBLog("iSCSI: Failed to retreive NOP in data\n");
         return;
     }
@@ -864,6 +865,7 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
     }
     // The target initiated this ping, just copy parameters and respond
     else {
+
         iSCSIPDUNOPOutBHS bhsRsp = iSCSIPDUNOPOutBHSInit;
         bhsRsp.LUN = bhs->LUN;
         bhsRsp.targetTransferTag = bhs->targetTransferTag;
@@ -1462,7 +1464,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     newConn->dataRecvEventSource->disable();
         
     // Create a new socket (per RFC3720, only TCP sockets are used.
-    // Domain can vary between IPv4 or IPv6.
+    // Domain can be either IPv4 or IPv6.
     error = sock_socket(portalSockaddr->ss_family,
                         SOCK_STREAM,IPPROTO_TCP,
                         (sock_upcall)&iSCSIIOEventSource::socketCallback,
@@ -1470,14 +1472,15 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
                         &newConn->socket);
     if(error)
         goto SOCKET_CREATE_FAILURE;
-    
+
+    // Set send and receive timeouts for the socket
     struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = kiSCSITCPTimeoutMs*1e3;
-    
+    timeout.tv_sec = kiSCSITCPTimeoutSec;
+    timeout.tv_usec = 0;
+
     sock_setsockopt(newConn->socket,SOL_SOCKET,SO_SNDTIMEO,(const void*)&timeout,sizeof(struct timeval));
     sock_setsockopt(newConn->socket,SOL_SOCKET,SO_RCVTIMEO,(const void*)&timeout,sizeof(struct timeval));
-    
+
     // Bind socket to a particular host connection
     if((error = sock_bind(newConn->socket,(sockaddr*)hostSockaddr)))
         goto SOCKET_BIND_FAILURE;
@@ -1485,18 +1488,22 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     // Connect the socket to the target node
     if((error = sock_connect(newConn->socket,(sockaddr*)portalSockaddr,0)))
         goto SOCKET_CONNECT_FAILURE;
-    
+    //    if((error = sock_connect(newConn->socket,(sockaddr*)portalSockaddr,MSG_DONTWAIT) != EINPROGRESS))
+    //        goto SOCKET_CONNECT_FAILURE;
+
+    //   GetCommandGate()->
+
     // Initialize queue that keeps track of connection speed
     memset(newConn->bytesPerSecondHistory,0,sizeof(UInt8)*newConn->kBytesPerSecAvgWindowSize);
     newConn->bytesPerSecHistoryIdx = 0;
-    
+
     newConn->portalAddress = portalAddress;
     newConn->portalPort = portalPort;
     newConn->hostInteface = hostInterface;
     portalAddress->retain();
     portalPort->retain();
     hostInterface->retain();
-    
+
     return 0;
     
 SOCKET_CONNECT_FAILURE:
@@ -1999,9 +2006,6 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     {
         // Compute digest including padding...
         UInt32 calcDigest = crc32c(0,data,length);
-        
-        if(paddingLen != 4)
-            calcDigest = crc32c(calcDigest,&padding,paddingLen);
         
         if(dataDigest != calcDigest)
         {

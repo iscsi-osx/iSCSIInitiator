@@ -47,7 +47,7 @@ CFRunLoopSourceRef iSCSIKernelCreateRunLoopSource();
 /*! Allocates a new iSCSI session in the kernel and creates an associated
  *  connection to the target portal. Additional connections may be added to the
  *  session by calling iSCSIKernelCreateConnection().
- *  @param targetIQN the name of the target, or NULL if discovery session.
+ *  @param targetIQN the name of the target.
  *  @param portalAddress the portal address (IPv4/IPv6, or DNS name).
  *  @param portalPort the TCP port used to connect to the portal.
  *  @param hostInterface the name of the host interface adapter to use.

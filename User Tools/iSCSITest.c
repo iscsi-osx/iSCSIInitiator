@@ -47,15 +47,17 @@ int main(int argc, const char * argv[]) {
     
     iSCSIPortalRef portal = iSCSIPortalCreateMutable();
     iSCSIPortalSetAddress(portal,CFSTR("192.168.56.2"));
-    iSCSIPortalSetHostInterface(portal,CFSTR("vboxnet0"));
-    iSCSIPortalSetPort(portal,CFSTR("3260"));
+    iSCSIPortalSetHostInterface(portal,kiSCSIDefaultHostInterface);
+    iSCSIPortalSetPort(portal,kiSCSIDefaultPort);
     
     
-    
- //   iSCSILoginSession(target,portal,iSCSIAuthCreateNone(),sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
-    
-    iSCSIDiscoveryRecRef discRec;
-    errno_t error = iSCSIQueryPortalForTargets(portal,iSCSIAuthCreateNone(),&discRec,&statusCode);
+    iSCSIConnectionConfigSetHeaderDigest(connCfg, false);
+    iSCSIConnectionConfigSetDataDigest(connCfg, false);
+    errno_t error = iSCSILoginSession(target,portal,iSCSIAuthCreateNone(),sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
+    //  enum iSCSILogoutStatusCode sc;
+    //  iSCSILogoutSession(0,&sc);
+    //  iSCSIDiscoveryRecRef discRec;
+    //  errno_t error = iSCSIQueryPortalForTargets(portal,iSCSIAuthCreateNone(),&discRec,&statusCode);
 
     
     

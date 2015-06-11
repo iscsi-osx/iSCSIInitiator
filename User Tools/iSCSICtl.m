@@ -473,16 +473,13 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
     if(CFArrayGetCount(portalParts) > 1)
         iSCSIPortalSetPort(portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,1));
     else
-        iSCSIPortalSetPort(portal,CFSTR("3260"));
+        iSCSIPortalSetPort(portal,kiSCSIDefaultPort);
     
     CFRelease(portalParts);
-    
-// TODO: remove hardcoded "en0" ----> if no interface specified leave blank - this should be handled by the daemon/kernel layer
-// (the daemon/kernel doesn't have this functionality it needs to be implemented - the daemon - iSCSISession.c should
-//  find the first available interface and use that)
-    
+
+    // If an interface was not specified, use the default interface
     if(!CFDictionaryGetValueIfPresent(options,kOptInterface,(const void **)&hostInterface))
-        iSCSIPortalSetHostInterface(portal,CFSTR("en0"));
+        iSCSIPortalSetHostInterface(portal,kiSCSIDefaultHostInterface);
     else
         iSCSIPortalSetHostInterface(portal,hostInterface);
 
@@ -713,10 +710,7 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 error = iSCSIDaemonLoginConnection(handle,sessionId,portal,auth,connCfg,&connectionId,&statusCode);
             
             iSCSICtlDisplayLoginStatus(statusCode,target,portal);
-            
         }
-        //else  // At this point the portal was not specified, and the session
-        
     }
     
     if(portal)

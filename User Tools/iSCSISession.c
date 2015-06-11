@@ -649,9 +649,35 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
     memcpy(ssTarget,aiTarget->ai_addr,aiTarget->ai_addrlen);
 
     freeaddrinfo(aiTarget);
-    
-    // Grab a list of interfaces on this system, iterate over them and
-    // find the requested interface.
+
+    // If the default interface is to be used, prepare a structure for it
+    CFStringRef hostIface = iSCSIPortalGetHostInterface(portal);
+
+    if(CFStringCompare(hostIface,kiSCSIDefaultHostInterface,0) == kCFCompareEqualTo)
+    {
+        ssHost->ss_family = ssTarget->ss_family;
+
+        // For completeness, setup the sockaddr_in structure
+        if(ssHost->ss_family == AF_INET)
+        {
+            struct sockaddr_in * sa = ssHost;
+            sa->sin_port = 0;
+            sa->sin_addr.s_addr = htonl(INADDR_ANY);
+            sa->sin_len = sizeof(struct sockaddr_in);
+        }
+
+// TODO: test IPv6 functionality
+        else if(ssHost->ss_family == AF_INET6)
+        {
+            struct sockaddr_in6 * sa = ssHost;
+            sa->sin6_addr = in6addr_any;
+        }
+
+        return error;
+    }
+
+    // Otherwise we have to search the list of all interfaces for the specified
+    // interface and copy the corresponding address structure
     struct ifaddrs * interfaceList;
     
     if((error = getifaddrs(&interfaceList)))
@@ -659,28 +685,26 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
     
     error = EAFNOSUPPORT;
     struct ifaddrs * interface = interfaceList;
-    
+
     while(interface)
     {
-        CFStringRef interfaceName = CFStringCreateWithCStringNoCopy(
-            kCFAllocatorDefault,interface->ifa_name,kCFStringEncodingUTF8,kCFAllocatorNull);
-
-        // Check if interface names match...
-        if(CFStringCompare(interfaceName,iSCSIPortalGetHostInterface(portal),kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+        // Check if interface supports the targets address family (e.g., IPv4)
+        if(interface->ifa_addr->sa_family == ssTarget->ss_family)
         {
-            // Check if the interface supports the target's
-            // address family (e.g., IPv4 vs IPv6)
-            if(interface->ifa_addr->sa_family == ssTarget->ss_family)
+            CFStringRef currIface = CFStringCreateWithCStringNoCopy(
+                kCFAllocatorDefault,interface->ifa_name,kCFStringEncodingUTF8,kCFAllocatorNull);
+
+            // Check if interface names match...
+            if(CFStringCompare(currIface,hostIface,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             {
-                // Copy the IPv4 or IPv6 structure into a sockaddr_storage
                 memcpy(ssHost,interface->ifa_addr,interface->ifa_addr->sa_len);
                 error = 0;
                 break;
             }
-        }  
+        }
         interface = interface->ifa_next;
     }
-        
+
     freeifaddrs(interfaceList);
     return error;
 }
@@ -768,7 +792,8 @@ errno_t iSCSILogoutConnection(SID sessionId,
        return error;
     
     // Logout the connection or session, as necessary
-    error = iSCSISessionLogoutCommon(sessionId,connectionId,kISCSIPDULogoutCloseConnection,statusCode);
+    error = iSCSISessionLogoutCommon(sessionId,connectionId,
+                                     kISCSIPDULogoutCloseConnection,statusCode);
 
     // Release the connection in the kernel
     iSCSIKernelReleaseConnection(sessionId,connectionId);
@@ -870,10 +895,12 @@ errno_t iSCSILoginSession(iSCSITargetRef target,
     // Negotiate session & connection parameters
     if(!error)
         error = iSCSINegotiateSession(target,*sessionId,*connectionId,sessCfg,connCfg,statusCode);
-    
+
+    // Only activate connections for kernel use if no errors have occurred and
+    // the session is not a discovery session
     if(error)
         iSCSIKernelReleaseSession(*sessionId);
-    else if(!error && iSCSITargetGetIQN(target) != NULL)
+    else if(!error && CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
             iSCSIKernelActivateConnection(*sessionId,*connectionId);
     
     return error;
@@ -896,7 +923,10 @@ errno_t iSCSILogoutSession(SID sessionId,
 
     // Unmount all media for this session
     iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
-    iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
+
+    // No need to unmount media if this was a discovery session
+    if(target && CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
+        iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
     
     // First deactivate all of the connections
     if((error = iSCSIKernelDeactivateAllConnections(sessionId)))
@@ -981,7 +1011,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     // Create a discovery session to the portal (empty target name is assumed to
     // be a discovery session)
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,CFSTR(""));
+    iSCSITargetSetName(target,kiSCSIUnspecifiedTargetIQN);
     
     SID sessionId;
     CID connectionId;
