@@ -699,6 +699,7 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
             {
                 memcpy(ssHost,interface->ifa_addr,interface->ifa_addr->sa_len);
                 error = 0;
+                CFRelease(interfaceName);
                 break;
             }
         }
@@ -988,8 +989,10 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
         CFRelease(port);
         CFRelease(address);
         CFRelease(targetAddress);
-        
-        CFRelease(targetIQN);
+        if (targetIQN) {
+            CFRelease(targetIQN);
+            targetIQN = NULL;
+        }
         iSCSIPortalRelease(portal);
     }
 }

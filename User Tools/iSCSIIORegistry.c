@@ -181,9 +181,10 @@ io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t LUN)
     {
         CFStringRef class = IOObjectCopyClass(entry);
         
-        if(class && CFStringCompare(class,CFSTR(kIOMediaClass),0) == kCFCompareEqualTo)
+        if(class && CFStringCompare(class,CFSTR(kIOMediaClass),0) == kCFCompareEqualTo) {
+            CFRelease(class);
             return entry;
-        
+        }
         if(class)
             CFRelease(class);
         

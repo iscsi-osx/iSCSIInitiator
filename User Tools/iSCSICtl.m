@@ -621,7 +621,6 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
     // Verify that the target exists in the property list
     if(!iSCSIPLContainsTarget(targetIQN)) {
         iSCSICtlDisplayError("The specified target does not exist.");
-        
         iSCSITargetRelease(target);
         return EINVAL;
     }
@@ -672,19 +671,18 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
             if(!(sessCfg = iSCSIPLCopySessionConfig(targetIQN)))
                sessCfg = iSCSISessionConfigCreateMutable();
         }
-        
-        // Check property list for If a valid portal was specified, then check the database for
-        // configuration for the portal
-        iSCSIConnectionConfigRef connCfg = NULL;
-        iSCSIAuthRef auth = NULL;
-        
+
         if(portal) {
-            
+            // Check property list for If a valid portal was specified, then check the database for
+            // configuration for the portal
+            iSCSIConnectionConfigRef connCfg = NULL;
+            iSCSIAuthRef auth = NULL;
             // User may have only specified the portal name (address).  We must
             // get the preconfigured port and/or interface from the property list.
             CFStringRef portalAddress = CFStringCreateCopy(kCFAllocatorDefault,iSCSIPortalGetAddress(portal));
             iSCSIPortalRelease(portal);
             portal = iSCSIPLCopyPortal(targetIQN,portalAddress);
+            CFRelease(portalAddress);
             
             
             // Grab connection configuration from property list
@@ -713,8 +711,6 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
         }
     }
     
-    if(portal)
-        iSCSIPortalRelease(portal);
     iSCSITargetRelease(target);
    
     return error;
@@ -1290,9 +1286,10 @@ errno_t iSCSICtlProbeTargetForAuthMethod(iSCSIDaemonHandle handle,CFDictionaryRe
     if(!(target = iSCSICtlCreateTargetFromOptions(options)))
         return EINVAL;
     
-    if(!(portal = iSCSICtlCreatePortalFromOptions(options)))
+    if(!(portal = iSCSICtlCreatePortalFromOptions(options))) {
+        CFRelease(target);
         return EINVAL;
-    
+    }
     // Synchronize the database with the property list on disk
     iSCSIPLSynchronize();
     
@@ -1320,6 +1317,7 @@ errno_t iSCSICtlMountForTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
         return EINVAL;
 
     iSCSIDAMountIOMediaForTarget(iSCSITargetGetIQN(target));
+    CFRelease(target);
     return 0;
 }
 
@@ -1331,6 +1329,7 @@ errno_t iSCSICtlUnmountForTarget(iSCSIDaemonHandle handle,CFDictionaryRef option
         return EINVAL;
 
     iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
+    CFRelease(target);
     return 0;
 }
 
