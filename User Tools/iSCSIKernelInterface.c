@@ -722,7 +722,7 @@ errno_t iSCSIKernelGetSessionIds(SID * sessionIds,
                             &output,&outputCnt,sessionIds,&outputStructSize);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
-        *sessionCount = (UInt32)output;
+        *sessionCount = (UInt16)output;
 
     return IOReturnToErrno(result);
 }
