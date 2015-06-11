@@ -1199,7 +1199,6 @@ void displayIOMediaProperties(CFDictionaryRef propertiesDict)
                                                       CFSTR("\t\t%@ [ Capacity: %@ ]\n"),
                                                       BSDName,capacityString);
     iSCSICtlDisplayString(properties);
-    CFRelease(capacityString);
     CFRelease(properties);
 }
 
@@ -1380,58 +1379,43 @@ errno_t iSCSICtlDisplayDiscoveryRecord(iSCSIDiscoveryRecRef discoveryRecord)
 
 errno_t iSCSICtlDiscoverTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
-    if(handle < 0 || !options)
-        return EINVAL;
-    
-    iSCSIPortalRef portal = NULL;
-    iSCSIPLSynchronize();
-    
-    // If a portal was not specified, show the cached discovery record
-    if(!(portal = iSCSICtlCreatePortalFromOptions(options)))
-    {
-        iSCSIDiscoveryRecRef discoveryRec = iSCSIPLCopyDiscoveryRecord();
-        
-        if(!discoveryRec)
-            return 0;
-        
-        iSCSICtlDisplayDiscoveryRecord(discoveryRec);
-        iSCSIDiscoveryRecRelease(discoveryRec);
-        
-        return EINVAL;
-    }
-    
-    iSCSIAuthRef auth = iSCSICtlCreateAuthFromOptions(options);
 
-    enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
-    iSCSIMutableDiscoveryRecRef discoveryRecord;
-    
-    errno_t error = iSCSIDaemonQueryPortalForTargets(handle,portal,auth,&discoveryRecord,&statusCode);
-    
-    if(error)
-    {
-        if(statusCode != kiSCSILoginInvalidStatusCode)
-            iSCSICtlDisplayDiscoveryLoginStatus(statusCode,portal);
-        else
-            iSCSICtlDisplayError(strerror(error));
-        
-        iSCSIAuthRelease(auth);
+    errno_t result = EINVAL; // default result
+    if (handle && options) {
+        iSCSIPortalRef portal = iSCSICtlCreatePortalFromOptions(options);
+        iSCSIPLSynchronize();
+        if (portal) {
+            iSCSIAuthRef auth = iSCSICtlCreateAuthFromOptions(options);
+            
+            enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
+            iSCSIMutableDiscoveryRecRef discoveryRecord;
+            result = iSCSIDaemonQueryPortalForTargets(handle,portal,auth,&discoveryRecord,&statusCode);
+            if (result) {
+                if(statusCode != kiSCSILoginInvalidStatusCode)
+                    iSCSICtlDisplayDiscoveryLoginStatus(statusCode,portal);
+                else
+                    iSCSICtlDisplayError(strerror(result));
+                
+            } else {
+                iSCSICtlDisplayDiscoveryRecord(discoveryRecord);
+                iSCSIPLAddDiscoveryRecord(discoveryRecord);
+                iSCSIPLSynchronize();
+
+            }
+            iSCSIDiscoveryRecRelease(discoveryRecord);
+            iSCSIAuthRelease(auth);
+        } else {
+            iSCSIDiscoveryRecRef discoveryRec = iSCSIPLCopyDiscoveryRecord();
+            if (!discoveryRec) {
+                result = 0;
+            } else {
+                iSCSICtlDisplayDiscoveryRecord(discoveryRec);
+                iSCSIDiscoveryRecRelease(discoveryRec);
+            }
+        }
         iSCSIPortalRelease(portal);
-
-        return error;
     }
-    
-    iSCSIPLSynchronize();
-
-    iSCSICtlDisplayDiscoveryRecord(discoveryRecord);
-    iSCSIPLAddDiscoveryRecord(discoveryRecord);
-    iSCSIDiscoveryRecRelease(discoveryRecord);
-
-    iSCSIPLSynchronize();
-    
-    iSCSIAuthRelease(auth);
-    iSCSIPortalRelease(portal);
-
-    return 0;
+    return result;
 }
 
 /*! Entry point.  Parses command line arguments, establishes a connection to the
