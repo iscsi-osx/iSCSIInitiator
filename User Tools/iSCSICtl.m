@@ -778,68 +778,59 @@ errno_t iSCSICtlLogoutSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
  *  @return an error code indicating the result of the operation. */
 errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
-    if(handle < 0 || !options)
-        return EINVAL;
-    
-    iSCSITargetRef target = NULL;
-    iSCSIPortalRef portal = NULL;
-    errno_t error = 0;
-    
-    if(!(target = iSCSICtlCreateTargetFromOptions(options)))
-        return EINVAL;
-    
-    if(!(portal = iSCSICtlCreatePortalFromOptions(options))) {
-        iSCSITargetRelease(target);
-        return EINVAL;
-    }
-    
-    // Synchronize the database with the property list on disk
-    iSCSIPLSynchronize();
-    
-    // If portal and target both exist then do nothing, otherwise
-    // add target and or portal with user-specified options
-    CFStringRef targetIQN = iSCSITargetGetIQN(target);
-    
-    if(!iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal)))
-    {
-        // Create an authentication object from user-specified switches
-        iSCSIAuthRef auth;
-        if(!(auth = iSCSICtlCreateAuthFromOptions(options)))
-            error = EINVAL;
+    errno_t error = EINVAL; // default error result
+    if (handle && options) {
+        iSCSITargetRef target = iSCSICtlCreateTargetFromOptions(options);
+        iSCSIPortalRef portal = iSCSICtlCreatePortalFromOptions(options);
         
-        // Setup optional session or connection configuration from switches
-        iSCSIMutableSessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
-        iSCSIMutableConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
-
-        if(!error)
-            error = iSCSICtlModifySessionConfigFromOptions(options,sessCfg);
-
-        if(!error)
-            error = iSCSICtlModifyConnectionConfigFromOptions(options,connCfg);
-        
-        if(!error)
-        {
-            iSCSIPLSetPortal(targetIQN,portal);
-            iSCSIPLSetAuthentication(targetIQN,iSCSIPortalGetAddress(portal),auth);
-            iSCSIPLSetSessionConfig(targetIQN,sessCfg);
-            iSCSIPLSetConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal),connCfg);
-            
+        if (target && portal) {
+            // Synchronize the database with the property list on disk
             iSCSIPLSynchronize();
+            
+            // If portal and target both exist then do nothing, otherwise
+            // add target and or portal with user-specified options
+            CFStringRef targetIQN = iSCSITargetGetIQN(target);
+            
+            if(!iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal))) {
+                // Create an authentication object from user-specified switches
+                iSCSIAuthRef auth;
+                if(!(auth = iSCSICtlCreateAuthFromOptions(options))) {
+                    error = EINVAL;
+                } else {
+                    // Setup optional session or connection configuration from switches
+                    iSCSIMutableSessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
+                    iSCSIMutableConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
+
+                    error = iSCSICtlModifySessionConfigFromOptions(options,sessCfg);
+
+                    if(!error)
+                        error = iSCSICtlModifyConnectionConfigFromOptions(options,connCfg);
+                    
+                    if(!error)
+                    {
+                        iSCSIPLSetPortal(targetIQN,portal);
+                        iSCSIPLSetAuthentication(targetIQN,iSCSIPortalGetAddress(portal),auth);
+                        iSCSIPLSetSessionConfig(targetIQN,sessCfg);
+                        iSCSIPLSetConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal),connCfg);
+                        
+                        iSCSIPLSynchronize();
+                    }
+                    
+                    if(auth)
+                        iSCSIAuthRelease(auth);
+                
+                    iSCSISessionConfigRelease(sessCfg);
+                    iSCSIConnectionConfigRelease(connCfg);
+                }
+            } else {
+                iSCSICtlDisplayError("The specified target and portal already exist.");
+            }
+            iSCSIPortalRelease(portal);
         }
-        
-        if(auth)
-            iSCSIAuthRelease(auth);
-    
-        iSCSISessionConfigRelease(sessCfg);
-        iSCSIConnectionConfigRelease(connCfg);
+        if (target)
+            iSCSITargetRelease(target);
+
     }
-    else
-        iSCSICtlDisplayError("The specified target and portal already exist.");
-    
-    // Target and portal are necessarily valid at this point
-    iSCSITargetRelease(target);
-    iSCSIPortalRelease(portal);
-    
     return error;
 }
 

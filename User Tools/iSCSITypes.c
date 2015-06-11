@@ -82,13 +82,13 @@ void iSCSIPortalSetHostInterface(iSCSIMutablePortalRef portal,CFStringRef hostIn
 /*! Releases memory associated with iSCSI portals. */
 void iSCSIPortalRelease(iSCSIPortalRef portal)
 {
-    CFRelease(portal);
+    CFRelease((CFTypeRef) portal);
 }
 
 /*! Retains an iSCSI portal object. */
 void iSCSIPortalRetain(iSCSIPortalRef portal)
 {
-    CFRetain(portal);
+    CFRetain((CFTypeRef) portal);
 }
 
 /*! Creates a new portal object from a dictionary representation. */
@@ -106,8 +106,7 @@ CFDictionaryRef iSCSIPortalCreateDictionary(iSCSIPortalRef portal)
 /*! Copies the portal object to a byte array representation. */
 CFDataRef iSCSIPortalCreateData(iSCSIPortalRef portal)
 {
-    CFPropertyListRef plist = portal;
-    return CFPropertyListCreateData(kCFAllocatorDefault,plist,kCFPropertyListBinaryFormat_v1_0,0,NULL);
+    return CFPropertyListCreateData(kCFAllocatorDefault,(CFPropertyListRef) portal ,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
 
 
@@ -157,13 +156,13 @@ void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name)
 /*! Releases memory associated with iSCSI targets. */
 void iSCSITargetRelease(iSCSITargetRef target)
 {
-    CFRelease(target);
+    CFRelease((CFTypeRef) target);
 }
 
 /*! Retains an iSCSI target object. */
 void iSCSITargetRetain(iSCSITargetRef target)
 {
-    CFRetain(target);
+    CFRetain((CFTypeRef) target);
 }
 
 /*! Creates a new target object from a dictionary representation. */
@@ -503,14 +502,14 @@ CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIDiscoveryRecRef discoveryRec,
  * @param target the iSCSI discovery record object. */
 void iSCSIDiscoveryRecRelease(iSCSIDiscoveryRecRef discoveryRec)
 {
-    CFRelease(discoveryRec);
+    CFRelease((CFTypeRef) discoveryRec);
 }
 
 /*! Retains an iSCSI discovery record object.
  * @param target the iSCSI discovery record object. */
 void iSCSIDiscoveryRecRetain(iSCSIMutableDiscoveryRecRef discoveryRec)
 {
-    CFRetain(discoveryRec);
+    CFRetain((CFTypeRef) discoveryRec);
 }
 
 /*! Copies an iSCSI discovery record object to a dictionary representation.
@@ -614,14 +613,14 @@ void iSCSISessionConfigSetMaxConnections(iSCSIMutableSessionConfigRef target,
  *  @param config an iSCSI session configuration object. */
 void iSCSISessionConfigRelease(iSCSISessionConfigRef config)
 {
-    CFRelease(config);
+    CFRelease((CFTypeRef) config);
 }
 
 /*! Retains memory associated with an iSCSI session configuration object.
  *  @param config an iSCSI session configuration object. */
 void iSCSISessionConfigRetain(iSCSISessionConfigRef config)
 {
-    CFRetain(config);
+    CFRetain((CFTypeRef) config);
 }
 
 /*! Creates a new configuration object object from a dictionary representation.
