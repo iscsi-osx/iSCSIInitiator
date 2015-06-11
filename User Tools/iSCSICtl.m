@@ -396,7 +396,6 @@ void iSCSICtlDisplayLogoutStatus(enum iSCSILogoutStatusCode statusCode,
             hostInterface,iSCSICtlGetStringForLogoutStatus(statusCode));
     }
     
-    iSCSICtlDisplayString(logoutStatus);
     CFRelease(logoutStatus);
 }
 
@@ -706,8 +705,12 @@ errno_t iSCSICtlLoginSession(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 error = iSCSIDaemonLoginSession(handle,portal,target,auth,sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
             else if(!error)
                 error = iSCSIDaemonLoginConnection(handle,sessionId,portal,auth,connCfg,&connectionId,&statusCode);
-            
-            iSCSICtlDisplayLoginStatus(statusCode,target,portal);
+
+            if(!error)
+                iSCSICtlDisplayLoginStatus(statusCode,target,portal);
+            else
+                iSCSICtlDisplayError(strerror(error));
+
         }
     }
     
