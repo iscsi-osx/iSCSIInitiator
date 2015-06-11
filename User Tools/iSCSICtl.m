@@ -1134,13 +1134,14 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
         for(CFIndex portalIdx = 0; portalIdx < CFArrayGetCount(portalsList); portalIdx++)
         {
             iSCSIPortalRef portal = iSCSIPLCopyPortal(targetIQN,CFArrayGetValueAtIndex(portalsList,portalIdx));
-            
-            CID connectionId = kiSCSIInvalidConnectionId;
-            iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId);
-            
-            displayPortalInfo(handle,target,portal,sessionId,connectionId);
-            
-            iSCSIPortalRelease(portal);
+            if (portal) {
+                CID connectionId = kiSCSIInvalidConnectionId;
+                iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId);
+                
+                displayPortalInfo(handle,target,portal,sessionId,connectionId);
+                
+                iSCSIPortalRelease(portal);
+            }
         }
         
         iSCSICtlDisplayString(CFSTR("\n"));
