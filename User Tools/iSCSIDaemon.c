@@ -355,42 +355,32 @@ errno_t iSCSIDGetConnectionIdForPortal(int fd,struct iSCSIDCmdGetConnectionIdFor
 errno_t iSCSIDGetSessionIds(int fd,struct iSCSIDCmdGetSessionIds * cmd)
 {
     CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
-    
+    errno_t result = EAGAIN;
     // Compose a response to send back to the client
     struct iSCSIDRspGetSessionIds rsp = iSCSIDRspGetSessionIdsInit;
-    const void ** sessionIdValues = malloc(CFArrayGetCount(sessionIds)*sizeof(void*));
 
-    if(sessionIds)
-    {
-        CFArrayGetValues(sessionIds,CFRangeMake(0,CFArrayGetCount(sessionIds)),sessionIdValues);
-        
-        rsp.errorCode = 0;
-        rsp.dataLength = (UInt32)CFArrayGetCount(sessionIds)*sizeof(void*);
-    }
-    else {
+    if(sessionIds) {
+        const void ** sessionIdValues = malloc(CFArrayGetCount(sessionIds)*sizeof(void*));
+        if (sessionIdValues) {
+            CFArrayGetValues(sessionIds,CFRangeMake(0,CFArrayGetCount(sessionIds)),sessionIdValues);
+            
+            rsp.errorCode = 0;
+            rsp.dataLength = (UInt32)CFArrayGetCount(sessionIds)*sizeof(void*);
+            if (send(fd, &rsp, sizeof(rsp), 0) == sizeof(rsp)) {
+                if (send(fd,sessionIdValues,rsp.dataLength,0) == rsp.dataLength) {
+                    result = 0;
+                }
+            }
+            free(sessionIdValues);
+        }
+        CFRelease(sessionIds);
+    } else {
         rsp.errorCode = EAGAIN;
         rsp.dataLength = 0;
+        if (send(fd, &rsp, sizeof(rsp), 0) == sizeof(rsp))
+            result = 0;
     }
-
-    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
-    {
-        if(sessionIds)
-            CFRelease(sessionIds);
-        return EAGAIN;
-    }
-
-    if(sessionIds)
-    {
-        if(send(fd,sessionIdValues,rsp.dataLength,0) != rsp.dataLength)
-        {
-            CFRelease(sessionIds);
-            return EAGAIN;
-        }
-        
-        CFRelease(sessionIds);
-    }
-    
-    return 0;
+    return result;
 }
 
 errno_t iSCSIDGetConnectionIds(int fd,struct iSCSIDCmdGetConnectionIds * cmd)
