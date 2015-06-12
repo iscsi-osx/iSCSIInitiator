@@ -758,13 +758,9 @@ errno_t iSCSILoginConnection(SID sessionId,
     
     // If no error, authenticate (negotiate security parameters)
     if(!error)
-        error = iSCSIAuthNegotiate(target,auth,sessionId,*connectionId,statusCode);
+       (void) iSCSIAuthNegotiate(target,auth,sessionId,*connectionId,statusCode);
     
-    if(error)
-        iSCSIKernelReleaseConnection(sessionId,*connectionId);
-    
-    if(!error)
-        iSCSIKernelActivateConnection(sessionId,*connectionId);
+    iSCSIKernelReleaseConnection(sessionId,*connectionId);
     
     iSCSITargetRelease(target);
     return 0;
@@ -790,13 +786,11 @@ errno_t iSCSILogoutConnection(SID sessionId,
     
     // Deactivate connection before we remove it (this is optional but good
     // practice, as the kernel will deactivate the connection for us).
-    if((error = iSCSIKernelDeactivateConnection(sessionId,connectionId)))
-       return error;
-    
-    // Logout the connection or session, as necessary
-    error = iSCSISessionLogoutCommon(sessionId,connectionId,
-                                     kISCSIPDULogoutCloseConnection,statusCode);
-
+    if(!(error = iSCSIKernelDeactivateConnection(sessionId,connectionId))) {
+        // Logout the connection or session, as necessary
+        error = iSCSISessionLogoutCommon(sessionId,connectionId,
+                                         kISCSIPDULogoutCloseConnection,statusCode);
+    }
     // Release the connection in the kernel
     iSCSIKernelReleaseConnection(sessionId,connectionId);
     
