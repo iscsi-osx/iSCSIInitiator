@@ -136,7 +136,7 @@
 		2BCB2B1B1A70157200A81C80 /* iSCSITypes.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iSCSITypes.c; path = "User Tools/iSCSITypes.c"; sourceTree = "<group>"; };
 		2BCB2B1C1A70157200A81C80 /* iSCSITypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSITypes.h; path = "User Tools/iSCSITypes.h"; sourceTree = "<group>"; };
 		2BCB2B1D1A70157200A81C80 /* iSCSITypesShared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSITypesShared.h; path = "User Tools/iSCSITypesShared.h"; sourceTree = "<group>"; };
-		2BCB2B1F1A7015CF00A81C80 /* crc32c.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = crc32c.c; path = Kernel/crc32c.c; sourceTree = "<group>"; };
+		2BCB2B1F1A7015CF00A81C80 /* crc32c.c */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = crc32c.c; path = Kernel/crc32c.c; sourceTree = "<group>"; };
 		2BCB2B201A7015CF00A81C80 /* crc32c.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = crc32c.h; path = Kernel/crc32c.h; sourceTree = "<group>"; };
 		2BCB2B221A7015CF00A81C80 /* Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Prefix.pch; path = Kernel/Prefix.pch; sourceTree = "<group>"; };
 		2BCB2B231A7015CF00A81C80 /* iSCSIInitiator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = iSCSIInitiator.cpp; path = Kernel/iSCSIInitiator.cpp; sourceTree = "<group>"; };
