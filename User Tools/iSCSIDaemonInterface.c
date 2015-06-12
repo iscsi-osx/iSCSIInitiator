@@ -438,37 +438,34 @@ errno_t iSCSIDaemonGetSessionIdForTarget(iSCSIDaemonHandle handle,
                                          CFStringRef targetIQN,
                                          SID * sessionId)
 {
-    // Validate inputs
-    if(handle < 0 || !targetIQN || !sessionId)
-        return EINVAL;
-    
-    // Setup a target object with the target name
-    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,targetIQN);
-    
-    // Generate data to transmit (no longer need target object after this)
-    CFDataRef targetData = iSCSITargetCreateData(target);
-    iSCSITargetRelease(target);
-    
-    // Create command header to transmit
-    iSCSIDCmdGetSessionIdForTarget cmd = iSCSIDCmdGetSessionIdForTargetInit;
-    cmd.targetLength = (UInt32)CFDataGetLength(targetData);
-    
-    if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,targetData,NULL))
-    {
+    errno_t result = EINVAL; // default error code
+    if (handle && targetIQN && sessionId) {
+        // Setup a target object with the target name
+        iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
+        iSCSITargetSetName(target,targetIQN);
+        
+        // Generate data to transmit (no longer need target object after this)
+        CFDataRef targetData = iSCSITargetCreateData(target);
+        iSCSITargetRelease(target);
+        // Create command header to transmit
+        iSCSIDCmdGetSessionIdForTarget cmd = iSCSIDCmdGetSessionIdForTargetInit;
+        cmd.targetLength = (UInt32)CFDataGetLength(targetData);
+        
+        if (!iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,targetData,NULL)) {
+            iSCSIDRspGetSessionIdForTarget rsp;
+            if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp)) {
+                result = EIO;
+            } else {
+                *sessionId = rsp.sessionId;
+                result = rsp.errorCode;
+            }
+        } else {
+            result = EIO;
+        }
         CFRelease(targetData);
-        return EIO;
     }
+    return result;
 
-    CFRelease(targetData);
-    iSCSIDRspGetSessionIdForTarget rsp;
-    
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
-
-    *sessionId = rsp.sessionId;
-
-    return rsp.errorCode;
 }
 
 /*! Looks up the connection identifier associated with a portal.
