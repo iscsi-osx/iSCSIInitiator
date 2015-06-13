@@ -758,9 +758,12 @@ errno_t iSCSILoginConnection(SID sessionId,
     
     // If no error, authenticate (negotiate security parameters)
     if(!error)
-       (void) iSCSIAuthNegotiate(target,auth,sessionId,*connectionId,statusCode);
+       error = iSCSIAuthNegotiate(target,auth,sessionId,*connectionId,statusCode);
     
-    iSCSIKernelReleaseConnection(sessionId,*connectionId);
+    if (!error)
+        iSCSIKernelActivateConnection(sessionId,*connectionId);
+    else
+        iSCSIKernelReleaseConnection(sessionId,*connectionId);
     
     iSCSITargetRelease(target);
     return 0;
