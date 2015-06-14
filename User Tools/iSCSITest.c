@@ -9,6 +9,7 @@
  *              also relies on the kernel layer for access to kext.
  */
 
+
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -53,7 +54,7 @@ int main(int argc, const char * argv[]) {
     
     iSCSIConnectionConfigSetHeaderDigest(connCfg, false);
     iSCSIConnectionConfigSetDataDigest(connCfg, false);
-    errno_t error = iSCSILoginSession(target,portal,iSCSIAuthCreateNone(),sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
+    errno_t error = iSCSILoginSession(target,portal,iSCSIAuthCreateCHAP(CFSTR("user"),CFSTR("passwordpassword"),NULL,NULL),sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
     //  enum iSCSILogoutStatusCode sc;
     //  iSCSILogoutSession(0,&sc);
     //  iSCSIDiscoveryRecRef discRec;

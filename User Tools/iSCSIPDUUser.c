@@ -129,7 +129,8 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
             // Advance the starting point to skip the '='
             tokenStartByte = currentByte + 1;
             (*callback)(keyContainer,keyString,valContainer,valString);
-            
+
+            CFRelease(keyString);
             CFRelease(valString);
             
             // Reset for next key-value pair (this allows extra 0's for padding
@@ -137,11 +138,13 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
             equalFound = false;
         }
         currentByte++;
-        if (keyString) {
-            CFRelease(keyString);
-            keyString = NULL;
-        }
     }
+
+    if (keyString) {
+        CFRelease(keyString);
+        keyString = NULL;
+    }
+
 }
 
 void iSCSIPDUDataParseToDictCallback(void * keyContainer,CFStringRef keyString,
