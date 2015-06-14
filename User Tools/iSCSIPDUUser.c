@@ -132,6 +132,7 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
 
             CFRelease(keyString);
             CFRelease(valString);
+            keyString = valString = NULL;
             
             // Reset for next key-value pair (this allows extra 0's for padding
             // if the string should contain any)
