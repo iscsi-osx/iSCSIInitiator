@@ -49,7 +49,7 @@ int main(int argc, const char * argv[]) {
     iSCSIPortalRef portal = iSCSIPortalCreateMutable();
     iSCSIPortalSetAddress(portal,CFSTR("192.168.56.2"));
     iSCSIPortalSetHostInterface(portal,kiSCSIDefaultHostInterface);
-    iSCSIPortalSetPort(portal,kiSCSIDefaultPort);
+    iSCSIPortalSetPort(portal,CFSTR("32"));
     
     
     iSCSIConnectionConfigSetHeaderDigest(connCfg, false);

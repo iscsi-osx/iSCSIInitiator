@@ -259,32 +259,35 @@ errno_t iSCSIDQueryPortalForTargets(int fd,struct iSCSIDCmdQueryPortalForTargets
     
     iSCSIPortalRelease(portal);
     iSCSIAuthRelease(auth);
-    
-    if(error)
-        return error;
-    
+
     // Compose a response to send back to the client
     struct iSCSIDRspQueryPortalForTargets rsp = iSCSIDRspQueryPortalForTargetsInit;
     rsp.errorCode = error;
     rsp.statusCode = statusCode;
-    
-    CFDataRef data = iSCSIDiscoveryRecCreateData(discoveryRec);
-    iSCSIDiscoveryRecRelease(discoveryRec);
-    rsp.discoveryLength = (UInt32)CFDataGetLength(data);
+    CFDataRef data = NULL;
+
+    // If a discovery record was returned, get data and free discovery object
+    if(discoveryRec) {
+        data = iSCSIDiscoveryRecCreateData(discoveryRec);
+        iSCSIDiscoveryRecRelease(discoveryRec);
+        rsp.discoveryLength = (UInt32)CFDataGetLength(data);
+    }
     
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
     {
         CFRelease(data);
         return EAGAIN;
     }
-    
-    if(send(fd,CFDataGetBytePtr(data),CFDataGetLength(data),0) != CFDataGetLength(data))
-    {
+
+    // Send discovery data if any
+    if(data) {
+        if(send(fd,CFDataGetBytePtr(data),CFDataGetLength(data),0) != CFDataGetLength(data))
+        {
+            CFRelease(data);
+            return EAGAIN;
+        }
         CFRelease(data);
-        return EAGAIN;
     }
-    
-    CFRelease(data);
     return 0;
 }
 
