@@ -651,17 +651,35 @@ errno_t iSCSICtlLoginWithPortal(iSCSIDaemonHandle handle,
     // If the session identifier is valid find a connection identifier
     if(!error)
     {
+        // Existing session, add a connection
         if(sessionId != kiSCSIInvalidSessionId) {
             if(!(error = iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId)))
             {
                 // If there's an active session display error otherwise login
                 if(connectionId != kiSCSIInvalidConnectionId)
                     iSCSICtlDisplayError("The specified target has an active session over the specified portal.");
-                else
-                    error = iSCSICtlLoginCommon(handle,sessionId,target,portal);
+                else {
+                    // See if the session can support an additional connection
+                    iSCSISessionConfigRef sessCfg = iSCSIDaemonCopySessionConfig(handle,sessionId);
+                    if(sessCfg) {
+                        CFIndex maxConnections = iSCSISessionConfigGetMaxConnections(sessCfg);
+                        iSCSISessionConfigRelease(sessCfg);
+
+                        CFArrayRef connections = iSCSIDaemonCreateArrayOfConnectionsIds(handle,sessionId);
+                        if(connections)
+                        {
+                            CFIndex activeConnections = CFArrayGetCount(connections);
+                            if(activeConnections == maxConnections)
+                                iSCSICtlDisplayError("The active session cannot support additional connections.");
+                            else
+                                error = iSCSICtlLoginCommon(handle,sessionId,target,portal);
+                            CFRelease(connections);
+                        }
+                    }
+                }
             }
         }
-        else
+        else  // Leading login
             error = iSCSICtlLoginCommon(handle,sessionId,target,portal);
     }
     return error;
