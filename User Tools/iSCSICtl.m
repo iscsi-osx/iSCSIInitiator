@@ -669,11 +669,76 @@ errno_t iSCSICtlLoginWithPortal(iSCSIDaemonHandle handle,
 
 errno_t iSCSICtlLoginAllPortals(iSCSIDaemonHandle handle,iSCSITargetRef target)
 {
-    // If target has a session, see if the negotiated max. connections
-    // is large enough to accomodate another connection
-// TODO:
+    CFIndex activeConnections = 0;
+    CFIndex maxConnections = 0;
 
-    return 0;
+    CFStringRef targetIQN = iSCSITargetGetIQN(target);
+    SID sessionId = kiSCSIInvalidSessionId;
+
+    // If a session exists, obtain its session identifier
+    errno_t error = iSCSIDaemonGetSessionIdForTarget(handle,targetIQN,&sessionId);
+
+    // Set initial values for maxConnections and activeConnections
+    if(!error)
+    {
+        if(sessionId == kiSCSIInvalidSessionId)
+            maxConnections = 1;
+        else {
+
+            // If session exists, get the max connections and active connections
+            iSCSISessionConfigRef sessCfg = iSCSIDaemonCopySessionConfig(handle,sessionId);
+            if(sessCfg) {
+                maxConnections = iSCSISessionConfigGetMaxConnections(sessCfg);
+                iSCSISessionConfigRelease(sessCfg);
+
+                CFArrayRef connections = iSCSIDaemonCreateArrayOfConnectionsIds(handle,sessionId);
+
+                if(connections) {
+                    activeConnections = CFArrayGetCount(connections);
+                    CFRelease(connections);
+                }
+            }
+        }
+    }
+
+    // Add portals to the session until we've run out of portals to add or
+    // reached the maximum connection limit
+    CFStringRef portalAddress = NULL;
+    CFArrayRef portals = iSCSIPLCreateArrayOfPortals(targetIQN);
+    CFIndex portalIdx = 0;
+
+    while( (activeConnections < maxConnections) &&
+           (portalAddress = CFArrayGetValueAtIndex(portals,portalIdx)) )
+    {
+        // Get portal object and login
+        iSCSIPortalRef portal = iSCSIPLCopyPortal(targetIQN,portalAddress);
+        error = iSCSICtlLoginCommon(handle,sessionId,target,portal);
+        iSCSIPortalRelease(portal);
+
+        // Quit if there was an error communicating with the daemon
+        if(error)
+            break;
+
+        activeConnections++;
+        portalIdx++;
+
+        // Determine how many connections this session supports
+        if((error = iSCSIDaemonGetSessionIdForTarget(handle,iSCSITargetGetIQN(target),&sessionId)))
+            break;
+
+        // If this was the first connection of the session, get the number of
+        // allowed maximum connections
+        if(activeConnections == 1) {
+            iSCSISessionConfigRef sessCfg = iSCSIDaemonCopySessionConfig(handle,sessionId);
+            if(sessCfg) {
+                maxConnections = iSCSISessionConfigGetMaxConnections(sessCfg);
+                iSCSISessionConfigRelease(sessCfg);
+            }
+        }
+
+    };
+
+    return error;
 }
 
 errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
