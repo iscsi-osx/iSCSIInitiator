@@ -312,7 +312,25 @@ errno_t iSCSIDaemonLogoutConnection(iSCSIDaemonHandle handle,
                                     CID connectionId,
                                     enum iSCSILogoutStatusCode * statusCode)
 {
-    return 0;
+    if(handle < 0 || sessionId == kiSCSIInvalidSessionId)
+        return EINVAL;
+
+    iSCSIDCmdLogoutConnection cmd = iSCSIDCmdLogoutConnectionInit;
+    cmd.sessionId = sessionId;
+    cmd.connectionId = connectionId;
+
+    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
+        return EIO;
+
+    iSCSIDRspLogoutConnection rsp;
+
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EIO;
+
+    // At this point we have a valid response, process it
+    *statusCode = rsp.statusCode;
+
+    return rsp.errorCode;
 }
 
 /*! Queries a portal for available targets.
