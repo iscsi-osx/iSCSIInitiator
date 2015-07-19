@@ -17,6 +17,7 @@
 #include <ifaddrs.h>
 
 #include "iSCSITypes.h"
+#include "iSCSIRFC3720Keys.h"
 
 /*! Call to initialize iSCSI session management functions.  This function will
  *  initialize the kernel layer after which other session-related functions
@@ -146,17 +147,31 @@ iSCSITargetRef iSCSICreateTargetForSessionId(SID sessionId);
  *  @return portal information about the portal. */
 iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId);
 
-/*! Copies the configuration object associated with a particular session.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @return the session configuration object.
- *  @return  the configuration object associated with the specified session. */
-iSCSISessionConfigRef iSCSICopySessionConfig(SID sessionId);
 
-/*! Copies the configuration object associated with a particular connection.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param connectionId the connection associated with the session.
- *  @return  the configuration object associated with the specified connection. */
-iSCSIConnectionConfigRef iSCSICopyConnectionConfig(SID sessionId,CID connectionId);
+
+/*! Creates a dictionary of session parameters for the session associated with
+ *  the specified target, if one exists.
+ *  @param handle a handle to a daemon connection.
+ *  @param target the target to check for associated sessions to generate
+ *  a dictionary of session parameters.
+ *  @return a dictionary of session properties. */
+CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target);
+
+/*! Creates a dictionary of connection parameters for the connection associated 
+ *  with the specified target and portal, if one exists.  The following keys
+ *  are guaranteed to be in the dictionary:
+ *
+ *  kiSCSIPropertyM (CFNumberRef)
+ *  kIOPropertySCSIPeripheralDeviceType (CFNumberRef)
+ *
+ *  @param handle a handle to a daemon connection.
+ *  @param target the target associated with the the specified portal.
+ *  @param portal the portal to check for active connections to generate
+ *  a dictionary of connection parameters.
+ *  @return a dictionary of connection properties. */
+CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
+                                                     iSCSIPortalRef portal);
+
 
 /*! Sets the name of this initiator.  This is the IQN-format name that is
  *  exchanged with a target during negotiation.

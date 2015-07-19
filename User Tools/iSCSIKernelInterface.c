@@ -772,7 +772,6 @@ CFStringRef iSCSIKernelCreateTargetIQNForSessionId(SID sessionId)
     const UInt32 inputCnt = 1;
     UInt64 input = sessionId;
     
-    const UInt32 expOutputCnt = 1;
     const char targetIQN[NI_MAXHOST];
     size_t targetIQNLength = NI_MAXHOST;
     

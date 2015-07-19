@@ -15,29 +15,34 @@ const struct iSCSIDCmdShutdown iSCSIDCmdShutdownInit = {
     .funcCode = kiSCSIDShutdownDaemon
 };
 
-const struct iSCSIDCmdLoginSession iSCSIDCmdLoginSessionInit  = {
-    .funcCode = kiSCSIDLoginSession,
+const struct iSCSIDCmdLogin iSCSIDCmdLoginInit  = {
+    .funcCode = kiSCSIDLogin,
     .portalLength = 0,
+    .targetLength = 0
+};
+
+const struct iSCSIDCmdLogout iSCSIDCmdLogoutInit  = {
+    .funcCode = kiSCSIDLogout,
     .targetLength = 0,
-    .authLength   = 0,
-    .sessCfgLength = 0,
-    .connCfgLength = 0
+    .portalLength = 0
 };
 
-const struct iSCSIDCmdLogoutSession iSCSIDCmdLogoutSessionInit  = {
-    .funcCode = kiSCSIDLogoutSession
+const struct iSCSIDCmdCreateArrayOfActiveTargets iSCSIDCmdCreateArrayOfActiveTargetsInit  = {
+    .funcCode = kiSCSIDCreateArrayOfActiveTargets,
 };
 
-const struct iSCSIDCmdLoginConnection iSCSIDCmdLoginConnectionInit  = {
-    .funcCode = kiSCSIDLoginConnection,
-    .sessionId = kiSCSIInvalidSessionId,
-    .portalLength = 0,
-    .authLength = 0,
-    .connCfgLength = 0
+const struct iSCSIDCmdCreateArrayOfActivePortalsForTarget iSCSIDCmdCreateArrayOfActivePortalsForTargetInit  = {
+    .funcCode = kiSCSIDCreateArrayOfActivePortalsForTarget,
 };
 
-const struct iSCSIDCmdLogoutConnection iSCSIDCmdLogoutConnectionInit  = {
-    .funcCode = kiSCSIDLogoutConnection,
+const struct iSCSIDCmdIsTargetActive iSCSIDCmdIsTargetActiveInit  = {
+    .funcCode = kiSCSIDIsTargetActive,
+    .targetLength = 0
+};
+
+const struct iSCSIDCmdIsPortalActive iSCSIDCmdIsPortalActiveInit  = {
+    .funcCode = kiSCSIDIsPortalActive,
+    .portalLength = 0
 };
 
 const struct iSCSIDCmdQueryPortalForTargets iSCSIDCmdQueryPortalForTargetsInit  = {
@@ -48,45 +53,16 @@ const struct iSCSIDCmdQueryTargetForAuthMethod iSCSIDCmdQueryTargetForAuthMethod
     .funcCode = kiSCSIDQueryTargetForAuthMethod,
 };
 
-const struct iSCSIDCmdGetSessionIdForTarget iSCSIDCmdGetSessionIdForTargetInit  = {
-    .funcCode = kiSCSIDGetSessionIdForTarget,
+const struct iSCSIDCmdCreateCFPropertiesForSession iSCSIDCmdCreateCFPropertiesForSessionInit = {
+    .funcCode = kiSCSIDCreateCFPropertiesForSession,
+    .targetLength = 0
 };
 
-const struct iSCSIDCmdGetConnectionIdForPortal iSCSIDCmdGetConnectionIdForPortalInit  = {
-    .funcCode = kiSCSIDGetConnectionIdForPortal,
+const struct iSCSIDCmdCreateCFPropertiesForConnection iSCSIDCmdCreateCFPropertiesForConnectionInit = {
+    .funcCode = kiSCSIDCreateCFPropertiesForConnection,
+    .targetLength = 0,
+    .portalLength = 0
 };
-
-const struct iSCSIDCmdGetSessionIds iSCSIDCmdGetSessionIdsInit  = {
-    .funcCode = kiSCSIDGetSessionIds,
-};
-
-const struct iSCSIDCmdGetConnectionIds iSCSIDCmdGetConnectionIdsInit  = {
-    .funcCode = kiSCSIDGetConnectionIds,
-};
-
-const struct iSCSIDCmdCreateTargetForSessionId iSCSIDCmdCreateTargetForSessionIdInit = {
-    .funcCode = kiSCSIDCreateTargetForSessionId,
-    .sessionId = kiSCSIInvalidSessionId,
-};
-
-const struct iSCSIDCmdCreatePortalForConnectionId iSCSIDCmdCreatePortalForConnectionIdInit = {
-    .funcCode = kiSCSIDCreatePortalForConnectionId,
-    .sessionId = kiSCSIInvalidSessionId,
-    .connectionId = kiSCSIInvalidConnectionId
-};
-
-const struct iSCSIDCmdCopySessionConfig iSCSIDCmdCopySessionConfigInit  = {
-    .funcCode = kiSCSIDCopySessionConfig,
-    .sessionId = kiSCSIInvalidSessionId
-};
-
-const struct iSCSIDCmdCopyConnectionConfig iSCSIDCmdCopyConnectionConfigInit  = {
-    .funcCode = kiSCSIDCopyConnectionConfig,
-    .sessionId = kiSCSIInvalidSessionId,
-    .connectionId = kiSCSIInvalidConnectionId
-};
-
-
 
 iSCSIDaemonHandle iSCSIDaemonConnect()
 {
@@ -146,192 +122,177 @@ errno_t iSCSIDaemonSendCmdWithData(iSCSIDaemonHandle handle,iSCSIDCmd * cmd,...)
     return 0;
 }
 
-/*! Creates a normal iSCSI session and returns a handle to the session. Users
- *  must call iSCSISessionClose to close this session and free resources.
+
+/*! Logs into a target using a specific portal or all portals in the database.
+ *  If an argument is supplied for portal, login occurs over the specified
+ *  portal.  Otherwise, the daemon will attempt to login over all portals.
  *  @param handle a handle to a daemon connection.
- *  @param portal specifies the portal to use for the new session.
  *  @param target specifies the target and connection parameters to use.
- *  @param auth specifies the authentication parameters to use.
- *  @param sessCfg the session configuration parameters to use.
- *  @param connCfg the connection configuration parameters to use.
- *  @param sessionId the new session identifier.
- *  @param connectionId the new connection identifier.
+ *  @param portal specifies the portal to use (use NULL for all portals).
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIDaemonLoginSession(iSCSIDaemonHandle handle,
-                                iSCSIPortalRef portal,
-                                iSCSITargetRef target,
-                                iSCSIAuthRef auth,
-                                iSCSISessionConfigRef sessCfg,
-                                iSCSIConnectionConfigRef connCfg,
-                                SID * sessionId,
-                                CID * connectionId,
-                                enum iSCSILoginStatusCode * statusCode)
+errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
+                         iSCSITargetRef target,
+                         iSCSIPortalRef portal,
+                         enum iSCSILoginStatusCode * statusCode)
 {
-    if(handle < 0 || !portal || !target || !auth || !sessionId || !connectionId || !statusCode)
+    if(handle < 0 || !target || !statusCode)
         return EINVAL;
-    
-    CFDataRef portalData = iSCSIPortalCreateData(portal);
+
     CFDataRef targetData = iSCSITargetCreateData(target);
-    CFDataRef authData   = iSCSIAuthCreateData(auth);
-    CFDataRef sessCfgData = iSCSISessionConfigCreateData(sessCfg);
-    CFDataRef connCfgData = iSCSIConnectionConfigCreateData(connCfg);
-    
-    iSCSIDCmdLoginSession cmd = iSCSIDCmdLoginSessionInit;
-    cmd.portalLength = (UInt32)CFDataGetLength(portalData);
+    CFDataRef portalData = NULL;
+
+    iSCSIDCmdLogin cmd = iSCSIDCmdLoginInit;
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
-    cmd.authLength = (UInt32)CFDataGetLength(authData);
-    cmd.sessCfgLength = (UInt32)CFDataGetLength(sessCfgData);
-    cmd.connCfgLength = (UInt32)CFDataGetLength(connCfgData);
+    cmd.portalLength = 0;
+
+    if(portal) {
+        portalData = iSCSIPortalCreateData(portal);
+        cmd.portalLength = (UInt32)CFDataGetLength(portalData);
+    }
 
     errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
-                                               portalData,targetData,authData,sessCfgData,connCfgData,NULL);
-    
-    CFRelease(portalData);
+                                               targetData,portalData,NULL);
+
+    if(portal)
+        CFRelease(portalData);
     CFRelease(targetData);
-    CFRelease(authData);
-    CFRelease(sessCfgData);
-    CFRelease(connCfgData);
-    
+
     if(error)
         return error;
 
-    iSCSIDRspLoginSession rsp;
-    
+    iSCSIDRspLogin rsp;
+
     if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
         return EIO;
-    
-    if(rsp.funcCode != kiSCSIDLoginSession)
+
+    if(rsp.funcCode != kiSCSIDLogin)
         return EIO;
-    
+
     // At this point we have a valid response, process it
     *statusCode = rsp.statusCode;
-    *sessionId  = rsp.sessionId;
-    
+
     return rsp.errorCode;
 }
 
-/*! Closes the iSCSI connection and frees the session qualifier.
+/*! Logs out of the target or a specific portal, if specified.
  *  @param handle a handle to a daemon connection.
- *  @param sessionId the session to free.
- *  @param statusCode iSCSI response code indicating operation status.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIDaemonLogoutSession(iSCSIDaemonHandle handle,
-                                 SID sessionId,
-                                 enum iSCSILogoutStatusCode * statusCode)
+ *  @param target the target to logout.
+ *  @param portal the portal to logout.  If one is not specified,
+ *  @param statusCode iSCSI response code indicating operation status. */
+errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
+                          iSCSITargetRef target,
+                          iSCSIPortalRef portal,
+                          enum iSCSILogoutStatusCode * statusCode)
 {
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId)
+    if(handle < 0 || !target || !statusCode)
         return EINVAL;
-    
-    iSCSIDCmdLogoutSession cmd = iSCSIDCmdLogoutSessionInit;
-    cmd.sessionId = sessionId;
-    
-    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return EIO;
-    
-    iSCSIDRspLogoutSession rsp;
-    
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
-    
-    // At this point we have a valid response, process it
-    *statusCode = rsp.statusCode;
-    
-    return rsp.errorCode;
-}
 
+    CFDataRef targetData = iSCSITargetCreateData(target);
+    CFDataRef portalData = NULL;
 
-/*! Adds a new connection to an iSCSI session.
- *  @param handle a handle to a daemon connection.
- *  @param sessionId the new session identifier.
- *  @param portal specifies the portal to use for the connection.
- *  @param auth specifies the authentication parameters to use.
- *  @param connCfg the connection configuration parameters to use.
- *  @param connectionId the new connection identifier.
- *  @param statusCode iSCSI response code indicating operation status.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIDaemonLoginConnection(iSCSIDaemonHandle handle,
-                                   SID sessionId,
-                                   iSCSIPortalRef portal,
-                                   iSCSIAuthRef auth,
-                                   iSCSIConnectionConfigRef connCfg,
-                                   CID * connectionId,
-                                   enum iSCSILoginStatusCode * statusCode)
+    iSCSIDCmdLogout cmd = iSCSIDCmdLogoutInit;
+    cmd.targetLength = (UInt32)CFDataGetLength(targetData);
+    cmd.portalLength = 0;
 
-{
-    if(handle < 0 || !portal || !auth || !connectionId || !statusCode)
-        return EINVAL;
-    
-    if(sessionId == kiSCSIInvalidSessionId)
-        return EINVAL;
-    
-    CFDataRef portalData = iSCSIPortalCreateData(portal);
-    CFDataRef authData   = iSCSIAuthCreateData(auth);
-    CFDataRef connCfgData = iSCSIConnectionConfigCreateData(connCfg);
-    
-    iSCSIDCmdLoginConnection cmd = iSCSIDCmdLoginConnectionInit;
-    cmd.portalLength = (UInt32)CFDataGetLength(portalData);
-    cmd.authLength = (UInt32)CFDataGetLength(authData);
-    cmd.connCfgLength = (UInt32)CFDataGetLength(connCfgData);
-    cmd.sessionId = sessionId;
+    if(portal) {
+        portalData = iSCSIPortalCreateData(portal);
+        cmd.portalLength = (UInt32)CFDataGetLength(portalData);
+    }
 
-    
     errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
-                                               portalData,authData,connCfgData,NULL);
-    
-    CFRelease(portalData);
-    CFRelease(authData);
-    CFRelease(connCfgData);
-    
+                                               targetData,portalData,NULL);
+
+    if(portal)
+        CFRelease(portalData);
+    CFRelease(targetData);
+
     if(error)
         return error;
-    
-    iSCSIDRspLoginSession rsp;
-    
+
+    iSCSIDRspLogout rsp;
+
     if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
         return EIO;
-    
-    if(rsp.funcCode != kiSCSIDLoginSession)
+
+    if(rsp.funcCode != kiSCSIDLogout)
         return EIO;
-    
+
     // At this point we have a valid response, process it
     *statusCode = rsp.statusCode;
-    *connectionId  = rsp.connectionId;
     
     return rsp.errorCode;
 }
 
-/*! Removes a connection from an existing session.
- *  @param handle a handle to a daemon connection.
- *  @param sessionId the session to remove a connection from.
- *  @param connectionId the connection to remove.
- *  @param statusCode iSCSI response code indicating operation status.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIDaemonLogoutConnection(iSCSIDaemonHandle handle,
-                                    SID sessionId,
-                                    CID connectionId,
-                                    enum iSCSILogoutStatusCode * statusCode)
+/*! Gets whether a target has an active session.
+ *  @param target the target to test for an active session.
+ *  @return true if the is an active session for the target; false otherwise. */
+Boolean iSCSIDaemonIsTargetActive(iSCSIDaemonHandle handle,
+                                  iSCSITargetRef target)
 {
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId)
-        return EINVAL;
+    if(handle < 0 || !target)
+        return false;
 
-    iSCSIDCmdLogoutConnection cmd = iSCSIDCmdLogoutConnectionInit;
-    cmd.sessionId = sessionId;
-    cmd.connectionId = connectionId;
+    CFDataRef targetData = iSCSITargetCreateData(target);
 
-    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return EIO;
+    iSCSIDCmdIsTargetActive cmd = iSCSIDCmdIsTargetActiveInit;
+    cmd.targetLength = (UInt32)CFDataGetLength(targetData);
 
-    iSCSIDRspLogoutConnection rsp;
+    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
+                                               targetData,NULL);
+    CFRelease(targetData);
 
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
+    if(error)
+        return false;
 
-    // At this point we have a valid response, process it
-    *statusCode = rsp.statusCode;
+    iSCSIDRspIsTargetActive rsp;
 
-    return rsp.errorCode;
+    if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
+        return false;
+
+    if(rsp.funcCode != kiSCSIDIsTargetActive)
+        return false;
+
+    return rsp.active;
 }
+
+/*! Gets whether a portal has an active session.
+ *  @param target the target to test for an active session.
+ *  @param portal the portal to test for an active connection.
+ *  @return true if the is an active connection for the portal; false otherwise. */
+Boolean iSCSIDaemonIsPortalActive(iSCSIDaemonHandle handle,
+                                  iSCSITargetRef target,
+                                  iSCSIPortalRef portal)
+{
+    if(handle < 0 || !target || !portal)
+        return false;
+
+    CFDataRef targetData = iSCSITargetCreateData(target);
+    CFDataRef portalData = iSCSIPortalCreateData(portal);
+
+    iSCSIDCmdIsPortalActive cmd = iSCSIDCmdIsPortalActiveInit;
+    cmd.targetLength = (UInt32)CFDataGetLength(targetData);
+    cmd.portalLength = (UInt32)CFDataGetLength(portalData);
+
+    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
+                                               targetData,portalData,NULL);
+    CFRelease(targetData);
+    CFRelease(portalData);
+
+    if(error)
+        return false;
+
+    iSCSIDRspIsPortalActive rsp;
+
+    if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
+        return false;
+
+    if(rsp.funcCode != kiSCSIDIsPortalActive)
+        return false;
+    
+    return rsp.active;
+}
+
 
 /*! Queries a portal for available targets.
  *  @param handle a handle to a daemon connection.
@@ -426,7 +387,7 @@ errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
     cmd.portalLength = (UInt32)CFDataGetLength(portalData);
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
     
-    if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,portalData,targetData,NULL))
+    if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,targetData,portalData,NULL))
     {
         CFRelease(portalData);
         CFRelease(targetData);
@@ -447,280 +408,195 @@ errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
 }
 
 
-/*! Retreives the initiator session identifier associated with this target.
+/*! Creates an array of active target objects.
  *  @param handle a handle to a daemon connection.
- *  @param targetIQN the name of the target.
- *  @param sessionId the session identiifer.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIDaemonGetSessionIdForTarget(iSCSIDaemonHandle handle,
-                                         CFStringRef targetIQN,
-                                         SID * sessionId)
-{
-    errno_t result = EINVAL; // default error code
-    if (handle && targetIQN && sessionId) {
-        // Setup a target object with the target name
-        iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-        iSCSITargetSetName(target,targetIQN);
-        
-        // Generate data to transmit (no longer need target object after this)
-        CFDataRef targetData = iSCSITargetCreateData(target);
-        iSCSITargetRelease(target);
-        // Create command header to transmit
-        iSCSIDCmdGetSessionIdForTarget cmd = iSCSIDCmdGetSessionIdForTargetInit;
-        cmd.targetLength = (UInt32)CFDataGetLength(targetData);
-        
-        if (!iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,targetData,NULL)) {
-            iSCSIDRspGetSessionIdForTarget rsp;
-            if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp)) {
-                result = EIO;
-            } else {
-                *sessionId = rsp.sessionId;
-                result = rsp.errorCode;
-            }
-        } else {
-            result = EIO;
-        }
-        CFRelease(targetData);
-    }
-    return result;
-
-}
-
-/*! Looks up the connection identifier associated with a portal.
- *  @param handle a handle to a daemon connection.
- *  @param sessionId the session identifier.
- *  @param portal the iSCSI portal.
- *  @param connectionId the associated connection identifier.
- *  @return error code indicating result of operation. */
-errno_t iSCSIDaemonGetConnectionIdForPortal(iSCSIDaemonHandle handle,
-                                            SID sessionId,
-                                            iSCSIPortalRef portal,
-                                            CID * connectionId)
-{
-    // Validate inputs
-    if(handle < 0 || !portal || sessionId == kiSCSIInvalidSessionId || !connectionId)
-        return EINVAL;
-    
-    // Generate data to transmit (no longer need target object after this)
-    CFDataRef portalData = iSCSIPortalCreateData(portal);
-    
-    // Create command header to transmit
-    iSCSIDCmdGetConnectionIdForPortal cmd = iSCSIDCmdGetConnectionIdForPortalInit;
-    cmd.sessionId = sessionId;
-    cmd.portalLength = (UInt32)CFDataGetLength(portalData);
-    
-    if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,portalData,NULL))
-    {
-        CFRelease(portalData);
-        return EIO;
-    }
-    
-    CFRelease(portalData);
-    iSCSIDRspGetConnectionIdForPortal rsp;
-    
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
-    
-    *connectionId = rsp.connectionId;
-    
-    return rsp.errorCode;
-}
-
-
-/*! Gets an array of session identifiers for each session.
- *  @param handle a handle to a daemon connection.
- *  @return an array of session identifiers. */
-CFArrayRef iSCSIDaemonCreateArrayOfSessionIds(iSCSIDaemonHandle handle)
+ *  @return an array of active target objects or NULL if no targets are active. */
+CFArrayRef iSCSIDaemonCreateArrayOfActiveTargets(iSCSIDaemonHandle handle)
 {
     // Validate inputs
     if(handle < 0)
         return NULL;
-    
+
     // Send command to daemon
-    iSCSIDCmdGetSessionIds cmd = iSCSIDCmdGetSessionIdsInit;
+    iSCSIDCmdCreateArrayOfActiveTargets cmd = iSCSIDCmdCreateArrayOfActiveTargetsInit;
 
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
         return NULL;
-    
-    // Receive daemon response header
-    iSCSIDRspGetSessionIds rsp;
+
+    iSCSIDRspCreateArrayOfActiveTargets rsp;
+
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return NULL;
-    
-    if(rsp.errorCode || rsp.dataLength == 0)
+
+    if(rsp.dataLength == 0)
         return NULL;
-    
-    void * bytes = malloc(rsp.dataLength);
-    
+
+    CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault,rsp.dataLength);
+    CFDataSetLength(data,rsp.dataLength);
+    UInt8 * bytes = CFDataGetMutableBytePtr(data);
+
     if(recv(handle,bytes,rsp.dataLength,0) != rsp.dataLength)
     {
-        free(bytes);
+        CFRelease(data);
         return NULL;
     }
 
-    CFArrayRef sessionIds = CFArrayCreate(kCFAllocatorDefault,bytes,rsp.dataLength/sizeof(void *),NULL);
-    free(bytes);
-    return sessionIds;
-}
+    CFPropertyListFormat format;
+    CFArrayRef activeTargets = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+    CFRelease(data);
 
-/*! Gets an array of connection identifiers for each session.
- *  @param handle a handle to a daemon connection.
- *  @param sessionId session identifier.
- *  @return an array of connection identifiers. */
-CFArrayRef iSCSIDaemonCreateArrayOfConnectionsIds(iSCSIDaemonHandle handle,SID sessionId)
-{
-    // Validate inputs
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId)
-        return NULL;
-    
-    // Send command to daemon
-    iSCSIDCmdGetConnectionIds cmd = iSCSIDCmdGetConnectionIdsInit;
-    cmd.sessionId = sessionId;
-    
-    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return NULL;
-    
-    // Receive daemon response header
-    iSCSIDRspGetConnectionIds rsp;
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return NULL;
-    
-    if(rsp.errorCode || rsp.dataLength == 0)
-        return NULL;
-    
-    void * bytes = malloc(rsp.dataLength);
-    
-    if(recv(handle,bytes,rsp.dataLength,0) != rsp.dataLength)
-    {
-        free(bytes);
+    if(format == kCFPropertyListBinaryFormat_v1_0)
+        return activeTargets;
+    else {
+        CFRelease(activeTargets);
         return NULL;
     }
-    
-    CFArrayRef connectionIds = CFArrayCreate(kCFAllocatorDefault,bytes,rsp.dataLength/sizeof(void *),NULL);
-    free(bytes);
-    return connectionIds;
 }
 
-/*! Creates a target object for the specified session.
+
+/*! Creates an array of active portal objects.
+ *  @param target the target to retrieve active portals.
  *  @param handle a handle to a daemon connection.
- *  @param sessionId the session identifier.
- *  @return target the target object. */
-iSCSITargetRef iSCSIDaemonCreateTargetForSessionId(iSCSIDaemonHandle handle,
-                                                   SID sessionId)
+ *  @return an array of active target objects or NULL if no targets are active. */
+CFArrayRef iSCSIDaemonCreateArrayOfActivePortalsForTarget(iSCSIDaemonHandle handle,
+                                                          iSCSITargetRef target)
 {
     // Validate inputs
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId)
+    if(handle < 0)
         return NULL;
-    
+
     // Send command to daemon
-    iSCSIDCmdCreateTargetForSessionId cmd = iSCSIDCmdCreateTargetForSessionIdInit;
-    cmd.sessionId = sessionId;
-    
+    iSCSIDCmdCreateArrayOfActivePortalsForTarget cmd = iSCSIDCmdCreateArrayOfActivePortalsForTargetInit;
+
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
         return NULL;
-    
-    // Receive daemon response header
-    iSCSIDRspCreateTargetForSessionId rsp;
+
+    iSCSIDRspCreateArrayOfActivePortalsForTarget rsp;
+
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return NULL;
-    
-    if(rsp.funcCode != kiSCSIDCreateTargetForSessionId || rsp.targetLength == 0)
+
+    if(rsp.dataLength == 0)
         return NULL;
-    
-    iSCSITargetRef target = iSCSIDCreateObjectFromSocket(handle,rsp.targetLength,
-                            (void *(* )(CFDataRef))&iSCSITargetCreateWithData);
-    
-    return target;
+
+    CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault,rsp.dataLength);
+    CFDataSetLength(data,rsp.dataLength);
+    UInt8 * bytes = CFDataGetMutableBytePtr(data);
+
+    if(recv(handle,bytes,rsp.dataLength,0) != rsp.dataLength)
+    {
+        CFRelease(data);
+        return NULL;
+    }
+
+    CFPropertyListFormat format;
+    CFArrayRef activePortals = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+    CFRelease(data);
+
+    if(format == kCFPropertyListBinaryFormat_v1_0)
+        return activePortals;
+    else {
+        CFRelease(activePortals);
+        return NULL;
+    }
 }
 
-/*! Creates a connection object for the specified connection.
+
+/*! Creates a dictionary of session parameters for the session associated with
+ *  the specified target, if one exists.
  *  @param handle a handle to a daemon connection.
- *  @param sessionId the session identifier.
- *  @param connectionId the connection identifier.
- *  @return portal information about the portal. */
-iSCSIPortalRef iSCSIDaemonCreatePortalForConnectionId(iSCSIDaemonHandle handle,
-                                                      SID sessionId,
-                                                      CID connectionId)
+ *  @param target the target to check for associated sessions to generate
+ *  a dictionary of session parameters.
+ *  @return a dictionary of session properties. */
+CFDictionaryRef iSCSIDaemonCreateCFPropertiesForSession(iSCSIDaemonHandle handle,
+                                                        iSCSITargetRef target)
 {
     // Validate inputs
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+    if(handle < 0 || !target)
         return NULL;
-    
+
+    CFDictionaryRef properties = NULL;
+    CFDataRef targetData = iSCSITargetCreateData(target);
+
     // Send command to daemon
-    iSCSIDCmdCreatePortalForConnectionId cmd = iSCSIDCmdCreatePortalForConnectionIdInit;
-    cmd.sessionId = sessionId;
-    cmd.connectionId = connectionId;
-    
-    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return NULL;
-    
-    // Receive daemon response header
-    iSCSIDRspCreatePortalForConnectionId rsp;
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return NULL;
-    
-    if(rsp.funcCode != kiSCSIDCreatePortalForConnectionId || rsp.portalLength == 0)
-        return NULL;
-    
-    iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(handle,rsp.portalLength,
-                            (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
-    
-    return portal;
+    iSCSIDCmdCreateCFPropertiesForSession cmd = iSCSIDCmdCreateCFPropertiesForSessionInit;
+
+    cmd.targetLength = (UInt32)CFDataGetLength(targetData);
+
+    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
+                                               targetData,NULL);
+    CFRelease(targetData);
+
+    if(!error) {
+
+        iSCSIDRspCreateCFPropertiesForSession rsp;
+
+        if(recv(handle,&rsp,sizeof(rsp),0) == sizeof(rsp) && rsp.dataLength != 0)
+        {
+            CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault,rsp.dataLength);
+            CFDataSetLength(data,rsp.dataLength);
+            UInt8 * bytes = CFDataGetMutableBytePtr(data);
+
+            if(recv(handle,bytes,rsp.dataLength,0) == rsp.dataLength)
+            {
+                CFPropertyListFormat format;
+                properties = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+            }
+            CFRelease(data);
+        }
+    }
+    return properties;
 }
 
-/*! Copies the configuration object associated with a particular session.
+/*! Creates a dictionary of connection parameters for the connection associated
+ *  with the specified target and portal, if one exists.
  *  @param handle a handle to a daemon connection.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @return  the configuration object associated with the specified session. */
-iSCSISessionConfigRef iSCSIDaemonCopySessionConfig(iSCSIDaemonHandle handle,
-                                                   SID sessionId)
+ *  @param target the target associated with the the specified portal.
+ *  @param portal the portal to check for active connections to generate
+ *  a dictionary of connection parameters.
+ *  @return a dictionary of connection properties. */
+CFDictionaryRef iSCSIDaemonCreateCFPropertiesForConnection(iSCSIDaemonHandle handle,
+                                                           iSCSITargetRef target,
+                                                           iSCSIPortalRef portal)
 {
     // Validate inputs
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId)
+    if(handle < 0 || !target || !portal)
         return NULL;
-    
+
+    CFDictionaryRef properties = NULL;
+    CFDataRef targetData = iSCSITargetCreateData(target);
+    CFDataRef portalData = iSCSIPortalCreateData(portal);
+
     // Send command to daemon
-    iSCSIDCmdCopySessionConfig cmd = iSCSIDCmdCopySessionConfigInit;
-    cmd.sessionId = sessionId;
-    
-    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return NULL;
-    
-    // Receive daemon response header
-    iSCSIDRspCopySessionConfig rsp;
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp) || rsp.dataLength == 0)
-        return NULL;
-    
-    // Get the session information struct
-    return iSCSIDCreateObjectFromSocket(handle,rsp.dataLength,(void *(* )(CFDataRef))&iSCSISessionConfigCreateWithData);
+    iSCSIDCmdCreateCFPropertiesForConnection cmd = iSCSIDCmdCreateCFPropertiesForConnectionInit;
+
+    cmd.targetLength = (UInt32)CFDataGetLength(targetData);
+    cmd.portalLength = (UInt32)CFDataGetLength(portalData);
+
+    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
+                                               targetData,portalData,NULL);
+    CFRelease(targetData);
+    CFRelease(portalData);
+
+    if(!error) {
+
+        iSCSIDRspCreateCFPropertiesForConnection rsp;
+
+        if(recv(handle,&rsp,sizeof(rsp),0) == sizeof(rsp) && rsp.dataLength != 0)
+        {
+            CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault,rsp.dataLength);
+            CFDataSetLength(data,rsp.dataLength);
+            UInt8 * bytes = CFDataGetMutableBytePtr(data);
+
+            if(recv(handle,bytes,rsp.dataLength,0) == rsp.dataLength)
+            {
+                CFPropertyListFormat format;
+                properties = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+            }
+            CFRelease(data);
+        }
+    }
+    return properties;
 }
 
-/*! Copies the configuration object associated with a particular connection.
- *  @param handle a handle to a daemon connection.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param connectionId the connection associated with the session.
- *  @return  the configuration object associated with the specified connection. */
-iSCSIConnectionConfigRef iSCSIDaemonCopyConnectionConfig(iSCSIDaemonHandle handle,
-                                                         SID sessionId,
-                                                         CID connectionId)
-{
-    // Validate inputs
-    if(handle < 0 || sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
-        return NULL;
-    
-    // Send command to daemon
-    iSCSIDCmdCopyConnectionConfig cmd = iSCSIDCmdCopyConnectionConfigInit;
-    cmd.sessionId = sessionId;
-    cmd.connectionId = connectionId;
-    
-    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return NULL;
-    
-    // Receive daemon response header
-    iSCSIDRspCopySessionConfig rsp;
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp) || rsp.dataLength == 0)
-        return NULL;
-    
-    // Get the session information struct
-    return iSCSIDCreateObjectFromSocket(handle,rsp.dataLength,(void *(* )(CFDataRef))&iSCSIConnectionConfigCreateWithData);
-}
+

@@ -105,6 +105,7 @@
 		2B5935C21810DF7100FFC3D3 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		2B7B6A701AFAFA580098FAF6 /* iscsictl.8 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; name = iscsictl.8; path = "User Tools/iscsictl.8"; sourceTree = "<group>"; usesTabs = 1; };
 		2B7B6A971B03122A0098FAF6 /* iscsid.8 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = iscsid.8; path = "User Tools/iscsid.8"; sourceTree = "<group>"; };
+		2B7E3CED1B5584E800DFF59D /* iSCSIRFC3720Keys.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSIRFC3720Keys.h; path = "User Tools/iSCSIRFC3720Keys.h"; sourceTree = "<group>"; };
 		2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		2BA046931AA22DFF00E086DF /* iSCSITypesKernel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iSCSITypesKernel.h; path = Kernel/iSCSITypesKernel.h; sourceTree = "<group>"; };
 		2BA046971AA23AAF00E086DF /* iSCSIKernelClasses.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSIKernelClasses.h; path = Kernel/iSCSIKernelClasses.h; sourceTree = "<group>"; };
@@ -288,6 +289,7 @@
 				2BCB2B121A70157200A81C80 /* iSCSIPropertyList.h */,
 				2BCB2B141A70157200A81C80 /* iSCSIPDUUser.c */,
 				2BCB2B151A70157200A81C80 /* iSCSIPDUUser.h */,
+				2B7E3CED1B5584E800DFF59D /* iSCSIRFC3720Keys.h */,
 				2BCB2B161A70157200A81C80 /* iSCSIQueryTarget.c */,
 				2BCB2B171A70157200A81C80 /* iSCSIQueryTarget.h */,
 				2BCB2B181A70157200A81C80 /* iSCSISession.c */,

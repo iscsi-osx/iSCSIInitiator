@@ -90,13 +90,6 @@ CFStringRef kOptMutualUser = CFSTR("mutualUser");
 /*! Mutual-secret (CHAP) command-line option. */
 CFStringRef kOptMutualSecret = CFSTR("mutualSecret");
 
-
-// TODO: the "all" flag should be used to remove/login/logout "all" sessions
-// it needs to be impelemented in respective functions below
-/*! All command-line option. */
-CFStringRef kOptAll = CFSTR("all");
-
-
 /*! Name of this command-line executable. */
 const char * executableName;
 
@@ -225,7 +218,6 @@ CFStringRef iSCSICtlGetStringForLoginStatus(enum iSCSILoginStatusCode statusCode
         case kiSCSILoginInvalidStatusCode:
         default:
             return CFSTR("Unknown error occurred");
-            
     };
     return CFSTR("");
 }
@@ -233,38 +225,44 @@ CFStringRef iSCSICtlGetStringForLoginStatus(enum iSCSILoginStatusCode statusCode
 /*! Helper function used to display login status.
  *  @param statusCode the status code indicating the login result.
  *  @param target the target.
- *  @param portal the portal used to logon to the target. */
+ *  @param portal the portal used to logon to the target.  Specify NULL if all
+ *  portals were used. */
 void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
                         iSCSITargetRef target,
                         iSCSIPortalRef portal)
 {
-    CFStringRef targetIQN      = iSCSITargetGetIQN(target);
-    CFStringRef portalAddress   = iSCSIPortalGetAddress(portal);
-    CFStringRef portalPort      = iSCSIPortalGetPort(portal);
-    CFStringRef portalInterface = iSCSIPortalGetHostInterface(portal);
-    
-    CFStringRef loginStr;
-    
-    if(statusCode == kiSCSILoginSuccess)
-    {
-        loginStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-            CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
-            targetIQN,portalAddress,
-            portalPort,portalInterface);
-        
-        iSCSICtlDisplayString(loginStr);
-        CFRelease(loginStr);
-        return;
-    }
+    CFStringRef targetIQN = iSCSITargetGetIQN(target);
+    CFStringRef loginStatus;
+    if (portal) {
+        CFStringRef portalAddress = iSCSIPortalGetAddress(portal);
+        CFStringRef portalPort    = iSCSIPortalGetPort(portal);
+        CFStringRef hostInterface = iSCSIPortalGetHostInterface(portal);
+        if (statusCode == kiSCSILogoutSuccess) {
+            loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                                    CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
+                                                    targetIQN,portalAddress,portalPort,hostInterface);
+        } else {
+            loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                                    CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
+                                                    targetIQN,portalAddress,portalPort,
+                                                    hostInterface,iSCSICtlGetStringForLoginStatus(statusCode));
+        }
 
-    loginStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-        CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
-        targetIQN,portalAddress,portalPort,
-        portalInterface,iSCSICtlGetStringForLoginStatus(statusCode));
-    
-    iSCSICtlDisplayString(loginStr);
-    CFRelease(loginStr);
+    } else {
+        if (statusCode == kiSCSILogoutSuccess) {
+            loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                                    CFSTR("Login to [ target: %@ ] successful.\n"),targetIQN);
+        } else {
+            loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                                    CFSTR("Login to [ target: %@ portal: <all> ] failed: %@.\n"),
+                                                    targetIQN,
+                                                    iSCSICtlGetStringForLoginStatus(statusCode));
+        }
+    }
+    iSCSICtlDisplayString(loginStatus);
+    CFRelease(loginStatus);
 }
+
 
 /*! Helper function used to display login status.
  *  @param statusCode the status code indicating the login result.
@@ -586,179 +584,6 @@ errno_t iSCSICtlModifyConnectionConfigFromOptions(CFDictionaryRef options,
     return 0;
 }
 
-/*! Helper function.  Called iSCSICtlLogin to login to a target over a specific
- *  portal (either a session or connection login).  This function does not 
- *  perform any necessary validation before attempting to login and should not
- *  be called directly outisde of iSCSICtlLogin.
- *  @param handle a handle to the iSCSI daemon.
- *  @param sessionId the session identifier.  May be kiSCSIInvalidSessionId
- *  to denote that a session does not currently exist for the target.
- *  @param target the target.
- *  @param portal the portal used to logon to the target.
- *  @return an error code indicating the result of the operation. */
-errno_t iSCSICtlLoginCommon(iSCSIDaemonHandle handle,
-                            SID sessionId,
-                            iSCSITargetRef target,
-                            iSCSIPortalRef portal)
-{
-    errno_t error = 0;
-    iSCSISessionConfigRef sessCfg = NULL;
-    iSCSIConnectionConfigRef connCfg = NULL;
-    iSCSIAuthRef auth = NULL;
-
-    CID connectionId = kiSCSIInvalidConnectionId;
-    enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
-    CFStringRef targetIQN = iSCSITargetGetIQN(target);
-
-    // If session needs to be logged in, copy session config from property list
-    if(sessionId == kiSCSIInvalidSessionId)
-        if(!(sessCfg = iSCSIPLCopySessionConfig(targetIQN)))
-            sessCfg = iSCSISessionConfigCreateMutable();
-
-    // Get connection configuration from property list, create one if needed
-    if(!(connCfg = iSCSIPLCopyConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal))))
-        connCfg = iSCSIConnectionConfigCreateMutable();
-
-    // Get authentication configuration from property list, create one if needed
-    if(!(auth = iSCSIPLCopyAuthentication(targetIQN,iSCSIPortalGetAddress(portal))))
-        auth = iSCSIAuthCreateNone();
-
-    // Do either session or connection login
-    if(sessionId == kiSCSIInvalidSessionId)
-        error = iSCSIDaemonLoginSession(handle,portal,target,auth,sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
-    else
-        error = iSCSIDaemonLoginConnection(handle,sessionId,portal,auth,connCfg,&connectionId,&statusCode);
-
-    if(!error)
-        iSCSICtlDisplayLoginStatus(statusCode,target,portal);
-    else
-        iSCSICtlDisplayError(strerror(error));
-
-    return error;
-}
-
-errno_t iSCSICtlLoginWithPortal(iSCSIDaemonHandle handle,
-                                iSCSITargetRef target,
-                                iSCSIPortalRef portal)
-{
-    // Check for active sessions before attempting loginb
-    SID sessionId = kiSCSIInvalidSessionId;
-    CID connectionId = kiSCSIInvalidConnectionId;
-    CFStringRef targetIQN = iSCSITargetGetIQN(target);
-
-    errno_t error = iSCSIDaemonGetSessionIdForTarget(handle,targetIQN,&sessionId);
-
-    // If the session identifier is valid find a connection identifier
-    if(!error)
-    {
-        // Existing session, add a connection
-        if(sessionId != kiSCSIInvalidSessionId) {
-            if(!(error = iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId)))
-            {
-                // If there's an active session display error otherwise login
-                if(connectionId != kiSCSIInvalidConnectionId)
-                    iSCSICtlDisplayError("The specified target has an active session over the specified portal.");
-                else {
-                    // See if the session can support an additional connection
-                    iSCSISessionConfigRef sessCfg = iSCSIDaemonCopySessionConfig(handle,sessionId);
-                    if(sessCfg) {
-                        CFIndex maxConnections = iSCSISessionConfigGetMaxConnections(sessCfg);
-                        iSCSISessionConfigRelease(sessCfg);
-
-                        CFArrayRef connections = iSCSIDaemonCreateArrayOfConnectionsIds(handle,sessionId);
-                        if(connections)
-                        {
-                            CFIndex activeConnections = CFArrayGetCount(connections);
-                            if(activeConnections == maxConnections)
-                                iSCSICtlDisplayError("The active session cannot support additional connections.");
-                            else
-                                error = iSCSICtlLoginCommon(handle,sessionId,target,portal);
-                            CFRelease(connections);
-                        }
-                    }
-                }
-            }
-        }
-        else  // Leading login
-            error = iSCSICtlLoginCommon(handle,sessionId,target,portal);
-    }
-    return error;
-}
-
-errno_t iSCSICtlLoginAllPortals(iSCSIDaemonHandle handle,iSCSITargetRef target)
-{
-    CFIndex activeConnections = 0;
-    CFIndex maxConnections = 0;
-
-    CFStringRef targetIQN = iSCSITargetGetIQN(target);
-    SID sessionId = kiSCSIInvalidSessionId;
-
-    // If a session exists, obtain its session identifier
-    errno_t error = iSCSIDaemonGetSessionIdForTarget(handle,targetIQN,&sessionId);
-
-    // Set initial values for maxConnections and activeConnections
-    if(!error)
-    {
-        if(sessionId == kiSCSIInvalidSessionId)
-            maxConnections = 1;
-        else {
-
-            // If session exists, get the max connections and active connections
-            iSCSISessionConfigRef sessCfg = iSCSIDaemonCopySessionConfig(handle,sessionId);
-            if(sessCfg) {
-                maxConnections = iSCSISessionConfigGetMaxConnections(sessCfg);
-                iSCSISessionConfigRelease(sessCfg);
-
-                CFArrayRef connections = iSCSIDaemonCreateArrayOfConnectionsIds(handle,sessionId);
-
-                if(connections) {
-                    activeConnections = CFArrayGetCount(connections);
-                    CFRelease(connections);
-                }
-            }
-        }
-    }
-
-    // Add portals to the session until we've run out of portals to add or
-    // reached the maximum connection limit
-    CFStringRef portalAddress = NULL;
-    CFArrayRef portals = iSCSIPLCreateArrayOfPortals(targetIQN);
-    CFIndex portalIdx = 0;
-
-    while( (activeConnections < maxConnections) &&
-           (portalAddress = CFArrayGetValueAtIndex(portals,portalIdx)) )
-    {
-        // Get portal object and login
-        iSCSIPortalRef portal = iSCSIPLCopyPortal(targetIQN,portalAddress);
-        error = iSCSICtlLoginCommon(handle,sessionId,target,portal);
-        iSCSIPortalRelease(portal);
-
-        // Quit if there was an error communicating with the daemon
-        if(error)
-            break;
-
-        activeConnections++;
-        portalIdx++;
-
-        // Determine how many connections this session supports
-        if((error = iSCSIDaemonGetSessionIdForTarget(handle,iSCSITargetGetIQN(target),&sessionId)))
-            break;
-
-        // If this was the first connection of the session, get the number of
-        // allowed maximum connections
-        if(activeConnections == 1) {
-            iSCSISessionConfigRef sessCfg = iSCSIDaemonCopySessionConfig(handle,sessionId);
-            if(sessCfg) {
-                maxConnections = iSCSISessionConfigGetMaxConnections(sessCfg);
-                iSCSISessionConfigRelease(sessCfg);
-            }
-        }
-
-    };
-
-    return error;
-}
-
 errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
     if(handle < 0 || !options)
@@ -783,6 +608,8 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
         return error;
     }
 
+    enum iSCSILoginStatusCode statusCode;
+
     // Determine whether we're logging into a single portal or all portals...
     if(iSCSICtlIsPortalSpecified(options))
     {
@@ -800,7 +627,14 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 portal = iSCSIPLCopyPortal(targetIQN,portalAddress);
                 CFRelease(portalAddress);
 
-                error = iSCSICtlLoginWithPortal(handle,target,portal);
+                if(iSCSIDaemonIsPortalActive(handle,target,portal))
+                    iSCSICtlDisplayError("The specified target has an active session over the specified portal.");
+                else {
+                    error = iSCSIDaemonLogin(handle,target,portal,&statusCode);
+
+                    if(!error)
+                        iSCSICtlDisplayLoginStatus(statusCode,target,portal);
+                }
             }
             else
                 iSCSICtlDisplayError("The specified portal does not exist.");
@@ -808,8 +642,12 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
             iSCSIPortalRelease(portal);
         }
     }
-    else
-        error = iSCSICtlLoginAllPortals(handle,target);
+    else {
+        error = iSCSIDaemonLogin(handle,target,NULL,&statusCode);
+
+        if(!error)
+            iSCSICtlDisplayLoginStatus(statusCode,target,NULL);
+    }
 
     iSCSITargetRelease(target);
     return error;
@@ -822,33 +660,26 @@ errno_t iSCSICtlLogout(iSCSIDaemonHandle handle,CFDictionaryRef options)
     
     iSCSITargetRef target = NULL;
     iSCSIPortalRef portal = NULL;
-    
-    SID sessionId = kiSCSIInvalidSessionId;
-    CID connectionId = kiSCSIInvalidConnectionId;
-    
+
     if(!(target = iSCSICtlCreateTargetFromOptions(options)))
         return EINVAL;
+
+    errno_t error = 0;
     
     // See if there exists an active session for this target
-    errno_t error = iSCSIDaemonGetSessionIdForTarget(handle,iSCSITargetGetIQN(target),&sessionId);
-    
-    if(!error && sessionId == kiSCSIInvalidSessionId)
+    if(!iSCSIDaemonIsTargetActive(handle,target))
     {
         iSCSICtlDisplayError("The specified target has no active session.");
         error = EINVAL;
     }
     
-    if(iSCSICtlIsPortalSpecified(options)) {
+    if(!error && iSCSICtlIsPortalSpecified(options)) {
         if(!(portal = iSCSICtlCreatePortalFromOptions(options)))
-            return EINVAL;
+            error = EINVAL;
     }
     
-    // See if there exists an active connection for this portal
-    if(!error && portal)
-        error = iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId);
-    
     // If the portal was specified and a connection doesn't exist for it...
-    if(!error && portal && connectionId == kiSCSIInvalidConnectionId)
+    if(!error && portal && !iSCSIDaemonIsPortalActive(handle,target,portal))
     {
         iSCSICtlDisplayError("The specified portal has no active connections.");
         error = EINVAL;
@@ -859,12 +690,8 @@ errno_t iSCSICtlLogout(iSCSIDaemonHandle handle,CFDictionaryRef options)
     if(!error)
     {
         enum iSCSILogoutStatusCode statusCode;
-        
-        if(!portal)
-            error = iSCSIDaemonLogoutSession(handle,sessionId,&statusCode);
-        else
-            error = iSCSIDaemonLogoutConnection(handle,sessionId,connectionId,&statusCode);
-        
+        error = iSCSIDaemonLogout(handle, target, portal, &statusCode);
+
         if(!error)
             iSCSICtlDisplayLogoutStatus(statusCode,target,portal);
         else
@@ -956,6 +783,7 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     
     iSCSITargetRef target = NULL;
     iSCSIPortalRef portal = NULL;
+    errno_t error = 0;
     
     if(!(target = iSCSICtlCreateTargetFromOptions(options)))
        return EINVAL;
@@ -968,157 +796,124 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     // Verify that the target exists in the property list
     if(!iSCSIPLContainsTarget(targetIQN)) {
         iSCSICtlDisplayError("The specified target does not exist.");
-        
-        iSCSITargetRelease(target);
-        return EINVAL;
+        error = EINVAL;
     }
 
-    if(iSCSICtlIsPortalSpecified(options)) {
+    if(!error && iSCSICtlIsPortalSpecified(options)) {
         if(!(portal = iSCSICtlCreatePortalFromOptions(options))) {
-            iSCSITargetRelease(target);
-            return EINVAL;
+            error = EINVAL;
         }
     }
 
     // Verify that portal exists in property list
-    if(portal && !iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal))) {
+    if(!error && portal && !iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal))) {
         iSCSICtlDisplayError("The specified portal does not exist.");
-        
-        iSCSIPortalRelease(portal);
-        iSCSITargetRelease(target);
-        return EINVAL;
+        error = EINVAL;
     }
     
     // Check for active sessions or connections before allowing removal
-    SID sessionId = kiSCSIInvalidSessionId;
-    CID connectionId = kiSCSIInvalidConnectionId;
-    
-    errno_t error = iSCSIDaemonGetSessionIdForTarget(handle,targetIQN,&sessionId);
-    
-    if(sessionId != kiSCSIInvalidSessionId && portal)
-        error = iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId);
-    
-    if(error)
-        iSCSICtlDisplayError(strerror(error));
-    else if(!portal)
-    {
-        if(sessionId != kiSCSIInvalidSessionId)
-            iSCSICtlDisplayError("The specified target has an active session and cannot be removed.");
-        else if(sessionId == kiSCSIInvalidSessionId) {
-            iSCSIPLRemoveTarget(targetIQN);
-            iSCSIPLSynchronize();
-        }
-    }
-    else if(portal)
-    {
-        if(connectionId != kiSCSIInvalidConnectionId)
-            iSCSICtlDisplayError("The specified portal is connected and cannot be removed.");
-        else if(connectionId == kiSCSIInvalidConnectionId) {
-            iSCSIPLRemovePortal(targetIQN,iSCSIPortalGetAddress(portal));
-            iSCSIPLSynchronize();
-        }
+    if(!error) {
+        if(portal)
+            if(iSCSIDaemonIsPortalActive(handle,target,portal))
+                iSCSICtlDisplayError("The specified portal is connected and cannot be removed.");
+            else {
+                iSCSIPLRemovePortal(targetIQN,iSCSIPortalGetAddress(portal));
+                iSCSIPLSynchronize();
+            }
+        else
+            if(iSCSIDaemonIsTargetActive(handle,target))
+                iSCSICtlDisplayError("The specified target has an active session and cannot be removed.");
+            else {
+                iSCSIPLRemoveTarget(targetIQN);
+                iSCSIPLSynchronize();
+
+            }
     }
 
     if(portal)
         iSCSIPortalRelease(portal);
-    iSCSITargetRelease(target);
+    if(target)
+        iSCSITargetRelease(target);
     
-    return error;
+    return 0;
 }
 
 errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
-    // First check if the target exists in the propery list.  Then check to
+    // First check if the target exists in the property list.  Then check to
     // see if it has an active session.  If it does, target properties cannot
     // be modified.  Do the same for portal (to change connection properties,
     // but this is optional and a portal may not have been specified by the
     // user).
-    
+
     if(handle < 0 || !options)
         return EINVAL;
-    
+
     iSCSITargetRef target = NULL;
     iSCSIPortalRef portal = NULL;
-    
+    errno_t error = 0;
+
     if(!(target = iSCSICtlCreateTargetFromOptions(options)))
         return EINVAL;
-    
+
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
-    
+
     // Synchronize the database with the property list on disk
     iSCSIPLSynchronize();
-    
+
     // Verify that the target exists in the property list
     if(!iSCSIPLContainsTarget(targetIQN)) {
         iSCSICtlDisplayError("The specified target does not exist.");
-        
-        iSCSITargetRelease(target);
-        return EINVAL;
+        error = EINVAL;
     }
-    
-    if(iSCSICtlIsPortalSpecified(options)) {
-        if(!(portal = iSCSICtlCreatePortalFromOptions(options))) {
-            iSCSITargetRelease(target);
-            return EINVAL;
-        }
-    }
-    
-    // Verify that portal exists in property list
-    if(portal && !iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal))) {
-        iSCSICtlDisplayError("The specified portal does not exist.");
-        
-        iSCSIPortalRelease(portal);
-        iSCSITargetRelease(target);
-        return EINVAL;
-    }
-    
-    // Check for active sessions or connections before allowing removal
-    SID sessionId = kiSCSIInvalidSessionId;
-    CID connectionId = kiSCSIInvalidConnectionId;
-    
-    errno_t error = iSCSIDaemonGetSessionIdForTarget(handle,targetIQN,&sessionId);
-    
-    if(sessionId != kiSCSIInvalidSessionId && portal)
-        error = iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId);
-    
-    if(error)
-        iSCSICtlDisplayError(strerror(error));
-    else
-    {
-        if(sessionId != kiSCSIInvalidSessionId)
-            iSCSICtlDisplayError("The specified target has an active session and cannot be modified.");
-        else if(sessionId == kiSCSIInvalidSessionId) {
-            iSCSISessionConfigRef sessCfg = iSCSIPLCopySessionConfig(targetIQN);
-            iSCSIMutableSessionConfigRef config = iSCSISessionConfigCreateMutableWithExisting(sessCfg);
-            
-            if(!(error = iSCSICtlModifySessionConfigFromOptions(options,config)))
-                iSCSIPLSetSessionConfig(targetIQN,config);
-            
-            iSCSISessionConfigRelease(config);
-            iSCSISessionConfigRelease(sessCfg);
-        }
 
-        // If the portal was specified, make connection parameter changes
-        if(portal)
-        {
-            if(connectionId != kiSCSIInvalidConnectionId)
-                iSCSICtlDisplayError("The specified portal is connected and cannot be modified.");
-            else if(connectionId == kiSCSIInvalidConnectionId) {
-                iSCSIConnectionConfigRef connCfg = iSCSIPLCopyConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal));
-                iSCSIMutableConnectionConfigRef config = iSCSIConnectionConfigCreateMutableWithExisting(connCfg);
- 
-                if(!(error = iSCSICtlModifyConnectionConfigFromOptions(options,config)))
-                    iSCSIPLSetConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal),config);
-            }
+    if(!error && iSCSICtlIsPortalSpecified(options)) {
+        if(!(portal = iSCSICtlCreatePortalFromOptions(options))) {
+            error = EINVAL;
         }
     }
-    
-   if(!error)
-       iSCSIPLSynchronize();
-    
+
+    // Verify that portal exists in property list
+    if(!error && portal && !iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal))) {
+        iSCSICtlDisplayError("The specified portal does not exist.");
+        error = EINVAL;
+    }
+
+    // Check for active sessions or connections before allowing removal
+    if(!error) {
+        if(portal)
+            if(iSCSIDaemonIsPortalActive(handle,target,portal))
+                iSCSICtlDisplayError("The specified portal is connected and cannot be modified.");
+            else {
+                iSCSISessionConfigRef sessCfg = iSCSIPLCopySessionConfig(targetIQN);
+                iSCSIMutableSessionConfigRef config = iSCSISessionConfigCreateMutableWithExisting(sessCfg);
+
+                if(!(error = iSCSICtlModifySessionConfigFromOptions(options,config)))
+                    iSCSIPLSetSessionConfig(targetIQN,config);
+
+                iSCSISessionConfigRelease(config);
+                iSCSISessionConfigRelease(sessCfg);
+            }
+            else
+                if(iSCSIDaemonIsTargetActive(handle,target))
+                    iSCSICtlDisplayError("The specified target has an active session and cannot be modified.");
+                else {
+                    iSCSIConnectionConfigRef connCfg = iSCSIPLCopyConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal));
+                    iSCSIMutableConnectionConfigRef config = iSCSIConnectionConfigCreateMutableWithExisting(connCfg);
+
+                    if(!(error = iSCSICtlModifyConnectionConfigFromOptions(options,config)))
+                        iSCSIPLSetConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal),config);
+
+                }
+    }
+
+    if(!error)
+        iSCSIPLSynchronize();
+
     if(portal)
         iSCSIPortalRelease(portal);
-    iSCSITargetRelease(target);
+    if(target)
+        iSCSITargetRelease(target);
 
     return error;
 }
@@ -1126,18 +921,16 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 /*! Helper function. Displays information about a target/session. */
 void displayTargetInfo(iSCSIDaemonHandle handle,
                        iSCSITargetRef target,
-                       SID sessionId)
+                       CFDictionaryRef properties)
 {
     CFStringRef targetStatus = NULL, targetIQN = iSCSITargetGetIQN(target);
     
-    if(sessionId != kiSCSIInvalidSessionId)
-    {
-        targetStatus = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                CFSTR(" [ SID: %d ]\n"),sessionId);
-    }
+    if(properties)
+        targetStatus = CFSTR(" [  Active  ]\n");
     else
-        targetStatus = CFSTR(" [ Not connected ]\n");
-    
+        targetStatus = CFSTR(" [ Inactive ]\n");
+
+    iSCSICtlDisplayString(CFSTR("+-o "));
     iSCSICtlDisplayString(targetIQN);
     iSCSICtlDisplayString(targetStatus);
     
@@ -1148,61 +941,31 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
 void displayPortalInfo(iSCSIDaemonHandle handle,
                        iSCSITargetRef target,
                        iSCSIPortalRef portal,
-                       SID sessionId,
-                       CID connectionId)
+                       CFDictionaryRef properties)
 {
-    CFStringRef targetIQN = iSCSITargetGetIQN(target);
     CFStringRef portalStatus = NULL;
     CFStringRef portalAddress = iSCSIPortalGetAddress(portal);
 
-    iSCSIConnectionConfigRef connCfg;
-    if(connectionId != kiSCSIInvalidConnectionId)
-        connCfg = iSCSIDaemonCopyConnectionConfig(handle,sessionId,connectionId);
-    else
-        connCfg = iSCSIPLCopyConnectionConfig(targetIQN,portalAddress);
-    
-    Boolean dataDigest = iSCSIConnectionConfigGetDataDigest(connCfg);
-    Boolean headerDigest = iSCSIConnectionConfigGetHeaderDigest(connCfg);
-    
-    CFStringRef digestStr;
-    if(dataDigest && headerDigest)
-        digestStr = CFSTR("Enabled");
-    else if(dataDigest)
-        digestStr = CFSTR("Data Only");
-    else if(headerDigest)
-        digestStr = CFSTR("Header Only");
-    else
-        digestStr = CFSTR("None");
-    
-    // Get authentication method in use and generate a status string for it
-    iSCSIAuthRef auth = iSCSIPLCopyAuthentication(targetIQN,portalAddress);
-
-    enum iSCSIAuthMethods authMethod = iSCSIAuthGetMethod(auth);
-    CFStringRef authStr = CFSTR("-");
-    
-    if(authMethod == kiSCSIAuthMethodCHAP)
-        authStr = CFSTR("CHAP");
-    else if(authMethod == kiSCSIAuthMethodNone)
-        authStr = CFSTR("None");
-    
-    
-    if(connectionId == kiSCSIInvalidConnectionId) {
+    // If not connected
+    if(!properties) {
         portalStatus = CFStringCreateWithFormat(
-            kCFAllocatorDefault,NULL,CFSTR("\t%@ [ CID: -, Port: %@, Iface: %@, Auth: %@, Digest: %@ ]\n"),
-            portalAddress,iSCSIPortalGetPort(portal),iSCSIPortalGetHostInterface(portal),authStr,digestStr);
+            kCFAllocatorDefault,NULL,
+            CFSTR("  +-o %-15s [ Not Connected, Port: %5s, Interface: %@ ]\n"),
+            CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
+            CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
+            iSCSIPortalGetHostInterface(portal));
     }
     else {
         portalStatus = CFStringCreateWithFormat(
             kCFAllocatorDefault,NULL,
-            CFSTR("\t%@ [ CID: %d, Port: %@, Iface: %@, Auth: %@, Digest: %@ ]\n"),
-            portalAddress,connectionId,iSCSIPortalGetPort(portal),iSCSIPortalGetHostInterface(portal),authStr,digestStr);
+            CFSTR("  +-o %-15s [ Connected,     Port: %5s, Interface: %@ ]\n"),
+            CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
+            CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
+            iSCSIPortalGetHostInterface(portal));
     }
     
     iSCSICtlDisplayString(portalStatus);
     CFRelease(portalStatus);
-    
-    iSCSIConnectionConfigRelease(connCfg);
-    iSCSIAuthRelease(auth);
 }
 
 /*! Displays a list of targets and their associated session and connections.
@@ -1228,28 +991,27 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
     }
     
     iSCSICtlDisplayString(CFSTR("\n"));
+    CFIndex targetCount = CFArrayGetCount(targetsList);
  
-    for(CFIndex targetIdx = 0; targetIdx < CFArrayGetCount(targetsList); targetIdx++)
+    for(CFIndex targetIdx = 0; targetIdx < targetCount; targetIdx++)
     {
         CFStringRef targetIQN = CFArrayGetValueAtIndex(targetsList,targetIdx);
-        
-        SID sessionId = kiSCSIInvalidSessionId;
-        iSCSIDaemonGetSessionIdForTarget(handle,targetIQN,&sessionId);
-        
         iSCSITargetRef target = iSCSIPLCopyTarget(targetIQN);
-        displayTargetInfo(handle,target,sessionId);
+
+        CFDictionaryRef properties = iSCSIDaemonCreateCFPropertiesForSession(handle,target);
+
+        displayTargetInfo(handle,target,properties);
         
         CFArrayRef portalsList = iSCSIPLCreateArrayOfPortals(targetIQN);
+        CFIndex portalCount = CFArrayGetCount(portalsList);
         
-        for(CFIndex portalIdx = 0; portalIdx < CFArrayGetCount(portalsList); portalIdx++)
+        for(CFIndex portalIdx = 0; portalIdx < portalCount; portalIdx++)
         {
             iSCSIPortalRef portal = iSCSIPLCopyPortal(targetIQN,CFArrayGetValueAtIndex(portalsList,portalIdx));
-            if (portal) {
-                CID connectionId = kiSCSIInvalidConnectionId;
-                iSCSIDaemonGetConnectionIdForPortal(handle,sessionId,portal,&connectionId);
-                
-                displayPortalInfo(handle,target,portal,sessionId,connectionId);
-                
+            
+            if(portal) {
+                CFDictionaryRef properties = iSCSIDaemonCreateCFPropertiesForConnection(handle,target,portal);
+                displayPortalInfo(handle,target,portal,properties);
                 iSCSIPortalRelease(portal);
             }
         }
@@ -1278,13 +1040,13 @@ void displayLUNProperties(CFDictionaryRef propertiesDict)
     
     CFStringRef peripheralDesc = iSCSIUtilsGetSCSIPeripheralDeviceDescription(peripheralTypeCode);
     CFStringRef properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                      CFSTR("\tLUN: %@ [ Peripheral Device Type: 0x%02x (%@) ]\n"),
+                                                      CFSTR("  +-o LUN: %@ [ Peripheral Device Type: 0x%02x (%@) ]\n"),
                                                       SCSILUNIdentifier,peripheralTypeCode,peripheralDesc);
     iSCSICtlDisplayString(properties);
     CFRelease(properties);
 }
 
-void displayIOMediaProperties(CFDictionaryRef propertiesDict)
+void displayIOMediaProperties(CFDictionaryRef propertiesDict,Boolean lastLUN)
 {
     if(!propertiesDict)
         return;
@@ -1296,9 +1058,15 @@ void displayIOMediaProperties(CFDictionaryRef propertiesDict)
     CFNumberGetValue(size,kCFNumberLongLongType,&capacity);
     CFStringRef capacityString = (__bridge CFStringRef)
         ([NSByteCountFormatter stringFromByteCount:capacity countStyle:NSByteCountFormatterCountStyleFile]);
+
+    CFStringRef templateString = NULL;
+    if(lastLUN)
+        templateString = CFSTR("    +-o %@ [ Capacity: %@ ]\n");
+    else
+        templateString = CFSTR("  | +-o %@ [ Capacity: %@ ]\n");
     
     CFStringRef properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                      CFSTR("\t\t%@ [ Capacity: %@ ]\n"),
+                                                      templateString,
                                                       BSDName,capacityString);
     iSCSICtlDisplayString(properties);
     CFRelease(properties);
@@ -1329,25 +1097,35 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
         CFNumberRef targetId = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSITargetIdentifierKey));
         
         CFStringRef targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                         CFSTR("\n%@ [ Target Id: %@, Vendor: %@, Model: %@ ]\n"),
+                                                         CFSTR("\n+-o %@ [ Target Id: %@, Vendor: %@, Model: %@ ]\n"),
                                                          targetIQN,targetId,targetVendor,targetProduct);
         iSCSICtlDisplayString(targetStr);
 
         // Get a dictionary of properties for each LUN and display those
         iSCSIIORegistryGetLUNs(targetIQN,&LUNIterator);
-        while((LUN = IOIteratorNext(LUNIterator)) != IO_OBJECT_NULL)
+        LUN = IOIteratorNext(LUNIterator);
+
+        while(LUN != IO_OBJECT_NULL)
         {
             CFDictionaryRef properties = iSCSIIORegistryCreateCFPropertiesForLUN(LUN);
             displayLUNProperties(properties);
             
             io_object_t IOMedia = iSCSIIORegistryFindIOMediaForLUN(LUN);
 
+            // Advance LUN iterator and detect whether this is the last LUN
+            IOObjectRelease(LUN);
+            
+            bool lastLUN = false;
+            LUN = IOIteratorNext(LUNIterator);
+            if(LUN == IO_OBJECT_NULL)
+                lastLUN = true;
+
+
             if(IOMedia != IO_OBJECT_NULL) {
                 CFDictionaryRef properties = iSCSIIORegistryCreateCFPropertiesForIOMedia(IOMedia);
-                displayIOMediaProperties(properties);
+                displayIOMediaProperties(properties,lastLUN);
                 CFRelease(properties);
             }
-            IOObjectRelease(LUN);
             CFRelease(properties);
         }
         
@@ -1478,7 +1256,6 @@ errno_t iSCSICtlDisplayDiscoveryRecord(iSCSIDiscoveryRecRef discoveryRecord)
     return 0;
 }
 
-
 errno_t iSCSICtlDiscoverTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
 
@@ -1542,26 +1319,29 @@ int main(int argc, char * argv[])
     
     // Save command line executable name for later use
     executableName = argv[0];
-    
-    // Connect to the daemon
-    iSCSIDaemonHandle handle = iSCSIDaemonConnect();
-    
-    if(handle < 0) {
-        iSCSICtlDisplayError("iscsid is not running.");
-        CFWriteStreamClose(stdoutStream);
-        return -1;
-    }
-    
+
     // Get the mode of operation (e.g., add, modify, remove, etc).
     CFStringRef mode = NULL;
     if(CFArrayGetCount(arguments) > 1)
         mode = CFArrayGetValueAtIndex(arguments,1);
     else {
-        iSCSIDaemonDisconnect(handle);
         CFWriteStreamClose(stdoutStream);
         return 0;
     }
-    
+
+    // Connect to the daemon only if mode requires it
+    iSCSIDaemonHandle handle;
+
+    if(CFStringCompare(mode,kModeListLUNs,0) != kCFCompareEqualTo)
+    {
+        handle = iSCSIDaemonConnect();
+
+        if(handle < 0) {
+            iSCSICtlDisplayError("iscsid is not running.");
+            CFWriteStreamClose(stdoutStream);
+            return -1;
+        }
+    }
     
     // Process add, modify, remove or list
     if(CFStringCompare(mode,kModeAdd,0) == kCFCompareEqualTo)

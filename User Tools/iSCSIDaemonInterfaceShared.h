@@ -81,133 +81,181 @@ typedef struct iSCSIDCmdShutdown {
 /*! Default initialization for a shutdown command. */
 extern const iSCSIDCmdShutdown iSCSIDCmdShutdownInit;
 
-/*! Command to login a particular session. */
-typedef struct iSCSIDCmdLoginSession {
-    
+/*! Command to login. */
+typedef struct iSCSIDCmdLogin {
+
     const UInt16 funcCode;
     UInt16  reserved;
     UInt32  portalLength;
     UInt32  targetLength;
-    UInt32  authLength;
-    UInt32  sessCfgLength;
-    UInt32  connCfgLength;
-    
-} __attribute__((packed)) iSCSIDCmdLoginSession;
+    UInt32  reserved2;
+    UInt32  reserved3;
+    UInt32  reserved4;
 
-/*! Default initialization for a login request command. */
-extern const iSCSIDCmdLoginSession iSCSIDCmdLoginSessionInit;
+} __attribute__((packed)) iSCSIDCmdLogin;
 
-/*! Response to a session login command. */
-typedef struct iSCSIDRspLoginSession {
-    
+/*! Default initialization for a login command. */
+extern const iSCSIDCmdLogin iSCSIDCmdLoginInit;
+
+/*! Response to a login  command. */
+typedef struct iSCSIDRspLogin {
+
     const UInt8 funcCode;
     UInt8 reserved;
     UInt32 errorCode;
     UInt16  statusCode;
-    UInt32 sessionId;
-    UInt32 connectionId;
     UInt32 reserved2;
     UInt32 reserved3;
-    
-} __attribute__((packed)) iSCSIDRspLoginSession;
+    UInt32 reserved4;
+    UInt32 reserved5;
 
+} __attribute__((packed)) iSCSIDRspLogin;
 
+/*! Command to logout. */
+typedef struct iSCSIDCmdLogout {
 
-/*! Command to logout a particular session. */
-typedef struct iSCSIDCmdLogoutSession {
-    
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  sessionId;
+    UInt32  portalLength;
+    UInt32  targetLength;
+    UInt32  reserved3;
+    UInt32  reserved4;
+    UInt32  reserved5;
+
+} __attribute__((packed)) iSCSIDCmdLogout;
+
+/*! Default initialization for a logout command. */
+extern const iSCSIDCmdLogout iSCSIDCmdLogoutInit;
+
+/*! Response to a login command. */
+typedef struct iSCSIDRspLogout {
+
+    const UInt8 funcCode;
+    UInt8 reserved;
+    UInt32 errorCode;
+    UInt16  statusCode;
+    UInt32 reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+
+} __attribute__((packed)) iSCSIDRspLogout;
+
+/*! Command to get active targets. */
+typedef struct iSCSIDCmdCreateArrayOfActiveTargets {
+
+    const UInt16 funcCode;
+    UInt16  reserved;
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
     UInt32  reserved5;
-    
-} __attribute__((packed)) iSCSIDCmdLogoutSession;
+    UInt32  reserved6;
+} __attribute__((packed)) iSCSIDCmdCreateArrayOfActiveTargets;
 
-/*! Default initialization for a logout request command. */
-extern const iSCSIDCmdLogoutSession iSCSIDCmdLogoutSessionInit;
+/*! Default initialization for command to get active targets. */
+extern const iSCSIDCmdCreateArrayOfActiveTargets iSCSIDCmdCreateArrayOfActiveTargetsInit;
 
-/*! Response to a session logout command. */
-typedef struct iSCSIDRspLogoutSession {
-    
+/*! Response to command to get active targets. */
+typedef struct iSCSIDRspCreateArrayOfActiveTargets {
+
     const UInt8 funcCode;
     UInt8 reserved;
     UInt32 errorCode;
-    UInt16  statusCode;
-    UInt32 reserved2;
+    UInt16 reserved2;
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
-    
-} __attribute__((packed)) iSCSIDRspLogoutSession;
+    UInt32 dataLength;
 
+} __attribute__((packed)) iSCSIDRspCreateArrayOfActiveTargets;
 
-
-/*! Command to add a connection. */
-typedef struct iSCSIDCmdLoginConnection {
-
-    const UInt16 funcCode;
-    UInt16  reserved;
-    UInt32  sessionId;
-    UInt32  portalLength;
-    UInt32  authLength;
-    UInt32  connCfgLength;
-    UInt32  reserved2;
-    
-} __attribute__((packed)) iSCSIDCmdLoginConnection;
-
-/*! Default initialization for an add connection command. */
-extern const iSCSIDCmdLoginConnection iSCSIDCmdLoginConnectionInit;
-
-/*! Response to add an connection command. */
-typedef struct iSCSIDRspLoginConnection {
-
-    const UInt8 funcCode;
-    UInt8 reserved;
-    UInt32 errorCode;
-    UInt16  statusCode;
-    UInt32 reserved2;
-    UInt32 connectionId;
-    UInt32 reserved3;
-    UInt32 reserved4;
-    
-} __attribute__((packed)) iSCSIDRspLoginConnection;
-
-
-
-/*! Command to remove a connection. */
-typedef struct iSCSIDCmdLogoutConnection {
+/*! Command to get active portals. */
+typedef struct iSCSIDCmdCreateArrayOfActivePortalsForTarget {
 
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  sessionId;
-    UInt32  connectionId;
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
-    
-} __attribute__((packed)) iSCSIDCmdLogoutConnection;
+    UInt32  reserved5;
+    UInt32  reserved6;
+} __attribute__((packed)) iSCSIDCmdCreateArrayOfActivePortalsForTarget;
 
-/*! Default initialization for a remove connection command. */
-extern const iSCSIDCmdLogoutConnection iSCSIDCmdLogoutConnectionInit;
+/*! Default initialization for command to get active portals. */
+extern const iSCSIDCmdCreateArrayOfActivePortalsForTarget iSCSIDCmdCreateArrayOfActivePortalsForTargetInit;
 
-/*! Response to add an connection command. */
-typedef struct iSCSIDRspLogoutConnection {
-    
+/*! Response to command to get active portals. */
+typedef struct iSCSIDRspCreateArrayOfActivePortalsForTarget {
+
     const UInt8 funcCode;
     UInt8 reserved;
     UInt32 errorCode;
-    UInt16  statusCode;
-    UInt32 reserved2;
+    UInt16 reserved2;
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
-    
-} __attribute__((packed)) iSCSIDRspLogoutConnection;
+    UInt32 dataLength;
 
+} __attribute__((packed)) iSCSIDRspCreateArrayOfActivePortalsForTarget;
 
+/*! Command to test whether target is active. */
+typedef struct iSCSIDCmdIsTargetActive {
+
+    const UInt16 funcCode;
+    UInt16  reserved;
+    UInt32  targetLength;
+    UInt32  reserved2;
+    UInt32  reserved3;
+    UInt32  reserved4;
+    UInt32  reserved5;
+} __attribute__((packed)) iSCSIDCmdIsTargetActive;
+
+/*! Default initialization for command to test whether target is active. */
+extern const iSCSIDCmdIsTargetActive iSCSIDCmdIsTargetActiveInit;
+
+/*! Response to command to test whether target is active. */
+typedef struct iSCSIDRspIsTargetActive {
+
+    const UInt8 funcCode;
+    UInt8 reserved;
+    UInt32 active;
+    UInt16 reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    UInt32 reserved6;
+
+} __attribute__((packed)) iSCSIDRspIsTargetActive;
+
+/*! Command to test whether portal is active. */
+typedef struct iSCSIDCmdIsPortalActive {
+
+    const UInt16 funcCode;
+    UInt16  reserved;
+    UInt32  portalLength;
+    UInt32  targetLength;
+    UInt32  reserved3;
+    UInt32  reserved4;
+    UInt32  reserved5;
+} __attribute__((packed)) iSCSIDCmdIsPortalActive;
+
+/*! Default initialization for command to test whether portal is active. */
+extern const iSCSIDCmdIsPortalActive iSCSIDCmdIsPortalActiveInit;
+
+/*! Response to command to test whether portal is active. */
+typedef struct iSCSIDRspIsPortalActive {
+
+    const UInt8 funcCode;
+    UInt8 reserved;
+    UInt32 active;
+    UInt16 reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    UInt32 reserved6;
+
+} __attribute__((packed)) iSCSIDRspIsPortalActive;
 
 /*! Command to query a portal for targets. */
 typedef struct iSCSIDCmdQueryPortalForTargets {
@@ -240,8 +288,6 @@ typedef struct iSCSIDRspQueryPortalForTargets {
     
 } __attribute__((packed)) iSCSIDRspQueryPortalForTargets;
 
-
-
 /*! Command to query target for authentication method. */
 typedef struct iSCSIDCmdQueryTargetForAuthMethod {
     
@@ -271,217 +317,24 @@ typedef struct iSCSIDRspQueryTargetForAuthMethod {
     
 } __attribute__((packed)) iSCSIDRspQueryTargetForAuthMethod;
 
-
-
-/*! Command to get session identifier for a target (using target name). */
-typedef struct iSCSIDCmdGetSessionIdForTarget {
-    
-    const UInt16 funcCode;
-    UInt16  reserved;
-    UInt32  reserved2;
-    UInt32  reserved3;
-    UInt32  reserved4;
-    UInt32  targetLength;
-    UInt32  reserved5;
-} __attribute__((packed)) iSCSIDCmdGetSessionIdForTarget;
-
-/*! Default initialization for command to get session id for a target. */
-extern const iSCSIDCmdGetSessionIdForTarget iSCSIDCmdGetSessionIdForTargetInit;
-
-/*! Response to get session identifier for a target (using target name). */
-typedef struct iSCSIDRspGetSessionIdForTarget {
-    
-    const UInt8 funcCode;
-    UInt16 reserved;
-    UInt32 errorCode;
-    UInt8  reserved2;
-    UInt32 sessionId;
-    UInt32 reserved3;
-    UInt32 reserved4;
-    UInt32 reserved5;
-    
-} __attribute__((packed)) iSCSIDRspGetSessionIdForTarget;
-
-
-
-
-/*! Command to get connection identifier for a session (using address). */
-typedef struct iSCSIDCmdGetConnectionIdForPortal {
-    
-    const UInt16 funcCode;
-    UInt16  reserved;
-    UInt32  sessionId;
-    UInt32  reserved2;
-    UInt32  portalLength;
-    UInt32  reserved3;
-    UInt32  reserved4;
-} __attribute__((packed)) iSCSIDCmdGetConnectionIdForPortal;
-
-/*! Default initialization for command to get connection ID for a session. */
-extern const iSCSIDCmdGetConnectionIdForPortal iSCSIDCmdGetConnectionIdForPortalInit;
-
-/*! Response to get connection identifier for a session (using address). */
-typedef struct iSCSIDRspGetConnectionIdForPortal {
-    
-    const UInt8 funcCode;
-    UInt16 reserved;
-    UInt32 errorCode;
-    UInt8  reserved2;
-    UInt32 reserved3;
-    UInt32 connectionId;
-    UInt32 reserved4;
-    UInt32 reserved5;
-
-} __attribute__((packed)) iSCSIDRspGetConnectionIdForPortal;
-
-/*! Command to get all session identifiers. */
-typedef struct iSCSIDCmdGetSessionIds {
-    
-    const UInt16 funcCode;
-    UInt16  reserved;
-    UInt32  reserved2;
-    UInt32  reserved3;
-    UInt32  reserved4;
-    UInt32  reserved5;
-    UInt32  reserved6;
-} __attribute__((packed)) iSCSIDCmdGetSessionIds;
-
-/*! Default initialization for command to get all session identifiers.  This 
- *  typedef struct is followed by an array of SIDs with length specified by 
- *  sessionCount. */
-extern const iSCSIDCmdGetSessionIds iSCSIDCmdGetSessionIdsInit;
-
-/*! Response to get all session identifiers. */
-typedef struct iSCSIDRspGetSessionIds {
-    
-    const UInt8 funcCode;
-    UInt16 reserved;
-    UInt32 errorCode;
-    UInt8  reserved2;
-    UInt32 reserved3;
-    UInt32 reserved4;
-    UInt32 reserved5;
-    UInt32 dataLength;
-
-} __attribute__((packed)) iSCSIDRspGetSessionIds;
-
-
-
-/*! Command to get all connection identifiers for a session. */
-typedef struct iSCSIDCmdGetConnectionIds {
-    
-    const UInt16 funcCode;
-    UInt16  reserved;
-    UInt32  sessionId;
-    UInt32  reserved2;
-    UInt32  reserved3;
-    UInt32  reserved4;
-    UInt32  reserved5;
-    
-} __attribute__((packed)) iSCSIDCmdGetConnectionIds;
-
-/*! Default initialization for command to get all connection IDs for a session. */
-extern const iSCSIDCmdGetConnectionIds iSCSIDCmdGetConnectionIdsInit;
-
-/*! Response to get all connection identifiers for a session.   This typedef struct
- *  is followed by an array of CIDs with length specified by connectionCount. */
-typedef struct iSCSIDRspGetConnectionIds {
-    
-    const UInt8 funcCode;
-    UInt16 reserved;
-    UInt32 errorCode;
-    UInt8  reserved2;
-    UInt32 reserved3;
-    UInt32 reserved4;
-    UInt32 reserved5;
-    UInt32 dataLength;
-
-} __attribute__((packed)) iSCSIDRspGetConnectionIds;
-
-/*! Command to create a target object for a session identifier. */
-typedef struct iSCSIDCmdCreateTargetForSessionId {
-    
-    const UInt16 funcCode;
-    UInt16  reserved;
-    UInt32  sessionId;
-    UInt32  reserved2;
-    UInt32  reserved3;
-    UInt32  reserved4;
-    UInt32  reserved5;
-    
-} __attribute__((packed)) iSCSIDCmdCreateTargetForSessionId;
-
-/*! Default initialization for command to create a target object 
- *  for a session identifier . */
-extern const iSCSIDCmdCreateTargetForSessionId iSCSIDCmdCreateTargetForSessionIdInit;
-
-/*! Response to to create a target object for a session identifier.   
- *  This typedef struct is followed by a target object. */
-typedef struct iSCSIDRspCreateTargetForSessionId {
-    
-    const UInt8 funcCode;
-    UInt16 reserved;
-    UInt32 reserved1;
-    UInt8  reserved2;
-    UInt32 reserved3;
-    UInt32 reserved4;
-    UInt32 reserved5;
-    UInt32 targetLength;
-    
-} __attribute__((packed)) iSCSIDRspCreateTargetForSessionId;
-
-
-/*! Command to create a portal object for a connection identifier. */
-typedef struct iSCSIDCmdCreatePortalForConnectionId {
-    
-    const UInt16 funcCode;
-    UInt16  reserved;
-    UInt32  sessionId;
-    UInt32  connectionId;
-    UInt32  reserved2;
-    UInt32  reserved3;
-    UInt32  reserved4;
-    
-} __attribute__((packed)) iSCSIDCmdCreatePortalForConnectionId;
-
-/*! Default initialization for command to create a portal object
- *  for a connection identifier . */
-extern const iSCSIDCmdCreatePortalForConnectionId iSCSIDCmdCreatePortalForConnectionIdInit;
-
-/*! Response to to create a portal object for a connection identifier.
- *  This typedef struct is followed by a target object. */
-typedef struct iSCSIDRspCreatePortalForConnectionId {
-    
-    const UInt8 funcCode;
-    UInt16 reserved;
-    UInt32 reserved1;
-    UInt8  reserved2;
-    UInt32 reserved3;
-    UInt32 reserved4;
-    UInt32 reserved5;
-    UInt32 portalLength;
-    
-} __attribute__((packed)) iSCSIDRspCreatePortalForConnectionId;
-
-
 /*! Command to get information about a session. */
-typedef struct iSCSIDCmdCopySessionConfig {
+typedef struct iSCSIDCmdCreateCFPropertiesForSession {
     
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  sessionId;
+    UInt32  targetLength;
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
     UInt32  reserved5;
     
-} __attribute__((packed)) iSCSIDCmdCopySessionConfig;
+} __attribute__((packed)) iSCSIDCmdCreateCFPropertiesForSession;
 
 /*! Default initialization for a get session information command. */
-extern const iSCSIDCmdCopySessionConfig iSCSIDCmdCopySessionConfigInit;
+extern const iSCSIDCmdCreateCFPropertiesForSession iSCSIDCmdCreateCFPropertiesForSessionInit;
 
 /*! Response to command to get information about a session. */
-typedef struct iSCSIDRspCopySessionConfig {
+typedef struct iSCSIDRspCreateCFPropertiesForSession {
     
     const UInt8 funcCode;
     UInt16 reserved;
@@ -492,28 +345,26 @@ typedef struct iSCSIDRspCopySessionConfig {
     UInt32 dataLength;
     UInt32 reserved5;
     
-} __attribute__((packed)) iSCSIDRspCopySessionConfig;
-
-
+} __attribute__((packed)) iSCSIDRspCreateCFPropertiesForSession;
 
 /*! Command to get information about a connection. */
-typedef struct iSCSIDCmdCopyConnectionConfig {
+typedef struct iSCSIDCmdCreateCFPropertiesForConnection {
     
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  sessionId;
-    UInt32  connectionId;
+    UInt32  targetLength;
+    UInt32  portalLength;
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
     
-} __attribute__((packed)) iSCSIDCmdCopyConnectionConfig;
+} __attribute__((packed)) iSCSIDCmdCreateCFPropertiesForConnection;
 
 /*! Default initialization for a get connection information command. */
-extern const iSCSIDCmdCopyConnectionConfig iSCSIDCmdCopyConnectionConfigInit;
+extern const iSCSIDCmdCreateCFPropertiesForConnection iSCSIDCmdCreateCFPropertiesForConnectionInit;
 
 /*! Response to command to get information about a connection. */
-typedef struct iSCSIDRspGetConnectionConfig {
+typedef struct iSCSIDRspCreateCFPropertiesForConnection {
     
     const UInt8 funcCode;
     UInt16 reserved;
@@ -524,30 +375,53 @@ typedef struct iSCSIDRspGetConnectionConfig {
     UInt32 dataLength;
     UInt32 reserved5;
 
-} __attribute__((packed)) iSCSIDRspGetConnectionConfig;
+} __attribute__((packed)) iSCSIDRspCreateCFPropertiesForConnection;
 
 
 ////////////////////////////// DAEMON FUNCTIONS ////////////////////////////////
 
 enum iSCSIDFunctionCodes {
-    
-    kiSCSIDLoginSession = 0,
-    kiSCSIDLogoutSession = 1,
-    kiSCSIDLoginConnection = 2,
-    kiSCSIDLogoutConnection = 3,
-    kiSCSIDQueryPortalForTargets = 4,
-    kiSCSIDQueryTargetForAuthMethod = 5,
-    kiSCSIDGetSessionIdForTarget = 6,
-    kiSCSIDGetConnectionIdForPortal = 7,
-    kiSCSIDGetSessionIds = 8,
-    kiSCSIDGetConnectionIds = 9,
-    kiSCSIDCreateTargetForSessionId = 10,
-    kiSCSIDCreatePortalForConnectionId = 11,
-    kiSCSIDCopySessionConfig = 12,
-    kiSCSIDCopyConnectionConfig = 13,
-    kiSCSIDSetInitiatorIQN = 14,
-    kiSCSIDSetInitiatorAlias = 15,
-    kiSCSIDShutdownDaemon = 16,
+
+    /* Login to a target over one or more portals. */
+    kiSCSIDLogin = 0,
+
+    /* Logout of a target or portal. */
+    kiSCSIDLogout = 1,
+
+    /* Get a list of connected targets. */
+    kiSCSIDCreateArrayOfActiveTargets = 2,
+
+    /* Get a list of portals for the connected target. */
+    kiSCSIDCreateArrayOfActivePortalsForTarget = 3,
+
+    /* Get whether a target has an active session. */
+    kiSCSIDIsTargetActive = 4,
+
+    /* Get whether a portal has an active connection. */
+    kiSCSIDIsPortalActive = 5,
+
+    /* Get negotiated parameters for the connected target. */
+    kiSCSIDCreateCFPropertiesForSession = 6,
+
+    /* Get negotiated parameters for the connected portal. */
+    kiSCSIDCreateCFPropertiesForConnection = 7,
+
+    /* Query a portal for targets. */
+    kiSCSIDQueryPortalForTargets = 8,
+
+    /* Query a target for supported authentication methods. */
+    kiSCSIDQueryTargetForAuthMethod = 9,
+
+    /* Set the initiator IQN. */
+    kiSCSIDSetInitiatorIQN = 10,
+
+    /* Set the intiator alias. */
+    kiSCSIDSetInitiatorAlias = 11,
+
+    /* Shut down the daemon. */
+    kiSCSIDShutdownDaemon = 12,
+
+    /* Invalid daemon command. */
     kiSCSIDInvalidFunctionCode
 };
 
@@ -557,6 +431,9 @@ enum iSCSIDFunctionCodes {
  *  appropriate type. */
 void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)(CFDataRef))
 {
+    if(length == 0)
+        return NULL;
+    
     // Receive iSCSI object data from stream socket
     UInt8 * bytes = (UInt8 *) malloc(length);
     if(!bytes || (recv(fd,bytes,length,0) != length))

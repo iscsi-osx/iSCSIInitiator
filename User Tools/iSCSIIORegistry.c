@@ -75,6 +75,9 @@ io_object_t iSCSIIORegistryGetTargetEntry(CFStringRef targetIQN)
 }
 
 /*! Gets an iterator for traversing iSCSI targets in the I/O registry.
+ *  As targets are iterated, this function may also return an IOObject that
+ *  corresponds to the user client, if one is active.  Users can check for
+ *  this by using standard IOSerivce functions.
  *  @param iterator the iterator.
  *  @return a kernel error code indicating the result of the operation. */
 kern_return_t iSCSIIORegistryGetTargets(io_iterator_t * iterator)

@@ -58,8 +58,8 @@ int main(int argc, const char * argv[]) {
     //  enum iSCSILogoutStatusCode sc;
     //  iSCSILogoutSession(0,&sc);
     iSCSIDiscoveryRecRef discRec;
-    errno_t error = iSCSIQueryPortalForTargets(portal,iSCSIAuthCreateNone(),&discRec,&statusCode);
-
+    //   errno_t error = iSCSIQueryPortalForTargets(portal,iSCSIAuthCreateNone(),&discRec,&statusCode);
+    iSCSICreateCFPropertiesForSession(target);
     
     
     iSCSICleanup();

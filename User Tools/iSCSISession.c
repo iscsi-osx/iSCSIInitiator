@@ -45,8 +45,8 @@ Boolean iSCSILVGetEqual(CFStringRef cmdStr,CFStringRef rspStr)
 Boolean iSCSILVGetAnd(CFStringRef cmdStr,CFStringRef rspStr)
 {
     CFComparisonResult cmd, rsp;
-    cmd = CFStringCompare(cmdStr,kiSCSILVYes,kCFCompareCaseInsensitive);
-    rsp = CFStringCompare(rspStr,kiSCSILVYes,kCFCompareCaseInsensitive);
+    cmd = CFStringCompare(cmdStr,kRFC3720_Value_Yes,kCFCompareCaseInsensitive);
+    rsp = CFStringCompare(rspStr,kRFC3720_Value_Yes,kCFCompareCaseInsensitive);
     
     if(cmd == kCFCompareEqualTo && rsp == kCFCompareEqualTo)
         return true;
@@ -58,10 +58,10 @@ Boolean iSCSILVGetAnd(CFStringRef cmdStr,CFStringRef rspStr)
  *  one of the command or response strings are "Yes" */
 Boolean iSCSILVGetOr(CFStringRef cmdStr,CFStringRef rspStr)
 {
-    if(CFStringCompare(cmdStr,kiSCSILVYes,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+    if(CFStringCompare(cmdStr,kRFC3720_Value_Yes,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         return true;
     
-    if(CFStringCompare(rspStr,kiSCSILVYes,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+    if(CFStringCompare(rspStr,kRFC3720_Value_Yes,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         return true;
     
     return false;
@@ -121,26 +121,26 @@ void iSCSINegotiateBuildSWDictNormal(iSCSISessionConfigRef sessCfg,
     else
         value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),maxConnections);
     
-    CFDictionaryAddValue(sessCmd,kiSCSILKMaxConnections,value);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_MaxConnections,value);
     CFRelease(value);
     
-    CFDictionaryAddValue(sessCmd,kiSCSILKInitialR2T,kiSCSILVNo);
-    CFDictionaryAddValue(sessCmd,kiSCSILKImmediateData,kiSCSILVYes);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_InitialR2T,kRFC3720_Value_No);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_ImmediateData,kRFC3720_Value_Yes);
     
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxBurstLength);
-    CFDictionaryAddValue(sessCmd,kiSCSILKMaxBurstLength,value);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_MaxBurstLength,value);
     CFRelease(value);
     
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_FirstBurstLength);
-    CFDictionaryAddValue(sessCmd,kiSCSILKFirstBurstLength,value);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_FirstBurstLength,value);
     CFRelease(value);
     
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxOutstandingR2T);
-    CFDictionaryAddValue(sessCmd,kiSCSILKMaxOutstandingR2T,value);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_MaxOutstandingR2T,value);
     CFRelease(value);
     
-    CFDictionaryAddValue(sessCmd,kiSCSILKDataPDUInOrder,kiSCSILVYes);
-    CFDictionaryAddValue(sessCmd,kiSCSILKDataSequenceInOrder,kiSCSILVYes);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_DataPDUInOrder,kRFC3720_Value_Yes);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_DataSequenceInOrder,kRFC3720_Value_Yes);
 }
 
 /*! Helper function used by iSCSINegotiateSession to build a dictionary
@@ -155,11 +155,11 @@ void iSCSINegotiateBuildSWDictCommon(iSCSISessionConfigRef sessCfg,
     
     // Add key-value pair for time to retain and time to wait
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_DefaultTime2Wait);
-    CFDictionaryAddValue(sessCmd,kiSCSILKDefaultTime2Wait,value);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_DefaultTime2Wait,value);
     CFRelease(value);
     
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_DefaultTime2Retain);
-    CFDictionaryAddValue(sessCmd,kiSCSILKDefaultTime2Retain,value);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_DefaultTime2Retain,value);
     CFRelease(value);
     
     // Add key-value pair for supported error recovery level.  Use the error
@@ -169,19 +169,19 @@ void iSCSINegotiateBuildSWDictCommon(iSCSISessionConfigRef sessCfg,
     
     switch (errorRecoveryLevel) {
         case kiSCSIErrorRecoverySession:
-            value = kiSCSILVErrorRecoveryLevelSession;
+            value = kRFC3720_Value_ErrorRecoveryLevelSession;
             break;
         case kiSCSIErrorRecoveryDigest:
-            value = kiSCSILVErrorRecoveryLevelDigest;
+            value = kRFC3720_Value_ErrorRecoveryLevelDigest;
             break;
         case kiSCSIErrorRecoveryConnection:
-            value = kiSCSILVErrorRecoveryLevelConnection;
+            value = kRFC3720_Value_ErrorRecoveryLevelConnection;
             break;
         default:
-            value = kiSCSILVErrorRecoveryLevelSession;
+            value = kRFC3720_Value_ErrorRecoveryLevelSession;
             break;
     }
-    CFDictionaryAddValue(sessCmd,kiSCSILKErrorRecoveryLevel,value);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_ErrorRecoveryLevel,value);
 }
 
 errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
@@ -193,9 +193,9 @@ errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
     CFStringRef targetRsp;
     
     // Grab minimum of default time 2 retain
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDefaultTime2Retain,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_DefaultTime2Retain,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKDefaultTime2Retain);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_DefaultTime2Retain);
         UInt32 defaultTime2Retain = CFStringGetIntValue(targetRsp);
 
         // Range-check value...
@@ -209,9 +209,9 @@ errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
     
     
     // Grab maximum of default time 2 wait
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDefaultTime2Wait,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_DefaultTime2Wait,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKDefaultTime2Wait);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_DefaultTime2Wait);
         UInt32 defaultTime2Wait = CFStringGetIntValue(targetRsp);
         
         // Range-check value...
@@ -224,9 +224,9 @@ errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
         return ENOTSUP;
 
     // Grab minimum value of error recovery level
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKErrorRecoveryLevel,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_ErrorRecoveryLevel,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKErrorRecoveryLevel);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_ErrorRecoveryLevel);
         UInt32 errorRecoveryLevel = CFStringGetIntValue(targetRsp);
         
         // Range-check value...
@@ -251,9 +251,9 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
     CFStringRef targetRsp;
     
     // Get data digest key and compare to requested value
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKMaxConnections,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_MaxConnections,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKMaxConnections);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_MaxConnections);
         UInt32 maxConnections = CFStringGetIntValue(targetRsp);
         
         // Range-check value...
@@ -266,9 +266,9 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         return ENOTSUP;
    
     // Grab the OR for initialR2T command and response
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKInitialR2T,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_InitialR2T,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKInitialR2T);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_InitialR2T);
         sessCfgKernel->initialR2T = iSCSILVGetOr(initCmd,targetRsp);
     }
     else
@@ -276,45 +276,45 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
     
     
     // Grab the AND for immediate data command and response
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKImmediateData,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_ImmediateData,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKImmediateData);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_ImmediateData);
         sessCfgKernel->immediateData = iSCSILVGetAnd(initCmd,targetRsp);
     }
     else
         return ENOTSUP;
     
     // Get the OR of data PDU in order
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDataPDUInOrder,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_DataPDUInOrder,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKDataPDUInOrder);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_DataPDUInOrder);
         sessCfgKernel->dataPDUInOrder = iSCSILVGetAnd(initCmd,targetRsp);
     }
     else
         return ENOTSUP;
     
     // Get the OR of data PDU in order
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKDataSequenceInOrder,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_DataSequenceInOrder,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKDataSequenceInOrder);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_DataSequenceInOrder);
         sessCfgKernel->dataSequenceInOrder = iSCSILVGetAnd(initCmd,targetRsp);
     }
     else
         return ENOTSUP;
 
     // Grab minimum of max burst length
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKMaxBurstLength,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_MaxBurstLength,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKMaxBurstLength);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_MaxBurstLength);
         sessCfgKernel->maxBurstLength = iSCSILVGetMin(initCmd,targetRsp);
     }
     else
         return ENOTSUP;
 
     // Grab minimum of first burst length
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKFirstBurstLength,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_FirstBurstLength,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKFirstBurstLength);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_FirstBurstLength);
         UInt32 firstBurstLength = CFStringGetIntValue(targetRsp);
         
         // Range-check value...
@@ -327,9 +327,9 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         return ENOTSUP;
 
     // Grab minimum of max outstanding R2T
-    if(CFDictionaryGetValueIfPresent(sessRsp,kiSCSILKMaxOutstandingR2T,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_MaxOutstandingR2T,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kiSCSILKMaxOutstandingR2T);
+        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_MaxOutstandingR2T);
         UInt32 maxOutStandingR2T = CFStringGetIntValue(targetRsp);
         
         // Range-check value...
@@ -355,20 +355,20 @@ void iSCSINegotiateBuildCWDict(iSCSIConnectionConfigRef connCfg,
 {
     // Setup digest options
     if(iSCSIConnectionConfigGetDataDigest(connCfg))
-        CFDictionaryAddValue(connCmd,kiSCSILKDataDigest,kiSCSILVDataDigestCRC32C);
+        CFDictionaryAddValue(connCmd,kRFC3720_Key_DataDigest,kRFC3720_Value_DataDigestCRC32C);
     else
-        CFDictionaryAddValue(connCmd,kiSCSILKDataDigest,kiSCSILVDataDigestNone);
+        CFDictionaryAddValue(connCmd,kRFC3720_Key_DataDigest,kRFC3720_Value_DataDigestNone);
     
     if(iSCSIConnectionConfigGetHeaderDigest(connCfg))
-        CFDictionaryAddValue(connCmd,kiSCSILKHeaderDigest,kiSCSILVHeaderDigestCRC32C);
+        CFDictionaryAddValue(connCmd,kRFC3720_Key_HeaderDigest,kRFC3720_Value_HeaderDigestCRC32C);
     else
-        CFDictionaryAddValue(connCmd,kiSCSILKHeaderDigest,kiSCSILVHeaderDigestNone);
+        CFDictionaryAddValue(connCmd,kRFC3720_Key_HeaderDigest,kRFC3720_Value_HeaderDigestNone);
     
     // Setup maximum received data length
     CFStringRef maxRecvLength = CFStringCreateWithFormat(
         kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxRecvDataSegmentLength);
     
-    CFDictionaryAddValue(connCmd,kiSCSILKMaxRecvDataSegmentLength,maxRecvLength);
+    CFDictionaryAddValue(connCmd,kRFC3720_Key_MaxRecvDataSegmentLength,maxRecvLength);
     
     CFRelease(maxRecvLength);
 }
@@ -396,21 +396,21 @@ errno_t iSCSINegotiateParseCWDict(CFDictionaryRef connCmd,
     Boolean agree = false;
     
     // Get data digest key and compare to requested value
-    if(CFDictionaryGetValueIfPresent(connRsp,kiSCSILKDataDigest,(void*)&targetRsp))
-        agree = iSCSILVGetEqual(CFDictionaryGetValue(connCmd,kiSCSILKDataDigest),targetRsp);
+    if(CFDictionaryGetValueIfPresent(connRsp,kRFC3720_Key_DataDigest,(void*)&targetRsp))
+        agree = iSCSILVGetEqual(CFDictionaryGetValue(connCmd,kRFC3720_Key_DataDigest),targetRsp);
     
     // If we wanted to use data digest and target didn't set connInfo
-    connCfgKernel->useDataDigest = agree && iSCSILVGetEqual(targetRsp,kiSCSILVDataDigestCRC32C);
+    connCfgKernel->useDataDigest = agree && iSCSILVGetEqual(targetRsp,kRFC3720_Value_DataDigestCRC32C);
     
     // Reset agreement flag
     agree = false;
     
     // Get header digest key and compare to requested value
-    if(CFDictionaryGetValueIfPresent(connRsp,kiSCSILKHeaderDigest,(void*)&targetRsp))
-        agree = iSCSILVGetEqual(CFDictionaryGetValue(connCmd,kiSCSILKHeaderDigest),targetRsp);
+    if(CFDictionaryGetValueIfPresent(connRsp,kRFC3720_Key_HeaderDigest,(void*)&targetRsp))
+        agree = iSCSILVGetEqual(CFDictionaryGetValue(connCmd,kRFC3720_Key_HeaderDigest),targetRsp);
     
     // If we wanted to use header digest and target didn't set connInfo
-    connCfgKernel->useHeaderDigest = agree && iSCSILVGetEqual(targetRsp,kiSCSILVHeaderDigestCRC32C);
+    connCfgKernel->useHeaderDigest = agree && iSCSILVGetEqual(targetRsp,kRFC3720_Value_HeaderDigestCRC32C);
     
     // This option is declarative; we sent the default length, and the target
     // must accept our choice as it is within a valid range
@@ -419,7 +419,7 @@ errno_t iSCSINegotiateParseCWDict(CFDictionaryRef connCmd,
     // This is the declaration made by the target as to the length it can
     // receive.  Accept the value if it is within the RFC3720 allowed range
     // otherwise, terminate the connection...
-    if(CFDictionaryGetValueIfPresent(connRsp,kiSCSILKMaxRecvDataSegmentLength,(void*)&targetRsp))
+    if(CFDictionaryGetValueIfPresent(connRsp,kRFC3720_Key_MaxRecvDataSegmentLength,(void*)&targetRsp))
     {
         UInt32 maxSendDataSegmentLength = CFStringGetIntValue(targetRsp);
         
@@ -838,6 +838,8 @@ errno_t iSCSIPrepareForSystemSleep()
 errno_t iSCSIRestoreForSystemWake()
 {
 // TODO:
+
+
     return 0;
 }
 
@@ -951,7 +953,7 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
     
     // If the discovery data has a "TargetName = xxx" field, we're starting
     // a record for a new target
-    if(CFStringCompare(key,kiSCSILKTargetName,0) == kCFCompareEqualTo)
+    if(CFStringCompare(key,kRFC3720_Key_TargetName,0) == kCFCompareEqualTo)
     {
         targetIQN = CFStringCreateCopy(kCFAllocatorDefault,val);
         iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)(valContainer);
@@ -959,7 +961,7 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
     }
     // Otherwise we're dealing with a portal entry. Per RFC3720, this is
     // of the form "TargetAddress = <address>:<port>,<portalGroupTag>
-    else if(CFStringCompare(key,kiSCSILKTargetAddress,0) == kCFCompareEqualTo)
+    else if(CFStringCompare(key,kRFC3720_Key_TargetAddress,0) == kCFCompareEqualTo)
     {
         // Split the value string to extract the portal group tag
         CFArrayRef targetAddress = CFStringCreateArrayBySeparatingStrings(kCFAllocatorDefault,val,CFSTR(","));
@@ -1038,7 +1040,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     
     // Can't use a text query; must manually send/receive as the received
     // keys will be duplicates and CFDictionary doesn't support them
-    CFDictionarySetValue(textCmd,kiSCSITKSendTargets,kiSCSITVSendTargetsAll);
+    CFDictionarySetValue(textCmd,kRFC3720_Key_SendTargets,kRFC3720_Value_SendTargetsAll);
      
     // Create a data segment based on text commands (key-value pairs)
     void * data;
@@ -1296,47 +1298,158 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId)
     return portal;
 }
 
-/*! Copies the configuration object associated with a particular session.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @return the session configuration object.
- *  @return  the configuration object associated with the specified session. */
-iSCSISessionConfigRef iSCSICopySessionConfig(SID sessionId)
-{
-    if(sessionId == kiSCSIInvalidSessionId)
-        return NULL;
-    
-    iSCSIKernelSessionCfg sessCfgKernel;
 
-    if(iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel))
+/*! Creates a dictionary of session parameters for the session associated with
+ *  the specified target, if one exists.
+ *  @param handle a handle to a daemon connection.
+ *  @param target the target to check for associated sessions to generate
+ *  a dictionary of session parameters.
+ *  @return a dictionary of session properties. */
+CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
+{
+    if(!target)
         return NULL;
-    
-    iSCSIMutableSessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
-    iSCSISessionConfigSetErrorRecoveryLevel(sessCfg,sessCfgKernel.errorRecoveryLevel);
-    iSCSISessionConfigSetMaxConnections(sessCfg,sessCfgKernel.maxConnections);
-    iSCSISessionConfigSetTargetPortalGroupTag(sessCfg,sessCfgKernel.targetPortalGroupTag);
-    
-    return sessCfg;
+
+    CFDictionaryRef dictionary = NULL;
+    SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
+
+    if(sessionId != kiSCSIInvalidSessionId)
+    {
+        struct iSCSIKernelSessionCfg config;
+        iSCSIKernelGetSessionConfig(sessionId,&config);
+
+        CFNumberRef maxConnections = CFNumberCreate(
+            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.maxConnections);
+
+        CFNumberRef maxBurstLength = CFNumberCreate(
+            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.maxBurstLength);
+
+        CFNumberRef firstBurstLength = CFNumberCreate(
+            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.firstBurstLength);
+
+        CFNumberRef maxOutStandingR2T = CFNumberCreate(
+            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.maxOutStandingR2T);
+
+        CFNumberRef targetPortalGroupTag = CFNumberCreate(
+            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.targetPortalGroupTag);
+
+        CFNumberRef targetSessionId = CFNumberCreate(
+            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.targetSessionId);
+
+        CFNumberRef defaultTime2Retain = CFNumberCreate(
+            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.defaultTime2Retain);
+
+        CFNumberRef defaultTime2Wait = CFNumberCreate(
+            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.defaultTime2Wait);
+
+        CFStringRef initialR2T = kRFC3720_Value_No;
+        CFStringRef immediateData = kRFC3720_Value_No;
+        CFStringRef dataPDUInOrder = kRFC3720_Value_No;
+        CFStringRef dataSequenceInOrder = kRFC3720_Value_No;
+
+        if(config.initialR2T)
+            initialR2T = kRFC3720_Value_Yes;
+
+        if(config.immediateData)
+            immediateData = kRFC3720_Value_Yes;
+
+        if(config.dataPDUInOrder)
+            dataPDUInOrder = kRFC3720_Value_Yes;
+
+        if(config.dataSequenceInOrder)
+            dataSequenceInOrder = kRFC3720_Value_Yes;
+
+        const void * keys[] = {
+            kRFC3720_Key_InitialR2T,
+            kRFC3720_Key_ImmediateData,
+            kRFC3720_Key_DataPDUInOrder,
+            kRFC3720_Key_DataSequenceInOrder,
+            kRFC3720_Key_MaxConnections,
+            kRFC3720_Key_MaxBurstLength,
+            kRFC3720_Key_FirstBurstLength,
+            kRFC3720_Key_MaxOutstandingR2T,
+            kRFC3720_Key_DefaultTime2Retain,
+            kRFC3720_Key_DefaultTime2Wait
+        };
+
+        const void * values[] = {
+            initialR2T,
+            immediateData,
+            dataPDUInOrder,
+            dataSequenceInOrder,
+            maxConnections,
+            maxBurstLength,
+            firstBurstLength,
+            maxOutStandingR2T,
+            defaultTime2Retain,
+            defaultTime2Wait
+        };
+
+        dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,10,
+                                        &kCFTypeDictionaryKeyCallBacks,
+                                        &kCFTypeDictionaryValueCallBacks);
+    }
+
+    return dictionary;
 }
 
-/*! Copies the configuration object associated with a particular connection.
- *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param connectionId the connection associated with the session.
- *  @return  the configuration object associated with the specified connection. */
-iSCSIConnectionConfigRef iSCSICopyConnectionConfig(SID sessionId,CID connectionId)
+/*! Creates a dictionary of connection parameters for the connection associated
+ *  with the specified target and portal, if one exists.
+ *  @param handle a handle to a daemon connection.
+ *  @param target the target associated with the the specified portal.
+ *  @param portal the portal to check for active connections to generate
+ *  a dictionary of connection parameters.
+ *  @return a dictionary of connection properties. */
+CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
+                                                     iSCSIPortalRef portal)
 {
-    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
+    if(!target || !portal)
         return NULL;
-    
-    iSCSIKernelConnectionCfg connCfgKernel;
-    
-    if(iSCSIKernelGetConnectionConfig(sessionId,connectionId,&connCfgKernel))
-        return NULL;
-    
-    iSCSIMutableConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
-    connCfgKernel.useDataDigest = iSCSIConnectionConfigGetDataDigest(connCfg);
-    connCfgKernel.useHeaderDigest = iSCSIConnectionConfigGetHeaderDigest(connCfg);
 
-    return connCfg;
+    CFDictionaryRef dictionary = NULL;
+
+    SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
+    CID connectionId = kiSCSIInvalidConnectionId;
+
+    if(sessionId != kiSCSIInvalidSessionId)
+    {
+        connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
+        if(connectionId != kiSCSIInvalidConnectionId)
+        {
+            struct iSCSIKernelConnectionCfg config;
+            iSCSIKernelGetConnectionConfig(sessionId,connectionId,&config);
+
+            CFNumberRef maxRecvDataSegmentLength = CFNumberCreate(
+                kCFAllocatorMalloc,kCFNumberSInt32Type,&config.maxRecvDataSegmentLength);
+
+            CFBooleanRef dataDigest = kCFBooleanFalse;
+            CFBooleanRef headerDigest = kCFBooleanFalse;
+
+            if(config.useDataDigest)
+                dataDigest = kCFBooleanTrue;
+
+            if(config.useHeaderDigest)
+                headerDigest = kCFBooleanTrue;
+
+
+            const void * keys[] = {
+                kRFC3720_Key_DataDigest,
+                kRFC3720_Key_HeaderDigest,
+                kRFC3720_Key_MaxRecvDataSegmentLength
+            };
+
+            const void * values[] = {
+                dataDigest,
+                headerDigest,
+                maxRecvDataSegmentLength
+            };
+
+            dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,
+                               &kCFTypeDictionaryKeyCallBacks,
+                               &kCFTypeDictionaryValueCallBacks);
+        }
+    }
+    return dictionary;
 }
 
 /*! Sets the name of this initiator.  This is the IQN-format name that is
