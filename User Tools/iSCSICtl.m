@@ -69,6 +69,9 @@ CFStringRef kOptTarget = CFSTR("target");
 /*! Portal command-line option. */
 CFStringRef kOptPortal = CFSTR("portal");
 
+/*! Port command-line option. */
+CFStringRef kOptPort = CFSTR("port");
+
 /*! Interface command-line option. */
 CFStringRef kOptInterface = CFSTR("interface");
 
@@ -445,16 +448,28 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
     CFArrayRef portalParts = iSCSIUtilsCreateArrayByParsingPortalParts(portalAddress);
     
     if(!portalParts) {
-        iSCSICtlDisplayError("The specified iSCSI portal is invalid.");
+        iSCSICtlDisplayError("The specified portal is invalid.");
         return NULL;
     }
     
     iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
     iSCSIPortalSetAddress(portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,0));
     
-    // If portal is present, set it
-    if(CFArrayGetCount(portalParts) > 1)
+    // If port was specified as part of portal (e.g., 192.168.1.100:3260)
+    if(CFArrayGetCount(portalParts) > 1) {
         iSCSIPortalSetPort(portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,1));
+    }
+    // If port was specified separately (e.g., -port 3260)
+    else if (CFDictionaryContainsKey(options,kOptPort)) {
+        CFStringRef port = CFDictionaryGetValue(options,kOptPort);
+        if(iSCSIUtilsValidatePort(port))
+            iSCSIPortalSetPort(portal,port);
+        else {
+            iSCSICtlDisplayError("The specified port is invalid.");
+            return NULL;
+        }
+
+    }
     else
         iSCSIPortalSetPort(portal,kiSCSIDefaultPort);
     

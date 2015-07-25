@@ -8,6 +8,12 @@
 
 #include "iSCSIUtils.h"
 
+/*! Minimum TCP port. */
+static int PORT_MIN = 0;
+
+/*! Maximum TCP port. */
+static int PORT_MAX = (1 << sizeof(in_port_t)*8) -1;
+
 /*! Verifies whether specified iSCSI qualified name (IQN) is valid per RFC3720.
  *  This function also validates 64-bit EUI names expressed as strings that
  *  start with the "eui" prefix.
@@ -29,6 +35,15 @@ Boolean iSCSIUtilsValidateIQN(CFStringRef IQN)
     
     regfree(&preg);
     return validName;
+}
+
+/*! Validates the TCP port.
+ *  @param port the TCP port to validate.
+ *  @return true if the specified port is valid, false otherwise. */
+Boolean iSCSIUtilsValidatePort(CFStringRef port)
+{
+    SInt32 portNumber = CFStringGetIntValue(port);
+    return (portNumber >= PORT_MIN && portNumber <= PORT_MAX);
 }
 
 /*! Validates and parses an expression of the form <host>:<port> into its

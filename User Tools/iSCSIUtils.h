@@ -20,6 +20,11 @@
  *  @return true if the name is valid, false otherwise. */
 Boolean iSCSIUtilsValidateIQN(CFStringRef IQN);
 
+/*! Validates the TCP port.
+ *  @param port the TCP port to validate.
+ *  @return true if the specified port is valid, false otherwise. */
+Boolean iSCSIUtilsValidatePort(CFStringRef port);
+
 /*! Validates and parses an expression of the form <host>:<port> into its
  *  hostname (or IPv4/IPv6 address) and port.  This function will return
  *  NULL if the specified expression is malformed, or an array containing
@@ -35,5 +40,6 @@ CFArrayRef iSCSIUtilsCreateArrayByParsingPortalParts(CFStringRef portal);
  *  as outlined in the SPC-4 r36d.
  *  @return a string describing the device (guaranteed to be a valid string). */
 CFStringRef iSCSIUtilsGetSCSIPeripheralDeviceDescription(UInt8 peripheralDeviceType);
+
 
 #endif /* defined(__ISCSI_UTILS_H__) */
