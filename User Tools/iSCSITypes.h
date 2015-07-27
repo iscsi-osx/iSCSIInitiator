@@ -256,6 +256,16 @@ CFStringRef iSCSITargetGetIQN(iSCSITargetRef target);
  *  @param name the name to set. */
 void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name);
 
+/*! Gets the nickname associated with the iSCSI target.
+ *  @param target the target object.
+ *  @return the nickname associated with the target. */
+CFStringRef iSCSITargetGetNickName(iSCSIMutableTargetRef target);
+
+/*! Sets the nickname associated with the iSCSI target.
+ *  @param target the target object.
+ *  @param nickname the nickname to assign to the target. */
+void iSCSITargetSetNickname(iSCSIMutableTargetRef target,CFStringRef nickname);
+
 /*! Releases memory associated with an iSCSI target object.
  * @param target the iSCSI target object. */
 void iSCSITargetRelease(iSCSITargetRef target);

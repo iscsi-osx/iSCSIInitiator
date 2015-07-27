@@ -17,6 +17,8 @@ CFStringRef kiSCSIPortalPortKey = CFSTR("Port");
 CFStringRef kiSCSIPortalHostInterfaceKey = CFSTR("Host Interface");
 CFStringRef kiSCSIPortalAutostartKey = CFSTR("Autostart");
 
+
+
 /*! Creates a new portal object from byte representation. */
 iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data)
 {
@@ -144,6 +146,7 @@ iSCSISessionConfigRef iSCSITargetCreateWithData(CFDataRef data)
 /*! iSCSI target records are dictionaries with keys with string values
  *  that specify the target name and other parameters. */
 CFStringRef kiSCSITargetIQNKey = CFSTR("Target Name");
+CFStringRef kiSCSITargetNickname = CFSTR("Target Nickname");
 
 /*! Convenience function.  Creates a new iSCSITargetRef with the above keys. */
 iSCSIMutableTargetRef iSCSITargetCreateMutable()
@@ -168,6 +171,18 @@ void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name)
         return;
     
     CFDictionarySetValue(target,kiSCSITargetIQNKey,name);
+}
+
+/*! Gets the nickname associated with the iSCSI target. */
+CFStringRef iSCSITargetGetNickName(iSCSIMutableTargetRef target)
+{
+    return CFDictionaryGetValue(target,kiSCSITargetNickname);
+}
+
+/*! Sets the nickname associated with the iSCSI target. */
+void iSCSITargetSetNickname(iSCSIMutableTargetRef target,CFStringRef nickname)
+{
+    CFDictionarySetValue(target,kiSCSITargetNickname,nickname);
 }
 
 /*! Releases memory associated with iSCSI targets. */
