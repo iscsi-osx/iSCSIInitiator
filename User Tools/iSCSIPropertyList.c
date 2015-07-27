@@ -33,8 +33,11 @@ Boolean initiatorCacheModified = false;
 /*! App ID. */
 CFStringRef kiSCSIPKAppId = CFSTR(CF_PREFERENCES_APP_ID);
 
-/*! Preference key name for iSCSI target dictionary. */
+/*! Preference key name for iSCSI targets dictionary (holds all targets). */
 CFStringRef kiSCSIPKTargetsKey = CFSTR("Targets");
+
+/*! Preference key name for iSCSI target dictionary (specific to each). */
+CFStringRef kiSCSIPKTargetKey = CFSTR("Target");
 
 /*! Preference key name for iSCSI discovery dictionary. */
 CFStringRef kiSCSIPKDiscoveryKey = CFSTR("Discovery");
@@ -50,7 +53,7 @@ CFStringRef kiSCSIPKSessionCfgKey = CFSTR("Session Configuration");
 CFStringRef kiSCSIPKPortalsKey = CFSTR("Portals");
 
 
-/*! Preference key name for iSCSI portal dictionary (specific to each ). */
+/*! Preference key name for iSCSI portal dictionary (specific to each). */
 CFStringRef kiSCSIPKPortalKey = CFSTR("Portal");
 
 /*! Preference key name for iSCSI connection configuration information. */
@@ -253,12 +256,12 @@ iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetIQN,CFStringRef portalAddress
 iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN)
 {
     // Get the dictionary containing information about the target
-    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,targetIQN);
-    
-    return target;
-}
+    CFDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,false);
 
+    if(targetInfo)
+        return CFDictionaryGetValue(targetInfo,kiSCSIPKTargetKey);
+    return NULL;
+}
 
 iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetIQN,CFStringRef portalAddress)
 {
@@ -334,6 +337,12 @@ void iSCSIPLRemovePortal(CFStringRef targetIQN,CFStringRef portalAddress)
     CFDictionaryRemoveValue(portalsList,portalAddress);
     
     targetsCacheModified = true;
+}
+
+void iSCSIPLSetTarget(iSCSITargetRef target)
+{
+    CFMutableDictionaryRef targetsList = iSCSIPLGetTargetsList(true);
+    CFDictionarySetValue(targetsList,iSCSITargetGetIQN(target),target);
 }
 
 void iSCSIPLRemoveTarget(CFStringRef targetIQN)

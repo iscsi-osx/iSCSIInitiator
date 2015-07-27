@@ -61,6 +61,10 @@ void iSCSIPLSetPortal(CFStringRef targetIQN,iSCSIPortalRef portal);
  *  @param portalAddress the portal name to remove. */
 void iSCSIPLRemovePortal(CFStringRef targetIQN,CFStringRef portalAddress);
 
+/*! Adds a target object.
+ *  @param target an iSCSI target reference. */
+void iSCSIPLSetTarget(iSCSITargetRef target);
+
 /*! Removes a target object.
  *  @param targetIQN the target name. */
 void iSCSIPLRemoveTarget(CFStringRef targetIQN);
