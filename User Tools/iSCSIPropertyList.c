@@ -255,12 +255,15 @@ iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetIQN,CFStringRef portalAddress
 
 iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN)
 {
+    iSCSITargetRef target = NULL;
+
     // Get the dictionary containing information about the target
     CFDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,false);
 
     if(targetInfo)
-        return CFDictionaryGetValue(targetInfo,kiSCSIPKTargetKey);
-    return NULL;
+        target = CFDictionaryGetValue(targetInfo,kiSCSIPKTargetKey);
+
+    return target;
 }
 
 iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetIQN,CFStringRef portalAddress)
@@ -341,8 +344,13 @@ void iSCSIPLRemovePortal(CFStringRef targetIQN,CFStringRef portalAddress)
 
 void iSCSIPLSetTarget(iSCSITargetRef target)
 {
-    CFMutableDictionaryRef targetsList = iSCSIPLGetTargetsList(true);
-    CFDictionarySetValue(targetsList,iSCSITargetGetIQN(target),target);
+    // Get the target information dictionary
+    CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(iSCSITargetGetIQN(target),true);
+    CFDictionaryRef targetDict = iSCSITargetCreateDictionary(target);
+    CFDictionarySetValue(targetInfo,kiSCSIPKTargetKey,targetDict);
+    CFRelease(targetDict);
+
+    targetsCacheModified = true;
 }
 
 void iSCSIPLRemoveTarget(CFStringRef targetIQN)
