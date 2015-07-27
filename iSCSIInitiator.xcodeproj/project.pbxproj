@@ -10,6 +10,7 @@
 		2B0D47EE1AE4CBA000437BAC /* load.sh in Resources */ = {isa = PBXBuildFile; fileRef = 2B0D47EC1AE4CBA000437BAC /* load.sh */; };
 		2B0D47EF1AE4CBA000437BAC /* unload.sh in Resources */ = {isa = PBXBuildFile; fileRef = 2B0D47ED1AE4CBA000437BAC /* unload.sh */; };
 		2B16EECA196085A40061E7FA /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
+		2B421EFD1B66A40E000278A4 /* clean.sh in Resources */ = {isa = PBXBuildFile; fileRef = 2B421EFC1B66A40E000278A4 /* clean.sh */; };
 		2B4A60371A3E6F690006AFCC /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B5935C21810DF7100FFC3D3 /* IOKit.framework */; };
 		2B4A60381A3E6F830006AFCC /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
 		2B7817D31AC784F300EC605E /* iSCSISession.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B181A70157200A81C80 /* iSCSISession.c */; };
@@ -96,6 +97,7 @@
 		2B0D47EC1AE4CBA000437BAC /* load.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = load.sh; sourceTree = "<group>"; };
 		2B0D47ED1AE4CBA000437BAC /* unload.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = unload.sh; sourceTree = "<group>"; };
 		2B20904F18C6E43C00C43190 /* libsystem_kernel.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsystem_kernel.dylib; path = usr/lib/system/libsystem_kernel.dylib; sourceTree = SDKROOT; };
+		2B421EFC1B66A40E000278A4 /* clean.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = clean.sh; sourceTree = "<group>"; };
 		2B5935651810D38E00FFC3D3 /* Kernel.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Kernel.framework; path = System/Library/Frameworks/Kernel.framework; sourceTree = SDKROOT; };
 		2B59357A1810D3C800FFC3D3 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		2B59357C1810D3C800FFC3D3 /* PreferencePanes.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PreferencePanes.framework; path = System/Library/Frameworks/PreferencePanes.framework; sourceTree = SDKROOT; };
@@ -202,6 +204,7 @@
 		2B5935541810CE6800FFC3D3 = {
 			isa = PBXGroup;
 			children = (
+				2B421EFC1B66A40E000278A4 /* clean.sh */,
 				2B0D47EC1AE4CBA000437BAC /* load.sh */,
 				2B0D47ED1AE4CBA000437BAC /* unload.sh */,
 				2B97E4431A5B84E000A8EE9C /* User Tools */,
@@ -448,6 +451,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2B0D47EE1AE4CBA000437BAC /* load.sh in Resources */,
+				2B421EFD1B66A40E000278A4 /* clean.sh in Resources */,
 				2B0D47EF1AE4CBA000437BAC /* unload.sh in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
