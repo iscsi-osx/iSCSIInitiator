@@ -505,7 +505,10 @@ errno_t iSCSIDIsPortalActive(int fd,struct iSCSIDCmdIsPortalActive *cmd)
     iSCSIDRspIsPortalActive rsp = iSCSIDRspIsPortalActiveInit;
     SID sessionId = (iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target)));
 
-    rsp.active = (iSCSIGetConnectionIdForPortal(sessionId,portal) != kiSCSIInvalidConnectionId);
+    if(sessionId == kiSCSIInvalidSessionId)
+        rsp.active = false;
+    else
+        rsp.active = (iSCSIGetConnectionIdForPortal(sessionId,portal) != kiSCSIInvalidConnectionId);
 
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EAGAIN;
