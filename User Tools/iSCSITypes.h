@@ -198,6 +198,16 @@ CFStringRef iSCSIPortalGetHostInterface(iSCSIPortalRef portal);
 void iSCSIPortalSetHostInterface(iSCSIMutablePortalRef portal,
                                  CFStringRef hostInterface);
 
+/*! Gets whether startup is automatic for this portal.
+ *  @param portal an iSCSI portal object.
+ *  @return true if the portal is to be automatically started. */
+Boolean iSCSIPortalGetAutostart(iSCSIPortalRef portal);
+
+/*! Sets whether startup is automatic for this portal.
+ *  @param portal an iSCSI portal object.
+ *  @param autostart true to autostart this portal. */
+void iSCSIPortalSetAutostart(iSCSIMutablePortalRef portal,Boolean autostart);
+
 /*! Releases memory associated with an iSCSI portal object.
  *  @param portal an iSCSI portal object. */
 void iSCSIPortalRelease(iSCSITargetRef portal);
