@@ -8,6 +8,13 @@ The scripts `load.sh` and `unload.sh` are provided for testing purposes.  These 
 
 The load script copies the kernel extension `iSCSIInitiator.kext` to `/tmp/iSCSIInitiator.kext`, sets permissions appropriately and runs `kextload` to load the extension.  It further copies the daemon to `/tmp/iscsid/` and the daemon's property list to `/System/Library/LaunchDaemons/`, sets permissions of those files appropriately and tells `launchd` to start the daemon.
 
+Important:  
+
+1.  Run the `clean.sh` script before installing each time.  This ensures that the property list is removed should its format change during development.  
+2.  Disable kext signing before attempting to load the kext using `load.sh`.  This is achieved by running `sudo nvram boot-args=kext-dev-mode=1` (reboot required).
+
+
+
 # Usage
 
 Once the kernel extension and daemon have been loaded, the command-line utility `iscsictl` can be used to manage iSCSI functions.  The utility operates on a property list that keeps track of defined targets and communicates with the daemon to manage iSCSI sessions.
