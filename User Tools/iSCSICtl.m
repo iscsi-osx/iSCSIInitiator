@@ -28,6 +28,7 @@ CFStringRef kModeModify = CFSTR("-modify");
 /*! Remove command-line mode. */
 CFStringRef kModeRemove = CFSTR("-remove");
 
+
 /*! List command-line mode. */
 CFStringRef kModeListTargets = CFSTR("-targets");
 
@@ -101,9 +102,6 @@ CFStringRef kOptMutualSecret = CFSTR("mutualSecret");
 
 /*! Name of this command-line executable. */
 const char * executableName;
-
-/*! Command line arguments (used for getopt()). */
-//const char * kShortOptions = "AMLRlp:t:i:df:vac:n:us:q:r:";
 
 /*! The standard out stream, used by various functions to write. */
 CFWriteStreamRef stdoutStream = NULL;
@@ -678,13 +676,13 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
         // Ensure portal was not malformed
         if((portal = iSCSICtlCreatePortalFromOptions(options)))
         {
-            if(iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal)))
+            if(iSCSIPLContainsPortalForTarget(targetIQN,iSCSIPortalGetAddress(portal)))
             {
                 // The user may have specified only the portal address, so
                 // get the portal from the property list to get port & interface
                 CFStringRef portalAddress = CFStringCreateCopy(kCFAllocatorDefault,iSCSIPortalGetAddress(portal));
                 iSCSIPortalRelease(portal);
-                portal = iSCSIPLCopyPortal(targetIQN,portalAddress);
+                portal = iSCSIPLCopyPortalForTarget(targetIQN,portalAddress);
                 CFRelease(portalAddress);
 
                 if(iSCSIDaemonIsPortalActive(handle,target,portal))
@@ -788,18 +786,17 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
             // add target and or portal with user-specified options
             CFStringRef targetIQN = iSCSITargetGetIQN(target);
             
-            if(!iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal))) {
+            if(!iSCSIPLContainsPortalForTarget(targetIQN,iSCSIPortalGetAddress(portal))) {
 
                 // Setup optional session or connection configuration from switches
                 iSCSIAuthRef auth = iSCSIAuthCreateNone();
                 iSCSIMutableSessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
                 iSCSIMutableConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
 
-
                 iSCSIPLSetTarget(target);
-                iSCSIPLSetPortal(targetIQN,portal);
+                iSCSIPLSetPortalForTarget(targetIQN,portal);
                 iSCSIPLSetAuthentication(targetIQN,iSCSIPortalGetAddress(portal),auth);
-                iSCSIPLSetSessionConfig(targetIQN,sessCfg);
+                iSCSIPLSetSessionConfigForTarget(targetIQN,sessCfg);
                 iSCSIPLSetConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal),connCfg);
                     
                 iSCSIPLSynchronize();
@@ -855,7 +852,7 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     }
 
     // Verify that portal exists in property list
-    if(!error && portal && !iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal))) {
+    if(!error && portal && !iSCSIPLContainsPortalForTarget(targetIQN,iSCSIPortalGetAddress(portal))) {
         iSCSICtlDisplayError("The specified portal does not exist.");
         error = EINVAL;
     }
@@ -866,7 +863,7 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
             if(iSCSIDaemonIsPortalActive(handle,target,portal))
                 iSCSICtlDisplayError("The specified portal is connected and cannot be removed.");
             else {
-                iSCSIPLRemovePortal(targetIQN,iSCSIPortalGetAddress(portal));
+                iSCSIPLRemovePortalForTarget(targetIQN,iSCSIPortalGetAddress(portal));
                 iSCSIPLSynchronize();
             }
         else
@@ -923,7 +920,7 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     }
 
     // Verify that portal exists in property list
-    if(!error && portal && !iSCSIPLContainsPortal(targetIQN,iSCSIPortalGetAddress(portal))) {
+    if(!error && portal && !iSCSIPLContainsPortalForTarget(targetIQN,iSCSIPortalGetAddress(portal))) {
         iSCSICtlDisplayError("The specified portal does not exist.");
         error = EINVAL;
     }
@@ -935,7 +932,7 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 iSCSICtlDisplayError("The specified portal is connected and cannot be modified.");
             else {
                 iSCSICtlModifyPortalFromOptions(options,portal);
-                iSCSIPLSetPortal(targetIQN,portal);
+                iSCSIPLSetPortalForTarget(targetIQN,portal);
             }
 
         }
@@ -1053,7 +1050,7 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
         
         for(CFIndex portalIdx = 0; portalIdx < portalCount; portalIdx++)
         {
-            iSCSIPortalRef portal = iSCSIPLCopyPortal(targetIQN,CFArrayGetValueAtIndex(portalsList,portalIdx));
+            iSCSIPortalRef portal = iSCSIPLCopyPortalForTarget(targetIQN,CFArrayGetValueAtIndex(portalsList,portalIdx));
             
             if(portal) {
                 CFDictionaryRef properties = iSCSIDaemonCreateCFPropertiesForConnection(handle,target,portal);
@@ -1309,6 +1306,7 @@ errno_t iSCSICtlDiscoverTargets(iSCSIDaemonHandle handle,CFDictionaryRef options
     if (handle && options) {
         iSCSIPortalRef portal = iSCSICtlCreatePortalFromOptions(options);
         iSCSIPLSynchronize();
+
         if (portal) {
             iSCSIAuthRef auth = iSCSICtlCreateAuthFromOptions(options);
             

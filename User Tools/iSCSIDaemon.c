@@ -123,7 +123,7 @@ errno_t iSCSIDLoginCommon(SID sessionId,
 
     // If session needs to be logged in, copy session config from property list
     if(sessionId == kiSCSIInvalidSessionId)
-        if(!(sessCfg = iSCSIPLCopySessionConfig(targetIQN)))
+        if(!(sessCfg = iSCSIPLCopySessionConfigForTarget(targetIQN)))
             sessCfg = iSCSISessionConfigCreateMutable();
 
     // Get connection configuration from property list, create one if needed
@@ -190,7 +190,7 @@ errno_t iSCSIDLoginAllPortals(iSCSITargetRef target,
           (portalAddress = CFArrayGetValueAtIndex(portals,portalIdx)) )
     {
         // Get portal object and login
-        iSCSIPortalRef portal = iSCSIPLCopyPortal(targetIQN,portalAddress);
+        iSCSIPortalRef portal = iSCSIPLCopyPortalForTarget(targetIQN,portalAddress);
         errorCode = iSCSIDLoginCommon(sessionId,target,portal,statusCode);
         iSCSIPortalRelease(portal);
 

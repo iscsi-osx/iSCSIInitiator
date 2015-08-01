@@ -1488,11 +1488,8 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     // Connect the socket to the target node
     if((error = sock_connect(newConn->socket,(sockaddr*)portalSockaddr,0)))
         goto SOCKET_CONNECT_FAILURE;
-    //    if((error = sock_connect(newConn->socket,(sockaddr*)portalSockaddr,MSG_DONTWAIT) != EINPROGRESS))
-    //        goto SOCKET_CONNECT_FAILURE;
 
-    //   GetCommandGate()->
-
+//TODO: connect with timeout
     // Initialize queue that keeps track of connection speed
     memset(newConn->bytesPerSecondHistory,0,sizeof(UInt8)*newConn->kBytesPerSecAvgWindowSize);
     newConn->bytesPerSecHistoryIdx = 0;

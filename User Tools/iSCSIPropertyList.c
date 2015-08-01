@@ -16,7 +16,7 @@
 CFMutableDictionaryRef targetsCache = NULL;
 
 /*! Flag that indicates whether the targets cache was modified. */
-Boolean targetsCacheModified = false;
+Boolean targetNodesCacheModified = false;
 
 /*! A cached version of the discovery dictionary. */
 CFMutableDictionaryRef discoveryCache = NULL;
@@ -28,22 +28,22 @@ Boolean discoveryCacheModified = false;
 CFMutableDictionaryRef initiatorCache = NULL;
 
 /*! Flag that indicates whether the initiator cache was modified. */
-Boolean initiatorCacheModified = false;
+Boolean initiatorNodeCacheModified = false;
 
 /*! App ID. */
 CFStringRef kiSCSIPKAppId = CFSTR(CF_PREFERENCES_APP_ID);
 
 /*! Preference key name for iSCSI targets dictionary (holds all targets). */
-CFStringRef kiSCSIPKTargetsKey = CFSTR("Targets");
+CFStringRef kiSCSIPKTargetsKey = CFSTR("Target Nodes");
 
 /*! Preference key name for iSCSI target dictionary (specific to each). */
-CFStringRef kiSCSIPKTargetKey = CFSTR("Target");
+CFStringRef kiSCSIPKTargetKey = CFSTR("Target Data");
 
 /*! Preference key name for iSCSI discovery dictionary. */
-CFStringRef kiSCSIPKDiscoveryKey = CFSTR("Discovery");
+CFStringRef kiSCSIPKDiscoveryKey = CFSTR("SendTargets Discovery");
 
 /*! Preference key name for iSCSI initiator dictionary. */
-CFStringRef kiSCSIPKInitiatorKey = CFSTR("Initiator");
+CFStringRef kiSCSIPKInitiatorKey = CFSTR("Initiator Node");
 
 
 /*! Preference key name for iSCSI session configuration (specific to each target). */
@@ -54,7 +54,7 @@ CFStringRef kiSCSIPKPortalsKey = CFSTR("Portals");
 
 
 /*! Preference key name for iSCSI portal dictionary (specific to each). */
-CFStringRef kiSCSIPKPortalKey = CFSTR("Portal");
+CFStringRef kiSCSIPKPortalKey = CFSTR("Portal Data");
 
 /*! Preference key name for iSCSI connection configuration information. */
 CFStringRef kiSCSIPKConnectionCfgKey = CFSTR("Connection Configuration");
@@ -121,8 +121,8 @@ CFMutableDictionaryRef iSCSIPLCreateInitiatorDict()
     CFStringRef kInitiatorIQN = CFSTR("");
     CFStringRef kInitiatorAlias = CFSTR("");
     
-    CFStringRef keys[] = {kiSCSIPKInitiatorAlias,kiSCSIPKInitiatorIQN};
-    CFStringRef values[] = {kInitiatorAlias,kInitiatorIQN};
+    CFStringRef keys[] = { kiSCSIPKInitiatorAlias,kiSCSIPKInitiatorIQN };
+    CFStringRef values[] = { kInitiatorAlias,kInitiatorIQN };
     
     CFDictionaryRef initiatorPropertylist = CFDictionaryCreate(kCFAllocatorDefault,
                                                                (const void **)keys,
@@ -219,7 +219,7 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetIQN,
     return NULL;
 }
 
-iSCSISessionConfigRef iSCSIPLCopySessionConfig(CFStringRef targetIQN)
+iSCSISessionConfigRef iSCSIPLCopySessionConfigForTarget(CFStringRef targetIQN)
 {
     // Get the target information dictionary
     CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,false);
@@ -230,7 +230,8 @@ iSCSISessionConfigRef iSCSIPLCopySessionConfig(CFStringRef targetIQN)
     return NULL;
 }
 
-void iSCSIPLSetSessionConfig(CFStringRef targetIQN,iSCSISessionConfigRef sessCfg)
+void iSCSIPLSetSessionConfigForTarget(CFStringRef targetIQN,
+                                      iSCSISessionConfigRef sessCfg)
 {
     // Get the target information dictionary
     CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,true);
@@ -239,10 +240,11 @@ void iSCSIPLSetSessionConfig(CFStringRef targetIQN,iSCSISessionConfigRef sessCfg
     CFDictionarySetValue(targetInfo,kiSCSIPKSessionCfgKey,sessCfgDict);
     CFRelease(sessCfgDict);
     
-    targetsCacheModified = true;
+    targetNodesCacheModified = true;
 }
 
-iSCSIPortalRef iSCSIPLCopyPortal(CFStringRef targetIQN,CFStringRef portalAddress)
+iSCSIPortalRef iSCSIPLCopyPortalForTarget(CFStringRef targetIQN,
+                                          CFStringRef portalAddress)
 {
     // Get the dictionary containing information about the portal
     CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetIQN,portalAddress,false);
@@ -298,7 +300,7 @@ void iSCSIPLSetAuthentication(CFStringRef targetIQN,CFStringRef portalAddress,iS
     CFDictionarySetValue(portalInfo,kiSCSIPKAuthKey,authDict);
     CFRelease(authDict);
     
-    targetsCacheModified = true;
+    targetNodesCacheModified = true;
 }
 
 void iSCSIPLSetConnectionConfig(CFStringRef targetIQN,
@@ -313,11 +315,11 @@ void iSCSIPLSetConnectionConfig(CFStringRef targetIQN,
     CFDictionarySetValue(portalInfo,kiSCSIPKConnectionCfgKey,connCfgDict);
     CFRelease(connCfgDict);
     
-    targetsCacheModified = true;
+    targetNodesCacheModified = true;
 }
 
-void iSCSIPLSetPortal(CFStringRef targetIQN,
-                      iSCSIPortalRef portal)
+void iSCSIPLSetPortalForTarget(CFStringRef targetIQN,
+                               iSCSIPortalRef portal)
 {
     // Get the dictionary containing information about the portal
     CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetIQN,iSCSIPortalGetAddress(portal),true);
@@ -327,10 +329,11 @@ void iSCSIPLSetPortal(CFStringRef targetIQN,
     CFDictionarySetValue(portalInfo,kiSCSIPKPortalKey,portalDict);
     CFRelease(portalDict);
     
-    targetsCacheModified = true;
+    targetNodesCacheModified = true;
 }
 
-void iSCSIPLRemovePortal(CFStringRef targetIQN,CFStringRef portalAddress)
+void iSCSIPLRemovePortalForTarget(CFStringRef targetIQN,
+                                  CFStringRef portalAddress)
 {
     CFMutableDictionaryRef portalsList = iSCSIPLGetPortalsList(targetIQN,false);
     
@@ -339,7 +342,7 @@ void iSCSIPLRemovePortal(CFStringRef targetIQN,CFStringRef portalAddress)
     
     CFDictionaryRemoveValue(portalsList,portalAddress);
     
-    targetsCacheModified = true;
+    targetNodesCacheModified = true;
 }
 
 void iSCSIPLSetTarget(iSCSITargetRef target)
@@ -350,7 +353,7 @@ void iSCSIPLSetTarget(iSCSITargetRef target)
     CFDictionarySetValue(targetInfo,kiSCSIPKTargetKey,targetDict);
     CFRelease(targetDict);
 
-    targetsCacheModified = true;
+    targetNodesCacheModified = true;
 }
 
 void iSCSIPLRemoveTarget(CFStringRef targetIQN)
@@ -362,7 +365,7 @@ void iSCSIPLRemoveTarget(CFStringRef targetIQN)
     
     CFDictionaryRemoveValue(targetsList,targetIQN);
     
-    targetsCacheModified = true;
+    targetNodesCacheModified = true;
 }
 
 /*! Copies the initiator name from the iSCSI property list to a CFString object.
@@ -389,7 +392,7 @@ void iSCSIPLSetInitiatorIQN(CFStringRef initiatorIQN)
     // Update initiator name
     CFDictionarySetValue(initiatorCache,kiSCSIPKInitiatorIQN,initiatorIQN);
     
-    initiatorCacheModified = true;
+    initiatorNodeCacheModified = true;
 }
 
 /*! Copies the initiator alias from the iSCSI property list to a CFString object.
@@ -416,7 +419,7 @@ void iSCSIPLSetInitiatorAlias(CFStringRef initiatorAlias)
     // Update initiator alias
     CFDictionarySetValue(initiatorCache,kiSCSIPKInitiatorAlias,initiatorAlias);
     
-    initiatorCacheModified = true;
+    initiatorNodeCacheModified = true;
 }
 
 /*! Gets whether a target is defined in the property list.
@@ -432,7 +435,7 @@ Boolean iSCSIPLContainsTarget(CFStringRef targetIQN)
  *  @param targetIQN the name of the target.
  *  @param portalAddress the name of the portal.
  *  @return true if the portal exists, false otherwise. */
-Boolean iSCSIPLContainsPortal(CFStringRef targetIQN,
+Boolean iSCSIPLContainsPortalForTarget(CFStringRef targetIQN,
                               CFStringRef portalAddress)
 {
     CFDictionaryRef portalsList = iSCSIPLGetPortalsList(targetIQN,false);
@@ -532,11 +535,11 @@ void iSCSIPLSynchronize()
 {
     // If we have modified our targets dictionary, we write changes back and
     // otherwise we'll read in the latest.
-    if(targetsCacheModified)
+    if(targetNodesCacheModified)
         CFPreferencesSetValue(kiSCSIPKTargetsKey,targetsCache,kiSCSIPKAppId,
                               kCFPreferencesAnyUser,kCFPreferencesCurrentHost );
     
-    if(initiatorCacheModified)
+    if(initiatorNodeCacheModified)
         CFPreferencesSetValue(kiSCSIPKInitiatorKey,initiatorCache,kiSCSIPKAppId,
                               kCFPreferencesAnyUser,kCFPreferencesCurrentHost );
     
@@ -546,7 +549,7 @@ void iSCSIPLSynchronize()
 
     CFPreferencesAppSynchronize(kiSCSIPKAppId);
     
-    if(!targetsCacheModified)
+    if(!targetNodesCacheModified)
     {
         // Free old cache if present
         if(targetsCache)
@@ -556,7 +559,7 @@ void iSCSIPLSynchronize()
         targetsCache = iSCSIPLCopyPropertyDict(kiSCSIPKTargetsKey);
     }
     
-    if(!initiatorCacheModified)
+    if(!initiatorNodeCacheModified)
     {
         // Free old cache if present
         if(initiatorCache)
@@ -576,5 +579,5 @@ void iSCSIPLSynchronize()
         discoveryCache = iSCSIPLCopyPropertyDict(kiSCSIPKDiscoveryKey);
     }
 
-    initiatorCacheModified = targetsCacheModified = discoveryCacheModified = false;
+    initiatorNodeCacheModified = targetNodesCacheModified = discoveryCacheModified = false;
 }
