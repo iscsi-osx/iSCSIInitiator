@@ -123,7 +123,7 @@ errno_t iSCSIDLoginCommon(SID sessionId,
 
     // If session needs to be logged in, copy session config from property list
     if(sessionId == kiSCSIInvalidSessionId)
-        if(!(sessCfg = iSCSIPLCopySessionConfigForTarget(targetIQN)))
+        if(!(sessCfg = iSCSIPLCopySessionConfig(targetIQN)))
             sessCfg = iSCSISessionConfigCreateMutable();
 
     // Get connection configuration from property list, create one if needed
@@ -131,7 +131,7 @@ errno_t iSCSIDLoginCommon(SID sessionId,
         connCfg = iSCSIConnectionConfigCreateMutable();
 
     // Get authentication configuration from property list, create one if needed
-    if(!(auth = iSCSIPLCopyAuthentication(targetIQN,iSCSIPortalGetAddress(portal))))
+    if(!(auth = iSCSIPLCopyAuthenticationForTarget(targetIQN)))
         auth = iSCSIAuthCreateNone();
 
     // Do either session or connection login

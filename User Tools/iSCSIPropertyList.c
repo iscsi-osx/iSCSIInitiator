@@ -219,7 +219,7 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetIQN,
     return NULL;
 }
 
-iSCSISessionConfigRef iSCSIPLCopySessionConfigForTarget(CFStringRef targetIQN)
+iSCSISessionConfigRef iSCSIPLCopySessionConfig(CFStringRef targetIQN)
 {
     // Get the target information dictionary
     CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,false);
@@ -230,7 +230,7 @@ iSCSISessionConfigRef iSCSIPLCopySessionConfigForTarget(CFStringRef targetIQN)
     return NULL;
 }
 
-void iSCSIPLSetSessionConfigForTarget(CFStringRef targetIQN,
+void iSCSIPLSetSessionConfig(CFStringRef targetIQN,
                                       iSCSISessionConfigRef sessCfg)
 {
     // Get the target information dictionary
@@ -279,25 +279,26 @@ iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetIQN,CFStr
     return NULL;
 }
 
-iSCSIAuthRef iSCSIPLCopyAuthentication(CFStringRef targetIQN,CFStringRef portalAddress)
+iSCSIAuthRef iSCSIPLCopyAuthenticationForTarget(CFStringRef targetIQN)
 {
-    // Get the dictionary containing information about the portal
-    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetIQN,portalAddress,false);
+    // Get the dictionary containing information about the target
+    CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,false);
     
-    if(portalInfo)
-        return iSCSIAuthCreateWithDictionary(CFDictionaryGetValue(portalInfo,kiSCSIPKAuthKey));
+    if(targetInfo)
+        return iSCSIAuthCreateWithDictionary(CFDictionaryGetValue(targetInfo,kiSCSIPKAuthKey));
     
     return NULL;
 }
 
-void iSCSIPLSetAuthentication(CFStringRef targetIQN,CFStringRef portalAddress,iSCSIAuthRef auth)
+void iSCSIPLSetAuthenticationForTarget(CFStringRef targetIQN,
+                                       iSCSIAuthRef auth)
 {
-    // Get the dictionary containing information about the portal
-    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetIQN,portalAddress,true);
-    
+    // Get the dictionary containing information about the target
+    CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,true);
+
     // Set the authentication object
     CFDictionaryRef authDict = iSCSIAuthCreateDictionary(auth);
-    CFDictionarySetValue(portalInfo,kiSCSIPKAuthKey,authDict);
+    CFDictionarySetValue(targetInfo,kiSCSIPKAuthKey,authDict);
     CFRelease(authDict);
     
     targetNodesCacheModified = true;

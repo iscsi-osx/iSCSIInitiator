@@ -795,8 +795,8 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
                 iSCSIPLSetTarget(target);
                 iSCSIPLSetPortalForTarget(targetIQN,portal);
-                iSCSIPLSetAuthentication(targetIQN,iSCSIPortalGetAddress(portal),auth);
-                iSCSIPLSetSessionConfigForTarget(targetIQN,sessCfg);
+                iSCSIPLSetAuthenticationForTarget(targetIQN,auth);
+                iSCSIPLSetSessionConfig(targetIQN,sessCfg);
                 iSCSIPLSetConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal),connCfg);
                     
                 iSCSIPLSynchronize();
@@ -1185,7 +1185,8 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
     return 0;
 }
 
-errno_t iSCSICtlProbeTargetForAuthMethod(iSCSIDaemonHandle handle,CFDictionaryRef options)
+errno_t iSCSICtlProbeTargetForAuthMethod(iSCSIDaemonHandle handle,
+                                         CFDictionaryRef options)
 {
     if(handle < 0 || !options)
         return EINVAL;
