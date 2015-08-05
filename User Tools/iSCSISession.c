@@ -715,14 +715,16 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
 /*! Adds a new connection to an iSCSI session.
  *  @param sessionId the new session identifier.
  *  @param portal specifies the portal to use for the connection.
- *  @param auth specifies the authentication parameters to use.
+ *  @param initiatorAuth specifies the initiator authentication parameters.
+ *  @param targetAuth specifies the target authentication parameters.
  *  @param connCfg the connection configuration parameters to use.
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSILoginConnection(SID sessionId,
                              iSCSIPortalRef portal,
-                             iSCSIAuthRef auth,
+                             iSCSIAuthRef initiatorAuth,
+                             iSCSIAuthRef targetAuth,
                              iSCSIConnectionConfigRef connCfg,
                              CID * connectionId,
                              enum iSCSILoginStatusCode * statusCode)
@@ -758,7 +760,7 @@ errno_t iSCSILoginConnection(SID sessionId,
     
     // If no error, authenticate (negotiate security parameters)
     if(!error)
-       error = iSCSIAuthNegotiate(target,auth,sessionId,*connectionId,statusCode);
+       error = iSCSIAuthNegotiate(target,initiatorAuth,targetAuth,sessionId,*connectionId,statusCode);
     
     if (!error)
         iSCSIKernelActivateConnection(sessionId,*connectionId);
@@ -848,7 +850,8 @@ errno_t iSCSIRestoreForSystemWake()
  *  must call iSCSISessionClose to close this session and free resources.
  *  @param target specifies the target and connection parameters to use.
  *  @param portal specifies the portal to use for the new session.
- *  @param auth specifies the authentication parameters to use.
+ *  @param initiatorAuth specifies the initiator authentication parameters.
+ *  @param targetAuth specifies the target authentication parameters.
  *  @param sessCfg the session configuration parameters to use.
  *  @param connCfg the connection configuration parameters to use.
  *  @param sessionId the new session identifier.
@@ -857,14 +860,16 @@ errno_t iSCSIRestoreForSystemWake()
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSILoginSession(iSCSITargetRef target,
                           iSCSIPortalRef portal,
-                          iSCSIAuthRef auth,
+                          iSCSIAuthRef initiatorAuth,
+                          iSCSIAuthRef targetAuth,
                           iSCSISessionConfigRef sessCfg,
                           iSCSIConnectionConfigRef connCfg,
                           SID * sessionId,
                           CID * connectionId,
                           enum iSCSILoginStatusCode * statusCode)
 {
-    if(!target || !portal || !auth || !sessCfg || !connCfg || !sessionId || !connectionId || !statusCode)
+    if(!target || !portal || !sessCfg || !connCfg || !sessionId || !connectionId ||
+       !statusCode || !initiatorAuth || !targetAuth)
         return EINVAL;
     
     // Store errno from helpers and pass back to up the call chain
@@ -890,8 +895,10 @@ errno_t iSCSILoginSession(iSCSITargetRef target,
         return EAGAIN;
 
     // If no error, authenticate (negotiate security parameters)
-    if(!error)
-        error = iSCSIAuthNegotiate(target,auth,*sessionId,*connectionId,statusCode);
+    if(!error) {
+        error = iSCSIAuthNegotiate(target,initiatorAuth,targetAuth,
+                                   *sessionId,*connectionId,statusCode);
+    }
 
     // Negotiate session & connection parameters
     if(!error)
@@ -1004,7 +1011,7 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
-                                   iSCSIAuthRef auth,
+                                   iSCSIAuthRef initiatorAuth,
                                    iSCSIMutableDiscoveryRecRef * discoveryRec,
                                    enum iSCSILoginStatusCode * statusCode)
 {
@@ -1022,8 +1029,13 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     iSCSIMutableSessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
     iSCSIMutableConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
 
-    errno_t error = iSCSILoginSession(target,portal,auth,sessCfg,connCfg,&sessionId,&connectionId,statusCode);
+    iSCSIAuthRef targetAuth = iSCSIAuthCreateNone();
 
+    errno_t error = iSCSILoginSession(target,portal,initiatorAuth,targetAuth,
+                                      sessCfg,connCfg,&sessionId,
+                                      &connectionId,statusCode);
+
+    iSCSIAuthRelease(targetAuth);
     iSCSITargetRelease(target);
     iSCSISessionConfigRelease(sessCfg);
     iSCSIConnectionConfigRelease(connCfg);
@@ -1134,7 +1146,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
 
 /*! Retrieves a list of targets available from a give portal.
  *  @param portal the iSCSI portal to look for targets.
- *  @param authMethod the preferred authentication method.
+ *  @param initiatorAuth specifies the initiator authentication parameters.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,

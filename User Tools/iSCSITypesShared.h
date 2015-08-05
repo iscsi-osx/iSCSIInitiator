@@ -108,6 +108,4 @@ typedef struct iSCSIKernelConnectionCfg
 } iSCSIKernelConnectionCfg;
 
 
-
-
 #endif

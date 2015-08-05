@@ -18,7 +18,6 @@ CFStringRef kiSCSIPortalHostInterfaceKey = CFSTR("Host Interface");
 CFStringRef kiSCSIPortalAutostartKey = CFSTR("Autostart");
 
 
-
 /*! Creates a new portal object from byte representation. */
 iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data)
 {
@@ -217,7 +216,6 @@ CFDataRef iSCSITargetCreateData(iSCSITargetRef target)
 
 
 
-
 /*! Creates a new authentication object from byte representation. */
 iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data)
 {
@@ -242,58 +240,48 @@ iSCSIAuthRef iSCSIAuthCreateNone()
     return CFDictionaryCreate(kCFAllocatorDefault,keys,values,1,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
 }
 
-/*! Creates a new iSCSIAuth object with empty authentication parameters
- *  (defaults to no authentication). */
-iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef targetUser,
-                                 CFStringRef targetSecret,
-                                 CFStringRef initiatorUser,
-                                 CFStringRef initiatorSecret)
+/*! Creates a new iSCSIAuth object for CHAP authentication. This function will
+ *  fail to return an authentication object if both parameters are not specified.
+ *  @param user the user name for CHAP.
+ *  @param sharedSecret the shared CHAP secret.
+ *  @return an iSCSI authentication object, or NULL if the parameters were
+ *  invalid. */
+iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef user,
+                                 CFStringRef sharedSecret)
 {
     // Required parameters
-    if(!targetUser || !targetSecret)
+    if(!user || !sharedSecret)
         return NULL;
     
     const void * keys[] = {
         CFSTR("Authentication Method"),
-        CFSTR("Target User"),
-        CFSTR("Target Secret"),
-        CFSTR("Initiator User"),
-        CFSTR("Initiator Secret")
+        CFSTR("User"),
+        CFSTR("Shared Secret"),
     };
     
     const void * values[] = {
         CFSTR("CHAP"),
-        targetUser,
-        targetSecret,
-        initiatorUser,
-        initiatorSecret
+        user,
+        sharedSecret
     };
 
-    // Check for mutual CHAP before including the initiatorUser and initiatorSecret
-    // (include the first there terms of the arrays above when mutual CHAP
-    // is not used).
-    if(!initiatorUser || !initiatorSecret)
-        return CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
-    
-    // Else we include all parameters
-    return CFDictionaryCreate(kCFAllocatorDefault,keys,values,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
+    return CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
 }
 
 /*! Returns the CHAP authentication parameter values if the authentication
- *  method is actually CHAP. */
+ *  method is actually CHAP.
+ *  @param auth an iSCSI authentication object.
+ *  @param user the user name for CHAP.
+ *  @param sharedSecret the shared CHAP secret. */
 void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
-                            CFStringRef * targetUser,
-                            CFStringRef * targetSecret,
-                            CFStringRef * initiatorUser,
-                            CFStringRef * initiatorSecret)
+                            CFStringRef * user,
+                            CFStringRef * sharedSecret)
 {
-    if(!auth || !targetUser || !targetSecret || !initiatorUser || !initiatorUser || (iSCSIAuthGetMethod(auth) != kiSCSIAuthMethodCHAP))
+    if(!auth || !user || !sharedSecret || (iSCSIAuthGetMethod(auth) != kiSCSIAuthMethodCHAP))
         return;
 
-    *initiatorUser = CFDictionaryGetValue(auth,CFSTR("Initiator User"));
-    *initiatorUser = CFDictionaryGetValue(auth,CFSTR("Initiator Secret"));
-    *targetUser = CFDictionaryGetValue(auth,CFSTR("Target User"));
-    *targetSecret = CFDictionaryGetValue(auth,CFSTR("Target Secret"));
+    *user = CFDictionaryGetValue(auth,CFSTR("User"));
+    *sharedSecret = CFDictionaryGetValue(auth,CFSTR("Shared Secret"));
 }
 
 /*! Gets the authentication method used. */

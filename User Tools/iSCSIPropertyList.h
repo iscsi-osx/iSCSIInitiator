@@ -95,18 +95,24 @@ void iSCSIPLSetConnectionConfig(CFStringRef targetIQN,
                                 CFStringRef portalAddress,
                                 iSCSIConnectionConfigRef connCfg);
 
-/*! Copies an authentication object associated with a particular
- *  portal for the specified target.
+/*! Copies an authentication object associated with a particular target.
  *  @param targetIQN the target name.
  *  @return the authentication object. */
 iSCSIAuthRef iSCSIPLCopyAuthenticationForTarget(CFStringRef targetIQN);
 
-/*! Sets an authentication object associated with a particular portal
- *  for the specified target.
+/*! Sets an authentication object associated with a particular target.
  *  @param targetIQN the target name.
  *  @param auth the connection configuration object to set. */
 void iSCSIPLSetAuthenticationForTarget(CFStringRef targetIQN,
-                                       iSCSIAuthRef auth);
+                                       iSCSIAuthRef initiatorAuth);
+
+/*! Copies an authentication object associated the intiator.
+ *  @return the authentication object. */
+iSCSIAuthRef iSCSIPLCopyAuthenticationForInitiator();
+
+/*! Sets an authentication object associated the initiator.
+ *  @param auth the authenticaiton object. */
+void iSCSIPLSetAuthenticationForInitiator(iSCSIAuthRef initiatorAuth);
 
 /*! Gets whether a target is defined in the property list.
  *  @param targetIQN the name of the target.

@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <Security/Security.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -31,6 +32,8 @@
 #include "iSCSITypes.h"
 
 int main(int argc, const char * argv[]) {
+
+    /*
 
     iSCSIInitialize(CFRunLoopGetCurrent());
 
@@ -60,8 +63,19 @@ int main(int argc, const char * argv[]) {
     iSCSIDiscoveryRecRef discRec;
     //   errno_t error = iSCSIQueryPortalForTargets(portal,iSCSIAuthCreateNone(),&discRec,&statusCode);
     iSCSICreateCFPropertiesForSession(target);
+
     
     
     iSCSICleanup();
+     
+
+     */
+    SecKeychainRef keychain;
+    SecKeychainItemRef item;
+    OSStatus status;
+    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&keychain);
+    SecKeychainUnlock(keychain, 0, NULL, false);
+    status = SecKeychainAddGenericPassword(keychain,25,"iSCSI CHAP Shared Secret",31,"iqn.2013-06.com.example:target0",3,"abc",&item);
+
     return 0;
 }

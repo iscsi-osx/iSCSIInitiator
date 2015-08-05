@@ -169,13 +169,15 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateId()
  *  determined that a CHAP session is to be used, this function will perform
  *  the CHAP authentication. */
 errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
-                               iSCSIAuthRef auth,
+                               iSCSIAuthRef initiatorAuth,
+                               iSCSIAuthRef targetAuth,
                                SID sessionId,
                                CID connectionId,
                                TSIH targetSessionId,
                                enum iSCSILoginStatusCode * statusCode)
 {
-    if(!target || !auth || sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
+    if(!target || !initiatorAuth || !targetAuth ||
+       sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
         return EINVAL;
     
     // Setup dictionary CHAP authentication information
@@ -226,7 +228,8 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     
     // Get CHAP parameters
     CFStringRef targetUser,targetSecret,initiatorUser,initiatorSecret;
-    iSCSIAuthGetCHAPValues(auth,&targetUser,&targetSecret,&initiatorUser,&initiatorSecret);
+    iSCSIAuthGetCHAPValues(initiatorAuth,&initiatorUser,&initiatorSecret);
+    iSCSIAuthGetCHAPValues(targetAuth,&initiatorUser,&initiatorSecret);
     
     // Get identifier and challenge & calculate the response
     CFStringRef identifier = NULL, challenge = NULL;
@@ -292,7 +295,8 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
 }
 
 void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
-                                 iSCSIAuthRef auth,
+                                 iSCSIAuthRef initiatorAuth,
+                                 iSCSIAuthRef targetAuth,
                                  CFMutableDictionaryRef authCmd)
 {
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
@@ -309,7 +313,7 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
     CFDictionaryAddValue(authCmd,kRFC3720_Key_InitiatorAlias,kiSCSIInitiatorAlias);
 
     // Determine authentication method used and add to dictionary
-    enum iSCSIAuthMethods authMethod = iSCSIAuthGetMethod(auth);
+    enum iSCSIAuthMethods authMethod = iSCSIAuthGetMethod(initiatorAuth);
     
     // Add authentication key(s) to dictionary
     CFStringRef authMeth = kRFC3720_Value_AuthMethodNone;
@@ -325,12 +329,14 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
  *  target name is set to blank (e.g., by a call to iSCSITargetSetName()) or 
  *  never set at all, a discovery session is assumed for authentication. */
 errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
-                           iSCSIAuthRef auth,
+                           iSCSIAuthRef initiatorAuth,
+                           iSCSIAuthRef targetAuth,
                            SID sessionId,
                            CID connectionId,
                            enum iSCSILoginStatusCode * statusCode)
 {
-    if(!target || !auth || sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
+    if(!target || !initiatorAuth || !targetAuth ||
+       sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
         return EINVAL;
 
     // Setup dictionary with target and initiator info for authentication
@@ -343,7 +349,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
         kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,
         &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     
-    iSCSIAuthNegotiateBuildDict(target,auth,authCmd);
+    iSCSIAuthNegotiateBuildDict(target,initiatorAuth,targetAuth,authCmd);
     
     struct iSCSILoginQueryContext context;
     context.sessionId    = sessionId;
@@ -359,7 +365,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     enum iSCSIRejectCode rejectCode;
     
     // If no authentication is required, move to next stage
-    if(iSCSIAuthGetMethod(auth) == kiSCSIAuthMethodNone)
+    if(iSCSIAuthGetMethod(initiatorAuth) == kiSCSIAuthMethodNone)
         context.nextStage = kiSCSIPDULoginOperationalNegotiation;
     
     errno_t error = iSCSISessionLoginQuery(&context,
@@ -414,11 +420,12 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     }
 
     // Call the appropriate authentication function to proceed
-    enum iSCSIAuthMethods authMethod = iSCSIAuthGetMethod(auth);
+    enum iSCSIAuthMethods authMethod = iSCSIAuthGetMethod(initiatorAuth);
     
     if(authMethod == kiSCSIAuthMethodCHAP) {
         error = iSCSIAuthNegotiateCHAP(target,
-                                       auth,
+                                       initiatorAuth,
+                                       targetAuth,
                                        sessionId,
                                        connectionId,
                                        sessCfgKernel.targetSessionId,

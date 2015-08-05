@@ -31,8 +31,22 @@ typedef CFDictionaryRef iSCSIPortalRef;
 typedef CFDictionaryRef iSCSITargetRef;
 typedef CFMutableDictionaryRef iSCSIMutableTargetRef;
 
+/*! A composite data structure comprising intitiator and target authentication
+ *  objects. Used by the iSCSI layer to establish sessions. */
 typedef CFDictionaryRef iSCSIAuthRef;
-typedef CFMutableDictionaryRef iSCSIMutableAuthRef;
+
+/*! Target authentication object. */
+typedef CFDictionaryRef iSCSITargetAuthRef;
+typedef CFMutableDictionaryRef iSCSIMutableTargetAuthRef;
+
+/*! Initiator authenticaiton object. */
+typedef CFDictionaryRef iSCSIInitiatorAuthRef;
+typedef CFMutableDictionaryRef iSCSIMutableInitiatorAuthRef;
+
+/*! Basis for initiator and target authentication objects. */
+typedef CFDictionaryRef iSCSICommonAuthRef;
+typedef CFMutableDictionaryRef iSCSIMutableCommonAuthRef;
+
 
 typedef CFDictionaryRef iSCSIDiscoveryRecRef;
 typedef CFMutableDictionaryRef iSCSIMutableDiscoveryRecRef;
@@ -42,7 +56,6 @@ typedef CFMutableDictionaryRef iSCSIMutableSessionConfigRef;
 
 typedef CFDictionaryRef iSCSIConnectionConfigRef;
 typedef CFMutableDictionaryRef iSCSIMutableConnectionConfigRef;
-
 
 /*! Error recovery levels. */
 enum iSCSIErrorRecoveryLevels {
@@ -291,48 +304,34 @@ CFDictionaryRef iSCSITargetCreateDictionary(iSCSITargetRef target);
 CFDataRef iSCSITargetCreateData(iSCSITargetRef target);
 
 
-/*! Creates a new authentication object from an external data representation.
- * @param data data used to construct an iSCSI authentication object.
- * @return an iSCSI authentication object or NULL if object creation failed */
-iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIAuth object with empty authentication parameters
  *  (defaults to no authentication).
  *  @return a new iSCSI authentication object. */
 iSCSIAuthRef iSCSIAuthCreateNone();
 
-/*! Creates a new iSCSIAuth object for CHAP authentication.  The initiatorUser
- *  and initiatorSecret are both required parameters, while targetUser and 
- *  targetSecret are optional.  This function will fail to return an 
- *  authentication object if the first two parameters are not specified.
- *  @param targetUser the user name for CHAP.
- *  @param targetSecret the shared CHAP secret.
- *  @param initiatorUser the user name for mutual CHAP (may be NULL if mutual
- *  CHAP is not used).
- *  @param initiatorSecret the shared secret for mutual CHAP (may be NULL if
- *  mutual CHAP is not used). 
+/*! Creates a new authentication object from an external data representation.
+ * @param data data used to construct an iSCSI authentication object.
+ * @return an iSCSI authentication object or NULL if object creation failed */
+iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data);
+
+
+/*! Creates a new iSCSIAuth object for CHAP authentication. This function will 
+ *  fail to return an authentication object if both parameters are not specified.
+ *  @param user the user name for CHAP.
+ *  @param sharedSecret the shared CHAP secret.
  *  @return an iSCSI authentication object, or NULL if the parameters were
  *  invalid. */
-iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef targetUser,
-                                 CFStringRef targetSecret,
-                                 CFStringRef initiatorUser,
-                                 CFStringRef initiatorSecret);
+iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef user,CFStringRef sharedSecret);
 
 /*! Returns the CHAP authentication parameter values if the authentication
  *  method is actually CHAP.
  *  @param auth an iSCSI authentication object.
- *  @param targetUser the user name for CHAP.
- *  @param targetSecret the shared CHAP secret.
- *  @param initiatorUser the user name for mutual CHAP (may be NULL if mutual
- *  CHAP is not used).
- *  @param initiatorSecret the shared secret for mutual CHAP (may be NULL if
- *  mutual CHAP is not used). */
+ *  @param user the user name for CHAP.
+ *  @param sharedSecret the shared CHAP secret. */
 void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
-                            CFStringRef * targetUser,
-                            CFStringRef * targetSecret,
-                            CFStringRef * initiatorUser,
-                            CFStringRef * initiatorSecret);
-
+                            CFStringRef * user,
+                            CFStringRef * sharedSecret);
 
 /*! Gets the authentication method used.
  *  @param auth an iSCSI authentication object.
@@ -347,21 +346,6 @@ void iSCSIAuthRelease(iSCSIAuthRef auth);
  *  @param auth an iSCSI authentication object. */
 void iSCSIAuthRetain(iSCSIAuthRef auth);
 
-/*! Creates a new authentication object from a dictionary representation.
- * @return an iSCSI authentication object or NULL if object creation failed. */
-iSCSIAuthRef iSCSIAuthCreateWithDictionary(CFDictionaryRef dict);
-
-/*! Copies an authentication object to a dictionary representation.
- *  @param auth an iSCSI authentication object.
- *  @return a dictionary representation of the authentication object or
- *  NULL if authentication object is invalid. */
-CFDictionaryRef iSCSIAuthCreateDictionary(iSCSIAuthRef auth);
-
-/*! Copies the authentication object to a byte array representation.
- *  @param auth an iSCSI authentication object.
- *  @return data representing the authentication object 
- *  or NULL if the authenticaiton object is invalid. */
-CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth);
 
 
 

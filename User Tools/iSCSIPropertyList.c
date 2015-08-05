@@ -279,6 +279,9 @@ iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetIQN,CFStr
     return NULL;
 }
 
+/*! Copies an authentication object associated with a particular target.
+ *  @param targetIQN the target name.
+ *  @return the authentication object. */
 iSCSIAuthRef iSCSIPLCopyAuthenticationForTarget(CFStringRef targetIQN)
 {
     // Get the dictionary containing information about the target
@@ -290,18 +293,35 @@ iSCSIAuthRef iSCSIPLCopyAuthenticationForTarget(CFStringRef targetIQN)
     return NULL;
 }
 
+/*! Sets an authentication object associated with a particular target.
+ *  @param targetIQN the target name.
+ *  @param auth the connection configuration object to set. */
 void iSCSIPLSetAuthenticationForTarget(CFStringRef targetIQN,
-                                       iSCSIAuthRef auth)
+                                       iSCSIAuthRef initiatorAuth)
 {
     // Get the dictionary containing information about the target
     CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,true);
 
     // Set the authentication object
-    CFDictionaryRef authDict = iSCSIAuthCreateDictionary(auth);
+    CFDictionaryRef authDict = iSCSIAuthCreateDictionary(initiatorAuth);
     CFDictionarySetValue(targetInfo,kiSCSIPKAuthKey,authDict);
     CFRelease(authDict);
     
     targetNodesCacheModified = true;
+}
+
+/*! Copies an authentication object associated the intiator.
+ *  @return the authentication object. */
+iSCSIAuthRef iSCSIPLCopyAuthenticationForInitiator()
+{
+    return NULL;
+}
+
+/*! Sets an authentication object associated the initiator.
+ *  @param auth the authenticaiton object. */
+void iSCSIPLSetAuthenticationForInitiator(iSCSIAuthRef initiatorAuth)
+{
+
 }
 
 void iSCSIPLSetConnectionConfig(CFStringRef targetIQN,

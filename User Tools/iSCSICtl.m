@@ -536,7 +536,7 @@ iSCSIAuthRef iSCSICtlCreateAuthFromOptions(CFDictionaryRef options)
     if(!user)
         return iSCSIAuthCreateNone();
     else
-        return iSCSIAuthCreateCHAP(user,secret,mutualUser,mutualSecret);
+        return iSCSIAuthCreateCHAP(user,secret);
 }
 
 /*! Modifies an existing session configuration parameters object 

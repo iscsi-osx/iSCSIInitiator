@@ -113,7 +113,7 @@ errno_t iSCSIDLoginCommon(SID sessionId,
     errno_t error = 0;
     iSCSISessionConfigRef sessCfg = NULL;
     iSCSIConnectionConfigRef connCfg = NULL;
-    iSCSIAuthRef auth = NULL;
+    iSCSIAuthRef initiatorAuth = NULL, targetAuth = NULL;
 
     CID connectionId = kiSCSIInvalidConnectionId;
 
@@ -131,14 +131,17 @@ errno_t iSCSIDLoginCommon(SID sessionId,
         connCfg = iSCSIConnectionConfigCreateMutable();
 
     // Get authentication configuration from property list, create one if needed
-    if(!(auth = iSCSIPLCopyAuthenticationForTarget(targetIQN)))
-        auth = iSCSIAuthCreateNone();
+    if(!(targetAuth = iSCSIPLCopyAuthenticationForTarget(targetIQN)))
+        targetAuth = iSCSIAuthCreateNone();
+
+    if(!(initiatorAuth = iSCSIPLCopyAuthenticationForInitiator()))
+       initiatorAuth = iSCSIAuthCreateNone();
 
     // Do either session or connection login
     if(sessionId == kiSCSIInvalidSessionId)
-        error = iSCSILoginSession(target,portal,auth,sessCfg,connCfg,&sessionId,&connectionId,statusCode);
+        error = iSCSILoginSession(target,portal,initiatorAuth,targetAuth,sessCfg,connCfg,&sessionId,&connectionId,statusCode);
     else
-        error = iSCSILoginConnection(sessionId,portal,auth,connCfg,&connectionId,statusCode);
+        error = iSCSILoginConnection(sessionId,portal,initiatorAuth,targetAuth,connCfg,&connectionId,statusCode);
     
     return error;
 }
