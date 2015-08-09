@@ -69,6 +69,117 @@ CFStringRef kiSCSIPKInitiatorIQN = CFSTR("Name");
 /*! Preference key name for iSCSI initiator alias. */
 CFStringRef kiSCSIPKInitiatorAlias = CFSTR("Alias");
 
+/*! The iSCSI service name to use when storing CHAP information in the
+ *  OS X keychain. */
+CFStringRef kiSCSISecCHAPServiceName = CFSTR("iSCSI CHAP");
+
+
+/*! Helper function. Writes a shared secret associated with a particular
+ *  iSCSI node (either initiator or target) to the system keychain. An entry
+ *  for the node is created if it does not exist. If it does exist, the shared
+ *  secret for is updated.
+ *  @param nodeIQN the iSCSI qualified name of the target or initiator. 
+ *  @param userIQN the
+ *  @param sharedSecret the shared secret to store. */
+void iSCSIPLSetCHAPSecretForNode(CFStringRef nodeIQN,
+                                 CFStringRef user,
+                                 CFStringRef sharedSecret)
+{
+    SecKeychainRef sysKeychain = NULL;
+    SecKeychainItemRef item = NULL;
+    OSStatus status;
+    SecAccessRef initialAccess = NULL;
+
+    // Get the system keychain and unlock it (prompts user if required)
+    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&sysKeychain);
+
+    if(status == errSecSuccess)
+        status = SecKeychainUnlock(sysKeychain,0,NULL,false);
+
+    if(status == errSecSuccess)
+        status = SecAccessCreate(CFSTR(""),0,&initialAccess);
+
+    // Add the shared secret to the keychain
+    if(status == errSecSuccess) {
+
+        SecKeychainAttribute attributes[] = {
+            {kSecLabelItemAttr,(UInt32)CFStringGetLength(nodeIQN),(void *)CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII)},
+            {kSecAccountItemAttr,(UInt32)CFStringGetLength(user),(void *)CFStringGetCStringPtr(user,kCFStringEncodingASCII)},
+            {kSecServiceItemAttr,(UInt32)CFStringGetLength(kiSCSISecCHAPServiceName),(void *)CFStringGetCStringPtr(kiSCSISecCHAPServiceName,kCFStringEncodingASCII)},
+            {kSecDescriptionItemAttr,(UInt32)CFStringGetLength(kiSCSISecCHAPServiceName),(void *)CFStringGetCStringPtr(kiSCSISecCHAPServiceName,kCFStringEncodingASCII)}
+        };
+
+        SecKeychainAttributeList attrList = { sizeof(attributes)/sizeof(attributes[0]), attributes };
+
+        SecKeychainItemCreateFromContent(
+                kSecGenericPasswordItemClass,
+                &attrList,
+                (UInt32)CFStringGetLength(sharedSecret),
+                (const void *)CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),
+                sysKeychain,
+                initialAccess,
+                &item);
+    }
+}
+
+/*! Helper function. Copies a shared secret associated with a particular
+ *  iSCSI node (either initiator or target) to the system keychain.
+ *  @param nodeIQN the iSCSI qualified name of the target or initiator.
+ *  @return the shared secret for the specified node. */
+errno_t iSCSPLCopyCHAPSecretForNode(CFStringRef nodeIQN,
+                                    CFStringRef * user,
+                                    CFStringRef * sharedSecret)
+{
+    SecKeychainRef sysKeychain;
+    OSStatus status;
+    CFDictionaryRef resultsDict = NULL;
+
+    // Get the system keychain and unlock it (prompts user if required)
+    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&sysKeychain);
+
+    if(status == errSecSuccess)
+        status = SecKeychainUnlock(sysKeychain,0,NULL,false);
+
+    if(status == errSecSuccess) {
+
+        // Setup query dictionary to find the CHAP user and shared key
+        const void * queryKeys[] = {
+            kSecClass,
+            kSecReturnAttributes,
+            kSecReturnData,
+            kSecAttrLabel
+        };
+
+        const void * queryValues[] = {
+            kSecClassGenericPassword,
+            kCFBooleanTrue,
+            kCFBooleanTrue,
+            nodeIQN
+        };
+
+        CFDictionaryRef queryDict = CFDictionaryCreate(
+            kCFAllocatorDefault,queryKeys,queryValues,4,
+            &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
+
+        status = SecItemCopyMatching(queryDict,(CFTypeRef *)&resultsDict);
+    }
+
+    // Extract CHAP user and shared secret
+    if(status == errSecSuccess)
+    {
+        // Extract the shared secret from the results dictionary
+        CFDataRef secretData = CFDictionaryGetValue(resultsDict,kSecValueData);
+
+        *sharedSecret = CFStringCreateFromExternalRepresentation(
+            kCFAllocatorDefault,secretData,kCFStringEncodingASCII);
+
+        *user = CFStringCreateCopy(kCFAllocatorDefault,CFDictionaryGetValue(resultsDict,kSecAttrAccount));
+
+    }
+
+    return status;
+}
+
 /*! Retrieves a mutable dictionary for the specified key. 
  *  @param key the name of the key, which can be either kiSCSIPKTargetsKey,
  *  kiSCSIPKDiscoveryKey, or kiSCSIPKInitiatorKey.
@@ -321,6 +432,7 @@ iSCSIAuthRef iSCSIPLCopyAuthenticationForInitiator()
  *  @param auth the authenticaiton object. */
 void iSCSIPLSetAuthenticationForInitiator(iSCSIAuthRef initiatorAuth)
 {
+
 
 }
 

@@ -11,6 +11,8 @@
 #define __ISCSI_PROPERTY_LIST_H__
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <Security/Security.h>
+
 #include "iSCSITypes.h"
 
 /*! Copies the initiator name from the property list into a CFString object.
