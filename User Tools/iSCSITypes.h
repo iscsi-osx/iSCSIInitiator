@@ -346,7 +346,13 @@ void iSCSIAuthRelease(iSCSIAuthRef auth);
  *  @param auth an iSCSI authentication object. */
 void iSCSIAuthRetain(iSCSIAuthRef auth);
 
+/*! Creates a new authentication object from a dictionary representation. */
+iSCSIAuthRef iSCSIAuthCreateWithDictionary(CFDictionaryRef dict);
 
+/*! Copies an authentication object to a dictionary representation. */
+CFDictionaryRef iSCSIAuthCreateDictionary(iSCSIAuthRef auth);
+/*! Copies the authentication object to a byte array representation. */
+CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth);
 
 
 /*! Creates a discovery record object. */

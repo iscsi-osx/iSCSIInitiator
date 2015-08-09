@@ -11,6 +11,7 @@
 		2B0D47EF1AE4CBA000437BAC /* unload.sh in Resources */ = {isa = PBXBuildFile; fileRef = 2B0D47ED1AE4CBA000437BAC /* unload.sh */; };
 		2B16EECA196085A40061E7FA /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
 		2B421EFD1B66A40E000278A4 /* clean.sh in Resources */ = {isa = PBXBuildFile; fileRef = 2B421EFC1B66A40E000278A4 /* clean.sh */; };
+		2B434B371B779A3D0057C0F0 /* iSCSIPropertyList.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B111A70157200A81C80 /* iSCSIPropertyList.c */; };
 		2B4A60371A3E6F690006AFCC /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B5935C21810DF7100FFC3D3 /* IOKit.framework */; };
 		2B4A60381A3E6F830006AFCC /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
 		2B7817D31AC784F300EC605E /* iSCSISession.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B181A70157200A81C80 /* iSCSISession.c */; };
@@ -528,6 +529,7 @@
 				2BCB2B611A7019F100A81C80 /* iSCSITest.c in Sources */,
 				2B7817D71AC7851200EC605E /* iSCSITypes.c in Sources */,
 				2B7817D91AC7852500EC605E /* iSCSIKernelInterface.c in Sources */,
+				2B434B371B779A3D0057C0F0 /* iSCSIPropertyList.c in Sources */,
 				2B7817D31AC784F300EC605E /* iSCSISession.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
