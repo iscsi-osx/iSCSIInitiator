@@ -30,6 +30,7 @@
 #include "iSCSISession.h"
 #include "iSCSIKernelInterface.h"
 #include "iSCSITypes.h"
+#include "iSCSIPropertyList.h"
 
 int main(int argc, const char * argv[]) {
 
@@ -70,12 +71,30 @@ int main(int argc, const char * argv[]) {
      
 
      */
+    /*
     SecKeychainRef keychain;
     SecKeychainItemRef item;
     OSStatus status;
     status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&keychain);
     SecKeychainUnlock(keychain, 0, NULL, false);
     status = SecKeychainAddGenericPassword(keychain,25,"iSCSI CHAP Shared Secret",31,"iqn.2013-06.com.example:target0",3,"abc",&item);
+
+    */
+    iSCSIPLSynchronize();
+    iSCSIPLSetInitiatorIQN(CFSTR("iqn.test2.com"));
+
+    iSCSIAuthRef auth = iSCSIAuthCreateCHAP(CFSTR("usera"),CFSTR("secreta"));
+    //    iSCSIPLSetAuthenticationForInitiator(auth);
+    iSCSIAuthRef auth2 = iSCSIPLCopyAuthenticationForInitiator();
+
+    CFStringRef user,secret;
+    iSCSIAuthGetCHAPValues(auth2,&user,&secret);
+    CFShow(user);
+    CFShow(secret);
+
+    iSCSIPLSynchronize();
+
+
 
     return 0;
 }

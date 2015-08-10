@@ -24,7 +24,6 @@ static CFStringRef kiSCSIDefaultPort = CFSTR("3260");
  *  been specified. */
 static CFStringRef kiSCSIUnspecifiedTargetIQN = CFSTR("");
 
-
 typedef CFMutableDictionaryRef iSCSIMutablePortalRef;
 typedef CFDictionaryRef iSCSIPortalRef;
 

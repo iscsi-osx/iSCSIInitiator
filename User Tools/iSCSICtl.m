@@ -28,7 +28,6 @@ CFStringRef kModeModify = CFSTR("-modify");
 /*! Remove command-line mode. */
 CFStringRef kModeRemove = CFSTR("-remove");
 
-
 /*! List command-line mode. */
 CFStringRef kModeListTargets = CFSTR("-targets");
 
@@ -67,6 +66,9 @@ CFStringRef kOptErrorRecoveryLevel = CFSTR("ErrorRecoveryLevel");
 /*! Target command-line option. */
 CFStringRef kOptTarget = CFSTR("target");
 
+/*! Initiator command-line option. */
+CFStringRef kOptInitiator = CFSTR("initiator");
+
 /*! Target nickname command-line option. */
 CFStringRef kOptNickname = CFSTR("nickname");
 
@@ -89,16 +91,10 @@ CFStringRef kOptSessionId = CFSTR("session");
 CFStringRef kOptDigest = CFSTR("digest");
 
 /*! User (CHAP) command-line option. */
-CFStringRef kOptUser = CFSTR("user");
+CFStringRef kOptCHAPUser = CFSTR("CHAP-name");
 
 /*! Secret (CHAP) command-line option. */
-CFStringRef kOptSecret = CFSTR("secret");
-
-/*! Mutual-user (CHAP) command-line option. */
-CFStringRef kOptMutualUser = CFSTR("mutualUser");
-
-/*! Mutual-secret (CHAP) command-line option. */
-CFStringRef kOptMutualSecret = CFSTR("mutualSecret");
+CFStringRef kOptCHAPSecret = CFSTR("CHAP-secret");
 
 /*! Name of this command-line executable. */
 const char * executableName;
@@ -506,30 +502,19 @@ iSCSIAuthRef iSCSICtlCreateAuthFromOptions(CFDictionaryRef options)
         return NULL;
     
     // Setup authentication object from command-line parameters
-    CFStringRef user = NULL, secret = NULL, mutualUser = NULL, mutualSecret = NULL;
-    CFDictionaryGetValueIfPresent(options,kOptUser,(const void **)&user);
-    CFDictionaryGetValueIfPresent(options,kOptSecret,(const void **)&secret);
-    CFDictionaryGetValueIfPresent(options,kOptMutualUser,(const void **)&mutualUser);
-    CFDictionaryGetValueIfPresent(options,kOptMutualSecret,(const void **)&mutualSecret);
-    
+    CFStringRef user = NULL, secret = NULL;
+    CFDictionaryGetValueIfPresent(options,kOptCHAPUser,(const void **)&user);
+    CFDictionaryGetValueIfPresent(options,kOptCHAPSecret,(const void **)&secret);
+
     if(!user && secret) {
-        iSCSICtlDisplayMissingOptionError(kOptUser);
+        iSCSICtlDisplayMissingOptionError(kOptCHAPUser);
         return NULL;
     }
     else if(user && !secret) {
-        iSCSICtlDisplayMissingOptionError(kOptSecret);
+        iSCSICtlDisplayMissingOptionError(kOptCHAPSecret);
         return NULL;
     }
-    
-    if(!mutualUser && mutualSecret) {
-        iSCSICtlDisplayMissingOptionError(kOptMutualUser);
-        return NULL;
-    }
-    else if(mutualUser && !mutualSecret) {
-        iSCSICtlDisplayMissingOptionError(kOptMutualSecret);
-        return NULL;
-    }
-    
+
     // At this point we've validated input combinations, if the user is not
     // present then we're dealing with no authentication.  Otherwise we have
     // either CHAP or mutual CHAP
@@ -609,6 +594,7 @@ errno_t iSCSICtlModifyConnectionConfigFromOptions(CFDictionaryRef options,
 }
 
 
+
 errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
                                         iSCSIMutableTargetRef target)
 {
@@ -620,6 +606,8 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
 
     return 0;
 }
+
+
 
 errno_t iSCSICtlModifyPortalFromOptions(CFDictionaryRef options,
                                         iSCSIMutablePortalRef portal)
@@ -810,7 +798,7 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
             }
             iSCSIPortalRelease(portal);
         }
-        if (target)
+        if(target)
             iSCSITargetRelease(target);
 
     }
@@ -884,6 +872,22 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     return 0;
 }
 
+errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,CFDictionaryRef options)
+{
+    // Check for authentication modifications
+    CFStringRef initiatorUser, sharedSecret = NULL;
+    if(CFDictionaryGetValueIfPresent(options,kOptCHAPUser,(const void **)&initiatorUser))
+    {
+        if(CFDictionaryGetValueIfPresent(options,kOptCHAPSecret,(const void **)&sharedSecret))
+        {
+            iSCSIAuthRef auth = iSCSIAuthCreateCHAP(initiatorUser,sharedSecret);
+            iSCSIPLSetAuthenticationForInitiator(auth);
+        }
+    }
+
+    return 0;
+}
+
 errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
     // First check if the target exists in the property list.  Then check to
@@ -954,6 +958,19 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
         iSCSIPortalRelease(portal);
     if(target)
         iSCSITargetRelease(target);
+
+    return error;
+}
+
+errno_t iSCSICtlModify(iSCSIDaemonHandle handle,CFDictionaryRef options)
+{
+    errno_t error = 0;
+
+    // Check whether we need to modify a target or the initiator
+    if(CFDictionaryContainsKey(options,kOptInitiator))
+        error = iSCSICtlModifyInitiator(handle,options);
+    else
+        error = iSCSICtlModifyTarget(handle,options);
 
     return error;
 }
@@ -1394,7 +1411,7 @@ int main(int argc, char * argv[])
     else if(CFStringCompare(mode,kModeDiscovery,0) == kCFCompareEqualTo)
         error = iSCSICtlDiscoverTargets(handle,optDictionary);
     else if(CFStringCompare(mode,kModeModify,0) == kCFCompareEqualTo)
-        error = iSCSICtlModifyTarget(handle,optDictionary);
+        error = iSCSICtlModify(handle,optDictionary);
     else if(CFStringCompare(mode,kModeRemove,0) == kCFCompareEqualTo)
         error = iSCSICtlRemoveTarget(handle,optDictionary);
     else if(CFStringCompare(mode,kModeListTargets,0) == kCFCompareEqualTo)
