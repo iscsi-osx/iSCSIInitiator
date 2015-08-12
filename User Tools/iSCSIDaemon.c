@@ -186,7 +186,7 @@ errno_t iSCSIDLoginAllPortals(iSCSITargetRef target,
     // Add portals to the session until we've run out of portals to add or
     // reached the maximum connection limit
     CFStringRef portalAddress = NULL;
-    CFArrayRef portals = iSCSIPLCreateArrayOfPortals(targetIQN);
+    CFArrayRef portals = iSCSIPLCreateArrayOfPortalsForTarget(targetIQN);
     CFIndex portalIdx = 0;
 
     while( (activeConnections < maxConnections) &&

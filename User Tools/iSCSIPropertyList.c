@@ -226,8 +226,6 @@ CFMutableDictionaryRef iSCSIPLCreateDiscoveryDict()
                                      &kCFTypeDictionaryValueCallBacks);
 }
 
-
-
 /*! Creates a mutable dictionary for the initiator key.
  *  @return a mutable dictionary for the initiator key. */
 CFMutableDictionaryRef iSCSIPLCreateInitiatorDict()
@@ -327,8 +325,7 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetIQN,
                                                                          0,
                                                                          &kCFTypeDictionaryKeyCallBacks,
                                                                          &kCFTypeDictionaryValueCallBacks);
-           
-           CFDictionarySetValue(portalInfo,kiSCSIPKAuthKey,CFSTR(""));
+
            CFDictionarySetValue(portalInfo,kiSCSIPKConnectionCfgKey,CFSTR(""));
            CFDictionarySetValue(portalInfo,kiSCSIPKPortalKey,CFSTR(""));
            
@@ -658,7 +655,7 @@ CFArrayRef iSCSIPLCreateArrayOfTargets()
 /*! Creates an array of portal names for a given target.
  *  @param targetIQN the name of the target (fully qualified IQN or EUI name).
  *  @return an array of portal names for the specified target. */
-CFArrayRef iSCSIPLCreateArrayOfPortals(CFStringRef targetIQN)
+CFArrayRef iSCSIPLCreateArrayOfPortalsForTarget(CFStringRef targetIQN)
 {
     CFMutableDictionaryRef portalsList = iSCSIPLGetPortalsList(targetIQN,false);
     

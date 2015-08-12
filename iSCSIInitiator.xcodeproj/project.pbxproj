@@ -12,6 +12,9 @@
 		2B16EECA196085A40061E7FA /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
 		2B421EFD1B66A40E000278A4 /* clean.sh in Resources */ = {isa = PBXBuildFile; fileRef = 2B421EFC1B66A40E000278A4 /* clean.sh */; };
 		2B434B371B779A3D0057C0F0 /* iSCSIPropertyList.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B111A70157200A81C80 /* iSCSIPropertyList.c */; };
+		2B459D551B7B8192008F656F /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B459D541B7B8192008F656F /* Security.framework */; };
+		2B459D561B7B81A0008F656F /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B459D541B7B8192008F656F /* Security.framework */; };
+		2B459D571B7B81A7008F656F /* DiskArbitration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BC4CBB11AA55046003611F7 /* DiskArbitration.framework */; };
 		2B4A60371A3E6F690006AFCC /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B5935C21810DF7100FFC3D3 /* IOKit.framework */; };
 		2B4A60381A3E6F830006AFCC /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
 		2B7817D31AC784F300EC605E /* iSCSISession.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B181A70157200A81C80 /* iSCSISession.c */; };
@@ -99,6 +102,7 @@
 		2B0D47ED1AE4CBA000437BAC /* unload.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = unload.sh; sourceTree = "<group>"; };
 		2B20904F18C6E43C00C43190 /* libsystem_kernel.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsystem_kernel.dylib; path = usr/lib/system/libsystem_kernel.dylib; sourceTree = SDKROOT; };
 		2B421EFC1B66A40E000278A4 /* clean.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = clean.sh; sourceTree = "<group>"; };
+		2B459D541B7B8192008F656F /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		2B5935651810D38E00FFC3D3 /* Kernel.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Kernel.framework; path = System/Library/Frameworks/Kernel.framework; sourceTree = SDKROOT; };
 		2B59357A1810D3C800FFC3D3 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		2B59357C1810D3C800FFC3D3 /* PreferencePanes.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PreferencePanes.framework; path = System/Library/Frameworks/PreferencePanes.framework; sourceTree = SDKROOT; };
@@ -171,6 +175,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B459D571B7B81A7008F656F /* DiskArbitration.framework in Frameworks */,
+				2B459D561B7B81A0008F656F /* Security.framework in Frameworks */,
 				2B16EECA196085A40061E7FA /* CoreFoundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -186,6 +192,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B459D551B7B8192008F656F /* Security.framework in Frameworks */,
 				2BC4CBB21AA55046003611F7 /* DiskArbitration.framework in Frameworks */,
 				2B4A60381A3E6F830006AFCC /* CoreFoundation.framework in Frameworks */,
 				2B4A60371A3E6F690006AFCC /* IOKit.framework in Frameworks */,
@@ -221,6 +228,7 @@
 		2B5935631810D38E00FFC3D3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2B459D541B7B8192008F656F /* Security.framework */,
 				2BC4CBB11AA55046003611F7 /* DiskArbitration.framework */,
 				2B20904F18C6E43C00C43190 /* libsystem_kernel.dylib */,
 				2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */,

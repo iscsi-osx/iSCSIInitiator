@@ -16,61 +16,63 @@
 #include "iSCSIIORegistry.h"
 #include "iSCSIUtils.h"
 
-/*! Add command-line mode. */
-CFStringRef kModeAdd = CFSTR("-add");
+/*! Modes of operation for this utility. */
+enum iSCSICtlCmds {
 
-/*! Discovery command-line mode. */
-CFStringRef kModeDiscovery = CFSTR("-discovery");
+    /*! Add (target, discovery portal, etc). */
+    kiSCSICtlCmdAdd,
 
-/*! Modify command-line mode. */
-CFStringRef kModeModify = CFSTR("-modify");
+    /*! Modify (initiator, target, discovery portal, etc). */
+    kiSCSICtlCmdModify,
 
-/*! Remove command-line mode. */
-CFStringRef kModeRemove = CFSTR("-remove");
+    /*! Remove (target, discovery portal, etc). */
+    kiSCSICtlCmdRemove,
 
-/*! List command-line mode. */
-CFStringRef kModeListTargets = CFSTR("-targets");
+    /*! List (targets, discovery portal, luns, etc). */
+    kiSCSICtlCmdList,
 
-/*! List command-line mode. */
-CFStringRef kModeListLUNs = CFSTR("-luns");
+    /*! Login (target). */
+    kiSCSICtlCmdLogin,
 
-/*! Login command-line mode. */
-CFStringRef kModeLogin = CFSTR("-login");
+    /*! Logout (target). */
+    kiSCSICtlCmdLogout,
 
-/*! Logout command-line mode. */
-CFStringRef kModeLogout = CFSTR("-logout");
+    /*! Mount (target LUNs). */
+    kiSCSICtlCmdMount,
 
-/*! Mount command-line mode. */
-CFStringRef kModeMount = CFSTR("-mount");
+    /*! Unmount (target LUNs). */
+    kiSCSICtlCmdUnmount,
 
-/*! Probe command; probes a target for authentication method. */
-CFStringRef kModeProbe = CFSTR("-probe");
+    /*! Probe (target). */
+    kiSCSICtlCmdProbe,
 
-/*! Unmount command-line mode. */
-CFStringRef kModeUnmount = CFSTR("-unmount");
+    /*! Invalid mode of operation. */
+    kiSCSICtlCmdInvalid
+};
 
 
-/*! Sets the initiator name. */
-CFStringRef kOptInitiatorName = CFSTR("InitiatorName");
+/*! Sub-modes of operation for this utility. */
+enum iSCSICtlSubCmds {
 
-/*! Sets the initiator alias. */
-CFStringRef kOptInitiatorAlias = CFSTR("InitiatorAlias");
+    /*! Sub mode for initiator operations. */
+    kiSCSICtlSubCmdInitiator,
 
-/*! Sets the maximum number of connections for a session. */
-CFStringRef kOptMaxConnection = CFSTR("MaxConnections");
+    /*! Sub mode for target operations. */
+    kiSCSICtlSubCmdTarget,
 
-/*! Sets the error recovery level for a session. */
-CFStringRef kOptErrorRecoveryLevel = CFSTR("ErrorRecoveryLevel");
+    /*! Sub mode for discovery portal operations. */
+    kiSCSICtlSubCmdDiscovery,
+
+    /*! Sub mode for LUN operations. */
+    kiSCSICtlSubCmdLUNs,
+
+    /*! Invalid sub-mode. */
+    kiSCSICtlSubCmdInvalid
+};
 
 
 /*! Target command-line option. */
 CFStringRef kOptTarget = CFSTR("target");
-
-/*! Initiator command-line option. */
-CFStringRef kOptInitiator = CFSTR("initiator");
-
-/*! Target nickname command-line option. */
-CFStringRef kOptNickname = CFSTR("nickname");
 
 /*! Portal command-line option. */
 CFStringRef kOptPortal = CFSTR("portal");
@@ -101,6 +103,89 @@ const char * executableName;
 
 /*! The standard out stream, used by various functions to write. */
 CFWriteStreamRef stdoutStream = NULL;
+
+
+
+
+enum iSCSICtlCmds iSCSICtlGetCmdFromArguments(CFArrayRef arguments)
+{
+    CFMutableDictionaryRef modesDict = CFDictionaryCreateMutable(kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,0);
+    CFDictionarySetValue(modesDict,CFSTR("add"),(const void *)kiSCSICtlCmdAdd);
+    CFDictionarySetValue(modesDict,CFSTR("modify"),(const void *)kiSCSICtlCmdModify);
+    CFDictionarySetValue(modesDict,CFSTR("remove"),(const void *)kiSCSICtlCmdRemove);
+    CFDictionarySetValue(modesDict,CFSTR("list") ,(const void *)kiSCSICtlCmdList);
+    CFDictionarySetValue(modesDict,CFSTR("login"),(const void *)kiSCSICtlCmdLogin);
+    CFDictionarySetValue(modesDict,CFSTR("logout"),(const void *)kiSCSICtlCmdLogout);
+    CFDictionarySetValue(modesDict,CFSTR("mount"),(const void *)kiSCSICtlCmdMount);
+    CFDictionarySetValue(modesDict,CFSTR("unmount"),(const void *)kiSCSICtlCmdUnmount);
+    CFDictionarySetValue(modesDict,CFSTR("probe"),(const void *)kiSCSICtlCmdProbe);
+
+    // If a mode was supplied (first argument after executable name)
+    if(CFArrayGetCount(arguments) > 1) {
+        CFStringRef arg = CFArrayGetValueAtIndex(arguments,1);
+        return (enum iSCSICtlCmds) CFDictionaryGetValue(modesDict,arg);
+    }
+ 
+    return kiSCSICtlCmdInvalid;
+}
+
+enum iSCSICtlSubCmds iSCSICtlGetSubCmdFromArguments(CFArrayRef arguments)
+{
+    CFMutableDictionaryRef subModesDict = CFDictionaryCreateMutable(kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,0);
+    CFDictionaryAddValue(subModesDict,CFSTR("initiator"),(const void *)kiSCSICtlSubCmdInitiator);
+    CFDictionaryAddValue(subModesDict,CFSTR("target"),(const void *)kiSCSICtlSubCmdTarget);
+    CFDictionaryAddValue(subModesDict,CFSTR("discovery-portals"),(const void *)kiSCSICtlSubCmdDiscovery);
+    CFDictionaryAddValue(subModesDict,CFSTR("luns"),(const void *)kiSCSICtlSubCmdLUNs);
+
+    // If a mode was supplied (first argument after executable name)
+    enum iSCSICtlSubCmds subCmd = kiSCSICtlSubCmdInvalid;
+
+    if(CFArrayGetCount(arguments) > 2) {
+        CFDictionaryGetValueIfPresent(subModesDict,
+                                      CFArrayGetValueAtIndex(arguments,2),
+                                      (const void **)&subCmd);
+    }
+
+    return subCmd;
+}
+
+void iSCSICtlParseTargetAndPortalToDictionary(CFArrayRef arguments,
+                                              CFMutableDictionaryRef optDictionary)
+{
+    // The target, portal, or target-portal combination is specified after
+    // the sub-command, if one was specified.
+    CFIndex targetAndPortalIdx = 3;
+    if(iSCSICtlGetSubCmdFromArguments(arguments) == kiSCSICtlSubCmdInvalid)
+        targetAndPortalIdx--;
+
+    // Ensure enough arguments were provided
+    if(CFArrayGetCount(arguments) > targetAndPortalIdx)
+    {
+        // Target and portal
+        CFStringRef arg = CFArrayGetValueAtIndex(arguments,targetAndPortalIdx);
+
+        // Find the comma (,) separating the two, if it exists
+        CFArrayRef argParts = CFStringCreateArrayBySeparatingStrings(
+            kCFAllocatorDefault,arg,CFSTR(","));
+
+        // If there are two parts, separate target & portal
+        if(CFArrayGetCount(argParts) > 1) {
+            CFDictionaryAddValue(optDictionary,kOptTarget,CFArrayGetValueAtIndex(argParts,0));
+            CFDictionaryAddValue(optDictionary,kOptPortal,CFArrayGetValueAtIndex(argParts,1));
+        }
+        // Need to determine whether a portal or target was specified
+        else {
+            // Targets must start with IQN or EUI
+            CFRange matchIQN = CFStringFind(arg,CFSTR("iqn."),kCFCompareCaseInsensitive);
+            CFRange matchEUI = CFStringFind(arg,CFSTR("eui."),kCFCompareCaseInsensitive);
+
+            if(matchIQN.location == kCFNotFound && matchEUI.location == kCFNotFound)
+                CFDictionaryAddValue(optDictionary,kOptPortal,arg);
+            else
+                CFDictionaryAddValue(optDictionary,kOptTarget,arg);
+        }
+    }
+}
 
 /*! Writes a string to stdout. */
 void iSCSICtlDisplayString(CFStringRef string)
@@ -404,7 +489,7 @@ Boolean iSCSICtlIsTargetSpecified(CFDictionaryRef options)
  *  @return the target object, or NULL. */
 iSCSIMutableTargetRef iSCSICtlCreateTargetFromOptions(CFDictionaryRef options)
 {
-    CFStringRef targetIQN, nickname;
+    CFStringRef targetIQN;
     if(!CFDictionaryGetValueIfPresent(options,kOptTarget,(const void **)&targetIQN))
     {
         iSCSICtlDisplayMissingOptionError(kOptTarget);
@@ -416,12 +501,8 @@ iSCSIMutableTargetRef iSCSICtlCreateTargetFromOptions(CFDictionaryRef options)
         return NULL;
     }
 
-    if(!CFDictionaryGetValueIfPresent(options,kOptNickname,(const void **)&nickname))
-        nickname = CFSTR("");
-    
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
     iSCSITargetSetName(target,targetIQN);
-    iSCSITargetSetNickname(target,nickname);
 
     return target;
 }
@@ -534,7 +615,7 @@ errno_t iSCSICtlModifySessionConfigFromOptions(CFDictionaryRef options,
 {
     if(!sessCfg)
         return EINVAL;
-    
+/*
     CFStringRef errorRecoveryLevel, maxConnections;
     if(CFDictionaryGetValueIfPresent(options,kOptErrorRecoveryLevel,(const void **)&errorRecoveryLevel))
     {
@@ -561,7 +642,7 @@ errno_t iSCSICtlModifySessionConfigFromOptions(CFDictionaryRef options,
         }
         
         iSCSISessionConfigSetMaxConnections(sessCfg,maxConnections);
-    }
+    }*/
 
     return 0;
 }
@@ -592,22 +673,6 @@ errno_t iSCSICtlModifyConnectionConfigFromOptions(CFDictionaryRef options,
 
     return 0;
 }
-
-
-
-errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
-                                        iSCSIMutableTargetRef target)
-{
-    iSCSITargetRef targetUpdates = iSCSICtlCreateTargetFromOptions(options);
-
-    // If a nickname was explicitly specified, update it
-    if(CFDictionaryContainsKey(options,kOptNickname))
-        iSCSITargetSetNickname(target,iSCSITargetGetNickName(targetUpdates));
-
-    return 0;
-}
-
-
 
 errno_t iSCSICtlModifyPortalFromOptions(CFDictionaryRef options,
                                         iSCSIMutablePortalRef portal)
@@ -882,6 +947,7 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,CFDictionaryRef options
         {
             iSCSIAuthRef auth = iSCSIAuthCreateCHAP(initiatorUser,sharedSecret);
             iSCSIPLSetAuthenticationForInitiator(auth);
+            iSCSIPLSynchronize();
         }
     }
 
@@ -945,8 +1011,8 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
             if(iSCSIDaemonIsTargetActive(handle,target))
                 iSCSICtlDisplayError("The specified target has an active session and cannot be modified.");
             else {
-                iSCSICtlModifyTargetFromOptions(options,target);
-                iSCSIPLSetTarget(target);
+                //                iSCSICtlModifyTargetFromOptions(options,target);
+                //                iSCSIPLSetTarget(target);
             }
         }
     }
@@ -962,18 +1028,6 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     return error;
 }
 
-errno_t iSCSICtlModify(iSCSIDaemonHandle handle,CFDictionaryRef options)
-{
-    errno_t error = 0;
-
-    // Check whether we need to modify a target or the initiator
-    if(CFDictionaryContainsKey(options,kOptInitiator))
-        error = iSCSICtlModifyInitiator(handle,options);
-    else
-        error = iSCSICtlModifyTarget(handle,options);
-
-    return error;
-}
 
 /*! Helper function. Displays information about a target/session. */
 void displayTargetInfo(iSCSIDaemonHandle handle,
@@ -1062,7 +1116,7 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
         displayTargetInfo(handle,target,properties);
         
-        CFArrayRef portalsList = iSCSIPLCreateArrayOfPortals(targetIQN);
+        CFArrayRef portalsList = iSCSIPLCreateArrayOfPortalsForTarget(targetIQN);
         CFIndex portalCount = CFArrayGetCount(portalsList);
         
         for(CFIndex portalIdx = 0; portalIdx < portalCount; portalIdx++)
@@ -1366,75 +1420,84 @@ int main(int argc, char * argv[])
     errno_t error = 0;
 
 @autoreleasepool {
-    
-    NSArray * args = [[NSProcessInfo processInfo] arguments];
-    CFArrayRef arguments = (__bridge CFArrayRef)(args);
-    
-    NSUserDefaults * options = [NSUserDefaults standardUserDefaults];
-    CFDictionaryRef optDictionary = (__bridge CFDictionaryRef)([options dictionaryRepresentation]);
-    
+
+    // Connect to the daemon
+    iSCSIDaemonHandle handle = iSCSIDaemonConnect();
+
     // Setup a stream for writing to stdout
     CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault,CFSTR("/dev/stdout"),kCFURLPOSIXPathStyle,false);
     stdoutStream = CFWriteStreamCreateWithFile(kCFAllocatorDefault,url);
     CFRelease(url);
     CFWriteStreamOpen(stdoutStream);
-    
+
+    // Retrieve command-line arguments as an NSArray
+    NSArray * args = [[NSProcessInfo processInfo] arguments];
+    CFArrayRef arguments = (__bridge CFArrayRef)(args);
+
+    // Convert command-line arguments into an options dictionary. This will
+    // place key-value pairs for command line options that start with a
+    // dash ('-'). Options that do not start with a dash will not appear in
+    // this dictionary.
+    NSUserDefaults * defaults = [NSUserDefaults standardUserDefaults];
+    CFDictionaryRef options = (__bridge CFDictionaryRef)([defaults dictionaryRepresentation]);
+
+    CFMutableDictionaryRef optDictionary = (CFMutableDictionaryRef)CFPropertyListCreateDeepCopy(
+        kCFAllocatorDefault,options,kCFPropertyListMutableContainersAndLeaves);
+
+    iSCSICtlParseTargetAndPortalToDictionary(arguments,optDictionary);
+
+
     // Save command line executable name for later use
     executableName = argv[0];
 
-    // Get the mode of operation (e.g., add, modify, remove, etc).
-    CFStringRef mode = NULL;
-    if(CFArrayGetCount(arguments) > 1)
-        mode = CFArrayGetValueAtIndex(arguments,1);
-    else {
-        CFWriteStreamClose(stdoutStream);
-        return 0;
-    }
+    // Get the mode of operation (e.g., add, modify, remove, etc.).
+    enum iSCSICtlCmds cmd = iSCSICtlGetCmdFromArguments(arguments);
+    enum iSCSICtlSubCmds subCmd = iSCSICtlGetSubCmdFromArguments(arguments);
 
-    // Connect to the daemon only if mode requires it
-    iSCSIDaemonHandle handle;
-
-    if(CFStringCompare(mode,kModeListLUNs,0) != kCFCompareEqualTo)
+    switch(cmd)
     {
-        handle = iSCSIDaemonConnect();
+        case kiSCSICtlCmdAdd:
+            if(subCmd == kiSCSICtlSubCmdTarget)
+                error = iSCSICtlAddTarget(handle,optDictionary);
+            else if(subCmd == kiSCSICtlSubCmdDiscovery)
+            {}
+            break;
 
-        if(handle < 0) {
-            iSCSICtlDisplayError("iscsid is not running.");
-            CFWriteStreamClose(stdoutStream);
-            return -1;
-        }
-    }
-    
-    // Process add, modify, remove or list
-    if(CFStringCompare(mode,kModeAdd,0) == kCFCompareEqualTo)
-        error = iSCSICtlAddTarget(handle,optDictionary);
-    else if(CFStringCompare(mode,kModeDiscovery,0) == kCFCompareEqualTo)
-        error = iSCSICtlDiscoverTargets(handle,optDictionary);
-    else if(CFStringCompare(mode,kModeModify,0) == kCFCompareEqualTo)
-        error = iSCSICtlModify(handle,optDictionary);
-    else if(CFStringCompare(mode,kModeRemove,0) == kCFCompareEqualTo)
-        error = iSCSICtlRemoveTarget(handle,optDictionary);
-    else if(CFStringCompare(mode,kModeListTargets,0) == kCFCompareEqualTo)
-        error = iSCSICtlListTargets(handle,optDictionary);
-    else if(CFStringCompare(mode,kModeListLUNs,0) == kCFCompareEqualTo)
-        error = iSCSICtlListLUNs(handle,optDictionary);
-    else if(CFStringCompare(mode,kModeProbe,0) == kCFCompareEqualTo)
-        error = iSCSICtlProbeTargetForAuthMethod(handle,optDictionary);
-    else if(CFStringCompare(mode,kModeMount,0) == kCFCompareEqualTo)
-        error = iSCSICtlMountForTarget(handle,optDictionary);
-    else if(CFStringCompare(mode,kModeUnmount,0) == kCFCompareEqualTo)
-        error = iSCSICtlUnmountForTarget(handle,optDictionary);
-    else if(CFStringCompare(mode,kOptInitiatorName,0) == kCFCompareEqualTo)
-        error = iSCSICtlSetInitiatorName(handle,optDictionary);
-    else if(CFStringCompare(mode,kOptInitiatorAlias,0) == kCFCompareEqualTo)
-        error = iSCSICtlSetInitiatorAlias(handle,optDictionary);
-    
-    // Then process login or logout in tandem
-    if(CFStringCompare(mode,kModeLogin,0) == kCFCompareEqualTo)
-        error = iSCSICtlLogin(handle,optDictionary);
-    else if(CFStringCompare(mode,kModeLogout,0) == kCFCompareEqualTo)
-        error = iSCSICtlLogout(handle,optDictionary);
-    
+        case kiSCSICtlCmdModify:
+            if(subCmd == kiSCSICtlSubCmdTarget)
+                error = iSCSICtlModifyTarget(handle,optDictionary);
+            if(subCmd == kiSCSICtlSubCmdInitiator)
+                error = iSCSICtlModifyInitiator(handle,optDictionary);
+            else if(subCmd == kiSCSICtlSubCmdDiscovery)
+            {}
+
+            break;
+        case kiSCSICtlCmdRemove:
+            if(subCmd == kiSCSICtlSubCmdTarget)
+                error = iSCSICtlRemoveTarget(handle,optDictionary);
+            else if(subCmd == kiSCSICtlSubCmdDiscovery)
+            {}
+
+
+        case kiSCSICtlCmdList:
+            if(subCmd == kiSCSICtlSubCmdTarget)
+                error = iSCSICtlListTargets(handle,optDictionary);
+            else if(subCmd == kiSCSICtlSubCmdLUNs)
+                error = iSCSICtlListLUNs(handle,optDictionary);
+            break;
+
+        case kiSCSICtlCmdLogin:
+            error = iSCSICtlLogin(handle,optDictionary); break;
+        case kiSCSICtlCmdLogout:
+            error = iSCSICtlLogout(handle,optDictionary); break;
+        case kiSCSICtlCmdMount:
+            error = iSCSICtlMountForTarget(handle,optDictionary); break;
+        case kiSCSICtlCmdUnmount:
+            error = iSCSICtlUnmountForTarget(handle,optDictionary); break;
+        case kiSCSICtlCmdProbe:
+            error = iSCSICtlProbeTargetForAuthMethod(handle,optDictionary); break;
+    };
+
     iSCSIDaemonDisconnect(handle);
     CFWriteStreamClose(stdoutStream);
 }

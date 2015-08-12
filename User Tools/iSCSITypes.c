@@ -178,12 +178,6 @@ CFStringRef iSCSITargetGetNickName(iSCSIMutableTargetRef target)
     return CFDictionaryGetValue(target,kiSCSITargetNickname);
 }
 
-/*! Sets the nickname associated with the iSCSI target. */
-void iSCSITargetSetNickname(iSCSIMutableTargetRef target,CFStringRef nickname)
-{
-    CFDictionarySetValue(target,kiSCSITargetNickname,nickname);
-}
-
 /*! Releases memory associated with iSCSI targets. */
 void iSCSITargetRelease(iSCSITargetRef target)
 {
