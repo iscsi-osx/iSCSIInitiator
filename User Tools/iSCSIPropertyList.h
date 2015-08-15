@@ -97,6 +97,8 @@ void iSCSIPLSetConnectionConfig(CFStringRef targetIQN,
                                 CFStringRef portalAddress,
                                 iSCSIConnectionConfigRef connCfg);
 
+
+
 /*! Copies an authentication object associated with a particular target.
  *  @param targetIQN the target name.
  *  @return the authentication object. */
@@ -108,13 +110,30 @@ iSCSIAuthRef iSCSIPLCopyAuthenticationForTarget(CFStringRef targetIQN);
 void iSCSIPLSetAuthenticationForTarget(CFStringRef targetIQN,
                                        iSCSIAuthRef initiatorAuth);
 
-/*! Copies an authentication object associated the intiator.
+/*! Creates an authentication object that represents the current
+ *  authentication configuration of the initiator.
  *  @return the authentication object. */
-iSCSIAuthRef iSCSIPLCopyAuthenticationForInitiator();
+iSCSIAuthRef iSCSIPLCreateAuthenticationForInitiator();
 
-/*! Sets an authentication object associated the initiator.
- *  @param auth the authenticaiton object. */
-void iSCSIPLSetAuthenticationForInitiator(iSCSIAuthRef initiatorAuth);
+/*! Sets authentication method to be used by initiator. */
+void iSCSIPLSetInitiatorAuthenticationMethod(enum iSCSIAuthMethods authMethod);
+
+/*! Gets the current authentication method used by the initiator. */
+enum iSCSIAuthMethods iSCSIPLGetInitiatorAuthenticationMethod();
+
+/*! Sets the CHAP user associated with the initiator. */
+void iSCSIPLSetInitiatorCHAPUser(CFStringRef user);
+
+/*! Copies the CHAP user associated with the initiator. */
+CFStringRef iSCSIPLCopyInitiatorCHAPUser();
+
+/*! Sets the CHAP secret associated with the initiator. */
+void iSCSIPLSetInitiatorCHAPSecret(CFStringRef secret);
+
+/*! Copies the CHAP secret associated with the initiator. */
+CFStringRef iSCSIPLCopyInitiatorCHAPSecret();
+
+
 
 /*! Gets whether a target is defined in the property list.
  *  @param targetIQN the name of the target.

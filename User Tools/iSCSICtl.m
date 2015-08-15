@@ -72,31 +72,48 @@ enum iSCSICtlSubCmds {
 
 
 /*! Target command-line option. */
-CFStringRef kOptTarget = CFSTR("target");
+CFStringRef kOptKeyTarget = CFSTR("target");
 
 /*! Portal command-line option. */
-CFStringRef kOptPortal = CFSTR("portal");
+CFStringRef kOptKeyPortal = CFSTR("portal");
 
 /*! Port command-line option. */
-CFStringRef kOptPort = CFSTR("port");
+CFStringRef kOptKeyPort = CFSTR("port");
 
 /*! Interface command-line option. */
-CFStringRef kOptInterface = CFSTR("interface");
+CFStringRef kOptKeyInterface = CFSTR("interface");
 
 /*! Autostart command-line option. */
 CFStringRef kOptAutostart = CFSTR("autostart");
 
-/*! Session identifier command-line option. */
-CFStringRef kOptSessionId = CFSTR("session");
-
 /*! Digest command-line options. */
-CFStringRef kOptDigest = CFSTR("digest");
+CFStringRef kOptKeyDigest = CFSTR("digest");
+
+
+
+/*! Authentication method to use. */
+CFStringRef kOptKeyAutMethod = CFSTR("authentication");
+
+/*! CHAP authentication value for authentication key. */
+CFStringRef kOptValueAuthMethodCHAP = CFSTR("CHAP");
+
+/*! No authentication value for authentication key. */
+CFStringRef kOptValueAuthMethodNone = CFSTR("None");
 
 /*! User (CHAP) command-line option. */
-CFStringRef kOptCHAPUser = CFSTR("CHAP-name");
+CFStringRef kOptKeyCHAPUser = CFSTR("CHAP-name");
 
 /*! Secret (CHAP) command-line option. */
-CFStringRef kOptCHAPSecret = CFSTR("CHAP-secret");
+CFStringRef kOptKeyCHAPSecret = CFSTR("CHAP-secret");
+
+
+
+/*! Node name command-line option. */
+CFStringRef kOptKeyNodeName = CFSTR("node-name");
+
+/*! Node alias command-line option. */
+CFStringRef kOptKeyNodeAlias = CFSTR("node-alias");
+
 
 /*! Name of this command-line executable. */
 const char * executableName;
@@ -170,8 +187,8 @@ void iSCSICtlParseTargetAndPortalToDictionary(CFArrayRef arguments,
 
         // If there are two parts, separate target & portal
         if(CFArrayGetCount(argParts) > 1) {
-            CFDictionaryAddValue(optDictionary,kOptTarget,CFArrayGetValueAtIndex(argParts,0));
-            CFDictionaryAddValue(optDictionary,kOptPortal,CFArrayGetValueAtIndex(argParts,1));
+            CFDictionaryAddValue(optDictionary,kOptKeyTarget,CFArrayGetValueAtIndex(argParts,0));
+            CFDictionaryAddValue(optDictionary,kOptKeyPortal,CFArrayGetValueAtIndex(argParts,1));
         }
         // Need to determine whether a portal or target was specified
         else {
@@ -180,9 +197,9 @@ void iSCSICtlParseTargetAndPortalToDictionary(CFArrayRef arguments,
             CFRange matchEUI = CFStringFind(arg,CFSTR("eui."),kCFCompareCaseInsensitive);
 
             if(matchIQN.location == kCFNotFound && matchEUI.location == kCFNotFound)
-                CFDictionaryAddValue(optDictionary,kOptPortal,arg);
+                CFDictionaryAddValue(optDictionary,kOptKeyPortal,arg);
             else
-                CFDictionaryAddValue(optDictionary,kOptTarget,arg);
+                CFDictionaryAddValue(optDictionary,kOptKeyTarget,arg);
         }
     }
 }
@@ -479,7 +496,7 @@ void iSCSICtlDisplayLogoutStatus(enum iSCSILogoutStatusCode statusCode,
  *  @return true if a target was specified. */
 Boolean iSCSICtlIsTargetSpecified(CFDictionaryRef options)
 {
-    return CFDictionaryContainsKey(options,kOptTarget);
+    return CFDictionaryContainsKey(options,kOptKeyTarget);
 }
 
 /*! Creates a target object from command-line options.  If the target is not
@@ -490,14 +507,14 @@ Boolean iSCSICtlIsTargetSpecified(CFDictionaryRef options)
 iSCSIMutableTargetRef iSCSICtlCreateTargetFromOptions(CFDictionaryRef options)
 {
     CFStringRef targetIQN;
-    if(!CFDictionaryGetValueIfPresent(options,kOptTarget,(const void **)&targetIQN))
+    if(!CFDictionaryGetValueIfPresent(options,kOptKeyTarget,(const void **)&targetIQN))
     {
-        iSCSICtlDisplayMissingOptionError(kOptTarget);
+        iSCSICtlDisplayMissingOptionError(kOptKeyTarget);
         return NULL;
     }
     
     if(!iSCSIUtilsValidateIQN(targetIQN)) {
-        iSCSICtlDisplayError("The specified iSCSI target is invalid.");
+        iSCSICtlDisplayError("The specified target name is not a valid IQN or EUI-64 identifier.");
         return NULL;
     }
 
@@ -513,7 +530,7 @@ iSCSIMutableTargetRef iSCSICtlCreateTargetFromOptions(CFDictionaryRef options)
  *  @return true if a portal was specified. */
 Boolean iSCSICtlIsPortalSpecified(CFDictionaryRef options)
 {
-    return CFDictionaryContainsKey(options,kOptPortal);
+    return CFDictionaryContainsKey(options,kOptKeyPortal);
 }
 
 /*! Creates a portal object from command-line options.  If the portal is not
@@ -525,9 +542,9 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
 {
     CFStringRef portalAddress, hostInterface;
     
-    if(!CFDictionaryGetValueIfPresent(options,kOptPortal,(const void **)&portalAddress))
+    if(!CFDictionaryGetValueIfPresent(options,kOptKeyPortal,(const void **)&portalAddress))
     {
-        iSCSICtlDisplayMissingOptionError(kOptPortal);
+        iSCSICtlDisplayMissingOptionError(kOptKeyPortal);
         return NULL;
     }
     
@@ -547,8 +564,8 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
         iSCSIPortalSetPort(portal,(CFStringRef)CFArrayGetValueAtIndex(portalParts,1));
     }
     // If port was specified separately (e.g., -port 3260)
-    else if (CFDictionaryContainsKey(options,kOptPort)) {
-        CFStringRef port = CFDictionaryGetValue(options,kOptPort);
+    else if (CFDictionaryContainsKey(options,kOptKeyPort)) {
+        CFStringRef port = CFDictionaryGetValue(options,kOptKeyPort);
         if(iSCSIUtilsValidatePort(port))
             iSCSIPortalSetPort(portal,port);
         else {
@@ -562,7 +579,7 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
     CFRelease(portalParts);
 
     // If an interface was not specified, use the default interface
-    if(!CFDictionaryGetValueIfPresent(options,kOptInterface,(const void **)&hostInterface))
+    if(!CFDictionaryGetValueIfPresent(options,kOptKeyInterface,(const void **)&hostInterface))
         iSCSIPortalSetHostInterface(portal,kiSCSIDefaultHostInterface);
     else
         iSCSIPortalSetHostInterface(portal,hostInterface);
@@ -570,40 +587,6 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
     return portal;
 }
 
-
-/*! Creates a authentication object from command-line options.  If authentication
- *  is not well-formatted or missing components then the function displays an 
- *  error message and returns NULL.  If authentication is absent entirely this
- *  function returns a valid authentication object indicating no authentication.
- *  @param options command-line options.
- *  @return the authentication object, or NULL. */
-iSCSIAuthRef iSCSICtlCreateAuthFromOptions(CFDictionaryRef options)
-{
-    if(!options)
-        return NULL;
-    
-    // Setup authentication object from command-line parameters
-    CFStringRef user = NULL, secret = NULL;
-    CFDictionaryGetValueIfPresent(options,kOptCHAPUser,(const void **)&user);
-    CFDictionaryGetValueIfPresent(options,kOptCHAPSecret,(const void **)&secret);
-
-    if(!user && secret) {
-        iSCSICtlDisplayMissingOptionError(kOptCHAPUser);
-        return NULL;
-    }
-    else if(user && !secret) {
-        iSCSICtlDisplayMissingOptionError(kOptCHAPSecret);
-        return NULL;
-    }
-
-    // At this point we've validated input combinations, if the user is not
-    // present then we're dealing with no authentication.  Otherwise we have
-    // either CHAP or mutual CHAP
-    if(!user)
-        return iSCSIAuthCreateNone();
-    else
-        return iSCSIAuthCreateCHAP(user,secret);
-}
 
 /*! Modifies an existing session configuration parameters object 
  *  based on user-supplied command-line switches.
@@ -659,7 +642,7 @@ errno_t iSCSICtlModifyConnectionConfigFromOptions(CFDictionaryRef options,
         return EINVAL;
     
     CFStringRef digest;
-    if(CFDictionaryGetValueIfPresent(options,kOptDigest,(const void**)&digest))
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyDigest,(const void**)&digest))
     {
         if(CFStringCompare(digest,CFSTR("on"),0) == kCFCompareEqualTo) {
             iSCSIConnectionConfigSetHeaderDigest(connCfg,true);
@@ -680,11 +663,11 @@ errno_t iSCSICtlModifyPortalFromOptions(CFDictionaryRef options,
     iSCSIPortalRef portalUpdates = iSCSICtlCreatePortalFromOptions(options);
 
     // If a port was explicity specified, update it
-    if(CFDictionaryContainsKey(options,kOptPort))
+    if(CFDictionaryContainsKey(options,kOptKeyPort))
         iSCSIPortalSetPort(portal,iSCSIPortalGetPort(portalUpdates));
 
     // If the interface was explicitly specified, update it
-    if(CFDictionaryContainsKey(options,kOptInterface))
+    if(CFDictionaryContainsKey(options,kOptKeyInterface))
         iSCSIPortalSetHostInterface(portal,iSCSIPortalGetHostInterface(portalUpdates));
 
     // If autostart was cahnged, update it
@@ -939,16 +922,39 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
 errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
-    // Check for authentication modifications
-    CFStringRef initiatorUser, sharedSecret = NULL;
-    if(CFDictionaryGetValueIfPresent(options,kOptCHAPUser,(const void **)&initiatorUser))
+    CFStringRef value = NULL;
+
+    // Check for CHAP user name
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPUser,(const void **)&value))
+        iSCSIPLSetInitiatorCHAPUser(value);
+
+    // Check for CHAP shared secret
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPSecret,(const void **)&value))
+        iSCSIPLSetInitiatorCHAPSecret(value);
+
+    // Check for authentication method
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyAutMethod,(const void**)&value))
     {
-        if(CFDictionaryGetValueIfPresent(options,kOptCHAPSecret,(const void **)&sharedSecret))
-        {
-            iSCSIAuthRef auth = iSCSIAuthCreateCHAP(initiatorUser,sharedSecret);
-            iSCSIPLSetAuthenticationForInitiator(auth);
-            iSCSIPLSynchronize();
-        }
+        if(CFStringCompare(value,kOptValueAuthMethodNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPLSetInitiatorAuthenticationMethod(kiSCSIAuthMethodNone);
+        else if(CFStringCompare(value,kOptValueAuthMethodCHAP,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPLSetInitiatorAuthenticationMethod(kiSCSIAuthMethodCHAP);
+        else
+            iSCSICtlDisplayError("The specified authentication method is invalid.");
+    }
+
+    // Check for initiator IQN
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void**)&value))
+        iSCSIPLSetInitiatorIQN(value);
+
+    // Check for initiator alias
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeAlias,(const void **)&value))
+    {
+        // Validate the chosen initiator IQN
+        if(iSCSIUtilsValidateIQN(value))
+            iSCSIPLSetInitiatorAlias(value);
+        else
+            iSCSICtlDisplayError("The specified name is not a valid IQN or EUI-64 identifier.");
     }
 
     return 0;
@@ -1316,18 +1322,6 @@ errno_t iSCSICtlUnmountForTarget(iSCSIDaemonHandle handle,CFDictionaryRef option
     return 0;
 }
 
-errno_t iSCSICtlSetInitiatorName(iSCSIDaemonHandle handle,CFDictionaryRef options)
-{
-// TODO: implement
-    return 0;
-}
-
-errno_t iSCSICtlSetInitiatorAlias(iSCSIDaemonHandle handle,CFDictionaryRef options)
-{
-// TODO: implement
-    return 0;
-}
-
 /*! Displays the contents of a discovery record, including targets, their
  *  associated portals and portal group tags.
  *  @param discoveryRecord the discovery record to display.
@@ -1380,7 +1374,7 @@ errno_t iSCSICtlDiscoverTargets(iSCSIDaemonHandle handle,CFDictionaryRef options
         iSCSIPLSynchronize();
 
         if (portal) {
-            iSCSIAuthRef auth = iSCSICtlCreateAuthFromOptions(options);
+            iSCSIAuthRef auth = iSCSIAuthCreateNone();
             
             enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
             iSCSIMutableDiscoveryRecRef discoveryRecord;
