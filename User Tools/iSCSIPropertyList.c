@@ -541,8 +541,10 @@ void iSCSIPLSetInitiatorIQN(CFStringRef initiatorIQN)
     // Update initiator name
     CFDictionarySetValue(initiatorCache,kiSCSIPKInitiatorIQN,initiatorIQN);
 
-    // Update name in the property list...
-    
+    // Update keychain if necessary
+    CFStringRef oldInitiatorIQN = iSCSIPLCopyInitiatorIQN();
+    iSCSIKeychainRenameNode(oldInitiatorIQN,initiatorIQN);
+
     initiatorNodeCacheModified = true;
 }
 
@@ -569,7 +571,7 @@ void iSCSIPLSetInitiatorAlias(CFStringRef initiatorAlias)
     
     // Update initiator alias
     CFDictionarySetValue(initiatorCache,kiSCSIPKInitiatorAlias,initiatorAlias);
-    
+
     initiatorNodeCacheModified = true;
 }
 
