@@ -17,11 +17,6 @@
 #ifndef __ISCSI_KEYCHAIN_H__
 #define __ISCSI_KEYCHAIN_H__
 
-/*! Creates and stores a CHAP secret for the specified node.
- *  @param nodeIQN the iSCSI qualified name of the target or initiator.
- *  @param sharedSecret the shared secret to store. */
-void iSCSIKeychainAddCHAPSecretForNode(CFStringRef nodeIQN,
-                                       CFStringRef sharedSecret);
 
 /*! Copies a shared secret associated with a particular
  *  iSCSI node (either initiator or target) to the system keychain.
@@ -35,7 +30,7 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN);
  *  secret for is updated.
  *  @param nodeIQN the iSCSI qualified name of the target or initiator.
  *  @param sharedSecret the shared secret to store. */
-void iSCSIKeychainUpdateCHAPSecretForNode(CFStringRef nodeIQN,
+void iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
                                           CFStringRef sharedSecret);
 
 /*! Renames the iSCSI node in they keychain.

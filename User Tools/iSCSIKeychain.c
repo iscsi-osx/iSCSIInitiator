@@ -13,38 +13,6 @@
  *  OS X keychain. */
 CFStringRef kiSCSISecCHAPService = CFSTR("iSCSI CHAP");
 
-/*! Creates and stores a CHAP secret for the specified node.
- *  @param nodeIQN the iSCSI qualified name of the target or initiator.
- *  @param sharedSecret the shared secret to store. */
-void iSCSIKeychainAddCHAPSecretForNode(CFStringRef nodeIQN,
-                                       CFStringRef sharedSecret)
-{
-    SecKeychainRef sysKeychain = NULL;
-    SecAccessRef initialAccess = NULL;
-    OSStatus status;
-
-    // Get the system keychain and unlock it (prompts user if required)
-    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&sysKeychain);
-
-    if(status == errSecSuccess)
-        status = SecKeychainUnlock(sysKeychain,0,NULL,false);
-
-    if(status == errSecSuccess)
-        status = SecAccessCreate(CFSTR(""),0,&initialAccess);
-
-    if(status == errSecSuccess) {
-        SecKeychainItemRef item;
-        status = SecKeychainAddGenericPassword(
-            sysKeychain,
-            (UInt32)CFStringGetLength(kiSCSISecCHAPService),
-            CFStringGetCStringPtr(kiSCSISecCHAPService,kCFStringEncodingASCII),
-            (UInt32)CFStringGetLength(nodeIQN),
-            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
-            (UInt32)CFStringGetLength(sharedSecret),
-            CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),&item);
-    }
-}
-
 /*! Copies a shared secret associated with a particular
  *  iSCSI node (either initiator or target) to the system keychain.
  *  @param nodeIQN the iSCSI qualified name of the target or initiator.
@@ -81,14 +49,13 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN)
     return sharedSecret;
 }
 
-
 /*! Updates the shared secret associated with a particular
  *  iSCSI node (either initiator or target) to the system keychain. An entry
  *  for the node is created if it does not exist. If it does exist, the shared
  *  secret for is updated.
  *  @param nodeIQN the iSCSI qualified name of the target or initiator.
  *  @param sharedSecret the shared secret to store. */
-void iSCSIKeychainUpdateCHAPSecretForNode(CFStringRef nodeIQN,
+void iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
                                           CFStringRef sharedSecret)
 {
     SecKeychainRef sysKeychain = NULL;
@@ -110,10 +77,21 @@ void iSCSIKeychainUpdateCHAPSecretForNode(CFStringRef nodeIQN,
             0,0,&item);
     }
 
+    // Update the secret if it exists; else create a new entry
     if(status == errSecSuccess) {
         status = SecKeychainItemModifyContent(item,0,
             (UInt32)CFStringGetLength(sharedSecret),
             CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII));
+    }
+    else {
+        SecKeychainItemRef item;
+        SecKeychainAddGenericPassword(sysKeychain,
+            (UInt32)CFStringGetLength(kiSCSISecCHAPService),
+            CFStringGetCStringPtr(kiSCSISecCHAPService,kCFStringEncodingASCII),
+            (UInt32)CFStringGetLength(nodeIQN),
+            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
+            (UInt32)CFStringGetLength(sharedSecret),
+            CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),&item);
     }
 }
 
