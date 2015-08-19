@@ -68,125 +68,20 @@ CFStringRef kiSCSIPVAuthNone = CFSTR("None");
 /*! Preference key value for CHAP authentication. */
 CFStringRef kiSCSIPVAuthCHAP = CFSTR("CHAP");
 
+/*! Preference key name for iSCSI CHAP authentication name. */
+CFStringRef kiSCSIPKAuthCHAPNameKey = CFSTR("CHAP Name");
+
 /*! Preference key name for iSCSI initiator name. */
 CFStringRef kiSCSIPKInitiatorIQN = CFSTR("Name");
 
 /*! Preference key name for iSCSI initiator alias. */
 CFStringRef kiSCSIPKInitiatorAlias = CFSTR("Alias");
 
-/*! The iSCSI service name to use when storing CHAP information in the
- *  OS X keychain. */
-CFStringRef kiSCSISecCHAPServiceName = CFSTR("iSCSI CHAP");
-
 /*! Default initiator alias to use. */
 CFStringRef kiSCSIPVDefaultInitiatorAlias = CFSTR("localhost");
 
 /*! Default initiator IQN to use. */
 CFStringRef kiSCSIPVDefaultInitiatorIQN = CFSTR("iqn.2015-01.com.localhost:initiator");
-
-
-/*! Helper function. Writes a shared secret associated with a particular
- *  iSCSI node (either initiator or target) to the system keychain. An entry
- *  for the node is created if it does not exist. If it does exist, the shared
- *  secret for is updated.
- *  @param nodeIQN the iSCSI qualified name of the target or initiator. 
- *  @param userIQN the
- *  @param sharedSecret the shared secret to store. */
-void iSCSIPLSetCHAPSecretForNode(CFStringRef nodeIQN,
-                                 CFStringRef user,
-                                 CFStringRef sharedSecret)
-{
-    SecKeychainRef sysKeychain = NULL;
-    SecKeychainItemRef item = NULL;
-    OSStatus status;
-    SecAccessRef initialAccess = NULL;
-
-    // Get the system keychain and unlock it (prompts user if required)
-    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&sysKeychain);
-
-    if(status == errSecSuccess)
-        status = SecKeychainUnlock(sysKeychain,0,NULL,false);
-
-    if(status == errSecSuccess)
-        status = SecAccessCreate(CFSTR(""),0,&initialAccess);
-
-    // Add the shared secret to the keychain
-    if(status == errSecSuccess) {
-
-        SecKeychainAttribute attributes[] = {
-            {kSecLabelItemAttr,(UInt32)CFStringGetLength(nodeIQN),(void *)CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII)},
-            {kSecAccountItemAttr,(UInt32)CFStringGetLength(user),(void *)CFStringGetCStringPtr(user,kCFStringEncodingASCII)},
-            {kSecServiceItemAttr,(UInt32)CFStringGetLength(kiSCSISecCHAPServiceName),(void *)CFStringGetCStringPtr(kiSCSISecCHAPServiceName,kCFStringEncodingASCII)},
-            {kSecDescriptionItemAttr,(UInt32)CFStringGetLength(kiSCSISecCHAPServiceName),(void *)CFStringGetCStringPtr(kiSCSISecCHAPServiceName,kCFStringEncodingASCII)}
-        };
-
-        SecKeychainAttributeList attrList = { sizeof(attributes)/sizeof(attributes[0]), attributes };
-
-        SecKeychainItemCreateFromContent(
-                kSecGenericPasswordItemClass,
-                &attrList,
-                (UInt32)CFStringGetLength(sharedSecret),
-                (const void *)CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),
-                sysKeychain,
-                initialAccess,
-                &item);
-    }
-}
-
-/*! Helper function. Copies a shared secret associated with a particular
- *  iSCSI node (either initiator or target) to the system keychain.
- *  @param nodeIQN the iSCSI qualified name of the target or initiator.
- *  @return the shared secret for the specified node. */
-errno_t iSCSIPLCopyCHAPSecretForNode(CFStringRef nodeIQN,
-                                     CFStringRef * user,
-                                     CFStringRef * sharedSecret)
-{
-    SecKeychainRef sysKeychain;
-    OSStatus status;
-    CFDictionaryRef resultsDict = NULL;
-
-    // Get the system keychain and unlock it (prompts user if required)
-    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&sysKeychain);
-
-    if(status == errSecSuccess) {
-
-        // Setup query dictionary to find the CHAP user and shared key
-        const void * queryKeys[] = {
-            kSecClass,
-            kSecReturnAttributes,
-            kSecReturnData,
-            kSecAttrLabel
-        };
-
-        const void * queryValues[] = {
-            kSecClassGenericPassword,
-            kCFBooleanTrue,
-            kCFBooleanTrue,
-            nodeIQN
-        };
-
-        CFDictionaryRef queryDict = CFDictionaryCreate(
-            kCFAllocatorDefault,queryKeys,queryValues,4,
-            &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
-
-        status = SecItemCopyMatching(queryDict,(CFTypeRef *)&resultsDict);
-    }
-
-    // Extract CHAP user and shared secret
-    if(status == errSecSuccess)
-    {
-        // Extract the shared secret from the results dictionary
-        CFDataRef secretData = CFDictionaryGetValue(resultsDict,kSecValueData);
-
-        *sharedSecret = CFStringCreateFromExternalRepresentation(
-            kCFAllocatorDefault,secretData,kCFStringEncodingASCII);
-
-        *user = CFStringCreateCopy(kCFAllocatorDefault,CFDictionaryGetValue(resultsDict,kSecAttrAccount));
-
-    }
-
-    return status;
-}
 
 /*! Retrieves a mutable dictionary for the specified key. 
  *  @param key the name of the key, which can be either kiSCSIPKTargetsKey,
@@ -198,7 +93,6 @@ CFMutableDictionaryRef iSCSIPLCopyPropertyDict(CFStringRef key)
     CFDictionaryRef propertyList = CFPreferencesCopyValue(key,kiSCSIPKAppId,
                                                           kCFPreferencesAnyUser,
                                                           kCFPreferencesCurrentHost);
-    
     if(!propertyList)
         return NULL;
     
@@ -236,14 +130,16 @@ CFMutableDictionaryRef iSCSIPLCreateDiscoveryDict()
 CFMutableDictionaryRef iSCSIPLCreateInitiatorDict()
 {
     CFStringRef keys[] = {
+        kiSCSIPKAuthCHAPNameKey,
+        kiSCSIPKAuthKey,
         kiSCSIPKInitiatorAlias,
-        kiSCSIPKInitiatorIQN,
-        kiSCSIPKAuthKey};
+        kiSCSIPKInitiatorIQN };
 
     CFStringRef values[] = {
         kiSCSIPVDefaultInitiatorAlias,
-        kiSCSIPVDefaultInitiatorIQN,
-        kiSCSIPVAuthNone };
+        kiSCSIPVAuthNone,
+        kiSCSIPVDefaultInitiatorAlias,
+        kiSCSIPVDefaultInitiatorIQN };
     
     CFDictionaryRef initiatorPropertylist = CFDictionaryCreate(kCFAllocatorDefault,
                                                                (const void **)keys,
@@ -420,9 +316,12 @@ iSCSIAuthRef iSCSIPLCopyAuthenticationForTarget(CFStringRef targetIQN)
         CFStringRef authMethod = CFDictionaryGetValue(targetInfo,kiSCSIPKAuthKey);
 
         if(CFStringCompare(authMethod,kiSCSIPVAuthCHAP,0) == kCFCompareEqualTo) {
-            CFStringRef user, sharedSecret;
-            if(iSCSIPLCopyCHAPSecretForNode(targetIQN,&user,&sharedSecret) == errSecSuccess)
-                auth = iSCSIAuthCreateCHAP(user,sharedSecret);
+
+            CFStringRef name = CFDictionaryGetValue(targetInfo,kiSCSIPKAuthCHAPNameKey);
+            CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(targetIQN);
+
+            if(secret)
+                auth = iSCSIAuthCreateCHAP(name,secret);
             else
                 auth = iSCSIAuthCreateNone();
         }
@@ -443,10 +342,10 @@ void iSCSIPLSetAuthenticationForTarget(CFStringRef targetIQN,
     if(iSCSIAuthGetMethod(targetAuth) == kiSCSIAuthMethodNone)
         CFDictionarySetValue(targetInfo,kiSCSIPKAuthKey,kiSCSIPVAuthNone);
     else {
-        CFStringRef user, sharedSecret;
+        CFStringRef name, sharedSecret;
         CFDictionarySetValue(targetInfo,kiSCSIPKAuthKey,kiSCSIPVAuthCHAP);
-        iSCSIAuthGetCHAPValues(targetAuth,&user,&sharedSecret);
-        iSCSIPLSetCHAPSecretForNode(targetIQN,user,sharedSecret);
+        iSCSIAuthGetCHAPValues(targetAuth,&name,&sharedSecret);
+        iSCSIKeychainSetCHAPSecretForNode(targetIQN,sharedSecret);
     }
 
     targetNodesCacheModified = true;
@@ -458,6 +357,7 @@ void iSCSIPLSetAuthenticationForTarget(CFStringRef targetIQN,
 iSCSIAuthRef iSCSIPLCreateAuthenticationForInitiator()
 {
     CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(false);
+    CFStringRef initiatorIQN = CFDictionaryGetValue(initiatorInfo,kiSCSIPKInitiatorIQN);
 
     iSCSIAuthRef auth = NULL;
 
@@ -465,14 +365,14 @@ iSCSIAuthRef iSCSIPLCreateAuthenticationForInitiator()
         CFStringRef authMethod = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthKey);
 
         if(CFStringCompare(authMethod,kiSCSIPVAuthCHAP,0) == kCFCompareEqualTo) {
-            CFStringRef user, sharedSecret;
 
-            CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
-            if(iSCSIPLCopyCHAPSecretForNode(initiatorIQN,&user,&sharedSecret) == errSecSuccess)
-                auth = iSCSIAuthCreateCHAP(user,sharedSecret);
+            CFStringRef name = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
+            CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(initiatorIQN);
+
+            if(secret)
+                auth = iSCSIAuthCreateCHAP(name,secret);
             else
                 auth = iSCSIAuthCreateNone();
-            CFRelease(initiatorIQN);
         }
         else
             auth = iSCSIAuthCreateNone();
@@ -506,67 +406,50 @@ enum iSCSIAuthMethods iSCSIPLGetInitiatorAuthenticationMethod()
     return authMethod;
 }
 
-/*! Sets the CHAP user associated with the initiator. */
-void iSCSIPLSetInitiatorCHAPUser(CFStringRef user)
+/*! Sets the CHAP name associated with the initiator. */
+void iSCSIPLSetInitiatorCHAPName(CFStringRef name)
 {
-    CFStringRef currentUser, currentSecret;
-    iSCSIPLCopyCHAPSecretForNode(0,&currentUser,&currentSecret);
-    iSCSIPLSetCHAPSecretForNode(0,user,currentSecret);
-    CFRelease(currentUser);
-    CFRelease(currentSecret);
+    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
+    CFStringRef currentName = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
+    CFStringRef initiatorIQN = CFDictionaryGetValue(initiatorInfo,kiSCSIPKInitiatorIQN);
+
+    // Change CHAP name in property list
+    CFDictionarySetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey,name);
+
+    initiatorNodeCacheModified = true;
 }
 
-/*! Copies the CHAP user associated with the initiator. */
-CFStringRef iSCSIPLCopyInitiatorCHAPUser()
+/*! Copies the CHAP name associated with the initiator. */
+CFStringRef iSCSIPLCopyInitiatorCHAPName()
 {
-    CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
-    CFStringRef user, secret;
-    iSCSIPLCopyCHAPSecretForNode(initiatorIQN,&user,&secret);
-    CFRelease(initiatorIQN);
-    CFRelease(secret);
-    return user;
+    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
+    CFStringRef name = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
+    return CFStringCreateCopy(kCFAllocatorDefault,name);
 }
 
 /*! Sets the CHAP secret associated with the initiator. */
 void iSCSIPLSetInitiatorCHAPSecret(CFStringRef secret)
 {
-    CFStringRef currentUser, currentSecret;
-    iSCSIPLCopyCHAPSecretForNode(0,&currentUser,&currentSecret);
-    iSCSIPLSetCHAPSecretForNode(0,currentUser,secret);
-    CFRelease(currentUser);
-    CFRelease(currentSecret);
+    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
+    CFStringRef name = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
+    CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
+
+    iSCSIKeychainSetCHAPSecretForNode(initiatorIQN,secret);
+    CFRelease(initiatorIQN);
+
+    initiatorNodeCacheModified = true;
 }
 
 /*! Copies the CHAP secret associated with the initiator. */
 CFStringRef iSCSIPLCopyInitiatorCHAPSecret()
 {
-    CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
-    CFStringRef user, secret;
-    iSCSIPLCopyCHAPSecretForNode(initiatorIQN,&user,&secret);
-    CFRelease(initiatorIQN);
-    CFRelease(user);
-    return secret;
-}
-
-/*! Sets an authentication object associated the initiator.
- *  @param auth the authenticaiton object. */
-void iSCSIPLSetAuthenticationForInitiator(iSCSIAuthRef initiatorAuth)
-{
     CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
+    CFStringRef name = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
+    CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
 
-    if(iSCSIAuthGetMethod(initiatorAuth) == kiSCSIAuthMethodNone)
-        CFDictionarySetValue(initiatorInfo,kiSCSIPKAuthKey,kiSCSIPVAuthNone);
-    else {
-        CFStringRef user, sharedSecret;
-        CFDictionarySetValue(initiatorInfo,kiSCSIPKAuthKey,kiSCSIPVAuthCHAP);
-        iSCSIAuthGetCHAPValues(initiatorAuth,&user,&sharedSecret);
-
-        CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
-        iSCSIPLSetCHAPSecretForNode(initiatorIQN,user,sharedSecret);
-        CFRelease(initiatorIQN);
-    }
-
-    initiatorNodeCacheModified = true;
+    CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(initiatorIQN);
+    CFRelease(initiatorIQN);
+    return secret;
 }
 
 void iSCSIPLSetConnectionConfig(CFStringRef targetIQN,

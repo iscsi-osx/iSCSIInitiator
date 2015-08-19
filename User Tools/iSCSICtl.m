@@ -345,13 +345,15 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
         CFStringRef hostInterface = iSCSIPortalGetHostInterface(portal);
         if (statusCode == kiSCSILogoutSuccess) {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
-                                                    targetIQN,portalAddress,portalPort,hostInterface);
-        } else {
+                CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
+                targetIQN,portalAddress,portalPort,hostInterface);
+        }
+        else
+        {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
-                                                    targetIQN,portalAddress,portalPort,
-                                                    hostInterface,iSCSICtlGetStringForLoginStatus(statusCode));
+                CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
+                targetIQN,portalAddress,portalPort,
+                hostInterface,iSCSICtlGetStringForLoginStatus(statusCode));
         }
 
     } else {
@@ -924,9 +926,11 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,CFDictionaryRef options
 {
     CFStringRef value = NULL;
 
+    iSCSIPLSynchronize();
+
     // Check for CHAP user name
     if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPUser,(const void **)&value))
-        iSCSIPLSetInitiatorCHAPUser(value);
+        iSCSIPLSetInitiatorCHAPName(value);
 
     // Check for CHAP shared secret
     if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPSecret,(const void **)&value))
@@ -943,19 +947,21 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,CFDictionaryRef options
             iSCSICtlDisplayError("The specified authentication method is invalid.");
     }
 
-    // Check for initiator IQN
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void**)&value))
-        iSCSIPLSetInitiatorIQN(value);
-
     // Check for initiator alias
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeAlias,(const void **)&value))
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeAlias,(const void**)&value))
+        iSCSIPLSetInitiatorAlias(value);
+
+    // Check for initiator IQN
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
     {
         // Validate the chosen initiator IQN
         if(iSCSIUtilsValidateIQN(value))
-            iSCSIPLSetInitiatorAlias(value);
+            iSCSIPLSetInitiatorIQN(value);
         else
             iSCSICtlDisplayError("The specified name is not a valid IQN or EUI-64 identifier.");
     }
+
+    iSCSIPLSynchronize();
 
     return 0;
 }

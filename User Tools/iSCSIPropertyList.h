@@ -11,8 +11,8 @@
 #define __ISCSI_PROPERTY_LIST_H__
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <Security/Security.h>
 
+#include "iSCSIKeychain.h"
 #include "iSCSITypes.h"
 
 /*! Copies the initiator name from the property list into a CFString object.
@@ -121,11 +121,11 @@ void iSCSIPLSetInitiatorAuthenticationMethod(enum iSCSIAuthMethods authMethod);
 /*! Gets the current authentication method used by the initiator. */
 enum iSCSIAuthMethods iSCSIPLGetInitiatorAuthenticationMethod();
 
-/*! Sets the CHAP user associated with the initiator. */
-void iSCSIPLSetInitiatorCHAPUser(CFStringRef user);
+/*! Sets the CHAP name associated with the initiator. */
+void iSCSIPLSetInitiatorCHAPName(CFStringRef name);
 
-/*! Copies the CHAP user associated with the initiator. */
-CFStringRef iSCSIPLCopyInitiatorCHAPUser();
+/*! Copies the CHAP name associated with the initiator. */
+CFStringRef iSCSIPLCopyInitiatorCHAPName();
 
 /*! Sets the CHAP secret associated with the initiator. */
 void iSCSIPLSetInitiatorCHAPSecret(CFStringRef secret);
