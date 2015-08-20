@@ -984,7 +984,20 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
         else
             iSCSICtlDisplayError("The specified authentication method is invalid.");
     }
+
     iSCSIPLSetTargetAuthenticationMethod(targetIQN,authMethod);
+
+    // Check for target IQN
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
+    {
+        // Validate the chosen target IQN
+        if(iSCSIUtilsValidateIQN(value))
+            iSCSIPLModifyTargetIQN(targetIQN,value);
+        else
+            iSCSICtlDisplayError("The specified name is not a valid IQN or EUI-64 identifier.");
+    }
+
+    iSCSIPLSynchronize();
 
     return 0;
 }

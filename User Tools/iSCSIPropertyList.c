@@ -584,6 +584,24 @@ CFArrayRef iSCSIPLCreateArrayOfPortalsForTarget(CFStringRef targetIQN)
     return CFArrayCreate(kCFAllocatorDefault,keys,keyCount,&kCFTypeArrayCallBacks);
 }
 
+
+/*! Modifies the target IQN for the specified target.
+ *  @param existingIQN the IQN of the existing target to modify.
+ *  @param newIQN the new IQN to assign to the target. */
+void iSCSIPLModifyTargetIQN(CFStringRef existingIQN,CFStringRef newIQN)
+{
+    CFMutableDictionaryRef targetNodes = iSCSIPLGetTargets(false);
+    CFMutableDictionaryRef target = iSCSIPLGetTargetDict(existingIQN,false);
+
+    if(target && targetNodes)
+    {
+        CFDictionarySetValue(targetNodes,newIQN,target);
+        CFDictionaryRemoveValue(targetNodes,existingIQN);
+
+        targetNodesCacheModified = true;
+    }
+}
+
 /*! Creates an authentication object that represents the current
  *  authentication configuration of the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).

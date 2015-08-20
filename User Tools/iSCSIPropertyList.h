@@ -117,6 +117,10 @@ void iSCSIPLSetConnectionConfig(CFStringRef targetIQN,
                                 iSCSIConnectionConfigRef connCfg);
 
 
+/*! Modifies the target IQN for the specified target.
+ *  @param existingIQN the IQN of the existing target to modify.
+ *  @param newIQN the new IQN to assign to the target. */
+void iSCSIPLModifyTargetIQN(CFStringRef existingIQN,CFStringRef newIQN);
 
 /*! Creates an authentication object that represents the current
  *  authentication configuration of the target.
