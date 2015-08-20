@@ -151,7 +151,7 @@ CFMutableDictionaryRef iSCSIPLCreateInitiatorDict()
     return CFDictionaryCreateMutableCopy(kCFAllocatorDefault,0,initiatorPropertylist);
 }
 
-CFMutableDictionaryRef iSCSIPLGetInitiator(Boolean createIfMissing)
+CFMutableDictionaryRef iSCSIPLGetInitiatorDict(Boolean createIfMissing)
 {
     if(createIfMissing && !initiatorCache)
         initiatorCache = iSCSIPLCreateInitiatorDict();
@@ -167,7 +167,7 @@ CFMutableDictionaryRef iSCSIPLGetTargets(Boolean createIfMissing)
     return targetsCache;
 }
 
-CFMutableDictionaryRef iSCSIPLGetTargetInfo(CFStringRef targetIQN,
+CFMutableDictionaryRef iSCSIPLGetTargetDict(CFStringRef targetIQN,
                                             Boolean createIfMissing)
 {
     // Get list of targets
@@ -177,11 +177,11 @@ CFMutableDictionaryRef iSCSIPLGetTargetInfo(CFStringRef targetIQN,
     {
         if(createIfMissing && CFDictionaryGetCountOfKey(targetsList,targetIQN) == 0)
         {
-            CFMutableDictionaryRef targetInfo = CFDictionaryCreateMutable(
+            CFMutableDictionaryRef targetDict = CFDictionaryCreateMutable(
                 kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
             
-            CFDictionarySetValue(targetsList,targetIQN,targetInfo);
-            CFRelease(targetInfo);
+            CFDictionarySetValue(targetsList,targetIQN,targetDict);
+            CFRelease(targetDict);
         }
         
         return (CFMutableDictionaryRef)CFDictionaryGetValue(targetsList,targetIQN);
@@ -194,20 +194,20 @@ CFMutableDictionaryRef iSCSIPLGetPortalsList(CFStringRef targetIQN,
                                              Boolean createIfMissing)
 {
     // Get the target information dictionary
-    CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,createIfMissing);
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,createIfMissing);
 
     
-    if(targetInfo)
+    if(targetDict)
     {
-        if(createIfMissing && CFDictionaryGetCountOfKey(targetInfo,kiSCSIPKPortalsKey) == 0)
+        if(createIfMissing && CFDictionaryGetCountOfKey(targetDict,kiSCSIPKPortalsKey) == 0)
         {
             CFMutableDictionaryRef portalsList = CFDictionaryCreateMutable(
                 kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
             
-            CFDictionarySetValue(targetInfo,kiSCSIPKPortalsKey,portalsList);
+            CFDictionarySetValue(targetDict,kiSCSIPKPortalsKey,portalsList);
             CFRelease(portalsList);
         }
-        return (CFMutableDictionaryRef)CFDictionaryGetValue(targetInfo,kiSCSIPKPortalsKey);
+        return (CFMutableDictionaryRef)CFDictionaryGetValue(targetDict,kiSCSIPKPortalsKey);
     }
     return NULL;
 }
@@ -246,10 +246,10 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetIQN,
 iSCSISessionConfigRef iSCSIPLCopySessionConfig(CFStringRef targetIQN)
 {
     // Get the target information dictionary
-    CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,false);
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
     
-    if(targetInfo)
-        return iSCSISessionConfigCreateWithDictionary(CFDictionaryGetValue(targetInfo,kiSCSIPKSessionCfgKey));
+    if(targetDict)
+        return iSCSISessionConfigCreateWithDictionary(CFDictionaryGetValue(targetDict,kiSCSIPKSessionCfgKey));
     
     return NULL;
 }
@@ -258,10 +258,10 @@ void iSCSIPLSetSessionConfig(CFStringRef targetIQN,
                                       iSCSISessionConfigRef sessCfg)
 {
     // Get the target information dictionary
-    CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,true);
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,true);
     CFDictionaryRef sessCfgDict = iSCSISessionConfigCreateDictionary(sessCfg);
     
-    CFDictionarySetValue(targetInfo,kiSCSIPKSessionCfgKey,sessCfgDict);
+    CFDictionarySetValue(targetDict,kiSCSIPKSessionCfgKey,sessCfgDict);
     CFRelease(sessCfgDict);
     
     targetNodesCacheModified = true;
@@ -284,10 +284,10 @@ iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN)
     iSCSITargetRef target = NULL;
 
     // Get the dictionary containing information about the target
-    CFDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,false);
+    CFDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
 
-    if(targetInfo)
-        target = CFDictionaryGetValue(targetInfo,kiSCSIPKTargetKey);
+    if(targetDict)
+        target = CFDictionaryGetValue(targetDict,kiSCSIPKTargetKey);
 
     return target;
 }
@@ -303,22 +303,23 @@ iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetIQN,CFStr
     return NULL;
 }
 
-/*! Copies an authentication object associated with a particular target.
- *  @param targetIQN the target name.
- *  @return the authentication object. */
-iSCSIAuthRef iSCSIPLCopyAuthenticationForTarget(CFStringRef targetIQN)
-{
-    CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,false);
 
+/*! Helper function. Creates an authentication object for a particular
+ *  node (initiator or target) when supplied with the node's dictionary.
+ *  The node dictionary can be obtained by calling iSCSIPLGetInitiatorDict()
+ *  for the initiator or iSCSIPLGetTargetDict() for the target. */
+iSCSIAuthRef iSCSIPLCreateAuthenticationForNode(CFStringRef nodeIQN,
+                                                CFDictionaryRef nodeDictionary)
+{
     iSCSIAuthRef auth = NULL;
 
-    if(targetInfo) {
-        CFStringRef authMethod = CFDictionaryGetValue(targetInfo,kiSCSIPKAuthKey);
+    if(nodeDictionary) {
+        CFStringRef authMethod = CFDictionaryGetValue(nodeDictionary,kiSCSIPKAuthKey);
 
         if(CFStringCompare(authMethod,kiSCSIPVAuthCHAP,0) == kCFCompareEqualTo) {
 
-            CFStringRef name = CFDictionaryGetValue(targetInfo,kiSCSIPKAuthCHAPNameKey);
-            CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(targetIQN);
+            CFStringRef name = CFDictionaryGetValue(nodeDictionary,kiSCSIPKAuthCHAPNameKey);
+            CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(nodeIQN);
 
             if(secret)
                 auth = iSCSIAuthCreateCHAP(name,secret);
@@ -329,26 +330,6 @@ iSCSIAuthRef iSCSIPLCopyAuthenticationForTarget(CFStringRef targetIQN)
             auth = iSCSIAuthCreateNone();
     }
     return auth;
-}
-
-/*! Sets an authentication object associated with a particular target.
- *  @param targetIQN the target name.
- *  @param auth the connection configuration object to set. */
-void iSCSIPLSetAuthenticationForTarget(CFStringRef targetIQN,
-                                       iSCSIAuthRef targetAuth)
-{
-    CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(targetIQN,false);
-
-    if(iSCSIAuthGetMethod(targetAuth) == kiSCSIAuthMethodNone)
-        CFDictionarySetValue(targetInfo,kiSCSIPKAuthKey,kiSCSIPVAuthNone);
-    else {
-        CFStringRef name, sharedSecret;
-        CFDictionarySetValue(targetInfo,kiSCSIPKAuthKey,kiSCSIPVAuthCHAP);
-        iSCSIAuthGetCHAPValues(targetAuth,&name,&sharedSecret);
-        iSCSIKeychainSetCHAPSecretForNode(targetIQN,sharedSecret);
-    }
-
-    targetNodesCacheModified = true;
 }
 
 /*! Creates an authentication object that represents the current
@@ -356,46 +337,30 @@ void iSCSIPLSetAuthenticationForTarget(CFStringRef targetIQN,
  *  @return the authentication object. */
 iSCSIAuthRef iSCSIPLCreateAuthenticationForInitiator()
 {
-    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(false);
-    CFStringRef initiatorIQN = CFDictionaryGetValue(initiatorInfo,kiSCSIPKInitiatorIQN);
+    CFMutableDictionaryRef initiatorDict = iSCSIPLGetInitiatorDict(false);
+    CFStringRef initiatorIQN = CFDictionaryGetValue(initiatorDict,kiSCSIPKInitiatorIQN);
 
-    iSCSIAuthRef auth = NULL;
-
-    if(initiatorInfo) {
-        CFStringRef authMethod = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthKey);
-
-        if(CFStringCompare(authMethod,kiSCSIPVAuthCHAP,0) == kCFCompareEqualTo) {
-
-            CFStringRef name = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
-            CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(initiatorIQN);
-
-            if(secret)
-                auth = iSCSIAuthCreateCHAP(name,secret);
-            else
-                auth = iSCSIAuthCreateNone();
-        }
-        else
-            auth = iSCSIAuthCreateNone();
-    }
-    return auth;
+    return iSCSIPLCreateAuthenticationForNode(initiatorIQN,initiatorDict);
 }
 
 /*! Sets authentication method to be used by initiator. */
 void iSCSIPLSetInitiatorAuthenticationMethod(enum iSCSIAuthMethods authMethod)
 {
-    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
+    CFMutableDictionaryRef initiatorDict = iSCSIPLGetInitiatorDict(true);
 
     if(authMethod == kiSCSIAuthMethodNone)
-        CFDictionarySetValue(initiatorInfo,kiSCSIPKAuthKey,kiSCSIPVAuthNone);
+        CFDictionarySetValue(initiatorDict,kiSCSIPKAuthKey,kiSCSIPVAuthNone);
     else if(authMethod == kiSCSIAuthMethodCHAP)
-        CFDictionarySetValue(initiatorInfo,kiSCSIPKAuthKey,kiSCSIPVAuthCHAP);
+        CFDictionarySetValue(initiatorDict,kiSCSIPKAuthKey,kiSCSIPVAuthCHAP);
+
+    initiatorNodeCacheModified = true;
 }
 
 /*! Gets the current authentication method used by the initiator. */
 enum iSCSIAuthMethods iSCSIPLGetInitiatorAuthenticationMethod()
 {
-    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
-    CFStringRef auth = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthKey);
+    CFMutableDictionaryRef initiatorDict = iSCSIPLGetInitiatorDict(true);
+    CFStringRef auth = CFDictionaryGetValue(initiatorDict,kiSCSIPKAuthKey);
     enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
 
     if(CFStringCompare(auth,kiSCSIPVAuthNone,0) == kCFCompareEqualTo)
@@ -409,12 +374,10 @@ enum iSCSIAuthMethods iSCSIPLGetInitiatorAuthenticationMethod()
 /*! Sets the CHAP name associated with the initiator. */
 void iSCSIPLSetInitiatorCHAPName(CFStringRef name)
 {
-    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
-    CFStringRef currentName = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
-    CFStringRef initiatorIQN = CFDictionaryGetValue(initiatorInfo,kiSCSIPKInitiatorIQN);
+    CFMutableDictionaryRef initiatorDict = iSCSIPLGetInitiatorDict(true);
 
     // Change CHAP name in property list
-    CFDictionarySetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey,name);
+    CFDictionarySetValue(initiatorDict,kiSCSIPKAuthCHAPNameKey,name);
 
     initiatorNodeCacheModified = true;
 }
@@ -422,29 +385,23 @@ void iSCSIPLSetInitiatorCHAPName(CFStringRef name)
 /*! Copies the CHAP name associated with the initiator. */
 CFStringRef iSCSIPLCopyInitiatorCHAPName()
 {
-    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
-    CFStringRef name = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
+    CFMutableDictionaryRef initiatorDict = iSCSIPLGetInitiatorDict(true);
+    CFStringRef name = CFDictionaryGetValue(initiatorDict,kiSCSIPKAuthCHAPNameKey);
     return CFStringCreateCopy(kCFAllocatorDefault,name);
 }
 
 /*! Sets the CHAP secret associated with the initiator. */
 void iSCSIPLSetInitiatorCHAPSecret(CFStringRef secret)
 {
-    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
-    CFStringRef name = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
     CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
 
     iSCSIKeychainSetCHAPSecretForNode(initiatorIQN,secret);
     CFRelease(initiatorIQN);
-
-    initiatorNodeCacheModified = true;
 }
 
 /*! Copies the CHAP secret associated with the initiator. */
 CFStringRef iSCSIPLCopyInitiatorCHAPSecret()
 {
-    CFMutableDictionaryRef initiatorInfo = iSCSIPLGetInitiator(true);
-    CFStringRef name = CFDictionaryGetValue(initiatorInfo,kiSCSIPKAuthCHAPNameKey);
     CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
 
     CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(initiatorIQN);
@@ -491,17 +448,6 @@ void iSCSIPLRemovePortalForTarget(CFStringRef targetIQN,
     
     CFDictionaryRemoveValue(portalsList,portalAddress);
     
-    targetNodesCacheModified = true;
-}
-
-void iSCSIPLSetTarget(iSCSITargetRef target)
-{
-    // Get the target information dictionary
-    CFMutableDictionaryRef targetInfo = iSCSIPLGetTargetInfo(iSCSITargetGetIQN(target),true);
-    CFDictionaryRef targetDict = iSCSITargetCreateDictionary(target);
-    CFDictionarySetValue(targetInfo,kiSCSIPKTargetKey,targetDict);
-    CFRelease(targetDict);
-
     targetNodesCacheModified = true;
 }
 
@@ -637,6 +583,88 @@ CFArrayRef iSCSIPLCreateArrayOfPortalsForTarget(CFStringRef targetIQN)
     
     return CFArrayCreate(kCFAllocatorDefault,keys,keyCount,&kCFTypeArrayCallBacks);
 }
+
+/*! Creates an authentication object that represents the current
+ *  authentication configuration of the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the authentication object. */
+iSCSIAuthRef iSCSIPLCreateAuthenticationForTarget(CFStringRef targetIQN)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+
+    return iSCSIPLCreateAuthenticationForNode(targetIQN,targetDict);
+}
+
+/*! Sets authentication method to be used by target. */
+void iSCSIPLSetTargetAuthenticationMethod(CFStringRef targetIQN,
+                                          enum iSCSIAuthMethods authMethod)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,true);
+
+    if(authMethod == kiSCSIAuthMethodNone)
+        CFDictionarySetValue(targetDict,kiSCSIPKAuthKey,kiSCSIPVAuthNone);
+    else if(authMethod == kiSCSIAuthMethodCHAP)
+        CFDictionarySetValue(targetDict,kiSCSIPKAuthKey,kiSCSIPVAuthCHAP);
+
+    targetNodesCacheModified = true;
+}
+
+/*! Gets the current authentication method used by the target. */
+enum iSCSIAuthMethods iSCSIPLGetTargetAuthenticationMethod(CFStringRef targetIQN)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,true);
+    CFStringRef auth = CFDictionaryGetValue(targetDict,kiSCSIPKAuthKey);
+    enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
+
+    if(CFStringCompare(auth,kiSCSIPVAuthNone,0) == kCFCompareEqualTo)
+        authMethod = kiSCSIAuthMethodNone;
+    else if(CFStringCompare(auth,kiSCSIPVAuthCHAP,0) == kCFCompareEqualTo)
+        authMethod = kiSCSIAuthMethodCHAP;
+
+    return authMethod;
+}
+
+/*! Sets the CHAP name associated with the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param name the CHAP name associated with the target. */
+void iSCSIPLSetTargetCHAPName(CFStringRef targetIQN,CFStringRef name)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,true);
+
+    // Change CHAP name in property list
+    CFDictionarySetValue(targetDict,kiSCSIPKAuthCHAPNameKey,name);
+
+    targetNodesCacheModified = true;
+}
+
+/*! Copies the CHAP name associated with the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the CHAP name associated with the target. */
+CFStringRef iSCSIPLCopyTargetCHAPName(CFStringRef targetIQN)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,true);
+    CFStringRef name = CFDictionaryGetValue(targetDict,kiSCSIPKAuthCHAPNameKey);
+    return CFStringCreateCopy(kCFAllocatorDefault,name);
+}
+
+/*! Sets the CHAP secret associated with the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param secret the CHAP shared secret associated with the target. */
+void iSCSIPLSetTargetCHAPSecret(CFStringRef targetIQN,CFStringRef secret)
+{
+    iSCSIKeychainSetCHAPSecretForNode(targetIQN,secret);
+}
+
+/*! Copies the CHAP secret associated with the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the CHAP shared secret associated with the target. */
+CFStringRef iSCSIPLCopyTargetCHAPSecret(CFStringRef targetIQN)
+{
+    return iSCSIKeychainCopyCHAPSecretForNode(targetIQN);
+}
+
+
+
 
 /*! Adds a discovery record to the property list.
  *  @param discoveryRecord the record to add. */
