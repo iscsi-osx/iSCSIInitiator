@@ -827,21 +827,9 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
             if(!iSCSIPLContainsPortalForTarget(targetIQN,iSCSIPortalGetAddress(portal))) {
 
                 // Setup optional session or connection configuration from switches
-                iSCSIAuthRef auth = iSCSIAuthCreateNone();
-                iSCSIMutableSessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
-                iSCSIMutableConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
-
-                iSCSIPLSetTarget(target);
                 iSCSIPLSetPortalForTarget(targetIQN,portal);
-                iSCSIPLSetAuthenticationForTarget(targetIQN,auth);
-                iSCSIPLSetSessionConfig(targetIQN,sessCfg);
-                iSCSIPLSetConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal),connCfg);
-                    
                 iSCSIPLSynchronize();
 
-                iSCSIAuthRelease(auth);
-                iSCSISessionConfigRelease(sessCfg);
-                iSCSIConnectionConfigRelease(connCfg);
 
             } else {
                 iSCSICtlDisplayError("The specified target and portal already exist.");
@@ -966,6 +954,41 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,CFDictionaryRef options
     return 0;
 }
 
+
+errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
+                                        iSCSITargetRef target,
+                                        iSCSIPortalRef portal)
+{
+    CFStringRef targetIQN = iSCSITargetGetIQN(target);
+    CFStringRef value = NULL;
+
+    iSCSIPLSynchronize();
+
+    // Check for CHAP user name
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPUser,(const void **)&value))
+        iSCSIPLSetInitiatorCHAPName(value);
+
+    // Check for CHAP shared secret
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPSecret,(const void **)&value))
+        iSCSIPLSetInitiatorCHAPSecret(value);
+
+    // Check for authentication method
+    enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
+
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyAutMethod,(const void**)&value))
+    {
+        if(CFStringCompare(value,kOptValueAuthMethodNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            authMethod = kiSCSIAuthMethodNone;
+        else if(CFStringCompare(value,kOptValueAuthMethodCHAP,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            authMethod = kiSCSIAuthMethodCHAP;
+        else
+            iSCSICtlDisplayError("The specified authentication method is invalid.");
+    }
+    iSCSIPLSetTargetAuthenticationMethod(targetIQN,authMethod);
+
+    return 0;
+}
+
 errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
     // First check if the target exists in the property list.  Then check to
@@ -1018,13 +1041,12 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
             }
 
         }
-        // Else we're modifying target-level parameters
+        // Else we're modifying target parameters
         else {
             if(iSCSIDaemonIsTargetActive(handle,target))
                 iSCSICtlDisplayError("The specified target has an active session and cannot be modified.");
             else {
-                //                iSCSICtlModifyTargetFromOptions(options,target);
-                //                iSCSIPLSetTarget(target);
+                iSCSICtlModifyTargetFromOptions(options,target,portal);
             }
         }
     }
