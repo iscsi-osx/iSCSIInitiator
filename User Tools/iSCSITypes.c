@@ -145,7 +145,6 @@ iSCSISessionConfigRef iSCSITargetCreateWithData(CFDataRef data)
 /*! iSCSI target records are dictionaries with keys with string values
  *  that specify the target name and other parameters. */
 CFStringRef kiSCSITargetIQNKey = CFSTR("Target Name");
-CFStringRef kiSCSITargetNickname = CFSTR("Target Nickname");
 
 /*! Convenience function.  Creates a new iSCSITargetRef with the above keys. */
 iSCSIMutableTargetRef iSCSITargetCreateMutable()
@@ -163,19 +162,13 @@ CFStringRef iSCSITargetGetIQN(iSCSITargetRef target)
 }
 
 /*! Sets the name associated with the iSCSI target. */
-void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name)
+void iSCSITargetSetIQN(iSCSIMutableTargetRef target,CFStringRef name)
 {
     // Ignore blanks
     if(CFStringCompare(name,CFSTR(""),0) == kCFCompareEqualTo)
         return;
     
     CFDictionarySetValue(target,kiSCSITargetIQNKey,name);
-}
-
-/*! Gets the nickname associated with the iSCSI target. */
-CFStringRef iSCSITargetGetNickName(iSCSIMutableTargetRef target)
-{
-    return CFDictionaryGetValue(target,kiSCSITargetNickname);
 }
 
 /*! Releases memory associated with iSCSI targets. */
@@ -208,8 +201,6 @@ CFDataRef iSCSITargetCreateData(iSCSITargetRef target)
     return CFPropertyListCreateData(kCFAllocatorDefault,target,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
 
-
-
 /*! Creates a new authentication object from byte representation. */
 iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data)
 {
@@ -236,15 +227,15 @@ iSCSIAuthRef iSCSIAuthCreateNone()
 
 /*! Creates a new iSCSIAuth object for CHAP authentication. This function will
  *  fail to return an authentication object if both parameters are not specified.
- *  @param user the user name for CHAP.
+ *  @param name the name for CHAP.
  *  @param sharedSecret the shared CHAP secret.
  *  @return an iSCSI authentication object, or NULL if the parameters were
  *  invalid. */
-iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef user,
+iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef name,
                                  CFStringRef sharedSecret)
 {
     // Required parameters
-    if(!user || !sharedSecret)
+    if(!name || !sharedSecret)
         return NULL;
     
     const void * keys[] = {
@@ -255,7 +246,7 @@ iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef user,
     
     const void * values[] = {
         CFSTR("CHAP"),
-        user,
+        name,
         sharedSecret
     };
 
@@ -265,16 +256,16 @@ iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef user,
 /*! Returns the CHAP authentication parameter values if the authentication
  *  method is actually CHAP.
  *  @param auth an iSCSI authentication object.
- *  @param user the user name for CHAP.
+ *  @param name the user name for CHAP.
  *  @param sharedSecret the shared CHAP secret. */
 void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
-                            CFStringRef * user,
+                            CFStringRef * name,
                             CFStringRef * sharedSecret)
 {
-    if(!auth || !user || !sharedSecret || (iSCSIAuthGetMethod(auth) != kiSCSIAuthMethodCHAP))
+    if(!auth || !name || !sharedSecret || (iSCSIAuthGetMethod(auth) != kiSCSIAuthMethodCHAP))
         return;
 
-    *user = CFDictionaryGetValue(auth,CFSTR("User"));
+    *name = CFDictionaryGetValue(auth,CFSTR("User"));
     *sharedSecret = CFDictionaryGetValue(auth,CFSTR("Shared Secret"));
 }
 
@@ -702,38 +693,48 @@ iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableWithExisting(i
         kCFAllocatorDefault,config,kCFPropertyListMutableContainersAndLeaves);
 }
 
-/*! Gets whether a header digest is enabled in the portal object. */
-bool iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config)
+/*! Gets whether a header digest is enabled in the config object.
+ *  @param config the iSCSI config object.
+ *  @return the type of digest to use. */
+enum iSCSIDigestTypes iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config)
 {
-    CFBooleanRef headerDigest = CFDictionaryGetValue(config,kiSCSIConnectionConfigHeaderDigestKey);
-    return CFBooleanGetValue(headerDigest);
+    enum iSCSIDigestTypes digest = kiSCSIDigestNone;
+    CFNumberRef digestIdx = CFDictionaryGetValue(config,kiSCSIConnectionConfigHeaderDigestKey);
+    CFNumberGetValue(digestIdx,kCFNumberCFIndexType,&digest);
+    return digest;
 }
 
-/*! Sets whether a header digest is enabled in the portal object. */
-void iSCSIConnectionConfigSetHeaderDigest(iSCSIMutableConnectionConfigRef config,bool enable)
+/*! Sets whether a header digest is enabled in the config object.
+ * @param config the iSCSI config object.
+ * @param digest the type of digest to use. */
+void iSCSIConnectionConfigSetHeaderDigest(iSCSIConnectionConfigRef config,
+                                          enum iSCSIDigestTypes digest)
 {
-    CFBooleanRef headerDigest = kCFBooleanFalse;
-    if(enable)
-        headerDigest = kCFBooleanTrue;
-    
-    CFDictionarySetValue(config,kiSCSIConnectionConfigHeaderDigestKey,headerDigest);
+    CFNumberRef digestIdx = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&digest);
+    CFDictionarySetValue((CFMutableDictionaryRef)config,kiSCSIConnectionConfigHeaderDigestKey,digestIdx);
+    CFRelease(digestIdx);
 }
 
-/*! Gets whether a data digest is enabled in the portal object. */
-bool iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config)
+/*! Gets whether a data digest is enabled in the config object.
+ *  @param config the iSCSI config object.
+ *  @return the type of digest to use. */
+enum iSCSIDigestTypes iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config)
 {
-    CFBooleanRef dataDigest = (CFBooleanRef)CFDictionaryGetValue(config,kiSCSIConnectionConfigDataDigestKey);
-    return CFBooleanGetValue(dataDigest);
+    enum iSCSIDigestTypes digest = kiSCSIDigestNone;
+    CFNumberRef digestIdx = CFDictionaryGetValue(config,kiSCSIConnectionConfigDataDigestKey);
+    CFNumberGetValue(digestIdx,kCFNumberCFIndexType,&digest);
+    return digest;
 }
 
-/*! Sets whether a data digest is enabled in the portal object. */
-void iSCSIConnectionConfigSetDataDigest(iSCSIMutableConnectionConfigRef config,bool enable)
+/*! Sets whether a data digest is enabled in the config object.
+ * @param config the iSCSI config object.
+ * @param digest the type of digest to use. */
+void iSCSIConnectionConfigSetDataDigest(iSCSIConnectionConfigRef config,
+                                        enum iSCSIDigestTypes digest)
 {
-    CFBooleanRef dataDigest = kCFBooleanFalse;
-    if(enable)
-        dataDigest = kCFBooleanTrue;
-    
-    CFDictionarySetValue(config,kiSCSIConnectionConfigDataDigestKey,dataDigest);
+    CFNumberRef digestIdx = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&digest);
+    CFDictionarySetValue((CFMutableDictionaryRef)config,kiSCSIConnectionConfigDataDigestKey,digestIdx);
+    CFRelease(digestIdx);
 }
 
 /*! Releases memory associated with an iSCSI connection configuration object.

@@ -85,6 +85,16 @@ enum iSCSIAuthMethods {
     kiSCSIAuthMethodInvalid
 };
 
+/*! Digest type supported by iSCSI. */
+enum iSCSIDigestTypes {
+
+    /*! No digest. */
+    kiSCSIDigestNone = 0,
+
+    /*! CRC32C digest. */
+    kiSCSIDigestCRC32C = 1
+};
+
 /*! Detailed login response from a target. */
 enum iSCSILoginStatusCode {
     
@@ -266,7 +276,7 @@ CFStringRef iSCSITargetGetIQN(iSCSITargetRef target);
  *  effect if the specified target name is blank.
  *  @param target the target object.
  *  @param name the name to set. */
-void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name);
+void iSCSITargetSetIQN(iSCSIMutableTargetRef target,CFStringRef name);
 
 /*! Gets the nickname associated with the iSCSI target.
  *  @param target the target object.
@@ -312,19 +322,19 @@ iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIAuth object for CHAP authentication. This function will 
  *  fail to return an authentication object if both parameters are not specified.
- *  @param user the user name for CHAP.
+ *  @param name the name for CHAP.
  *  @param sharedSecret the shared CHAP secret.
  *  @return an iSCSI authentication object, or NULL if the parameters were
  *  invalid. */
-iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef user,CFStringRef sharedSecret);
+iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef name,CFStringRef sharedSecret);
 
 /*! Returns the CHAP authentication parameter values if the authentication
  *  method is actually CHAP.
  *  @param auth an iSCSI authentication object.
- *  @param user the user name for CHAP.
+ *  @param name the name for CHAP.
  *  @param sharedSecret the shared CHAP secret. */
 void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
-                            CFStringRef * user,
+                            CFStringRef * name,
                             CFStringRef * sharedSecret);
 
 /*! Gets the authentication method used.
@@ -393,7 +403,6 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIDiscoveryRecRef discoveryR
 CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIDiscoveryRecRef discoveryRec,
                                                          CFStringRef targetIQN);
 
-
 /*! Gets all of the portals associated with a partiular target and portal
  *  group tag.  
  *  @param discoveryRec the discovery record.
@@ -404,7 +413,6 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIDiscoveryRecRef di
 CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIDiscoveryRecRef discoveryRec,
                                        CFStringRef targetIQN,
                                        CFStringRef portalGroupTag);
-
 
 /*! Releases memory associated with an iSCSI discovery record object.
  * @param target the iSCSI discovery record object. */
@@ -503,23 +511,25 @@ iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableWithExisting(i
 
 /*! Gets whether a header digest is enabled in the config object.
  *  @param config the iSCSI config object.
- *  @return true if header digest is enabled, false otherwise. */
-bool iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config);
+ *  @return the type of digest to use. */
+enum iSCSIDigestTypes iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config);
 
 /*! Sets whether a header digest is enabled in the config object.
  * @param config the iSCSI config object.
- * @param enable true to enable header digest. */
-void iSCSIConnectionConfigSetHeaderDigest(iSCSIMutablePortalRef config,bool enable);
+ * @param digest the type of digest to use. */
+void iSCSIConnectionConfigSetHeaderDigest(iSCSIConnectionConfigRef config,
+                                          enum iSCSIDigestTypes digest);
 
 /*! Gets whether a data digest is enabled in the config object.
  *  @param config the iSCSI config object.
- *  @return true if data digest is enabled, false otherwise. */
-bool iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config);
+ *  @return the type of digest to use. */
+enum iSCSIDigestTypes iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config);
 
 /*! Sets whether a data digest is enabled in the config object.
  *  @param config the iSCSI config object.
- *  @param enable true to enable data digest. */
-void iSCSIConnectionConfigSetDataDigest(iSCSIMutablePortalRef config,bool enable);
+ * @param digest the type of digest to use. */
+void iSCSIConnectionConfigSetDataDigest(iSCSIConnectionConfigRef config,
+                                        enum iSCSIDigestTypes digest);
 
 /*! Releases memory associated with an iSCSI connection configuration object.
  *  @param config an iSCSI connection configuration object. */
