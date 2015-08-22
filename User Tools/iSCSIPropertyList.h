@@ -31,11 +31,6 @@ CFStringRef iSCSIPLCopyInitiatorAlias();
  *  @param initiatorAlias the initiator alias to set. */
 void iSCSIPLSetInitiatorAlias(CFStringRef initiatorAlias);
 
-/*! Creates an authentication object that represents the current
- *  authentication configuration of the initiator.
- *  @return the authentication object. */
-iSCSIAuthRef iSCSIPLCreateAuthenticationForInitiator();
-
 /*! Sets authentication method to be used by initiator. */
 void iSCSIPLSetInitiatorAuthenticationMethod(enum iSCSIAuthMethods authMethod);
 
@@ -58,7 +53,7 @@ CFStringRef iSCSIPLCopyInitiatorCHAPSecret();
 
 
 /*! Copies a target object for the specified target.
- *  @param targetIQN the target name.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return target the target object to copy. */
 iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN);
 
@@ -67,75 +62,74 @@ iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN);
 void iSCSIPLSetTarget(iSCSITargetRef target);
 
 /*! Removes a target object.
- *  @param targetIQN the target name. */
+ *  @param targetIQN the target iSCSI qualified name (IQN). */
 void iSCSIPLRemoveTarget(CFStringRef targetIQN);
 
 /*! Copies a portal object for the specified target.
- *  @param targetIQN the target name.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param poralName the portal name (IPv4, IPv6 or DNS name).
  *  @return portal the portal object to set. */
 iSCSIPortalRef iSCSIPLCopyPortalForTarget(CFStringRef targetIQN,
                                           CFStringRef portalAddress);
 
 /*! Sets a portal object for the specified target.
- *  @param targetIQN the target name.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param portal the portal object to set. */
 void iSCSIPLSetPortalForTarget(CFStringRef targetIQN,iSCSIPortalRef portal);
 
 /*! Removes a portal object for a particular target.
- *  @param targetIQN the target name.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param portalAddress the portal name to remove. */
 void iSCSIPLRemovePortalForTarget(CFStringRef targetIQN,
                                   CFStringRef portalAddress);
 
-/*! Copies the session configuration from the property list into an object.
- *  @param targetIQN the name of the target.
- *  @return a session configuration object. */
-iSCSISessionConfigRef iSCSIPLCopySessionConfig(CFStringRef targetIQN);
+/*! Sets the maximum number of connections for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param maxConnections the maximum number of connections. */
+void iSCSIPLSetMaxConnectionsForTarget(CFStringRef targetIQN,
+                                       UInt32 maxConnections);
 
-/*! Sets the session configuration for a particular target.
- *  @param targetIQN the name of the target to set.
- *  @param sessCfg the session configuration object. */
-void iSCSIPLSetSessionConfig(CFStringRef targetIQN,
-                             iSCSISessionConfigRef sessCfg);
+/*! Sets the error recovery level to use for the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param level the error recovery level. */
+void iSCSIPLSetErrorRecoveryLevelForTarget(CFStringRef targetIQN,
+                                           enum iSCSIErrorRecoveryLevels level);
 
-/*! Copies a connection configuration object associated with a particular
- *  portal for the specified target.
- *  @param targetIQN the target name.
- *  @param poralName the portal name (IPv4, IPv6 or DNS name).
- *  @return the connection configuration object to copy. */
-iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetIQN,
-                                                     CFStringRef portalAddress);
+/*! Gets the data digest for the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the digest type. */
+enum iSCSIDigestTypes iSCSIPLGetDataDigestForTarget(CFStringRef targetIQN);
 
-/*! Sets a connection configuration object associated with a particualr portal
- *  for the specified target.
- *  @param targetIQN the target name.
- *  @param poralName the portal name (IPv4, IPv6 or DNS name).
- *  @param connCfg the connection configuration object to set. */
-void iSCSIPLSetConnectionConfig(CFStringRef targetIQN,
-                                CFStringRef portalAddress,
-                                iSCSIConnectionConfigRef connCfg);
+/*! Sets the data digest for the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param digestType the digest type. */
+void iSCSIPLSetDataDigestFortarget(CFStringRef targetIQN,
+                                   enum iSCSIDigestTypes digestType);
 
+/*! Gets the header digest for the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the digest type. */
+enum iSCSIDigestTypes iSCSIPLGetHeaderDigestForTarget(CFStringRef targetIQN);
+
+/*! Sets the header digest for the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param digestType the digest type. */
+void iSCSIPLSetHeaderDigestFortarget(CFStringRef targetIQN,
+                                     enum iSCSIDigestTypes digestType);
 
 /*! Modifies the target IQN for the specified target.
  *  @param existingIQN the IQN of the existing target to modify.
  *  @param newIQN the new IQN to assign to the target. */
-void iSCSIPLModifyTargetIQN(CFStringRef existingIQN,CFStringRef newIQN);
-
-/*! Creates an authentication object that represents the current
- *  authentication configuration of the target.
- *  @param targetIQN the target iSCSI qualified name (IQN).
- *  @return the authentication object. */
-iSCSIAuthRef iSCSIPLCreateAuthenticationForTarget(CFStringRef targetIQN);
+void iSCSIPLSetTargetIQN(CFStringRef existingIQN,CFStringRef newIQN);
 
 /*! Sets authentication method to be used by target.
- *  @param targetIQN the name of the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param authMethod the authentication method to use. */
 void iSCSIPLSetTargetAuthenticationMethod(CFStringRef targetIQN,
                                           enum iSCSIAuthMethods authMethod);
 
 /*! Gets the current authentication method used by the target.
- *  @param targetIQN the name of the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return the iSCSI authentication method for the target. */
 enum iSCSIAuthMethods iSCSIPLGetTargetAuthenticationMethod(CFStringRef targetIQN);
 
@@ -160,24 +154,24 @@ void iSCSIPLSetTargetCHAPSecret(CFStringRef targetIQN,CFStringRef secret);
 CFStringRef iSCSIPLCopyTargetCHAPSecret(CFStringRef targetIQN);
 
 /*! Gets whether a target is defined in the property list.
- *  @param targetIQN the name of the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return true if the target exists, false otherwise. */
 Boolean iSCSIPLContainsTarget(CFStringRef targetIQN);
 
 /*! Gets whether a portal is defined in the property list.
- *  @param targetIQN the name of the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param portalAddress the name of the portal.
  *  @return true if the portal exists, false otherwise. */
 Boolean iSCSIPLContainsPortalForTarget(CFStringRef targetIQN,
                                        CFStringRef portalAddress);
 
-/*! Creates an array of target names (fully qualified IQN or EUI names)
+/*! Creates an array of target iSCSI qualified name (IQN)s
  *  defined in the property list.
- *  @return an array of target names. */
+ *  @return an array of target iSCSI qualified name (IQN)s. */
 CFArrayRef iSCSIPLCreateArrayOfTargets();
 
 /*! Creates an array of portal names (addresses) for a given target.
- *  @param targetIQN the name of the target (fully qualified IQN or EUI name).
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return an array of portal names for the specified target. */
 CFArrayRef iSCSIPLCreateArrayOfPortalsForTarget(CFStringRef targetIQN);
 

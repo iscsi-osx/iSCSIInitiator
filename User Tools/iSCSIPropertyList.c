@@ -46,18 +46,32 @@ CFStringRef kiSCSIPKDiscoveryKey = CFSTR("SendTargets Discovery");
 CFStringRef kiSCSIPKInitiatorKey = CFSTR("Initiator Node");
 
 
-/*! Preference key name for iSCSI session configuration (specific to each target). */
-CFStringRef kiSCSIPKSessionCfgKey = CFSTR("Session Configuration");
 
 /*! Preference key name for iSCSI portals dictionary (specific to each target). */
 CFStringRef kiSCSIPKPortalsKey = CFSTR("Portals");
 
+/*! Preference key name for error recovery level. */
+CFStringRef kiSCSIPKErrorRecoveryLevel = CFSTR("Error Recovery Level");
+
+/*! Preference key name for maximum number of connections. */
+CFStringRef kiSCSIPKMaxConnections = CFSTR("Maximum Connections");
+
+/*! Preference key name for data digest. */
+CFStringRef kiSCSIPKDataDigestKey = CFSTR("Data Digest");
+
+/*! Preference key name for header digest. */
+CFStringRef kiSCSIPKHeaderDigestKey = CFSTR("Header Digest");
+
+/*! Preference key value for digest. */
+CFStringRef kiSCSIPVDigestNone = CFSTR("None");
+
+/*! Preference key value for digest. */
+CFStringRef kiSCSIPVDigestCRC32C = CFSTR("CRC32C");
+
+
 
 /*! Preference key name for iSCSI portal dictionary (specific to each). */
 CFStringRef kiSCSIPKPortalKey = CFSTR("Portal Data");
-
-/*! Preference key name for iSCSI connection configuration information. */
-CFStringRef kiSCSIPKConnectionCfgKey = CFSTR("Connection Configuration");
 
 /*! Preference key name for iSCSI authentication. */
 CFStringRef kiSCSIPKAuthKey = CFSTR("Authentication");
@@ -71,6 +85,8 @@ CFStringRef kiSCSIPVAuthCHAP = CFSTR("CHAP");
 /*! Preference key name for iSCSI CHAP authentication name. */
 CFStringRef kiSCSIPKAuthCHAPNameKey = CFSTR("CHAP Name");
 
+
+
 /*! Preference key name for iSCSI initiator name. */
 CFStringRef kiSCSIPKInitiatorIQN = CFSTR("Name");
 
@@ -82,6 +98,7 @@ CFStringRef kiSCSIPVDefaultInitiatorAlias = CFSTR("localhost");
 
 /*! Default initiator IQN to use. */
 CFStringRef kiSCSIPVDefaultInitiatorIQN = CFSTR("iqn.2015-01.com.localhost:initiator");
+
 
 /*! Retrieves a mutable dictionary for the specified key. 
  *  @param key the name of the key, which can be either kiSCSIPKTargetsKey,
@@ -98,7 +115,9 @@ CFMutableDictionaryRef iSCSIPLCopyPropertyDict(CFStringRef key)
     
     // Create a deep copy to make the dictionary mutable
     CFMutableDictionaryRef mutablePropertyList = (CFMutableDictionaryRef)CFPropertyListCreateDeepCopy(
-        kCFAllocatorDefault,propertyList,kCFPropertyListMutableContainersAndLeaves);
+        kCFAllocatorDefault,
+        propertyList,
+        kCFPropertyListMutableContainersAndLeaves);
     
     // Release original retrieved property
     CFRelease(propertyList);
@@ -141,14 +160,45 @@ CFMutableDictionaryRef iSCSIPLCreateInitiatorDict()
         kiSCSIPVDefaultInitiatorAlias,
         kiSCSIPVDefaultInitiatorIQN };
     
-    CFDictionaryRef initiatorPropertylist = CFDictionaryCreate(kCFAllocatorDefault,
-                                                               (const void **)keys,
-                                                               (const void **)values,
-                                                               sizeof(keys)/sizeof(CFStringRef),
-                                                               &kCFTypeDictionaryKeyCallBacks,
-                                                               &kCFTypeDictionaryValueCallBacks);
+    CFDictionaryRef initiatorDict = CFDictionaryCreate(kCFAllocatorDefault,
+                                                       (const void **)keys,
+                                                       (const void **)values,
+                                                       sizeof(keys)/sizeof(CFStringRef),
+                                                       &kCFTypeDictionaryKeyCallBacks,
+                                                       &kCFTypeDictionaryValueCallBacks);
 //// TODO: fix memory leak
-    return CFDictionaryCreateMutableCopy(kCFAllocatorDefault,0,initiatorPropertylist);
+    return CFDictionaryCreateMutableCopy(kCFAllocatorDefault,0,initiatorDict);
+}
+
+CFMutableDictionaryRef iSCSIPLCreateTargetDict()
+{
+    CFStringRef keys[] = {
+        kiSCSIPKAuthCHAPNameKey,
+        kiSCSIPKAuthKey,
+        kiSCSIPKMaxConnections,
+        kiSCSIPKErrorRecoveryLevel };
+
+    CFNumberRef maxConnections = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&kRFC3720_MaxConnections);
+    CFNumberRef errorRecoveryLevel = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&kRFC3720_ErrorRecoveryLevel);
+
+    CFTypeRef values[] = {
+        (void *)CFSTR(""),
+        kiSCSIPVAuthNone,
+        maxConnections,
+        errorRecoveryLevel };
+
+    CFDictionaryRef targetDict = CFDictionaryCreate(kCFAllocatorDefault,
+                                                       (const void **)keys,
+                                                       (const void **)values,
+                                                       sizeof(keys)/sizeof(void *),
+                                                       &kCFTypeDictionaryKeyCallBacks,
+                                                       &kCFTypeDictionaryValueCallBacks);
+
+    CFRelease(maxConnections);
+    CFRelease(errorRecoveryLevel);
+
+//// TODO: fix memory leak
+    return CFDictionaryCreateMutableCopy(kCFAllocatorDefault,0,targetDict);
 }
 
 CFMutableDictionaryRef iSCSIPLGetInitiatorDict(Boolean createIfMissing)
@@ -177,9 +227,7 @@ CFMutableDictionaryRef iSCSIPLGetTargetDict(CFStringRef targetIQN,
     {
         if(createIfMissing && CFDictionaryGetCountOfKey(targetsList,targetIQN) == 0)
         {
-            CFMutableDictionaryRef targetDict = CFDictionaryCreateMutable(
-                kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
-            
+            CFMutableDictionaryRef targetDict = iSCSIPLCreateTargetDict();
             CFDictionarySetValue(targetsList,targetIQN,targetDict);
             CFRelease(targetDict);
         }
@@ -188,7 +236,6 @@ CFMutableDictionaryRef iSCSIPLGetTargetDict(CFStringRef targetIQN,
     }
     return NULL;
 }
-
 
 CFMutableDictionaryRef iSCSIPLGetPortalsList(CFStringRef targetIQN,
                                              Boolean createIfMissing)
@@ -202,7 +249,9 @@ CFMutableDictionaryRef iSCSIPLGetPortalsList(CFStringRef targetIQN,
         if(createIfMissing && CFDictionaryGetCountOfKey(targetDict,kiSCSIPKPortalsKey) == 0)
         {
             CFMutableDictionaryRef portalsList = CFDictionaryCreateMutable(
-                kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
+                kCFAllocatorDefault,0,
+                &kCFTypeDictionaryKeyCallBacks,
+                &kCFTypeDictionaryValueCallBacks);
             
             CFDictionarySetValue(targetDict,kiSCSIPKPortalsKey,portalsList);
             CFRelease(portalsList);
@@ -226,12 +275,11 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetIQN,
     {
        if(createIfMissing && CFDictionaryGetCountOfKey(portalsList,portalAddress) == 0)
        {
-           CFMutableDictionaryRef portalInfo = CFDictionaryCreateMutable(kCFAllocatorDefault,
-                                                                         0,
-                                                                         &kCFTypeDictionaryKeyCallBacks,
-                                                                         &kCFTypeDictionaryValueCallBacks);
+           CFMutableDictionaryRef portalInfo = CFDictionaryCreateMutable(
+                kCFAllocatorDefault,0,
+                &kCFTypeDictionaryKeyCallBacks,
+                &kCFTypeDictionaryValueCallBacks);
 
-           CFDictionarySetValue(portalInfo,kiSCSIPKConnectionCfgKey,CFSTR(""));
            CFDictionarySetValue(portalInfo,kiSCSIPKPortalKey,CFSTR(""));
            
            CFDictionarySetValue(portalsList,portalAddress,portalInfo);
@@ -243,27 +291,53 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetIQN,
     return NULL;
 }
 
-iSCSISessionConfigRef iSCSIPLCopySessionConfig(CFStringRef targetIQN)
+/*! Creates a session configuration object for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return a session configuration object for the target. */
+iSCSISessionConfigRef iSCSIPLCreateSessionConfig(CFStringRef targetIQN)
 {
     // Get the target information dictionary
     CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
-    
-    if(targetDict)
-        return iSCSISessionConfigCreateWithDictionary(CFDictionaryGetValue(targetDict,kiSCSIPKSessionCfgKey));
-    
-    return NULL;
+    CFNumberRef errorRecoveryLevel = CFDictionaryGetValue(targetDict,kiSCSIPKErrorRecoveryLevel);
+    CFNumberRef maxConnections = CFDictionaryGetValue(targetDict,kiSCSIPKMaxConnections);
+
+    iSCSIMutableSessionConfigRef config = iSCSISessionConfigCreateMutable();
+
+    int value;
+    if(CFNumberGetValue(errorRecoveryLevel,kCFNumberIntType,&value))
+        iSCSISessionConfigSetErrorRecoveryLevel(config,(enum iSCSIErrorRecoveryLevels)value);
+
+    if(CFNumberGetValue(maxConnections,kCFNumberIntType,&value))
+        iSCSISessionConfigSetMaxConnections(config,(UInt32)value);
+
+    return config;
 }
 
-void iSCSIPLSetSessionConfig(CFStringRef targetIQN,
-                                      iSCSISessionConfigRef sessCfg)
+/*! Sets the maximum number of connections for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param maxConnections the maximum number of connections. */
+void iSCSIPLSetMaxConnectionsForTarget(CFStringRef targetIQN,
+                                       UInt32 maxConnections)
 {
     // Get the target information dictionary
-    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,true);
-    CFDictionaryRef sessCfgDict = iSCSISessionConfigCreateDictionary(sessCfg);
-    
-    CFDictionarySetValue(targetDict,kiSCSIPKSessionCfgKey,sessCfgDict);
-    CFRelease(sessCfgDict);
-    
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+    CFNumberRef value = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&maxConnections);
+    CFDictionarySetValue(targetDict,kiSCSIPKMaxConnections,value);
+
+    targetNodesCacheModified = true;
+}
+
+/*! Sets the error recovery level to use for the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param level the error recovery level. */
+void iSCSIPLSetErrorRecoveryLevelForTarget(CFStringRef targetIQN,
+                                           enum iSCSIErrorRecoveryLevels level)
+{
+    // Get the target information dictionary
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+    CFNumberRef value = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&level);
+    CFDictionarySetValue(targetDict,kiSCSIPKErrorRecoveryLevel,value);
+
     targetNodesCacheModified = true;
 }
 
@@ -292,68 +366,102 @@ iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN)
     return target;
 }
 
-iSCSIConnectionConfigRef iSCSIPLCopyConnectionConfig(CFStringRef targetIQN,CFStringRef portalAddress)
+/*! Creates a connection configuration object associated with a particular
+ *  portal for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param portalAddress the portal address (IPv4, IPv6 or DNS name).
+ *  @return the newly created connection configuration. */
+iSCSIConnectionConfigRef iSCSIPLCreateConnectionConfigForPortal(CFStringRef targetIQN,
+                                                                CFStringRef portalAddress)
 {
-    // Get the dictionary containing information about the portal
+  /*  // Get the dictionary containing information about the portal
     CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetIQN,portalAddress,false);
-    
-    if(portalInfo)
-        return iSCSIConnectionConfigCreateWithDictionary(CFDictionaryGetValue(portalInfo,kiSCSIPKConnectionCfgKey));
+    iSCSIConnectionConfigRef config = iSCSIConnectionConfigCreateMutable();
 
-    return NULL;
-}
+    if(portalInfo) {
+        CFDictionaryGetValue(portalInfo,kiSCSIPKDataDigest
 
-
-/*! Helper function. Creates an authentication object for a particular
- *  node (initiator or target) when supplied with the node's dictionary.
- *  The node dictionary can be obtained by calling iSCSIPLGetInitiatorDict()
- *  for the initiator or iSCSIPLGetTargetDict() for the target. */
-iSCSIAuthRef iSCSIPLCreateAuthenticationForNode(CFStringRef nodeIQN,
-                                                CFDictionaryRef nodeDictionary)
-{
-    iSCSIAuthRef auth = NULL;
-
-    if(nodeDictionary) {
-        CFStringRef authMethod = CFDictionaryGetValue(nodeDictionary,kiSCSIPKAuthKey);
-
-        if(CFStringCompare(authMethod,kiSCSIPVAuthCHAP,0) == kCFCompareEqualTo) {
-
-            CFStringRef name = CFDictionaryGetValue(nodeDictionary,kiSCSIPKAuthCHAPNameKey);
-            CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(nodeIQN);
-
-            if(secret)
-                auth = iSCSIAuthCreateCHAP(name,secret);
-            else
-                auth = iSCSIAuthCreateNone();
-        }
-        else
-            auth = iSCSIAuthCreateNone();
     }
-    return auth;
+
+    return config;*/
 }
 
-/*! Creates an authentication object that represents the current
- *  authentication configuration of the initiator.
- *  @return the authentication object. */
-iSCSIAuthRef iSCSIPLCreateAuthenticationForInitiator()
+enum iSCSIDigestTypes iSCSIPLGetDataDigestForTarget(CFStringRef targetIQN)
 {
-    CFMutableDictionaryRef initiatorDict = iSCSIPLGetInitiatorDict(false);
-    CFStringRef initiatorIQN = CFDictionaryGetValue(initiatorDict,kiSCSIPKInitiatorIQN);
+    // Get the dictionary containing information about the target
+    CFDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
 
-    return iSCSIPLCreateAuthenticationForNode(initiatorIQN,initiatorDict);
+    enum iSCSIDigestTypes digestType = kiSCSIDigestInvalid;
+
+    if(targetDict) {
+        CFStringRef digest = CFDictionaryGetValue(targetDict,kiSCSIPKDataDigestKey);
+
+        if(CFStringCompare(digest,kiSCSIPVDigestNone,0) == kCFCompareEqualTo)
+            digestType = kiSCSIDigestNone;
+        else if(CFStringCompare(digest,kiSCSIPVDigestCRC32C,0) == kCFCompareEqualTo)
+            digestType = kiSCSIDigestCRC32C;
+    }
+    return digestType;
 }
 
-/*! Sets authentication method to be used by initiator. */
-void iSCSIPLSetInitiatorAuthenticationMethod(enum iSCSIAuthMethods authMethod)
+void iSCSIPLSetDataDigestFortarget(CFStringRef targetIQN,enum iSCSIDigestTypes digestType)
 {
-    CFMutableDictionaryRef initiatorDict = iSCSIPLGetInitiatorDict(true);
+    // Get the dictionary containing information about the target
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
 
-    if(authMethod == kiSCSIAuthMethodNone)
-        CFDictionarySetValue(initiatorDict,kiSCSIPKAuthKey,kiSCSIPVAuthNone);
-    else if(authMethod == kiSCSIAuthMethodCHAP)
-        CFDictionarySetValue(initiatorDict,kiSCSIPKAuthKey,kiSCSIPVAuthCHAP);
+    if(targetDict)
+    {
+        CFStringRef digest = NULL;
 
-    initiatorNodeCacheModified = true;
+        switch(digestType)
+        {
+            case kiSCSIDigestNone: digest = kiSCSIPVDigestNone; break;
+            case kiSCSIDigestCRC32C: digest = kiSCSIPVDigestCRC32C; break;
+            case kiSCSIDigestInvalid: break;
+        };
+
+        if(digest)
+            CFDictionarySetValue(targetDict,kiSCSIPKDataDigestKey,digest);
+    }
+}
+
+enum iSCSIDigestTypes iSCSIPLGetHeaderDigestForTarget(CFStringRef targetIQN)
+{
+    // Get the dictionary containing information about the target
+    CFDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+
+    enum iSCSIDigestTypes digestType = kiSCSIDigestInvalid;
+
+    if(targetDict) {
+        CFStringRef digest = CFDictionaryGetValue(targetDict,kiSCSIPKHeaderDigestKey);
+
+        if(CFStringCompare(digest,kiSCSIPVDigestNone,0) == kCFCompareEqualTo)
+            digestType = kiSCSIDigestNone;
+        else if(CFStringCompare(digest,kiSCSIPVDigestCRC32C,0) == kCFCompareEqualTo)
+            digestType = kiSCSIDigestCRC32C;
+    }
+    return digestType;
+}
+
+void iSCSIPLSetHeaderDigestFortarget(CFStringRef targetIQN,enum iSCSIDigestTypes digestType)
+{
+    // Get the dictionary containing information about the target
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+
+    if(targetDict)
+    {
+        CFStringRef digest = NULL;
+
+        switch(digestType)
+        {
+            case kiSCSIDigestNone: digest = kiSCSIPVDigestNone; break;
+            case kiSCSIDigestCRC32C: digest = kiSCSIPVDigestCRC32C; break;
+            case kiSCSIDigestInvalid: break;
+        };
+
+        if(digest)
+            CFDictionarySetValue(targetDict,kiSCSIPKHeaderDigestKey,digest);
+    }
 }
 
 /*! Gets the current authentication method used by the initiator. */
@@ -409,20 +517,6 @@ CFStringRef iSCSIPLCopyInitiatorCHAPSecret()
     return secret;
 }
 
-void iSCSIPLSetConnectionConfig(CFStringRef targetIQN,
-                                CFStringRef portalAddress,
-                                iSCSIConnectionConfigRef connCfg)
-{
-    // Get the dictionary containing information about the portal
-    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetIQN,portalAddress,true);
-    
-    // Set the authentication object
-    CFDictionaryRef connCfgDict = iSCSIConnectionConfigCreateDictionary(connCfg);
-    CFDictionarySetValue(portalInfo,kiSCSIPKConnectionCfgKey,connCfgDict);
-    CFRelease(connCfgDict);
-    
-    targetNodesCacheModified = true;
-}
 
 void iSCSIPLSetPortalForTarget(CFStringRef targetIQN,
                                iSCSIPortalRef portal)
@@ -522,7 +616,7 @@ void iSCSIPLSetInitiatorAlias(CFStringRef initiatorAlias)
 }
 
 /*! Gets whether a target is defined in the property list.
- *  @param targetIQN the name of the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return true if the target exists, false otherwise. */
 Boolean iSCSIPLContainsTarget(CFStringRef targetIQN)
 {
@@ -531,20 +625,20 @@ Boolean iSCSIPLContainsTarget(CFStringRef targetIQN)
 }
 
 /*! Gets whether a portal is defined in the property list.
- *  @param targetIQN the name of the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param portalAddress the name of the portal.
  *  @return true if the portal exists, false otherwise. */
 Boolean iSCSIPLContainsPortalForTarget(CFStringRef targetIQN,
-                              CFStringRef portalAddress)
+                                       CFStringRef portalAddress)
 {
     CFDictionaryRef portalsList = iSCSIPLGetPortalsList(targetIQN,false);
     return (portalsList && CFDictionaryContainsKey(portalsList,portalAddress));
 }
 
 
-/*! Creates an array of target names (fully qualified IQN or EUI names)
+/*! Creates an array of target iSCSI qualified name (IQN)s
  *  defined in the property list.
- *  @return an array of target names. */
+ *  @return an array of target iSCSI qualified name (IQN)s. */
 CFArrayRef iSCSIPLCreateArrayOfTargets()
 {
     CFDictionaryRef targetsList = iSCSIPLGetTargets(false);
@@ -564,7 +658,7 @@ CFArrayRef iSCSIPLCreateArrayOfTargets()
 }
 
 /*! Creates an array of portal names for a given target.
- *  @param targetIQN the name of the target (fully qualified IQN or EUI name).
+ *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return an array of portal names for the specified target. */
 CFArrayRef iSCSIPLCreateArrayOfPortalsForTarget(CFStringRef targetIQN)
 {
@@ -588,7 +682,7 @@ CFArrayRef iSCSIPLCreateArrayOfPortalsForTarget(CFStringRef targetIQN)
 /*! Modifies the target IQN for the specified target.
  *  @param existingIQN the IQN of the existing target to modify.
  *  @param newIQN the new IQN to assign to the target. */
-void iSCSIPLModifyTargetIQN(CFStringRef existingIQN,CFStringRef newIQN)
+void iSCSIPLSetTargetIQN(CFStringRef existingIQN,CFStringRef newIQN)
 {
     CFMutableDictionaryRef targetNodes = iSCSIPLGetTargets(false);
     CFMutableDictionaryRef target = iSCSIPLGetTargetDict(existingIQN,false);
@@ -598,19 +692,11 @@ void iSCSIPLModifyTargetIQN(CFStringRef existingIQN,CFStringRef newIQN)
         CFDictionarySetValue(targetNodes,newIQN,target);
         CFDictionaryRemoveValue(targetNodes,existingIQN);
 
+        // Rename keychain if required
+        iSCSIKeychainRenameNode(existingIQN,newIQN);
+
         targetNodesCacheModified = true;
     }
-}
-
-/*! Creates an authentication object that represents the current
- *  authentication configuration of the target.
- *  @param targetIQN the target iSCSI qualified name (IQN).
- *  @return the authentication object. */
-iSCSIAuthRef iSCSIPLCreateAuthenticationForTarget(CFStringRef targetIQN)
-{
-    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
-
-    return iSCSIPLCreateAuthenticationForNode(targetIQN,targetDict);
 }
 
 /*! Sets authentication method to be used by target. */
