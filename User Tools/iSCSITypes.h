@@ -92,7 +92,10 @@ enum iSCSIDigestTypes {
     kiSCSIDigestNone = 0,
 
     /*! CRC32C digest. */
-    kiSCSIDigestCRC32C = 1
+    kiSCSIDigestCRC32C = 1,
+
+    /*! Invalid digest. */
+    kiSCSIDigestInvalid = 2
 };
 
 /*! Detailed login response from a target. */
@@ -319,7 +322,6 @@ iSCSIAuthRef iSCSIAuthCreateNone();
  * @return an iSCSI authentication object or NULL if object creation failed */
 iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data);
 
-
 /*! Creates a new iSCSIAuth object for CHAP authentication. This function will 
  *  fail to return an authentication object if both parameters are not specified.
  *  @param name the name for CHAP.
@@ -355,6 +357,7 @@ iSCSIAuthRef iSCSIAuthCreateWithDictionary(CFDictionaryRef dict);
 
 /*! Copies an authentication object to a dictionary representation. */
 CFDictionaryRef iSCSIAuthCreateDictionary(iSCSIAuthRef auth);
+
 /*! Copies the authentication object to a byte array representation. */
 CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth);
 
@@ -516,9 +519,9 @@ enum iSCSIDigestTypes iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfig
 
 /*! Sets whether a header digest is enabled in the config object.
  * @param config the iSCSI config object.
- * @param digest the type of digest to use. */
+ * @param digestType the type of digest to use. */
 void iSCSIConnectionConfigSetHeaderDigest(iSCSIConnectionConfigRef config,
-                                          enum iSCSIDigestTypes digest);
+                                          enum iSCSIDigestTypes digestType);
 
 /*! Gets whether a data digest is enabled in the config object.
  *  @param config the iSCSI config object.
@@ -527,9 +530,9 @@ enum iSCSIDigestTypes iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRe
 
 /*! Sets whether a data digest is enabled in the config object.
  *  @param config the iSCSI config object.
- * @param digest the type of digest to use. */
+ *  @param digestType the type of digest to use. */
 void iSCSIConnectionConfigSetDataDigest(iSCSIConnectionConfigRef config,
-                                        enum iSCSIDigestTypes digest);
+                                        enum iSCSIDigestTypes digestType);
 
 /*! Releases memory associated with an iSCSI connection configuration object.
  *  @param config an iSCSI connection configuration object. */

@@ -706,11 +706,11 @@ enum iSCSIDigestTypes iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfig
 
 /*! Sets whether a header digest is enabled in the config object.
  * @param config the iSCSI config object.
- * @param digest the type of digest to use. */
+ * @param digestType the type of digest to use. */
 void iSCSIConnectionConfigSetHeaderDigest(iSCSIConnectionConfigRef config,
-                                          enum iSCSIDigestTypes digest)
+                                          enum iSCSIDigestTypes digestType)
 {
-    CFNumberRef digestIdx = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&digest);
+    CFNumberRef digestIdx = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&digestType);
     CFDictionarySetValue((CFMutableDictionaryRef)config,kiSCSIConnectionConfigHeaderDigestKey,digestIdx);
     CFRelease(digestIdx);
 }
@@ -728,11 +728,11 @@ enum iSCSIDigestTypes iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRe
 
 /*! Sets whether a data digest is enabled in the config object.
  * @param config the iSCSI config object.
- * @param digest the type of digest to use. */
+ * @param digestType the type of digest to use. */
 void iSCSIConnectionConfigSetDataDigest(iSCSIConnectionConfigRef config,
-                                        enum iSCSIDigestTypes digest)
+                                        enum iSCSIDigestTypes digestType)
 {
-    CFNumberRef digestIdx = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&digest);
+    CFNumberRef digestIdx = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&digestType);
     CFDictionarySetValue((CFMutableDictionaryRef)config,kiSCSIConnectionConfigDataDigestKey,digestIdx);
     CFRelease(digestIdx);
 }
