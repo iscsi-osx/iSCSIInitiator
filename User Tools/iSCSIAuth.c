@@ -326,7 +326,7 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
 
 /*! Helper function.  Called by session or connection creation functions to
  *  begin authentication between the initiator and a selected target.  If the
- *  target name is set to blank (e.g., by a call to iSCSITargetSetName()) or 
+ *  target name is set to blank (e.g., by a call to iSCSITargetSetIQN()) or 
  *  never set at all, a discovery session is assumed for authentication. */
 errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                            iSCSIAuthRef initiatorAuth,
