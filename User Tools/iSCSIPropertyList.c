@@ -390,7 +390,7 @@ enum iSCSIDigestTypes iSCSIPLGetDataDigestForTarget(CFStringRef targetIQN)
     return digestType;
 }
 
-void iSCSIPLSetDataDigestFortarget(CFStringRef targetIQN,enum iSCSIDigestTypes digestType)
+void iSCSIPLSetDataDigestForTarget(CFStringRef targetIQN,enum iSCSIDigestTypes digestType)
 {
     // Get the dictionary containing information about the target
     CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
@@ -429,7 +429,7 @@ enum iSCSIDigestTypes iSCSIPLGetHeaderDigestForTarget(CFStringRef targetIQN)
     return digestType;
 }
 
-void iSCSIPLSetHeaderDigestFortarget(CFStringRef targetIQN,enum iSCSIDigestTypes digestType)
+void iSCSIPLSetHeaderDigestForTarget(CFStringRef targetIQN,enum iSCSIDigestTypes digestType)
 {
     // Get the dictionary containing information about the target
     CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);

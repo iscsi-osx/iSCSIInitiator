@@ -113,7 +113,7 @@ enum iSCSIDigestTypes iSCSIPLGetDataDigestForTarget(CFStringRef targetIQN);
 /*! Sets the data digest for the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param digestType the digest type. */
-void iSCSIPLSetDataDigestFortarget(CFStringRef targetIQN,
+void iSCSIPLSetDataDigestForTarget(CFStringRef targetIQN,
                                    enum iSCSIDigestTypes digestType);
 
 /*! Gets the header digest for the target.
@@ -124,7 +124,7 @@ enum iSCSIDigestTypes iSCSIPLGetHeaderDigestForTarget(CFStringRef targetIQN);
 /*! Sets the header digest for the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param digestType the digest type. */
-void iSCSIPLSetHeaderDigestFortarget(CFStringRef targetIQN,
+void iSCSIPLSetHeaderDigestForTarget(CFStringRef targetIQN,
                                      enum iSCSIDigestTypes digestType);
 
 /*! Modifies the target IQN for the specified target.
