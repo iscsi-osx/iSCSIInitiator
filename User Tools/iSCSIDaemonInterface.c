@@ -374,7 +374,7 @@ errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
     
     // Setup a target object with the target name
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,targetIQN);
+    iSCSITargetSetIQN(target,targetIQN);
     
     // Generate data to transmit (no longer need target object after this)
     CFDataRef targetData = iSCSITargetCreateData(target);
