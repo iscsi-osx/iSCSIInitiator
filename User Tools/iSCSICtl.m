@@ -115,6 +115,27 @@ CFStringRef kOptKeyNodeName = CFSTR("node-name");
 CFStringRef kOptKeyNodeAlias = CFSTR("node-alias");
 
 
+
+/*! Max connections command line option. */
+CFStringRef kOptKeyMaxConnections = CFSTR("MaxConnections");
+
+/*! Error recovery level command line option. */
+CFStringRef kOptKeyErrorRecoveryLevel = CFSTR("ErrorRecoveryLevel");
+
+/*! Header digest command line option. */
+CFStringRef kOptKeyHeaderDigest = CFSTR("HeaderDigest");
+
+/*! Data digest command line option. */
+CFStringRef kOptKeyDataDigest = CFSTR("DataDigest");
+
+/*! Digest value for no digest. */
+CFStringRef kOptValueDigestNone = CFSTR("None");
+
+/*! Digest value for CRC32C digest. */
+CFStringRef kOptValueDigestCRC32C = CFSTR("CRC32C");
+
+
+
 /*! Name of this command-line executable. */
 const char * executableName;
 
@@ -489,7 +510,6 @@ void iSCSICtlDisplayLogoutStatus(enum iSCSILogoutStatusCode statusCode,
     }
     iSCSICtlDisplayString(logoutStatus);
     CFRelease(logoutStatus);
-
 }
 
 /*! Helper function.  Returns true if the user attempted to specify a target
@@ -965,11 +985,11 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
 
     // Check for CHAP user name
     if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPUser,(const void **)&value))
-        iSCSIPLSetInitiatorCHAPName(value);
+        iSCSIPLSetTargetCHAPName(targetIQN,value);
 
     // Check for CHAP shared secret
     if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPSecret,(const void **)&value))
-        iSCSIPLSetInitiatorCHAPSecret(value);
+        iSCSIPLSetTargetCHAPSecret(targetIQN,value);
 
     // Check for authentication method
     enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
@@ -994,6 +1014,52 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
             iSCSIPLSetTargetIQN(targetIQN,value);
         else
             iSCSICtlDisplayError("The specified name is not a valid IQN or EUI-64 identifier.");
+    }
+
+
+    // Check for maximum connections
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyMaxConnections,(const void **)&value))
+    {
+        UInt32 maxConnections = CFStringGetIntValue(value);
+        if(maxConnections < kRFC3720_MaxConnections_Min)
+            iSCSICtlDisplayError("Specified maximum number of connections is exceeds the maximum.");
+        else if(maxConnections > kRFC3720_MaxConnections_Max)
+            iSCSICtlDisplayError("Specified maximum number of connections is not sufficient.");
+        else
+            iSCSIPLSetMaxConnectionsForTarget(targetIQN,maxConnections);
+    }
+
+    // Check for error recovery level
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyErrorRecoveryLevel,(const void **)&value))
+    {
+        enum iSCSIErrorRecoveryLevels level = CFStringGetIntValue(value);
+
+        if(level < kRFC3720_ErrorRecoveryLevel_Min || level > kRFC3720_ErrorRecoveryLevel_Max)
+            iSCSICtlDisplayError("The specified error recovery level is invalid.");
+
+        iSCSIPLSetErrorRecoveryLevelForTarget(targetIQN,level);
+    }
+
+    // Check for header digest
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyHeaderDigest,(const void **)&value))
+    {
+        if(CFStringCompare(value,kOptValueDigestNone,0) == kCFCompareEqualTo)
+            iSCSIPLSetHeaderDigestForTarget(targetIQN,kiSCSIDigestNone);
+        else if(CFStringCompare(value,kOptValueDigestCRC32C,0) == kCFCompareEqualTo)
+            iSCSIPLSetHeaderDigestForTarget(targetIQN,kiSCSIDigestCRC32C);
+        else
+            iSCSICtlDisplayError("The specified digest type is invalid.");
+    }
+
+    // Check for data digest
+    if(CFDictionaryGetValueIfPresent(options,kOptKeyDataDigest,(const void **)&value))
+    {
+        if(CFStringCompare(value,kOptValueDigestNone,0) == kCFCompareEqualTo)
+            iSCSIPLSetDataDigestForTarget(targetIQN,kiSCSIDigestNone);
+        else if(CFStringCompare(value,kOptValueDigestCRC32C,0) == kCFCompareEqualTo)
+            iSCSIPLSetDataDigestForTarget(targetIQN,kiSCSIDigestCRC32C);
+        else
+            iSCSICtlDisplayError("The specified digest type is invalid.");
     }
 
     iSCSIPLSynchronize();
