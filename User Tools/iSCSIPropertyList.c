@@ -319,28 +319,22 @@ iSCSIPortalRef iSCSIPLCopyPortalForTarget(CFStringRef targetIQN,
     // Get list of portals for this target
     CFMutableDictionaryRef portalsList = iSCSIPLGetPortalsList(targetIQN,false);
 
-    iSCSIPortalRef portal = NULL:
+    iSCSIPortalRef portal = NULL;
 
     if(portalsList) {
-
-        CFMutableDictionaryRef portalDict = CFDictionaryGetValue(portalsList,portalAddress);
-
+        CFMutableDictionaryRef portalDict =
+            (CFMutableDictionaryRef)CFDictionaryGetValue(portalsList,
+                                                         portalAddress);
         if(portalDict)
             portal = iSCSIPortalCreateWithDictionary(portalDict);
     }
-    
     return portal;
 }
 
 iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN)
 {
-    iSCSITargetRef target = NULL;
-
-    // Get the dictionary containing information about the target
-    CFDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
-
-    if(targetDict)
-        target = CFDictionaryGetValue(targetDict,kiSCSIPKTargetKey);
+    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
+    iSCSITargetSetIQN(target,targetIQN);
 
     return target;
 }
@@ -355,10 +349,13 @@ enum iSCSIDigestTypes iSCSIPLGetDataDigestForTarget(CFStringRef targetIQN)
     if(targetDict) {
         CFStringRef digest = CFDictionaryGetValue(targetDict,kiSCSIPKDataDigestKey);
 
-        if(CFStringCompare(digest,kiSCSIPVDigestNone,0) == kCFCompareEqualTo)
-            digestType = kiSCSIDigestNone;
-        else if(CFStringCompare(digest,kiSCSIPVDigestCRC32C,0) == kCFCompareEqualTo)
-            digestType = kiSCSIDigestCRC32C;
+        if(digest) {
+
+            if(CFStringCompare(digest,kiSCSIPVDigestNone,0) == kCFCompareEqualTo)
+                digestType = kiSCSIDigestNone;
+            else if(CFStringCompare(digest,kiSCSIPVDigestCRC32C,0) == kCFCompareEqualTo)
+                digestType = kiSCSIDigestCRC32C;
+        }
     }
     return digestType;
 }
@@ -394,10 +391,13 @@ enum iSCSIDigestTypes iSCSIPLGetHeaderDigestForTarget(CFStringRef targetIQN)
     if(targetDict) {
         CFStringRef digest = CFDictionaryGetValue(targetDict,kiSCSIPKHeaderDigestKey);
 
-        if(CFStringCompare(digest,kiSCSIPVDigestNone,0) == kCFCompareEqualTo)
-            digestType = kiSCSIDigestNone;
-        else if(CFStringCompare(digest,kiSCSIPVDigestCRC32C,0) == kCFCompareEqualTo)
-            digestType = kiSCSIDigestCRC32C;
+        if(digest) {
+
+            if(CFStringCompare(digest,kiSCSIPVDigestNone,0) == kCFCompareEqualTo)
+                digestType = kiSCSIDigestNone;
+            else if(CFStringCompare(digest,kiSCSIPVDigestCRC32C,0) == kCFCompareEqualTo)
+                digestType = kiSCSIDigestCRC32C;
+        }
     }
     return digestType;
 }
