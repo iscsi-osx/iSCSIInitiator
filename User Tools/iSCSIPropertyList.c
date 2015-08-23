@@ -172,16 +172,22 @@ CFMutableDictionaryRef iSCSIPLCreateTargetDict()
         kiSCSIPKAuthCHAPNameKey,
         kiSCSIPKAuthKey,
         kiSCSIPKMaxConnections,
-        kiSCSIPKErrorRecoveryLevel };
+        kiSCSIPKErrorRecoveryLevel,
+        kiSCSIPKHeaderDigestKey,
+        kiSCSIPKDataDigestKey
+    };
 
-    CFNumberRef maxConnections = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&kRFC3720_MaxConnections);
-    CFNumberRef errorRecoveryLevel = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&kRFC3720_ErrorRecoveryLevel);
+    CFNumberRef maxConnections = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&kRFC3720_MaxConnections);
+    CFNumberRef errorRecoveryLevel = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&kRFC3720_ErrorRecoveryLevel);
 
     CFTypeRef values[] = {
         (void *)CFSTR(""),
         kiSCSIPVAuthNone,
         maxConnections,
-        errorRecoveryLevel };
+        errorRecoveryLevel,
+        kiSCSIPVDigestNone,
+        kiSCSIPVDigestNone
+    };
 
     CFDictionaryRef targetDict = CFDictionaryCreate(kCFAllocatorDefault,
                                                        (const void **)keys,
