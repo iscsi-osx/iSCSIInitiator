@@ -89,11 +89,21 @@ void iSCSIPLRemovePortalForTarget(CFStringRef targetIQN,
 void iSCSIPLSetMaxConnectionsForTarget(CFStringRef targetIQN,
                                        UInt32 maxConnections);
 
+/*! Gets the maximum number of connections for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the maximum number of connections for the target. */
+UInt32 iSCSIPLGetMaxConnectionsForTarget(CFStringRef targetIQN);
+
 /*! Sets the error recovery level to use for the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param level the error recovery level. */
 void iSCSIPLSetErrorRecoveryLevelForTarget(CFStringRef targetIQN,
                                            enum iSCSIErrorRecoveryLevels level);
+
+/*! Gets the error recovery level to use for the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the error recovery level. */
+enum iSCSIErrorRecoveryLevels iSCSIPLGetErrorRecoveryLevelForTarget(CFStringRef targetIQN);
 
 /*! Gets the data digest for the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).

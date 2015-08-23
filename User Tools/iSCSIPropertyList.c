@@ -291,28 +291,6 @@ CFMutableDictionaryRef iSCSIPLGetPortalInfo(CFStringRef targetIQN,
     return NULL;
 }
 
-/*! Creates a session configuration object for the specified target.
- *  @param targetIQN the target iSCSI qualified name (IQN).
- *  @return a session configuration object for the target. */
-iSCSISessionConfigRef iSCSIPLCreateSessionConfig(CFStringRef targetIQN)
-{
-    // Get the target information dictionary
-    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
-    CFNumberRef errorRecoveryLevel = CFDictionaryGetValue(targetDict,kiSCSIPKErrorRecoveryLevel);
-    CFNumberRef maxConnections = CFDictionaryGetValue(targetDict,kiSCSIPKMaxConnections);
-
-    iSCSIMutableSessionConfigRef config = iSCSISessionConfigCreateMutable();
-
-    int value;
-    if(CFNumberGetValue(errorRecoveryLevel,kCFNumberIntType,&value))
-        iSCSISessionConfigSetErrorRecoveryLevel(config,(enum iSCSIErrorRecoveryLevels)value);
-
-    if(CFNumberGetValue(maxConnections,kCFNumberIntType,&value))
-        iSCSISessionConfigSetMaxConnections(config,(UInt32)value);
-
-    return config;
-}
-
 /*! Sets the maximum number of connections for the specified target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param maxConnections the maximum number of connections. */
@@ -341,6 +319,34 @@ void iSCSIPLSetErrorRecoveryLevelForTarget(CFStringRef targetIQN,
     targetNodesCacheModified = true;
 }
 
+/*! Gets the maximum number of connections for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the maximum number of connections for the target. */
+UInt32 iSCSIPLGetMaxConnectionsForTarget(CFStringRef targetIQN)
+{
+    // Get the target information dictionary
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+    CFNumberRef value = CFDictionaryGetValue(targetDict,kiSCSIPKErrorRecoveryLevel);
+
+    UInt32 maxConnections = kRFC3720_MaxConnections;
+    CFNumberGetValue(value,kCFNumberIntType,&maxConnections);
+    return maxConnections;
+}
+
+/*! Gets the error recovery level to use for the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the error recovery level. */
+enum iSCSIErrorRecoveryLevels iSCSIPLGetErrorRecoveryLevelForTarget(CFStringRef targetIQN)
+{
+    // Get the target information dictionary
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+    CFNumberRef value = CFDictionaryGetValue(targetDict,kiSCSIPKErrorRecoveryLevel);
+
+    enum iSCSIErrorRecoveryLevels errorRecoveryLevel = kRFC3720_ErrorRecoveryLevel;
+    CFNumberGetValue(value,kCFNumberIntType,&errorRecoveryLevel);
+    return errorRecoveryLevel;
+}
+
 iSCSIPortalRef iSCSIPLCopyPortalForTarget(CFStringRef targetIQN,
                                           CFStringRef portalAddress)
 {
@@ -364,26 +370,6 @@ iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN)
         target = CFDictionaryGetValue(targetDict,kiSCSIPKTargetKey);
 
     return target;
-}
-
-/*! Creates a connection configuration object associated with a particular
- *  portal for the specified target.
- *  @param targetIQN the target iSCSI qualified name (IQN).
- *  @param portalAddress the portal address (IPv4, IPv6 or DNS name).
- *  @return the newly created connection configuration. */
-iSCSIConnectionConfigRef iSCSIPLCreateConnectionConfigForPortal(CFStringRef targetIQN,
-                                                                CFStringRef portalAddress)
-{
-  /*  // Get the dictionary containing information about the portal
-    CFMutableDictionaryRef portalInfo = iSCSIPLGetPortalInfo(targetIQN,portalAddress,false);
-    iSCSIConnectionConfigRef config = iSCSIConnectionConfigCreateMutable();
-
-    if(portalInfo) {
-        CFDictionaryGetValue(portalInfo,kiSCSIPKDataDigest
-
-    }
-
-    return config;*/
 }
 
 enum iSCSIDigestTypes iSCSIPLGetDataDigestForTarget(CFStringRef targetIQN)
@@ -464,6 +450,19 @@ void iSCSIPLSetHeaderDigestFortarget(CFStringRef targetIQN,enum iSCSIDigestTypes
     }
 }
 
+/*! Sets authentication method to be used by initiator. */
+void iSCSIPLSetInitiatorAuthenticationMethod(enum iSCSIAuthMethods authMethod)
+{
+    CFMutableDictionaryRef initiatorDict = iSCSIPLGetInitiatorDict(true);
+
+    if(authMethod == kiSCSIAuthMethodNone)
+        CFDictionarySetValue(initiatorDict,kiSCSIPKAuthKey,kiSCSIPVAuthNone);
+    else if(authMethod == kiSCSIAuthMethodCHAP)
+        CFDictionarySetValue(initiatorDict,kiSCSIPKAuthKey,kiSCSIPVAuthCHAP);
+
+    initiatorNodeCacheModified = true;
+}
+
 /*! Gets the current authentication method used by the initiator. */
 enum iSCSIAuthMethods iSCSIPLGetInitiatorAuthenticationMethod()
 {
@@ -505,6 +504,8 @@ void iSCSIPLSetInitiatorCHAPSecret(CFStringRef secret)
 
     iSCSIKeychainSetCHAPSecretForNode(initiatorIQN,secret);
     CFRelease(initiatorIQN);
+
+    initiatorNodeCacheModified = true;
 }
 
 /*! Copies the CHAP secret associated with the initiator. */
