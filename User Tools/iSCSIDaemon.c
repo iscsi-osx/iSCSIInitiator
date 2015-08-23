@@ -119,7 +119,20 @@ iSCSIConnectionConfigRef iSCSIDCreateConnectionConfig(CFStringRef targetIQN,
 {
     iSCSIMutableConnectionConfigRef config = iSCSIConnectionConfigCreateMutable();
 
-    iSCSIConnectionConfigSetDataDigest(config,iSCSIPLGetDataDigestForTarget(targetIQN));
+    enum iSCSIDigestTypes digestType;
+
+    digestType = iSCSIPLGetDataDigestForTarget(targetIQN);
+
+    if(digestType == kiSCSIDigestInvalid)
+        digestType = kiSCSIDigestNone;
+
+    iSCSIConnectionConfigSetDataDigest(config,digestType);
+
+    digestType = iSCSIPLGetHeaderDigestForTarget(targetIQN);
+
+    if(digestType == kiSCSIDigestInvalid)
+        digestType = kiSCSIDigestNone;
+
     iSCSIConnectionConfigSetHeaderDigest(config,iSCSIPLGetHeaderDigestForTarget(targetIQN));
 
     return config;
@@ -141,7 +154,7 @@ iSCSIAuthRef iSCSIDCreateAuthenticationForTarget(CFStringRef targetIQN)
     else
         auth = iSCSIAuthCreateNone();
 
-    return auth;
+    return iSCSIAuthCreateNone();
 }
 
 iSCSIAuthRef iSCSIDCreateAuthenticationForInitiator()
@@ -160,7 +173,7 @@ iSCSIAuthRef iSCSIDCreateAuthenticationForInitiator()
     else
         auth = iSCSIAuthCreateNone();
 
-    return auth;
+    return iSCSIAuthCreateNone();
 }
 
 
