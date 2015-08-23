@@ -1021,7 +1021,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     // Create a discovery session to the portal (empty target name is assumed to
     // be a discovery session)
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,kiSCSIUnspecifiedTargetIQN);
+    iSCSITargetSetIQN(target,kiSCSIUnspecifiedTargetIQN);
     
     SID sessionId;
     CID connectionId;
@@ -1168,7 +1168,7 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
     
     // Create a discovery session to the portal
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,targetIQN);
+    iSCSITargetSetIQN(target,targetIQN);
     
     iSCSIKernelSessionCfg sessCfgKernel;
     
@@ -1264,7 +1264,7 @@ iSCSITargetRef iSCSICreateTargetForSessionId(SID sessionId)
         return NULL;
     
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,targetIQN);
+    iSCSITargetSetIQN(target,targetIQN);
 
     CFRelease(targetIQN);
     
