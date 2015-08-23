@@ -521,7 +521,7 @@ iSCSIMutableTargetRef iSCSICtlCreateTargetFromOptions(CFDictionaryRef options)
     }
 
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,targetIQN);
+    iSCSITargetSetIQN(target,targetIQN);
 
     return target;
 }
@@ -954,7 +954,6 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,CFDictionaryRef options
     return 0;
 }
 
-
 errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
                                         iSCSITargetRef target,
                                         iSCSIPortalRef portal)
@@ -992,7 +991,7 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
     {
         // Validate the chosen target IQN
         if(iSCSIUtilsValidateIQN(value))
-            iSCSIPLModifyTargetIQN(targetIQN,value);
+            iSCSIPLSetTargetIQN(targetIQN,value);
         else
             iSCSICtlDisplayError("The specified name is not a valid IQN or EUI-64 identifier.");
     }
