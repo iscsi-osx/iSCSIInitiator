@@ -104,6 +104,65 @@ const struct iSCSIDRspCreateCFPropertiesForConnection iSCSIDRspCreateCFPropertie
 };
 
 
+iSCSISessionConfigRef iSCSIDCreateSessionConfig(CFStringRef targetIQN)
+{
+    iSCSIMutableSessionConfigRef config = iSCSISessionConfigCreateMutable();
+
+    iSCSISessionConfigSetErrorRecoveryLevel(config,iSCSIPLGetErrorRecoveryLevelForTarget(targetIQN));
+    iSCSISessionConfigSetMaxConnections(config,iSCSIPLGetMaxConnectionsForTarget(targetIQN));
+
+    return config;
+}
+
+iSCSIConnectionConfigRef iSCSIDCreateConnectionConfig(CFStringRef targetIQN,
+                                                      CFStringRef portalAddress)
+{
+    iSCSIMutableConnectionConfigRef config = iSCSIConnectionConfigCreateMutable();
+
+    iSCSIConnectionConfigSetDataDigest(config,iSCSIPLGetDataDigestForTarget(targetIQN));
+    iSCSIConnectionConfigSetHeaderDigest(config,iSCSIPLGetHeaderDigestForTarget(targetIQN));
+
+    return config;
+}
+
+iSCSIAuthRef iSCSIDCreateAuthenticationForTarget(CFStringRef targetIQN)
+{
+    iSCSIAuthRef auth;
+    enum iSCSIAuthMethods authMethod = iSCSIPLGetInitiatorAuthenticationMethod();
+
+    if(authMethod == kiSCSIAuthMethodCHAP)
+    {
+        CFStringRef name = iSCSIPLCopyTargetCHAPName(targetIQN);
+        CFStringRef sharedSecret = iSCSIPLCopyTargetCHAPSecret(targetIQN);
+        auth = iSCSIAuthCreateCHAP(name,sharedSecret);
+        CFRelease(name);
+        CFRelease(sharedSecret);
+    }
+    else
+        auth = iSCSIAuthCreateNone();
+
+    return auth;
+}
+
+iSCSIAuthRef iSCSIDCreateAuthenticationForInitiator()
+{
+    iSCSIAuthRef auth;
+    enum iSCSIAuthMethods authMethod = iSCSIPLGetInitiatorAuthenticationMethod();
+
+    if(authMethod == kiSCSIAuthMethodCHAP)
+    {
+        CFStringRef name = iSCSIPLCopyInitiatorCHAPName();
+        CFStringRef sharedSecret = iSCSIPLCopyInitiatorCHAPSecret();
+        auth = iSCSIAuthCreateCHAP(name,sharedSecret);
+        CFRelease(name);
+        CFRelease(sharedSecret);
+    }
+    else
+        auth = iSCSIAuthCreateNone();
+
+    return auth;
+}
+
 
 errno_t iSCSIDLoginCommon(SID sessionId,
                           iSCSITargetRef target,
@@ -123,18 +182,18 @@ errno_t iSCSIDLoginCommon(SID sessionId,
 
     // If session needs to be logged in, copy session config from property list
     if(sessionId == kiSCSIInvalidSessionId)
-        if(!(sessCfg = iSCSIPLCopySessionConfig(targetIQN)))
+        if(!(sessCfg = iSCSIDCreateSessionConfig(targetIQN)))
             sessCfg = iSCSISessionConfigCreateMutable();
 
     // Get connection configuration from property list, create one if needed
-    if(!(connCfg = iSCSIPLCopyConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal))))
+    if(!(connCfg = iSCSIDCreateConnectionConfig(targetIQN,iSCSIPortalGetAddress(portal))))
         connCfg = iSCSIConnectionConfigCreateMutable();
 
     // Get authentication configuration from property list, create one if needed
-    if(!(targetAuth = iSCSIPLCopyAuthenticationForTarget(targetIQN)))
+    if(!(targetAuth = iSCSIDCreateAuthenticationForTarget(targetIQN)))
         targetAuth = iSCSIAuthCreateNone();
 
-    if(!(initiatorAuth = iSCSIPLCopyAuthenticationForInitiator()))
+    if(!(initiatorAuth = iSCSIDCreateAuthenticationForInitiator()))
        initiatorAuth = iSCSIAuthCreateNone();
 
     // Do either session or connection login
