@@ -252,7 +252,7 @@ void iSCSICtlDisplayUsage()
 {
 // TODO: print usage string
     CFStringRef usage = CFSTR(
-        "usage: iscisctl ...");
+        "usage: iscisctl ...\n");
     
     iSCSICtlDisplayString(usage);
     CFRelease(usage);
@@ -738,13 +738,16 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
             {
                 // The user may have specified only the portal address, so
                 // get the portal from the property list to get port & interface
-                CFStringRef portalAddress = CFStringCreateCopy(kCFAllocatorDefault,iSCSIPortalGetAddress(portal));
+                CFStringRef portalAddress = CFStringCreateCopy(
+                    kCFAllocatorDefault,iSCSIPortalGetAddress(portal));
+
                 iSCSIPortalRelease(portal);
                 portal = iSCSIPLCopyPortalForTarget(targetIQN,portalAddress);
                 CFRelease(portalAddress);
 
                 if(iSCSIDaemonIsPortalActive(handle,target,portal))
-                    iSCSICtlDisplayError("The specified target has an active session over the specified portal.");
+                    iSCSICtlDisplayError("The specified target has an active "
+                                         "session over the specified portal.");
                 else {
                     error = iSCSIDaemonLogin(handle,target,portal,&statusCode);
 
@@ -844,12 +847,12 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
             // add target and or portal with user-specified options
             CFStringRef targetIQN = iSCSITargetGetIQN(target);
             
-            if(!iSCSIPLContainsPortalForTarget(targetIQN,iSCSIPortalGetAddress(portal))) {
+            if(!iSCSIPLContainsPortalForTarget(targetIQN,
+                                               iSCSIPortalGetAddress(portal))) {
 
                 // Setup optional session or connection configuration from switches
                 iSCSIPLSetPortalForTarget(targetIQN,portal);
                 iSCSIPLSynchronize();
-
 
             } else {
                 iSCSICtlDisplayError("The specified target and portal already exist.");
@@ -858,7 +861,6 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
         }
         if(target)
             iSCSITargetRelease(target);
-
     }
     return error;
 }
@@ -1219,7 +1221,8 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
     for(CFIndex targetIdx = 0; targetIdx < targetCount; targetIdx++)
     {
         CFStringRef targetIQN = CFArrayGetValueAtIndex(targetsList,targetIdx);
-        iSCSITargetRef target;
+        iSCSITargetRef target = iSCSITargetCreateMutable();
+        iSCSITargetSetIQN(target,targetIQN);
 
         if(!(target = iSCSIPLCopyTarget(targetIQN)))
             continue;
@@ -1525,7 +1528,10 @@ int main(int argc, char * argv[])
     iSCSIDaemonHandle handle = iSCSIDaemonConnect();
 
     // Setup a stream for writing to stdout
-    CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault,CFSTR("/dev/stdout"),kCFURLPOSIXPathStyle,false);
+    CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault,
+                                                 CFSTR("/dev/stdout"),
+                                                 kCFURLPOSIXPathStyle,false);
+
     stdoutStream = CFWriteStreamCreateWithFile(kCFAllocatorDefault,url);
     CFRelease(url);
     CFWriteStreamOpen(stdoutStream);
@@ -1596,6 +1602,8 @@ int main(int argc, char * argv[])
             error = iSCSICtlUnmountForTarget(handle,optDictionary); break;
         case kiSCSICtlCmdProbe:
             error = iSCSICtlProbeTargetForAuthMethod(handle,optDictionary); break;
+        case kiSCSICtlCmdInvalid:
+            iSCSICtlDisplayUsage();
     };
 
     iSCSIDaemonDisconnect(handle);
