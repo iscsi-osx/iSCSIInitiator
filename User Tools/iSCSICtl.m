@@ -666,11 +666,11 @@ errno_t iSCSICtlModifyConnectionConfigFromOptions(CFDictionaryRef options,
     CFStringRef digest;
     if(CFDictionaryGetValueIfPresent(options,kOptKeyDigest,(const void**)&digest))
     {
-        if(CFStringCompare(digest,CFSTR("on"),0) == kCFCompareEqualTo) {
+        if(CFStringCompare(digest,CFSTR("on"),kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
             iSCSIConnectionConfigSetHeaderDigest(connCfg,true);
             iSCSIConnectionConfigSetDataDigest(connCfg,true);
         }
-        else if(CFStringCompare(digest,CFSTR("off"),0) == kCFCompareEqualTo) {
+        else if(CFStringCompare(digest,CFSTR("off"),kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
             iSCSIConnectionConfigSetHeaderDigest(connCfg,false);
             iSCSIConnectionConfigSetDataDigest(connCfg,false);
         }
@@ -1045,9 +1045,9 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
     // Check for header digest
     if(CFDictionaryGetValueIfPresent(options,kOptKeyHeaderDigest,(const void **)&value))
     {
-        if(CFStringCompare(value,kOptValueDigestNone,0) == kCFCompareEqualTo)
+        if(CFStringCompare(value,kOptValueDigestNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetHeaderDigestForTarget(targetIQN,kiSCSIDigestNone);
-        else if(CFStringCompare(value,kOptValueDigestCRC32C,0) == kCFCompareEqualTo)
+        else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetHeaderDigestForTarget(targetIQN,kiSCSIDigestCRC32C);
         else
             iSCSICtlDisplayError("The specified digest type is invalid.");
@@ -1056,9 +1056,9 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
     // Check for data digest
     if(CFDictionaryGetValueIfPresent(options,kOptKeyDataDigest,(const void **)&value))
     {
-        if(CFStringCompare(value,kOptValueDigestNone,0) == kCFCompareEqualTo)
+        if(CFStringCompare(value,kOptValueDigestNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetDataDigestForTarget(targetIQN,kiSCSIDigestNone);
-        else if(CFStringCompare(value,kOptValueDigestCRC32C,0) == kCFCompareEqualTo)
+        else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetDataDigestForTarget(targetIQN,kiSCSIDigestCRC32C);
         else
             iSCSICtlDisplayError("The specified digest type is invalid.");
