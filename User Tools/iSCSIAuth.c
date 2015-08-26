@@ -187,7 +187,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     
     if(!authCmd)
         return EINVAL;
-    
+
     // Setup dictionary to receive authentication response
     CFMutableDictionaryRef authRsp = CFDictionaryCreateMutable(
         kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,
@@ -201,7 +201,6 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     // Target must first offer the authentication method (5 = MD5)
     // This key starts authentication process - target authenticates us
     CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPDigest,kRFC3720_Value_AuthCHAPDigestMD5);
-
     
     struct iSCSILoginQueryContext context;
     context.sessionId       = sessionId;
@@ -227,9 +226,10 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     CFDictionaryRemoveAllValues(authCmd);
     
     // Get CHAP parameters
-    CFStringRef targetUser,targetSecret,initiatorUser,initiatorSecret;
+    CFStringRef targetUser = NULL, targetSecret = NULL;
+    CFStringRef initiatorUser = NULL, initiatorSecret = NULL;
     iSCSIAuthGetCHAPValues(initiatorAuth,&initiatorUser,&initiatorSecret);
-    iSCSIAuthGetCHAPValues(targetAuth,&initiatorUser,&initiatorSecret);
+    iSCSIAuthGetCHAPValues(targetAuth,&targetUser,&targetSecret);
     
     // Get identifier and challenge & calculate the response
     CFStringRef identifier = NULL, challenge = NULL;
@@ -237,18 +237,18 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     if(CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_AuthCHAPId,(void*)&identifier) &&
        CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_AuthCHAPChallenge,(void*)&challenge))
     {
-        CFStringRef response = iSCSIAuthNegotiateCHAPCreateResponse(identifier,targetSecret,challenge);
+        CFStringRef response = iSCSIAuthNegotiateCHAPCreateResponse(identifier,initiatorSecret,challenge);
         
         // Send back our name and response
         CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPResponse,response);
-        CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPName,targetUser);
-        
+        CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPName,initiatorUser);
+
         // Dictionary retains response, we can release it
         CFRelease(response);
     }
-    
+
     // If we must authenticate the target, generate id, challenge & send
-    if(initiatorUser && initiatorSecret) {
+    if(targetUser && targetSecret) {
         
         // Generate an identifier & challenge
         identifier = iSCSIAuthNegotiateCHAPCreateId();
@@ -257,7 +257,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
         CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPId,identifier);
         CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPChallenge,challenge);
     }
-    
+
     context.nextStage = kiSCSIPDULoginOperationalNegotiation;
 
     error = iSCSISessionLoginQuery(&context,
@@ -266,11 +266,11 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
                                    authCmd,authRsp);
     
     // Now perform target authentication (we authenticate target)
-    if(initiatorUser && initiatorSecret)
+    if(targetUser && targetSecret)
     {
         // Calculate the response we expect to get
         CFStringRef expResponse = iSCSIAuthNegotiateCHAPCreateResponse(
-                        identifier,initiatorSecret,challenge);
+                        identifier,targetSecret,challenge);
     
         // We don't need these after calculating the response
         CFRelease(identifier);
@@ -313,15 +313,38 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
     CFDictionaryAddValue(authCmd,kRFC3720_Key_InitiatorAlias,kiSCSIInitiatorAlias);
 
     // Determine authentication method used and add to dictionary
-    enum iSCSIAuthMethods authMethod = iSCSIAuthGetMethod(initiatorAuth);
+    enum iSCSIAuthMethods initiatorAuthMethod = iSCSIAuthGetMethod(initiatorAuth);
+    enum iSCSIAuthMethods targetAuthMethod = iSCSIAuthGetMethod(targetAuth);
     
     // Add authentication key(s) to dictionary
-    CFStringRef authMeth = kRFC3720_Value_AuthMethodNone;
-    
-    if(authMethod == kiSCSIAuthMethodCHAP)
-            authMeth = kRFC3720_Value_AuthMethodCHAP;
-    
-    CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthMethod,authMeth);
+    if(initiatorAuthMethod == kiSCSIAuthMethodCHAP) {
+
+        // Unidirectional CHAP (target authenticates initiator)
+        if(targetAuthMethod == kiSCSIAuthMethodNone) {
+            // In case the target doesn't wish to authenticate us, we can
+            // include an additional option of no authentication.
+            const CFTypeRef values[] = {
+                kRFC3720_Value_AuthMethodNone,
+                kRFC3720_Value_AuthMethodCHAP
+            };
+
+            CFArrayRef methods = CFArrayCreate(kCFAllocatorDefault,
+                                               (const void**)values,sizeof(values)/sizeof(CFTypeRef),
+                                               &kCFTypeArrayCallBacks);
+
+            CFStringRef methodStrings = CFStringCreateByCombiningStrings(
+                kCFAllocatorDefault,methods,CFSTR(","));
+            CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthMethod,methodStrings);
+        }
+        // Bidirectional CHAP
+        else {
+            // Here we insist that we authenticate the target and therefore
+            // no authentication is not an option.
+            CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthMethod,kRFC3720_Value_AuthMethodCHAP);
+        }
+    }
+    else
+        CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthMethod,kiSCSIAuthMethodNone);
 }
 
 /*! Helper function.  Called by session or connection creation functions to
@@ -380,13 +403,14 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     }
     
     // Determine if target supports desired authentication method
-    CFComparisonResult result;
-    result = CFStringCompare(CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod),
-                             CFDictionaryGetValue(authCmd,kRFC3720_Key_AuthMethod),
+    CFRange result;
+
+    result = CFStringFind(CFDictionaryGetValue(authCmd,kRFC3720_Key_AuthMethod),
+                             CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod),
                              kCFCompareCaseInsensitive);
     
     // If we wanted to use a particular method and the target doesn't support it
-    if(result != kCFCompareEqualTo) {
+    if(result.location == kCFNotFound) {
         error = EAUTH;
         goto ERROR_AUTHENTICATION;
     }
