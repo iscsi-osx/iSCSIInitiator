@@ -1018,7 +1018,6 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
             iSCSICtlDisplayError("The specified name is not a valid IQN or EUI-64 identifier.");
     }
 
-
     // Check for maximum connections
     if(CFDictionaryGetValueIfPresent(options,kOptKeyMaxConnections,(const void **)&value))
     {

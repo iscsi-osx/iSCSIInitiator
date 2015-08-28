@@ -270,23 +270,24 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     {
         // Calculate the response we expect to get
         CFStringRef expResponse = iSCSIAuthNegotiateCHAPCreateResponse(
-                        identifier,targetSecret,challenge);
-    
-        // We don't need these after calculating the response
-        CFRelease(identifier);
-        CFRelease(challenge);
-        
-        // Compare to the actual received response
-        CFStringRef response;
-        if(CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_AuthCHAPResponse,(void*)&response))
-        {
-            if(CFStringCompare(response,expResponse,kCFCompareCaseInsensitive) != kCFCompareEqualTo)
+                                        identifier,targetSecret,challenge);
+        if(expResponse) {
+            // We don't need these after calculating the response
+            CFRelease(identifier);
+            CFRelease(challenge);
+
+            // Compare to the actual received response
+            CFStringRef response;
+            if(CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_AuthCHAPResponse,(void*)&response))
+            {
+                if(CFStringCompare(response,expResponse,kCFCompareCaseInsensitive) != kCFCompareEqualTo)
+                    error = EAUTH;
+            }
+            else
                 error = EAUTH;
+            
+            CFRelease(expResponse);
         }
-        else
-            error = EAUTH;
-        
-        CFRelease(expResponse);
     }
     
     CFRelease(authCmd);
@@ -398,9 +399,8 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                                            authRsp);
     
     // Quit if the query failed for whatever reason, release dictionaries
-    if(error) {
+    if(error)
         goto ERROR_GENERIC;
-    }
     
     // Determine if target supports desired authentication method
     CFRange result;
@@ -414,8 +414,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
         error = EAUTH;
         goto ERROR_AUTHENTICATION;
     }
-    
-    
+
     // If this is not a discovery session, we expect to receive a target
     // portal group tag (TPGT)...
     if(CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
@@ -454,7 +453,6 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                                        connectionId,
                                        sessCfgKernel.targetSessionId,
                                        statusCode);
-        
         if(error)
             goto ERROR_AUTHENTICATE_CHAP;
     }
