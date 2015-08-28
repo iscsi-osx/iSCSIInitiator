@@ -262,11 +262,13 @@ void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
                             CFStringRef * name,
                             CFStringRef * sharedSecret)
 {
-    if(!auth || !name || !sharedSecret || (iSCSIAuthGetMethod(auth) != kiSCSIAuthMethodCHAP))
+    if(!auth || !name || !sharedSecret)
         return;
 
-    *name = CFDictionaryGetValue(auth,CFSTR("User"));
-    *sharedSecret = CFDictionaryGetValue(auth,CFSTR("Shared Secret"));
+    if(iSCSIAuthGetMethod(auth) == kiSCSIAuthMethodCHAP) {
+        *name = CFDictionaryGetValue(auth,CFSTR("User"));
+        *sharedSecret = CFDictionaryGetValue(auth,CFSTR("Shared Secret"));
+    }
 }
 
 /*! Gets the authentication method used. */
