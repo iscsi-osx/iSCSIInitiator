@@ -42,9 +42,10 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN)
             &sharedSecretLength,
             &sharedSecretData,&item);
 
-        sharedSecret = CFStringCreateWithCString(kCFAllocatorDefault,
-                                                 sharedSecretData,
-                                                 kCFStringEncodingASCII);
+        if(sharedSecretData)
+            sharedSecret = CFStringCreateWithCString(kCFAllocatorDefault,
+                                                     sharedSecretData,
+                                                     kCFStringEncodingASCII);
     }
     return sharedSecret;
 }
