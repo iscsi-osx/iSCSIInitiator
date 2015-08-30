@@ -22,7 +22,7 @@
 
 // Foundation includes
 #include <launch.h>
-#include <CoreFoundation/CFPreferences.h>
+#include <CoreFoundation/CoreFoundation.h>
 
 // Mach kernel includes
 #include <mach/mach_port.h>
@@ -104,6 +104,17 @@ const struct iSCSIDRspCreateCFPropertiesForConnection iSCSIDRspCreateCFPropertie
 };
 
 
+void iSCSIDLogError(const char * entry)
+{
+    CFStringRef stamp = CFDateFormatterCreateStringWithAbsoluteTime(
+                                                kCFAllocatorDefault,
+                                                0,
+                                                CFAbsoluteTimeGetCurrent());
+
+
+    fprintf(stderr,"%s%s%s%s",CFStringGetCStringPtr(stamp,kCFStringEncodingASCII)," ",entry,"\n");
+}
+
 iSCSISessionConfigRef iSCSIDCreateSessionConfig(CFStringRef targetIQN)
 {
     iSCSIMutableSessionConfigRef config = iSCSISessionConfigCreateMutable();
@@ -141,20 +152,35 @@ iSCSIConnectionConfigRef iSCSIDCreateConnectionConfig(CFStringRef targetIQN,
 iSCSIAuthRef iSCSIDCreateAuthenticationForTarget(CFStringRef targetIQN)
 {
     iSCSIAuthRef auth;
-    enum iSCSIAuthMethods authMethod = iSCSIPLGetInitiatorAuthenticationMethod();
+    enum iSCSIAuthMethods authMethod = iSCSIPLGetTargetAuthenticationMethod(targetIQN);
 
     if(authMethod == kiSCSIAuthMethodCHAP)
     {
         CFStringRef name = iSCSIPLCopyTargetCHAPName(targetIQN);
         CFStringRef sharedSecret = iSCSIPLCopyTargetCHAPSecret(targetIQN);
-        auth = iSCSIAuthCreateCHAP(name,sharedSecret);
-        CFRelease(name);
-        CFRelease(sharedSecret);
+
+        if(!name) {
+            iSCSIDLogError("The CHAP name for the target has not been set, reverting to no authentication.");
+            auth = iSCSIAuthCreateNone();
+        }
+        else if(!sharedSecret) {
+            iSCSIDLogError("The CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication.");
+            auth = iSCSIAuthCreateNone();
+        }
+        else {
+            auth = iSCSIAuthCreateCHAP(name,sharedSecret);
+        }
+
+        if(name)
+            CFRelease(name);
+        if(sharedSecret)
+            CFRelease(sharedSecret);
+
     }
     else
         auth = iSCSIAuthCreateNone();
 
-    return iSCSIAuthCreateNone();
+    return auth;
 }
 
 iSCSIAuthRef iSCSIDCreateAuthenticationForInitiator()
@@ -166,16 +192,29 @@ iSCSIAuthRef iSCSIDCreateAuthenticationForInitiator()
     {
         CFStringRef name = iSCSIPLCopyInitiatorCHAPName();
         CFStringRef sharedSecret = iSCSIPLCopyInitiatorCHAPSecret();
-        auth = iSCSIAuthCreateCHAP(name,sharedSecret);
-        CFRelease(name);
-        CFRelease(sharedSecret);
+
+        if(!name) {
+            iSCSIDLogError("The CHAP name for the initiator has not been set, reverting to no authentication.");
+            auth = iSCSIAuthCreateNone();
+        }
+        else if(!sharedSecret) {
+            iSCSIDLogError("The CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication.");
+            auth = iSCSIAuthCreateNone();
+        }
+        else {
+            auth = iSCSIAuthCreateCHAP(name,sharedSecret);
+        }
+
+        if(name)
+            CFRelease(name);
+        if(sharedSecret)
+            CFRelease(sharedSecret);
     }
     else
         auth = iSCSIAuthCreateNone();
 
-    return iSCSIAuthCreateNone();
+    return auth;
 }
-
 
 errno_t iSCSIDLoginCommon(SID sessionId,
                           iSCSITargetRef target,
@@ -312,6 +351,8 @@ errno_t iSCSIDLoginWithPortal(iSCSITargetRef target,
 
     // Existing session, add a connection
     if(sessionId != kiSCSIInvalidSessionId) {
+
+        fprintf(stderr,"%s","T1");
 
         connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
 
