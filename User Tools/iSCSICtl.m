@@ -609,49 +609,6 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
     return portal;
 }
 
-
-/*! Modifies an existing session configuration parameters object 
- *  based on user-supplied command-line switches.
- *  @param options command-line options.
- *  @param sessCfg the session configuration parameters object.
- *  @return an error code indicating the result of the operation. */
-errno_t iSCSICtlModifySessionConfigFromOptions(CFDictionaryRef options,
-                                               iSCSIMutableSessionConfigRef sessCfg)
-{
-    if(!sessCfg)
-        return EINVAL;
-/*
-    CFStringRef errorRecoveryLevel, maxConnections;
-    if(CFDictionaryGetValueIfPresent(options,kOptErrorRecoveryLevel,(const void **)&errorRecoveryLevel))
-    {
-        NSString * errorRecoveryLevelStr = (__bridge NSString*)errorRecoveryLevel;
-        enum iSCSIErrorRecoveryLevels errorRecoveryLevel = [errorRecoveryLevelStr intValue];
-        
-        if(errorRecoveryLevel == kiSCSIErrorRecoveryInvalid) {
-            iSCSICtlDisplayError("the specified error recovery level is invalid.");
-            return EINVAL;
-        }
-
-        iSCSISessionConfigSetErrorRecoveryLevel(sessCfg,errorRecoveryLevel);
-    }
-    
-    if(CFDictionaryGetValueIfPresent(options,kOptMaxConnection,(const void**)&maxConnections))
-    {
-        NSString * maxConnectionsStr = (__bridge NSString*)maxConnections;
-        int maxConnections = [maxConnectionsStr intValue];
-        
-        if(maxConnections > kRFC3720_MaxConnections_Max || maxConnections < kRFC3720_MaxConnections_Min)
-        {
-            iSCSICtlDisplayError("the specified number of maximum connections is invalid.");
-            return EINVAL;
-        }
-        
-        iSCSISessionConfigSetMaxConnections(sessCfg,maxConnections);
-    }*/
-
-    return 0;
-}
-
 /*! Modifies an existing connection configuration parameters object
  *  based on user-supplied command-line switches.
  *  @param options command-line options.
