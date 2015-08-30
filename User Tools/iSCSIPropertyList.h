@@ -49,9 +49,6 @@ void iSCSIPLSetInitiatorCHAPSecret(CFStringRef secret);
 /*! Copies the CHAP secret associated with the initiator. */
 CFStringRef iSCSIPLCopyInitiatorCHAPSecret();
 
-
-
-
 /*! Copies a target object for the specified target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return target the target object to copy. */
@@ -67,7 +64,7 @@ void iSCSIPLRemoveTarget(CFStringRef targetIQN);
 
 /*! Copies a portal object for the specified target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
- *  @param poralName the portal name (IPv4, IPv6 or DNS name).
+ *  @param poralAddress the portal name (IPv4, IPv6 or DNS name).
  *  @return portal the portal object to set. */
 iSCSIPortalRef iSCSIPLCopyPortalForTarget(CFStringRef targetIQN,
                                           CFStringRef portalAddress);
@@ -185,20 +182,31 @@ CFArrayRef iSCSIPLCreateArrayOfTargets();
  *  @return an array of portal names for the specified target. */
 CFArrayRef iSCSIPLCreateArrayOfPortalsForTarget(CFStringRef targetIQN);
 
+/*! Adds an iSCSI discovery portal to the list of discovery portals.
+ *  @param portal the discovery portal to add. */
+void iSCSIPLAddiSCSIDiscoveryPortal(iSCSIPortalRef portal);
 
+/*! Removes the specified iSCSI discovery portal.
+ *  @param portal the discovery portal to remove. */
+void iSCSIPLRemoveiSCSIDiscoveryPortal(iSCSIPortalRef portal);
 
+/*! Copies a portal object for the specified discovery portal.
+ *  @param poralAddress the portal name (IPv4, IPv6 or DNS name).
+ *  @return portal the portal object to set. */
+iSCSIPortalRef iSCSIPLCopyiSCSIDiscoveryPortal(CFStringRef portalAddress);
 
+/*! Creates a list of discovery portals.  Each element of the array is
+ *  an iSCSI discovery portal address that can be used to retrieve the
+ *  corresponding portal object by calling iSCSIPLCopyDiscoveryPortal(). */
+CFArrayRef iSCSIPLCreateArrayOfiSCSIDiscoveryPortals();
 
-/*! Adds a discovery record to the property list.
- *  @param discoveryRecord the record to add. */
-void iSCSIPLAddDiscoveryRecord(iSCSIDiscoveryRecRef discoveryRecord);
+/*! Sets iSCSI discovery to enabled or disabled.
+ *  @param enable True to set send targets discovery enabled, false otherwise. */
+void iSCSIPLSetiSCSIDiscoveryEnable(Boolean enable);
 
-/*! Retrieves the discovery record from the property list.
- *  @return the cached discovery record. */
-iSCSIDiscoveryRecRef iSCSIPLCopyDiscoveryRecord();
-
-/*! Clears the discovery record. */
-void iSCSIPLClearDiscoveryRecord();
+/*! Gets whether iSCSI discovery is set ot disabled or enabled.
+ *  @return True if send targets discovery is set to enabled, false otherwise. */
+Boolean iSCSIPLGetiSCSIDiscoveryEnable();
 
 /*! Synchronizes the intitiator and target settings cache with the property
  *  list on the disk. */
