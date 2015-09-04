@@ -1024,10 +1024,10 @@ iSCSIPortalRef iSCSIPLCopySendTargetsDiscoveryPortal(CFStringRef portalAddress)
     return portal;
 }
 
-/*! Creates a list of discovery portals.  Each element of the array is
+/*! Creates a list of SendTargets portals.  Each element of the array is
  *  an iSCSI discovery portal address that can be used to retrieve the
- *  corresponding portal object by calling iSCSIPLCopyDiscoveryPortal(). */
-CFArrayRef iSCSIPLCreateArrayOfSendTargetsDiscoveryPortals()
+ *  corresponding portal object by calling iSCSIPLCopySendTargetsPortal(). */
+CFArrayRef iSCSIPLCreateArrayOfPortalsForSendTargetsDiscovery()
 {
     CFMutableDictionaryRef discoveryPortals = iSCSIPLGetSendTargetsDiscoveryPortals(false);
 

@@ -220,17 +220,17 @@ void iSCSIPLRemoveSendTargetsDiscoveryPortal(iSCSIPortalRef portal);
 /*! Copies a portal object for the specified discovery portal.
  *  @param portalAddress the portal name (IPv4, IPv6 or DNS name).
  *  @return portal the portal object to set. */
-iSCSIPortalRef iSCSIPLCopyiSCSIDiscoveryPortal(CFStringRef portalAddress);
+iSCSIPortalRef iSCSIPLCopySendTargetsPortal(CFStringRef portalAddress);
 
 /*! Creates a list of target IQNs associated with a particular
  *  @param portalAddress the portal name (IPv4, IPv6 or DNS name). 
  *  @return a list of target IQNs associated with an iSCSI discovery portal. */
-CFArrayRef iSCSIPLCreateArrayOfTargetsForiSCSIDiscoveryPortal(CFStringRef portalAddress);
+CFArrayRef iSCSIPLCreateArrayOfTargetsForSendTargetsPortal(CFStringRef portalAddress);
 
-/*! Creates a list of discovery portals.  Each element of the array is
+/*! Creates a list of SendTargets portals.  Each element of the array is
  *  an iSCSI discovery portal address that can be used to retrieve the
- *  corresponding portal object by calling iSCSIPLCopyDiscoveryPortal(). */
-CFArrayRef iSCSIPLCreateArrayOfiSCSIDiscoveryPortals();
+ *  corresponding portal object by calling iSCSIPLCopySendTargetsPortal(). */
+CFArrayRef iSCSIPLCreateArrayOfPortalsForSendTargetsDiscovery();
 
 /*! Sets SendTargets discovery to enabled or disabled.
  *  @param enable True to set send targets discovery enabled, false otherwise. */
