@@ -633,7 +633,7 @@ void iSCSIPLAddDynamicTargetForSendTargets(CFStringRef targetIQN,
         iSCSIPLSetTargetConfigType(targetIQN,kiSCSITargetConfigDynamicSendTargets);
 
         // Associate target with the specified iSCSI discovery portal
-        CFArrayRef targetList = iSCSIPLGetDynamicTargetsForSendTargets(portalAddress,true);
+        CFMutableArrayRef targetList = (CFMutableArrayRef)iSCSIPLGetDynamicTargetsForSendTargets(portalAddress,true);
         CFArrayAppendValue(targetList,targetIQN);
 
         targetNodesCacheModified = true;
@@ -729,6 +729,19 @@ Boolean iSCSIPLContainsPortalForTarget(CFStringRef targetIQN,
     return (portalsList && CFDictionaryContainsKey(portalsList,portalAddress));
 }
 
+/*! Gets whether a SendTargets discovery portal is defined in the property list.
+ *  @param portalAddress the discovery portal address.
+ *  @return true if the portal exists, false otherwise. */
+Boolean iSCSIPLContainsPortalForSendTargetsDiscovery(CFStringRef portalAddress)
+{
+    Boolean exists = false;
+    CFDictionaryRef discoveryPortals = iSCSIPLGetSendTargetsDiscoveryPortals(false);
+
+    if(discoveryPortals)
+        exists = CFDictionaryContainsKey(discoveryPortals,portalAddress);
+
+    return exists;
+}
 
 /*! Creates an array of target iSCSI qualified name (IQN)s
  *  defined in the property list.
@@ -954,24 +967,27 @@ void iSCSIPLRemoveSendTargetsDiscoveryPortal(iSCSIPortalRef portal)
 
         CFStringRef portalAddress = iSCSIPortalGetAddress(portal);
 
-        // Remove all dynamic targets associated with this portal, if any...
-        CFArrayRef targetsList = iSCSIPLGetDynamicTargetsForSendTargets(portalAddress,false);
+        if(CFDictionaryContainsKey(discoveryPortals,portalAddress)) {
 
-        if(targetsList) {
-            CFIndex count = CFArrayGetCount(targetsList);
+            // Remove all dynamic targets associated with this portal, if any...
+            CFArrayRef targetsList = iSCSIPLGetDynamicTargetsForSendTargets(portalAddress,false);
 
-            for(CFIndex idx = 0; idx < count; idx++)
-            {
-                CFStringRef targetIQN = CFArrayGetValueAtIndex(targetsList,idx);
-                iSCSIPLRemoveTarget(targetIQN);
+            if(targetsList) {
+                CFIndex count = CFArrayGetCount(targetsList);
+
+                for(CFIndex idx = 0; idx < count; idx++)
+                {
+                    CFStringRef targetIQN = CFArrayGetValueAtIndex(targetsList,idx);
+                    iSCSIPLRemoveTarget(targetIQN);
+                }
+
+                targetNodesCacheModified = true;
             }
 
-            targetNodesCacheModified = true;
+            // Remove discovery portal from SendTargets dictionary
+            CFDictionaryRemoveValue(discoveryPortals,portalAddress);
+            sendTargetsDiscoveryCacheModified = true;
         }
-
-        // Remove discovery portal from SendTargets dictionary
-        CFDictionaryRemoveValue(discoveryPortals,portalAddress);
-        sendTargetsDiscoveryCacheModified = true;
     }
 }
 

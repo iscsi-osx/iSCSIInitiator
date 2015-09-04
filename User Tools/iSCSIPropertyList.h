@@ -194,6 +194,11 @@ Boolean iSCSIPLContainsTarget(CFStringRef targetIQN);
 Boolean iSCSIPLContainsPortalForTarget(CFStringRef targetIQN,
                                        CFStringRef portalAddress);
 
+/*! Gets whether a SendTargets discovery portal is defined in the property list.
+ *  @param portalAddress the discovery portal address.
+ *  @return true if the portal exists, false otherwise. */
+Boolean iSCSIPLContainsPortalForSendTargetsDiscovery(CFStringRef portalAddress);
+
 /*! Creates an array of target iSCSI qualified name (IQN)s
  *  defined in the property list.
  *  @return an array of target iSCSI qualified name (IQN)s. */
