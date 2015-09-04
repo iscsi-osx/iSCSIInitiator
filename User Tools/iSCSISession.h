@@ -180,7 +180,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
 /*! Sets the name of this initiator.  This is the IQN-format name that is
  *  exchanged with a target during negotiation.
  *  @param initiatorIQN the initiator name. */
-void iSCSISetInitiatiorName(CFStringRef initiatorIQN);
+void iSCSISetInitiatorName(CFStringRef initiatorIQN);
 
 /*! Sets the alias of this initiator.  This is the IQN-format alias that is
  *  exchanged with a target during negotiation.
