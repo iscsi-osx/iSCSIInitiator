@@ -1045,7 +1045,7 @@ CFArrayRef iSCSIPLCreateArrayOfSendTargetsDiscoveryPortals()
     return CFArrayCreate(kCFAllocatorDefault,keys,keyCount,&kCFTypeArrayCallBacks);
 }
 
-/*! Sets iSCSI discovery to enabled or disabled.
+/*! Sets SendTargets discovery to enabled or disabled.
  *  @param enable True to set send targets discovery enabled, false otherwise. */
 void iSCSIPLSetSendTargetsDiscoveryEnable(Boolean enable)
 {
@@ -1059,7 +1059,7 @@ void iSCSIPLSetSendTargetsDiscoveryEnable(Boolean enable)
     sendTargetsDiscoveryCacheModified = true;
 }
 
-/*! Gets whether iSCSI discovery is set ot disabled or enabled.
+/*! Gets whether SendTargets discovery is set ot disabled or enabled.
  *  @return True if send targets discovery is set to enabled, false otherwise. */
 Boolean iSCSIPLGetSendTargetsDiscoveryEnable()
 {
