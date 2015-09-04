@@ -220,7 +220,7 @@ void iSCSIPLRemoveSendTargetsDiscoveryPortal(iSCSIPortalRef portal);
 /*! Copies a portal object for the specified discovery portal.
  *  @param portalAddress the portal name (IPv4, IPv6 or DNS name).
  *  @return portal the portal object to set. */
-iSCSIPortalRef iSCSIPLCopySendTargetsPortal(CFStringRef portalAddress);
+iSCSIPortalRef iSCSIPLCopySendTargetsDiscoveryPortal(CFStringRef portalAddress);
 
 /*! Creates a list of target IQNs associated with a particular
  *  @param portalAddress the portal name (IPv4, IPv6 or DNS name). 

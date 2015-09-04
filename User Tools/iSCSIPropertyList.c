@@ -19,7 +19,7 @@ CFMutableDictionaryRef targetsCache = NULL;
 Boolean targetNodesCacheModified = false;
 
 /*! A cached version of the discovery dictionary. */
-CFMutableDictionaryRef discoveryCache = NULL;
+CFMutableDictionaryRef sendTargetsDiscoveryCache = NULL;
 
 /*! Flag that indicates whether the discovery cache was modified. */
 Boolean sendTargetsDiscoveryCacheModified = false;
@@ -214,10 +214,10 @@ CFMutableDictionaryRef iSCSIPLGetInitiatorDict(Boolean createIfMissing)
 
 CFMutableDictionaryRef iSCSIPLGetSendTargetsDiscoveryDict(Boolean createIfMissing)
 {
-    if(createIfMissing && !discoveryCache)
-        discoveryCache = iSCSIPLCreateDiscoveryDict();
+    if(createIfMissing && !sendTargetsDiscoveryCache)
+        sendTargetsDiscoveryCache = iSCSIPLCreateDiscoveryDict();
 
-    return discoveryCache;
+    return sendTargetsDiscoveryCache;
 }
 
 /*! Helper function. Retrieves the iSCSI discovery portals dictionary. */
@@ -1084,7 +1084,7 @@ void iSCSIPLSynchronize()
                               kCFPreferencesAnyUser,kCFPreferencesCurrentHost);
     
     if(sendTargetsDiscoveryCacheModified)
-        CFPreferencesSetValue(kiSCSIPKSendTargetsDiscovery,discoveryCache,kiSCSIPKAppId,
+        CFPreferencesSetValue(kiSCSIPKSendTargetsDiscovery,sendTargetsDiscoveryCache,kiSCSIPKAppId,
                               kCFPreferencesAnyUser,kCFPreferencesCurrentHost);
 
     CFPreferencesAppSynchronize(kiSCSIPKAppId);
@@ -1112,11 +1112,11 @@ void iSCSIPLSynchronize()
     if(!sendTargetsDiscoveryCacheModified)
     {
         // Free old cache if present
-        if(discoveryCache)
-            CFRelease(discoveryCache);
+        if(sendTargetsDiscoveryCache)
+            CFRelease(sendTargetsDiscoveryCache);
         
         // Refresh cache from preferences
-        discoveryCache = iSCSIPLCopyPropertyDict(kiSCSIPKSendTargetsDiscovery);
+        sendTargetsDiscoveryCache = iSCSIPLCopyPropertyDict(kiSCSIPKSendTargetsDiscovery);
     }
 
     initiatorNodeCacheModified = targetNodesCacheModified = sendTargetsDiscoveryCacheModified = false;
