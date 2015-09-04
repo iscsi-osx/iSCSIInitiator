@@ -378,6 +378,37 @@ typedef struct iSCSIDRspCreateCFPropertiesForConnection {
 } __attribute__((packed)) iSCSIDRspCreateCFPropertiesForConnection;
 
 
+/*! Command to toggle SendTargets discovery. */
+typedef struct iSCSIDCmdToggleSendTargetsDiscovery {
+
+    const UInt16 funcCode;
+    UInt16  enable;
+    UInt32  reserved;
+    UInt32  reserved2;
+    UInt32  reserved3;
+    UInt32  reserved4;
+    UInt32  reserved5;
+
+} __attribute__((packed)) iSCSIDCmdToggleSendTargetsDiscovery;
+
+/*! Default initialization for a toggle SendTargets command. */
+extern const iSCSIDCmdToggleSendTargetsDiscovery iSCSIDCmdToggleSendTargetsDiscoveryInit;
+
+/*! Response to command to toggle SendTargets discovery  information about a connection. */
+typedef struct iSCSIDRspToggleSendTargetsDiscovery {
+
+    const UInt8 funcCode;
+    UInt16 reserved;
+    UInt32 errorCode;
+    UInt8  reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    UInt32 reserved6;
+
+} __attribute__((packed)) iSCSIDRspToggleSendTargetsDiscovery;
+
+
 ////////////////////////////// DAEMON FUNCTIONS ////////////////////////////////
 
 enum iSCSIDFunctionCodes {
@@ -409,19 +440,22 @@ enum iSCSIDFunctionCodes {
     /* Query a portal for targets. */
     kiSCSIDQueryPortalForTargets = 8,
 
-    /* Query a target for supported authentication methods. */
+    /*! Query a target for supported authentication methods. */
     kiSCSIDQueryTargetForAuthMethod = 9,
 
-    /* Set the initiator IQN. */
-    kiSCSIDSetInitiatorIQN = 10,
+    /*! Toggle SendTargets discovery. */
+    kiSCSIDToggleSendTargetsDiscovery = 10,
 
-    /* Set the intiator alias. */
-    kiSCSIDSetInitiatorAlias = 11,
+    /*! Set the initiator IQN. */
+    kiSCSIDSetInitiatorIQN = 11,
 
-    /* Shut down the daemon. */
-    kiSCSIDShutdownDaemon = 12,
+    /*! Set the intiator alias. */
+    kiSCSIDSetInitiatorAlias = 12,
 
-    /* Invalid daemon command. */
+    /*! Shut down the daemon. */
+    kiSCSIDShutdownDaemon = 13,
+
+    /*! Invalid daemon command. */
     kiSCSIDInvalidFunctionCode
 };
 

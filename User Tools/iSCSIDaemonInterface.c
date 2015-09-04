@@ -64,6 +64,11 @@ const struct iSCSIDCmdCreateCFPropertiesForConnection iSCSIDCmdCreateCFPropertie
     .portalLength = 0
 };
 
+const struct iSCSIDCmdToggleSendTargetsDiscovery iSCSIDCmdToggleSendTargetsDiscoveryInit = {
+    .funcCode = kiSCSIDToggleSendTargetsDiscovery,
+    .enable = 0,
+};
+
 iSCSIDaemonHandle iSCSIDaemonConnect()
 {
     // Create a new socket and connect to the daemon
@@ -175,6 +180,7 @@ errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
     return rsp.errorCode;
 }
 
+
 /*! Logs out of the target or a specific portal, if specified.
  *  @param handle a handle to a daemon connection.
  *  @param target the target to logout.
@@ -224,6 +230,7 @@ errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
     return rsp.errorCode;
 }
 
+
 /*! Gets whether a target has an active session.
  *  @param target the target to test for an active session.
  *  @return true if the is an active session for the target; false otherwise. */
@@ -255,6 +262,7 @@ Boolean iSCSIDaemonIsTargetActive(iSCSIDaemonHandle handle,
 
     return rsp.active;
 }
+
 
 /*! Gets whether a portal has an active session.
  *  @param target the target to test for an active session.
@@ -548,6 +556,7 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForSession(iSCSIDaemonHandle handle
     return properties;
 }
 
+
 /*! Creates a dictionary of connection parameters for the connection associated
  *  with the specified target and portal, if one exists.
  *  @param handle a handle to a daemon connection.
@@ -599,4 +608,30 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForConnection(iSCSIDaemonHandle han
     return properties;
 }
 
+
+/*! Enables or disables SendTargets discovery.
+ *  @param handle a handle to a daemon connection.
+ *  @param enable true to enable SendTargets discovery, false to disable.
+ *  @return an error code indicating whether the operationg was successful. */
+errno_t iSCSIDaemonToggleSendTargetsDiscovery(iSCSIDaemonHandle handle,
+                                              Boolean enable)
+{
+    // Validate inputs
+    if(handle < 0)
+        return EINVAL;
+
+    // Send command to daemon
+    iSCSIDCmdToggleSendTargetsDiscovery cmd = iSCSIDCmdToggleSendTargetsDiscoveryInit;
+    cmd.enable = enable;
+
+    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
+        return EIO;
+
+    iSCSIDRspToggleSendTargetsDiscovery rsp = iSCSIDRspToggleSendTargetsDiscoveryInit;
+
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EIO;
+
+    return 0;
+}
 

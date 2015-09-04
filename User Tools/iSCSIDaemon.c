@@ -103,6 +103,11 @@ const struct iSCSIDRspCreateCFPropertiesForConnection iSCSIDRspCreateCFPropertie
     .dataLength = 0
 };
 
+const struct iSCSIDRspToggleSendTargetsDiscovery iSCSIDRspToggleSendTargetsDiscoveryInit = {
+    .funcCode = kiSCSIDToggleSendTargetsDiscovery,
+    .errorCode = 0,
+};
+
 
 void iSCSIDLogError(const char * entry)
 {
@@ -789,6 +794,21 @@ errno_t iSCSIDCreateCFPropertiesForConnection(int fd,struct iSCSIDCmdCreateCFPro
     return error;
 }
 
+errno_t iSCSIDToggleSendTargetsDiscovery(int fd,struct iSCSIDCmdToggleSendTargetsDiscovery * cmd)
+{
+    errno_t error = 0;
+
+//TODO: toggle
+
+    // Send back response
+    iSCSIDRspToggleSendTargetsDiscovery rsp = iSCSIDRspToggleSendTargetsDiscoveryInit;
+
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        error = EAGAIN;
+
+    return error;
+}
+
 
 /*! Handles power event messages received from the kernel.  This callback
  *  is only active when iSCSIDRegisterForPowerEvents() has been called.
@@ -891,6 +911,8 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
                 error = iSCSIDCreateCFPropertiesForSession(fd,(iSCSIDCmdCreateCFPropertiesForSession*)&cmd); break;
             case kiSCSIDCreateCFPropertiesForConnection:
                 error = iSCSIDCreateCFPropertiesForConnection(fd,(iSCSIDCmdCreateCFPropertiesForConnection*)&cmd); break;
+            case kiSCSIDToggleSendTargetsDiscovery:
+                error = iSCSIDToggleSendTargetsDiscovery(fd,(iSCSIDCmdToggleSendTargetsDiscovery*)&cmd); break;
             default:
                 // Close our connection to the iSCSI kernel extension
                 iSCSICleanup();
