@@ -1091,18 +1091,35 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
                        iSCSITargetRef target,
                        CFDictionaryRef properties)
 {
-    CFStringRef targetStatus = NULL, targetIQN = iSCSITargetGetIQN(target);
+    CFStringRef targetState = NULL;
+    CFStringRef targetConfig = NULL;
+    CFStringRef targetIQN = iSCSITargetGetIQN(target);
+
+
+    enum iSCSITargetConfigTypes configType = iSCSIPLGetTargetConfigType(targetIQN);
+    switch(configType) {
+        case kiSCSITargetConfigStatic:
+            targetConfig = CFSTR("Static"); break;
+        case kiSCSITargetConfigDynamicSendTargets:
+            targetConfig = CFSTR("Dynamic (SendTargets)"); break;
+        case kiSCSITargetConfigInvalid:
+        default:
+            targetConfig = CFSTR("");
+    };
     
     if(properties)
-        targetStatus = CFSTR(" [  Active  ]\n");
+        targetState = CFSTR("Active");
     else
-        targetStatus = CFSTR(" [ Inactive ]\n");
+        targetState = CFSTR("Inactive");
 
-    iSCSICtlDisplayString(CFSTR("+-o "));
-    iSCSICtlDisplayString(targetIQN);
-    iSCSICtlDisplayString(targetStatus);
-    
-    CFRelease(targetStatus);
+    CFStringRef status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                                  CFSTR("+-o %@ [ State: %@ Type: %@ ]\n"),
+                                                  targetIQN,targetState,targetConfig);
+
+    iSCSICtlDisplayString(status);
+    CFRelease(status);
+    CFRelease(targetState);
+    CFRelease(targetConfig);
 }
 
 /*! Helper function. Displays information about a portal/connection. */
@@ -1169,7 +1186,9 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
         if(!(target = iSCSIPLCopyTarget(targetIQN)))
             continue;
 
-        CFDictionaryRef properties = iSCSIDaemonCreateCFPropertiesForSession(handle,target);
+        CFDictionaryRef properties = NULL;
+        if(!(handle < 0))
+            properties = iSCSIDaemonCreateCFPropertiesForSession(handle,target);
 
         displayTargetInfo(handle,target,properties);
         
@@ -1181,7 +1200,11 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
             iSCSIPortalRef portal = iSCSIPLCopyPortalForTarget(targetIQN,CFArrayGetValueAtIndex(portalsList,portalIdx));
             
             if(portal) {
-                CFDictionaryRef properties = iSCSIDaemonCreateCFPropertiesForConnection(handle,target,portal);
+                CFDictionaryRef properties = NULL;
+
+                if(!(handle < 0))
+                    properties = iSCSIDaemonCreateCFPropertiesForConnection(handle,target,portal);
+
                 displayPortalInfo(handle,target,portal,properties);
                 iSCSIPortalRelease(portal);
             }
@@ -1317,8 +1340,15 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
     io_iterator_t LUNIterator = IO_OBJECT_NULL;
     
     iSCSIIORegistryGetTargets(&targetIterator);
+    target = IOIteratorNext(targetIterator);
+
+    if(target == IO_OBJECT_NULL) {
+        iSCSICtlDisplayString(CFSTR("No active targets with LUNs exist.\n"));
+        IOObjectRelease(targetIterator);
+        return 0;
+    }
     
-    while((target = IOIteratorNext(targetIterator)) != IO_OBJECT_NULL)
+    do
     {
         CFDictionaryRef targetDict = iSCSIIORegistryCreateCFPropertiesForTarget(target);
         
@@ -1368,6 +1398,7 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
         
         iSCSICtlDisplayString(CFSTR("\n"));
     }
+    while((target = IOIteratorNext(targetIterator)) != IO_OBJECT_NULL);
     
     IOObjectRelease(targetIterator);
     return 0;
