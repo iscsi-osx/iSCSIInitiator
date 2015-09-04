@@ -54,9 +54,20 @@ CFStringRef iSCSIPLCopyInitiatorCHAPSecret();
  *  @return target the target object to copy. */
 iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN);
 
-/*! Adds a target object.
- *  @param target an iSCSI target reference. */
-void iSCSIPLSetTarget(iSCSITargetRef target);
+/*! Adds a target object with a specified portal.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param portal the portal object to set. */
+void iSCSIPLAddStaticTarget(CFStringRef targetIQN,iSCSIPortalRef portal);
+
+/*! Adds a target object with a specified portal, and associates it with
+ *  a particular SendTargets portal that manages the target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param portal the portal object to set.
+ *  @param sendTargetsPortal the discovery portal address with which to
+ *  associate the managed target. */
+void iSCSIPLAddDynamicTargetForSendTargets(CFStringRef targetIQN,
+                                           iSCSIPortalRef portal,
+                                           CFStringRef sendTargetsPortal);
 
 /*! Removes a target object.
  *  @param targetIQN the target iSCSI qualified name (IQN). */
@@ -140,6 +151,17 @@ void iSCSIPLSetTargetAuthenticationMethod(CFStringRef targetIQN,
  *  @return the iSCSI authentication method for the target. */
 enum iSCSIAuthMethods iSCSIPLGetTargetAuthenticationMethod(CFStringRef targetIQN);
 
+/*! Sets target configuration type.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param configType the target configuration type. */
+void iSCSIPLSetTargetConfigType(CFStringRef targetIQN,
+                                enum iSCSITargetConfigTypes configType);
+
+/*! Gets target configuration type.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the target configuration type. */
+enum iSCSITargetConfigTypes iSCSIPLGetTargetConfigType(CFStringRef targetIQN);
+
 /*! Sets the CHAP name associated with the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param name the CHAP name associated with the target. */
@@ -184,16 +206,21 @@ CFArrayRef iSCSIPLCreateArrayOfPortalsForTarget(CFStringRef targetIQN);
 
 /*! Adds an iSCSI discovery portal to the list of discovery portals.
  *  @param portal the discovery portal to add. */
-void iSCSIPLAddiSCSIDiscoveryPortal(iSCSIPortalRef portal);
+void iSCSIPLAddSendTargetsDiscoveryPortal(iSCSIPortalRef portal);
 
 /*! Removes the specified iSCSI discovery portal.
  *  @param portal the discovery portal to remove. */
-void iSCSIPLRemoveiSCSIDiscoveryPortal(iSCSIPortalRef portal);
+void iSCSIPLRemoveSendTargetsDiscoveryPortal(iSCSIPortalRef portal);
 
 /*! Copies a portal object for the specified discovery portal.
- *  @param poralAddress the portal name (IPv4, IPv6 or DNS name).
+ *  @param portalAddress the portal name (IPv4, IPv6 or DNS name).
  *  @return portal the portal object to set. */
 iSCSIPortalRef iSCSIPLCopyiSCSIDiscoveryPortal(CFStringRef portalAddress);
+
+/*! Creates a list of target IQNs associated with a particular
+ *  @param portalAddress the portal name (IPv4, IPv6 or DNS name). 
+ *  @return a list of target IQNs associated with an iSCSI discovery portal. */
+CFArrayRef iSCSIPLCreateArrayOfTargetsForiSCSIDiscoveryPortal(CFStringRef portalAddress);
 
 /*! Creates a list of discovery portals.  Each element of the array is
  *  an iSCSI discovery portal address that can be used to retrieve the
