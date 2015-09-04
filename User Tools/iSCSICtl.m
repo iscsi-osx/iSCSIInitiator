@@ -1399,6 +1399,45 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
     return 0;
 }
 
+errno_t iSCSICtlListDiscoveryPortals(iSCSIDaemonHandle handle,
+                                     CFDictionaryRef options)
+{
+    if(handle < 0 || !options)
+        return EINVAL;
+
+    iSCSIPLSynchronize();
+
+    CFArrayRef portals = iSCSIPLCreateArrayOfPortalsForSendTargetsDiscovery();
+    CFIndex portalCount = 0;
+
+    if(portals)
+        portalCount = CFArrayGetCount(portals);
+
+    if(portalCount == 0)
+        iSCSICtlDisplayString(CFSTR("No discovery portals have been defined.\n"));
+    else
+        iSCSICtlDisplayString(CFSTR("\nThe following discovery portal(s) are defined:\n"));
+
+    for(CFIndex idx = 0; idx < portalCount; idx++) {
+        CFStringRef portalAddress = CFArrayGetValueAtIndex(portals,idx);
+        iSCSIPortalRef portal = iSCSIPLCopySendTargetsDiscoveryPortal(portalAddress);
+
+        CFStringRef entry =
+            CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                     CFSTR("\t %-15s [ Port: %5s, Interface: %@ ]\n"),
+                                     CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
+                                     CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
+                                     iSCSIPortalGetHostInterface(portal));
+        iSCSICtlDisplayString(entry);
+        CFRelease(entry);
+    }
+
+    if(portalCount != 0)
+        iSCSICtlDisplayString(CFSTR("\n"));
+
+    return 0;
+}
+
 errno_t iSCSICtlProbeTargetForAuthMethod(iSCSIDaemonHandle handle,
                                          CFDictionaryRef options)
 {
@@ -1570,6 +1609,7 @@ int main(int argc, char * argv[])
                 error = iSCSICtlRemoveTarget(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscovery)
                 error = iSCSICtlRemoveDiscoveryPortal(handle,optDictionary);
+            break;
 
 
         case kiSCSICtlCmdList:
@@ -1577,6 +1617,8 @@ int main(int argc, char * argv[])
                 error = iSCSICtlListTargets(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdLUNs)
                 error = iSCSICtlListLUNs(handle,optDictionary);
+            else if(subCmd == kiSCSICtlSubCmdDiscovery)
+                error = iSCSICtlListDiscoveryPortals(handle,optDictionary);
             break;
 
         case kiSCSICtlCmdLogin:
