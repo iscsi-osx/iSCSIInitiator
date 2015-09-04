@@ -178,6 +178,19 @@ enum iSCSILogoutStatusCode {
     kiSCSILogoutInvalidStatusCode
 };
 
+/*! Target configuration types. */
+enum iSCSITargetConfigTypes {
+
+    /*! Static target configuration. */
+    kiSCSITargetConfigStatic = 0,
+
+    /*! SendTargets dynamic target. */
+    kiSCSITargetConfigDynamicSendTargets = 1,
+
+    /*! Invalid target configuration type. */
+    kiSCSITargetConfigInvalid = 2
+};
+
 
 /*! Creates a new portal object from an external data representation.
  *  @param data data sued to construct a portal object.
