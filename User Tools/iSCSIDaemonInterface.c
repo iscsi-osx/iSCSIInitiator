@@ -80,8 +80,11 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     // Set the timeout for this socket so that the client will quit if
     // the daemon isn't running (otherwise it will hang on the non-blocking
     // socket
-
-// TODO: set timeout...
+    struct timeval tv;
+    memset(&tv,0,sizeof(tv));
+    tv.tv_usec = 1000;
+    setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
+    setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
 
     // Connect to local socket and return handle
     if(connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address))==0)
