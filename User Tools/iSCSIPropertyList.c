@@ -871,10 +871,19 @@ enum iSCSITargetConfigTypes iSCSIPLGetTargetConfigType(CFStringRef targetIQN)
     if(targetDict) {
         CFStringRef configTypeString = CFDictionaryGetValue(targetDict,kiSCSIPKTargetConfigType);
 
-        if(CFStringCompare(configTypeString,kiSCSIPVTargetConfigTypeStatic,0) == kCFCompareEqualTo)
+        // If target exists but configuration string doesn't, assume it is
+        // a static target and repair the property list
+        if(configTypeString == NULL) {
             configType = kiSCSITargetConfigStatic;
-        else if(CFStringCompare(configTypeString,kiSCSIPVTargetConfigTypeDiscovery,0) == kCFCompareEqualTo)
-            configType = kiSCSITargetConfigDynamicSendTargets;
+            CFDictionarySetValue(targetDict,kiSCSIPKTargetConfigType,kiSCSIPVTargetConfigTypeStatic);
+        }
+        else {
+
+            if(CFStringCompare(configTypeString,kiSCSIPVTargetConfigTypeStatic,0) == kCFCompareEqualTo)
+                configType = kiSCSITargetConfigStatic;
+            else if(CFStringCompare(configTypeString,kiSCSIPVTargetConfigTypeDiscovery,0) == kCFCompareEqualTo)
+                configType = kiSCSITargetConfigDynamicSendTargets;
+        }
     }
     return configType;
 }
