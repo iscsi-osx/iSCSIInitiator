@@ -627,7 +627,7 @@ errno_t iSCSIDaemonToggleSendTargetsDiscovery(iSCSIDaemonHandle handle,
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
         return EIO;
 
-    iSCSIDRspToggleSendTargetsDiscovery rsp = iSCSIDRspToggleSendTargetsDiscoveryInit;
+    iSCSIDRspToggleSendTargetsDiscovery rsp;
 
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EIO;
