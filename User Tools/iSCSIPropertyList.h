@@ -232,13 +232,16 @@ CFArrayRef iSCSIPLCreateArrayOfTargetsForiSCSIDiscoveryPortal(CFStringRef portal
  *  corresponding portal object by calling iSCSIPLCopyDiscoveryPortal(). */
 CFArrayRef iSCSIPLCreateArrayOfiSCSIDiscoveryPortals();
 
-/*! Sets iSCSI discovery to enabled or disabled.
+/*! Sets SendTargets discovery to enabled or disabled.
  *  @param enable True to set send targets discovery enabled, false otherwise. */
-void iSCSIPLSetiSCSIDiscoveryEnable(Boolean enable);
+void iSCSIPLSetSendTargetsDiscoveryEnable(Boolean enable);
 
-/*! Gets whether iSCSI discovery is set ot disabled or enabled.
+/*! Gets whether SendTargets discovery is set ot disabled or enabled.
  *  @return True if send targets discovery is set to enabled, false otherwise. */
-Boolean iSCSIPLGetiSCSIDiscoveryEnable();
+Boolean iSCSIPLGetSendTargetsDiscoveryEnable();
+
+
+
 
 /*! Synchronizes the intitiator and target settings cache with the property
  *  list on the disk. */
