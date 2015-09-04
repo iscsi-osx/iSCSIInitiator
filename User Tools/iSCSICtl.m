@@ -395,32 +395,6 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
 
 /*! Helper function used to display login status.
  *  @param statusCode the status code indicating the login result.
- *  @param portal the portal used to logon to the target. */
-void iSCSICtlDisplayDiscoveryLoginStatus(enum iSCSILoginStatusCode statusCode,
-                                         iSCSIPortalRef portal)
-{
-    CFStringRef portalAddress   = iSCSIPortalGetAddress(portal);
-    CFStringRef portalPort      = iSCSIPortalGetPort(portal);
-    CFStringRef portalInterface = iSCSIPortalGetHostInterface(portal);
-    
-    CFStringRef loginStatus;
-    
-    // Do nothing if successful (print discovery results)
-    if(statusCode != kiSCSILoginSuccess)
-        return;
-    
-    loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-        CFSTR("Discovery using [portal: %@:%@ if: %@] failed: %@.\n"),
-        portalAddress,portalPort,portalInterface,
-        iSCSICtlGetStringForLoginStatus(statusCode));
-    
-    iSCSICtlDisplayString(loginStatus);
-    CFRelease(loginStatus);
-}
-
-
-/*! Helper function used to display login status.
- *  @param statusCode the status code indicating the login result.
  *  @param target the target
  *  @param portal the portal used to logon to the target. */
 void iSCSICtlDisplayProbeTargetLoginStatus(enum iSCSILoginStatusCode statusCode,
@@ -1414,7 +1388,7 @@ errno_t iSCSICtlListDiscoveryPortals(iSCSIDaemonHandle handle,
         portalCount = CFArrayGetCount(portals);
 
     if(portalCount == 0)
-        iSCSICtlDisplayString(CFSTR("No discovery portals have been defined.\n"));
+        iSCSICtlDisplayString(CFSTR("No discovery portals are defined.\n"));
     else
         iSCSICtlDisplayString(CFSTR("\nThe following discovery portal(s) are defined:\n"));
 
@@ -1495,49 +1469,6 @@ errno_t iSCSICtlUnmountForTarget(iSCSIDaemonHandle handle,CFDictionaryRef option
 
     iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
     CFRelease(target);
-    return 0;
-}
-
-/*! Displays the contents of a discovery record, including targets, their
- *  associated portals and portal group tags.
- *  @param discoveryRecord the discovery record to display.
- *  @param portal the portal used for discovery.
- *  @return an error code indicating the result of the operation. */
-errno_t iSCSICtlDisplayDiscoveryRecord(iSCSIDiscoveryRecRef discoveryRecord)
-{
-    CFArrayRef targets = iSCSIDiscoveryRecCreateArrayOfTargets(discoveryRecord);
-    
-    for(CFIndex idxTarget = 0; idxTarget < CFArrayGetCount(targets); idxTarget++)
-    {
-        CFStringRef targetIQN = CFArrayGetValueAtIndex(targets,idxTarget);
-        iSCSICtlDisplayString(targetIQN);
-        
-        if(!targetIQN)
-            continue;
-        
-        CFArrayRef portalGroups = iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(discoveryRecord,targetIQN);
-        
-        for(CFIndex idxTPG = 0; idxTPG < CFArrayGetCount(portalGroups); idxTPG++)
-        {
-            CFStringRef TPGT = CFArrayGetValueAtIndex(portalGroups,idxTPG);
-            iSCSICtlDisplayString(CFSTR("\n"));
-            
-            CFArrayRef portals = iSCSIDiscoveryRecGetPortals(discoveryRecord,targetIQN,TPGT);
-            
-            for(CFIndex idxPortal = 0; idxPortal < CFArrayGetCount(portals); idxPortal++)
-            {
-                iSCSIPortalRef portal = CFArrayGetValueAtIndex(portals,idxPortal);
-                CFStringRef portalStr = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                     CFSTR("\t%@ [ Port: %@, PortalGroup: %@ ]\n"),
-                                                     iSCSIPortalGetAddress(portal),
-                                                     iSCSIPortalGetPort(portal),TPGT);
-                iSCSICtlDisplayString(portalStr);
-                CFRelease(portalStr);
-            }
-        }
-        CFRelease(portalGroups);
-    }
-    CFRelease(targets);
     return 0;
 }
 
