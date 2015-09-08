@@ -256,8 +256,11 @@ CFArrayRef iSCSIPLGetDynamicTargetsForSendTargets(CFStringRef portalAddress,
 
         CFMutableDictionaryRef portalDict = NULL;
         if(CFDictionaryGetValueIfPresent(discoveryPortals,portalAddress,(void*)&portalDict)) {
-            if(!CFDictionaryGetValueIfPresent(portalDict,kiSCSIPKDiscoveryTargetsForPortal,(void*)&targetsList))
+            if(!CFDictionaryGetValueIfPresent(portalDict,kiSCSIPKDiscoveryTargetsForPortal,(void*)&targetsList)) {
                 targetsList = CFArrayCreateMutable(kCFAllocatorDefault,0,&kCFTypeArrayCallBacks);
+                CFDictionarySetValue(portalDict,kiSCSIPKDiscoveryTargetsForPortal,targetsList);
+                CFRelease(targetsList);
+            }
         }
     }
     return targetsList;
@@ -577,12 +580,6 @@ void iSCSIPLRemovePortalForTarget(CFStringRef targetIQN,
     }
 }
 
-/*! Helper function. */
-void iSCSIPLAddTargetCommon()
-{
-
-}
-
 /*! Adds a target object with a specified portal.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param portal the portal object to set. */
@@ -762,6 +759,30 @@ CFArrayRef iSCSIPLCreateArrayOfTargets()
     CFDictionaryGetKeysAndValues(targetsList,keys,NULL);
     
     return CFArrayCreate(kCFAllocatorDefault,keys,keyCount,&kCFTypeArrayCallBacks);
+}
+
+/*! Creates an array of statically configured iSCSI targets (IQNs).
+ *  @return an array of statically configured iSCSI targets (IQNs). */
+CFArrayRef iSCSIPLCreateArrayOfStaticTargets()
+{
+    return NULL;
+}
+
+/*! Creates an array of iSCSI targets (IQNs) that were dynamically configured
+ *  using SendTargets over a specific discovery portal.
+ *  @param portalAddress the address of the discovery portal that corresponds
+ *  to the dynamically configured discovery targets.
+ *  @return an array of iSCSI targets (IQNs) that were discovered using
+ *  SendTargets over the specified portal. */
+CFArrayRef iSCISPLCreateArrayOfDynamicTargetsForSendTargets(CFStringRef portalAddress)
+{
+    CFArrayRef targetsList = iSCSIPLGetDynamicTargetsForSendTargets(portalAddress,false);
+
+    // Create a copy to return
+    if(targetsList)
+        targetsList = CFArrayCreateCopy(kCFAllocatorDefault,targetsList);
+
+    return targetsList;
 }
 
 /*! Creates an array of portal names for a given target.
