@@ -109,15 +109,15 @@ const struct iSCSIDRspToggleSendTargetsDiscovery iSCSIDRspToggleSendTargetsDisco
 };
 
 
-void iSCSIDLogError(const char * entry)
+void iSCSIDLogError(CFStringRef logEntry)
 {
     CFStringRef stamp = CFDateFormatterCreateStringWithAbsoluteTime(
                                                 kCFAllocatorDefault,
                                                 0,
                                                 CFAbsoluteTimeGetCurrent());
-
-
-    fprintf(stderr,"%s%s%s%s",CFStringGetCStringPtr(stamp,kCFStringEncodingASCII)," ",entry,"\n");
+    fprintf(stderr,"%s %s\n",
+            CFStringGetCStringPtr(stamp,kCFStringEncodingASCII),
+            CFStringGetCStringPtr(logEntry,kCFStringEncodingASCII));
 }
 
 iSCSISessionConfigRef iSCSIDCreateSessionConfig(CFStringRef targetIQN)
@@ -165,11 +165,11 @@ iSCSIAuthRef iSCSIDCreateAuthenticationForTarget(CFStringRef targetIQN)
         CFStringRef sharedSecret = iSCSIPLCopyTargetCHAPSecret(targetIQN);
 
         if(!name) {
-            iSCSIDLogError("The CHAP name for the target has not been set, reverting to no authentication.");
+            iSCSIDLogError(CFSTR("CHAP name for target has not been set, reverting to no authentication."));
             auth = iSCSIAuthCreateNone();
         }
         else if(!sharedSecret) {
-            iSCSIDLogError("The CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication.");
+            iSCSIDLogError(CFSTR("CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication."));
             auth = iSCSIAuthCreateNone();
         }
         else {
@@ -199,11 +199,11 @@ iSCSIAuthRef iSCSIDCreateAuthenticationForInitiator()
         CFStringRef sharedSecret = iSCSIPLCopyInitiatorCHAPSecret();
 
         if(!name) {
-            iSCSIDLogError("The CHAP name for the initiator has not been set, reverting to no authentication.");
+            iSCSIDLogError(CFSTR("CHAP name for target has not been set, reverting to no authentication."));
             auth = iSCSIAuthCreateNone();
         }
         else if(!sharedSecret) {
-            iSCSIDLogError("The CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication.");
+            iSCSIDLogError(CFSTR("CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication."));
             auth = iSCSIAuthCreateNone();
         }
         else {
@@ -356,8 +356,6 @@ errno_t iSCSIDLoginWithPortal(iSCSITargetRef target,
 
     // Existing session, add a connection
     if(sessionId != kiSCSIInvalidSessionId) {
-
-        fprintf(stderr,"%s","T1");
 
         connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
 
@@ -809,7 +807,6 @@ errno_t iSCSIDToggleSendTargetsDiscovery(int fd,struct iSCSIDCmdToggleSendTarget
     return error;
 }
 
-
 /*! Handles power event messages received from the kernel.  This callback
  *  is only active when iSCSIDRegisterForPowerEvents() has been called.
  *  @param refCon always NULL (not used).
@@ -932,15 +929,21 @@ int main(void)
     CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
 
     if(initiatorIQN) {
-        iSCSISetInitiatiorName(initiatorIQN);
+        iSCSISetInitiatorName(initiatorIQN);
         CFRelease(initiatorIQN);
+    }
+    else {
+        iSCSIDLogError(CFSTR("initiator IQN not set, reverting to internal default."));
     }
 
     CFStringRef initiatorAlias = iSCSIPLCopyInitiatorAlias();
 
     if(initiatorAlias) {
-        iSCSISetInitiatiorName(initiatorAlias);
+        iSCSISetInitiatorAlias(initiatorAlias);
         CFRelease(initiatorAlias);
+    }
+    else {
+        iSCSIDLogError(CFSTR("initiator alias not set, reverting to internal default."));
     }
 
     // Register with launchd so it can manage this daemon
@@ -948,7 +951,7 @@ int main(void)
 
     // Quit if we are unable to checkin...
     if(!reg_request) {
-        fprintf(stderr,"Failed to checkin with launchd.\n");
+        iSCSIDLogError(CFSTR("fatal error: failed to checkin with launchd."));
         goto ERROR_LAUNCH_DATA;
     }
 
@@ -956,7 +959,7 @@ int main(void)
 
     // Ensure registration was successful
     if((launch_data_get_type(reg_response) == LAUNCH_DATA_ERRNO)) {
-        fprintf(stderr,"Failed to checkin with launchd.\n");
+        iSCSIDLogError(CFSTR("fatal error: failed to checkin with launchd."));
         goto ERROR_NO_SOCKETS;
     }
 
@@ -965,7 +968,7 @@ int main(void)
     launch_data_t sockets = launch_data_dict_lookup(reg_response,LAUNCH_JOBKEY_SOCKETS);
 
     if(!label || !sockets) {
-        fprintf(stderr,"Could not find socket ");
+        iSCSIDLogError(CFSTR("fatal error: could not find socket definition, plist may be damaged."));
         goto ERROR_NO_SOCKETS;
     }
 
