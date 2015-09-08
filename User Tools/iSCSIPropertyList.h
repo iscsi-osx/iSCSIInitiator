@@ -204,6 +204,18 @@ Boolean iSCSIPLContainsPortalForSendTargetsDiscovery(CFStringRef portalAddress);
  *  @return an array of target iSCSI qualified name (IQN)s. */
 CFArrayRef iSCSIPLCreateArrayOfTargets();
 
+/*! Creates an array of statically configured iSCSI targets (IQNs).
+ *  @return an array of statically configured iSCSI targets (IQNs). */
+CFArrayRef iSCSIPLCreateArrayOfStaticTargets();
+
+/*! Creates an array of iSCSI targets (IQNs) that were dynamically configured 
+ *  using SendTargets over a specific discovery portal.
+ *  @param portalAddress the address of the discovery portal that corresponds
+ *  to the dynamically configured discovery targets.
+ *  @return an array of iSCSI targets (IQNs) that were discovered using 
+ *  SendTargets over the specified portal. */
+CFArrayRef iSCISPLCreateArrayOfDynamicTargetsForSendTargets(CFStringRef portalAddress);
+
 /*! Creates an array of portal names (addresses) for a given target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return an array of portal names for the specified target. */
@@ -221,11 +233,6 @@ void iSCSIPLRemoveSendTargetsDiscoveryPortal(iSCSIPortalRef portal);
  *  @param portalAddress the portal name (IPv4, IPv6 or DNS name).
  *  @return portal the portal object to set. */
 iSCSIPortalRef iSCSIPLCopySendTargetsDiscoveryPortal(CFStringRef portalAddress);
-
-/*! Creates a list of target IQNs associated with a particular
- *  @param portalAddress the portal name (IPv4, IPv6 or DNS name). 
- *  @return a list of target IQNs associated with an iSCSI discovery portal. */
-CFArrayRef iSCSIPLCreateArrayOfTargetsForSendTargetsPortal(CFStringRef portalAddress);
 
 /*! Creates a list of SendTargets portals.  Each element of the array is
  *  an iSCSI discovery portal address that can be used to retrieve the
