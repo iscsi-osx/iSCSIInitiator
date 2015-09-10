@@ -258,7 +258,7 @@ errno_t iSCSIDLoginCommon(SID sessionId,
         error = iSCSILoginSession(target,portal,initiatorAuth,targetAuth,sessCfg,connCfg,&sessionId,&connectionId,statusCode);
     else
         error = iSCSILoginConnection(sessionId,portal,initiatorAuth,targetAuth,connCfg,&connectionId,statusCode);
-    
+
     return error;
 }
 
@@ -416,12 +416,18 @@ errno_t iSCSIDLogin(int fd,struct iSCSIDCmdLogin * cmd)
     else if(target)
         errorCode = iSCSIDLoginAllPortals(target,&statusCode);
     else
-        return EINVAL;
+        errorCode = EINVAL;
 
     // Compose a response to send back to the client
     struct iSCSIDRspLogin rsp = iSCSIDRspLoginInit;
     rsp.errorCode = errorCode;
     rsp.statusCode = statusCode;
+
+    if(target)
+        iSCSITargetRelease(target);
+
+    if(portal)
+        iSCSIPortalRelease(portal);
 
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EAGAIN;
