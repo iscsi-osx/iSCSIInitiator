@@ -1085,7 +1085,6 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     return error;
 }
 
-
 /*! Helper function. Displays information about a target/session. */
 void displayTargetInfo(iSCSIDaemonHandle handle,
                        iSCSITargetRef target,
@@ -1251,6 +1250,17 @@ errno_t iSCSICtlAddDiscoveryPortal(iSCSIDaemonHandle handle,CFDictionaryRef opti
     return 0;
 }
 
+/*! Modifies a discovery portal for SendTargets discovery.
+ *  @param handle handle to the iSCSI daemon.
+ *  @param options the command-line options dictionary.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSICtlModifyDiscoveryPortal(iSCSIDaemonHandle handle,CFDictionaryRef options)
+{
+
+
+    return 0;
+}
+
 /*! Removes a discovery portal from SendTargets discovery.
  *  @param handle handle to the iSCSI daemon.
  *  @param options the command-line options dictionary.
@@ -1295,7 +1305,7 @@ void displayLUNProperties(CFDictionaryRef propertiesDict)
     
     CFStringRef peripheralDesc = iSCSIUtilsGetSCSIPeripheralDeviceDescription(peripheralTypeCode);
     CFStringRef properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                      CFSTR("  +-o LUN: %@ [ Peripheral Device Type: 0x%02x (%@) ]\n"),
+                                                      CFSTR("  +-o LUN: %@ [ Type: 0x%02x (%@) ]\n"),
                                                       SCSILUNIdentifier,peripheralTypeCode,peripheralDesc);
     iSCSICtlDisplayString(properties);
     CFRelease(properties);
@@ -1351,7 +1361,10 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
     
     do
     {
-        CFDictionaryRef targetDict = iSCSIIORegistryCreateCFPropertiesForTarget(target);
+        // Do nothing if the entry was not a valid target
+        CFDictionaryRef targetDict;
+        if(!(targetDict = iSCSIIORegistryCreateCFPropertiesForTarget(target)))
+            break;
         
         CFStringRef targetIQN = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertyiSCSIQualifiedNameKey));
         CFStringRef targetVendor = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSIVendorIdentification));
@@ -1359,8 +1372,9 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
         CFNumberRef targetId = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSITargetIdentifierKey));
         
         CFStringRef targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                         CFSTR("\n+-o %@ [ Target Id: %@, Vendor: %@, Model: %@ ]\n"),
-                                                         targetIQN,targetId,targetVendor,targetProduct);
+                                                         CFSTR("\n+-o %-50s [ Id: %@, Vendor: %@, Model: %@ ]\n"),
+                                                         CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+                                                         targetId,targetVendor,targetProduct);
         iSCSICtlDisplayString(targetStr);
 
         // Get a dictionary of properties for each LUN and display those
@@ -1564,7 +1578,7 @@ int main(int argc, char * argv[])
             if(subCmd == kiSCSICtlSubCmdInitiator)
                 error = iSCSICtlModifyInitiator(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscovery)
-            {}
+                error = iSCSICtlModifyDiscoveryPortal(handle,optDictionary);
 
             break;
         case kiSCSICtlCmdRemove:
