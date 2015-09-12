@@ -247,6 +247,14 @@ void iSCSIPLSetSendTargetsDiscoveryEnable(Boolean enable);
  *  @return True if send targets discovery is set to enabled, false otherwise. */
 Boolean iSCSIPLGetSendTargetsDiscoveryEnable();
 
+/*! Sets SendTargets discovery interval.
+ *  @param interval the discovery interval, in seconds. */
+void iSCSIPLSetSendTargetsDiscoveryInterval(CFIndex interval);
+
+/*! Gets SendTargets disocvery interval.
+ *  @return the discovery interval, in seconds. */
+CFIndex iSCSIPLGetSendTargetsDiscoveryInterval();
+
 
 
 

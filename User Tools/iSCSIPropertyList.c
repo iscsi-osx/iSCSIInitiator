@@ -109,9 +109,15 @@ CFStringRef kiSCSIPVDefaultInitiatorAlias = CFSTR("localhost");
 CFStringRef kiSCSIPVDefaultInitiatorIQN = CFSTR("iqn.2015-01.com.localhost:initiator");
 
 
-
 /*! Preference key name for iSCSI discovery portals key. */
 CFStringRef kiSCSIPKSendTargetsDiscoveryPortals = CFSTR("Portals");
+
+
+/*! Preference key name for iSCSI discovery enabled/disabled. */
+CFStringRef kiSCSIPKDiscoveryEnabled = CFSTR("Enabled");
+
+/*! Preference key name for iSCSI discovery interval. */
+CFStringRef kiSCSIPKDiscoveryInterval = CFSTR("Interval");
 
 
 
@@ -159,7 +165,14 @@ CFMutableDictionaryRef iSCSIPLCreateDiscoveryDict()
         &kCFTypeDictionaryKeyCallBacks,
         &kCFTypeDictionaryValueCallBacks);
 
-    CFDictionaryAddValue(discoveryDict,kiSCSIPKSendTargetsDiscovery,kCFBooleanFalse);
+    // Default scan interval (0 indicates never)
+    CFIndex interval = 0;
+    CFNumberRef value = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&interval);
+
+    CFDictionaryAddValue(discoveryDict,kiSCSIPKDiscoveryEnabled,kCFBooleanFalse);
+    CFDictionaryAddValue(discoveryDict,kiSCSIPKDiscoveryInterval,value);
+
+    CFRelease(value);
 
     return discoveryDict;
 }
@@ -1094,8 +1107,29 @@ void iSCSIPLSetSendTargetsDiscoveryEnable(Boolean enable)
 Boolean iSCSIPLGetSendTargetsDiscoveryEnable()
 {
     CFMutableDictionaryRef discoveryDict = iSCSIPLGetSendTargetsDiscoveryDict(true);
-    sendTargetsDiscoveryCacheModified = true;
     return CFBooleanGetValue(CFDictionaryGetValue(discoveryDict,kiSCSIPKSendTargetsDiscovery));
+}
+
+/*! Sets SendTargets discovery interval.
+ *  @param interval the discovery interval, in seconds. */
+void iSCSIPLSetSendTargetsDiscoveryInterval(CFIndex interval)
+{
+    CFMutableDictionaryRef discoveryDict = iSCSIPLGetSendTargetsDiscoveryDict(true);
+    CFNumberRef value = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&interval);
+    CFDictionarySetValue(discoveryDict,kiSCSIPKDiscoveryInterval,value);
+
+    sendTargetsDiscoveryCacheModified = true;
+}
+
+/*! Gets SendTargets disocvery interval.
+ *  @return the discovery interval, in seconds. */
+CFIndex iSCSIPLGetSendTargetsDiscoveryInterval()
+{
+    CFIndex interval = 0;
+    CFMutableDictionaryRef discoveryDict = iSCSIPLGetSendTargetsDiscoveryDict(true);
+    CFNumberRef value = CFDictionaryGetValue(discoveryDict,kiSCSIPKDiscoveryInterval);
+    CFNumberGetValue(value,kCFNumberCFIndexType,&interval);
+    return interval;
 }
 
 
