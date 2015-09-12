@@ -278,6 +278,7 @@ errno_t iSCSIDLoginAllPortals(iSCSITargetRef target,
 
     // Set initial values for maxConnections and activeConnections
     if(sessionId == kiSCSIInvalidSessionId)
+//TODO: change to the maximum value that will be supported by this initiator
         maxConnections = 1;
     else {
 
@@ -304,10 +305,12 @@ errno_t iSCSIDLoginAllPortals(iSCSITargetRef target,
     CFStringRef portalAddress = NULL;
     CFArrayRef portals = iSCSIPLCreateArrayOfPortalsForTarget(targetIQN);
     CFIndex portalIdx = 0;
+    CFIndex portalCount = CFArrayGetCount(portals);
 
-    while( (activeConnections < maxConnections) &&
-          (portalAddress = CFArrayGetValueAtIndex(portals,portalIdx)) )
+    while( (activeConnections < maxConnections) && portalIdx < portalCount )
     {
+        portalAddress = CFArrayGetValueAtIndex(portals,portalIdx);
+
         // Get portal object and login
         iSCSIPortalRef portal = iSCSIPLCopyPortalForTarget(targetIQN,portalAddress);
         errorCode = iSCSIDLoginCommon(sessionId,target,portal,statusCode);
@@ -334,7 +337,6 @@ errno_t iSCSIDLoginAllPortals(iSCSITargetRef target,
                 CFRelease(properties);
             }
         }
-        
     };
     
     return errorCode;
@@ -406,7 +408,7 @@ errno_t iSCSIDLogin(int fd,struct iSCSIDCmdLogin * cmd)
     // If portal and target are valid, login with portal.  Otherwise login to
     // target using all defined portals.
     errno_t errorCode = 0;
-    enum iSCSILoginStatusCode statusCode;
+    enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
 
     // Synchronize property list
     iSCSIPLSynchronize();
