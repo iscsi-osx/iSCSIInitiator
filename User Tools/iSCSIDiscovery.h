@@ -16,6 +16,10 @@
 #include "iSCSITypes.h"
 #include "iSCSIPropertyList.h"
 
+/*! Scans all iSCSI discovery portals for targets (SendTargets). Updates
+ *  the iSCSI property list with information about targets and portals.
+ *  @return error code indicating the result of the discovery operation. */
 errno_t iSCSIDiscoveryRunSendTargets();
+
 
 #endif /* defined(__ISCSI_DISCOVERY_H__) */
