@@ -988,7 +988,7 @@ void iSCSIPDUDataParseToDiscoveryRecCallback(void * keyContainer,CFStringRef key
         iSCSIMutablePortalRef portal = iSCSIPortalCreateMutable();
         iSCSIPortalSetAddress(portal,address);
         iSCSIPortalSetPort(portal,port);
-        iSCSIPortalSetHostInterface(portal,CFSTR(""));
+        iSCSIPortalSetHostInterface(portal,kiSCSIDefaultHostInterface);
     
         iSCSIMutableDiscoveryRecRef discoveryRec = (iSCSIMutableDiscoveryRecRef)(valContainer);
         iSCSIDiscoveryRecAddPortal(discoveryRec,targetIQN,portalGroupTag,portal);
