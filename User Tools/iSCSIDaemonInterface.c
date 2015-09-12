@@ -82,7 +82,7 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     // socket
     struct timeval tv;
     memset(&tv,0,sizeof(tv));
-    tv.tv_usec = 1000;
+    tv.tv_usec = 200000;
     setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
     setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
 
