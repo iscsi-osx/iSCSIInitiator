@@ -264,7 +264,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
                                    statusCode,
                                    &rejectCode,
                                    authCmd,authRsp);
-    
+
     // Now perform target authentication (we authenticate target)
     if(targetUser && targetSecret)
     {
@@ -292,6 +292,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     
     CFRelease(authCmd);
     CFRelease(authRsp);
+
     return error;
 }
 
@@ -345,7 +346,7 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
         }
     }
     else
-        CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthMethod,kiSCSIAuthMethodNone);
+        CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthMethod,kRFC3720_Value_AuthMethodNone);
 }
 
 /*! Helper function.  Called by session or connection creation functions to
@@ -403,11 +404,9 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
         goto ERROR_GENERIC;
     
     // Determine if target supports desired authentication method
-    CFRange result;
-
-    result = CFStringFind(CFDictionaryGetValue(authCmd,kRFC3720_Key_AuthMethod),
-                             CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod),
-                             kCFCompareCaseInsensitive);
+    CFRange result = CFStringFind(CFDictionaryGetValue(authCmd,kRFC3720_Key_AuthMethod),
+                                  CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod),
+                                  kCFCompareCaseInsensitive);
     
     // If we wanted to use a particular method and the target doesn't support it
     if(result.location == kCFNotFound) {
@@ -415,8 +414,19 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
         goto ERROR_AUTHENTICATION;
     }
 
+    // Get authentication method from response string. We can't rely
+    // on the value we specified to the target because for initiator CHAP
+    // authenticaiton we always supply a no authentication option in addition
+    // to CHAP (just because we offer authentication does not mean the target
+    // is obliged to use it). This tests whether the target chose to use it.
+    enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodNone;
+    CFStringRef authValue = CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod);
+
+    if(CFStringCompare(authValue,kRFC3720_Value_AuthMethodCHAP,0) == kCFCompareEqualTo)
+        authMethod = kiSCSIAuthMethodCHAP;
+
     // If this is not a discovery session, we expect to receive a target
-    // portal group tag (TPGT)...
+    // portal group tag (TPGT) and validate it
     if(CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
     {
         // Ensure that the target returned a portal group tag (TPGT)...
@@ -442,9 +452,6 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
         }
     }
 
-    // Call the appropriate authentication function to proceed
-    enum iSCSIAuthMethods authMethod = iSCSIAuthGetMethod(initiatorAuth);
-    
     if(authMethod == kiSCSIAuthMethodCHAP) {
         error = iSCSIAuthNegotiateCHAP(target,
                                        initiatorAuth,
