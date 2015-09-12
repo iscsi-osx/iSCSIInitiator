@@ -1048,7 +1048,7 @@ iSCSIPortalRef iSCSIPLCopySendTargetsDiscoveryPortal(CFStringRef portalAddress)
 
             // Set portal port and host interface
             iSCSIPortalSetPort(portal,port);
-            iSCSIPortalSetPort(portal,interface);
+            iSCSIPortalSetHostInterface(portal,interface);
         }
     }
     return portal;
