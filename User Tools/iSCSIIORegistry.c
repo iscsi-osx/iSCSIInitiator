@@ -224,8 +224,18 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target)
     CFStringRef vendor = IORegistryEntryCreateCFProperty(
         child,CFSTR(kIOPropertySCSIVendorIdentification),kCFAllocatorDefault,0);
 
+    if(CFStringCompare(vendor,CFSTR(""),0) == kCFCompareEqualTo) {
+        CFRelease(vendor);
+        vendor = CFSTR("Unknown");
+    }
+
     CFStringRef product = IORegistryEntryCreateCFProperty(
         child,CFSTR(kIOPropertySCSIProductIdentification),kCFAllocatorDefault,0);
+
+    if(CFStringCompare(product,CFSTR(""),0) == kCFCompareEqualTo) {
+        CFRelease(product);
+        product = CFSTR("Unknown");
+    }
     
     CFDictionaryRef protocolDict = IORegistryEntryCreateCFProperty(
         child,CFSTR(kIOPropertyProtocolCharacteristicsKey),kCFAllocatorDefault,0);
