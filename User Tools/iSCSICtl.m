@@ -1101,7 +1101,7 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
         case kiSCSITargetConfigStatic:
             targetConfig = CFSTR("Static"); break;
         case kiSCSITargetConfigDynamicSendTargets:
-            targetConfig = CFSTR("Dynamic (SendTargets)"); break;
+            targetConfig = CFSTR("Dynamic"); break;
         case kiSCSITargetConfigInvalid:
         default:
             targetConfig = CFSTR("");
@@ -1113,8 +1113,9 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
         targetState = CFSTR("Inactive");
 
     CFStringRef status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                  CFSTR("+-o %@ [ State: %@ Type: %@ ]\n"),
-                                                  targetIQN,targetState,targetConfig);
+                                                  CFSTR("+-o %-50s [ %@, %@ ]\n"),
+                                                  CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+                                                  targetState,targetConfig);
 
     iSCSICtlDisplayString(status);
     CFRelease(status);
