@@ -99,8 +99,16 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
 
         // If we have a target that was not discovered, then we need to remove
         // it from our property list...
-        if(!CFDictionaryContainsKey(discTargets,targetIQN))
+        if(!CFDictionaryContainsKey(discTargets,targetIQN)) {
+
+            // If the target is logged in, logout of the target and remove it
+            SID sessionId = iSCSIGetSessionIdForTarget(targetIQN);
+            enum iSCSILogoutStatusCode statusCode;
+            if(sessionId != kiSCSIInvalidSessionId)
+                iSCSILogoutSession(sessionId,&statusCode);
+
             iSCSIPLRemoveTarget(targetIQN);
+        }
     }
 
     CFRelease(discTargets);
