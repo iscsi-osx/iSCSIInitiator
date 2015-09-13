@@ -19,10 +19,10 @@ CFMutableDictionaryRef targetsCache = NULL;
 Boolean targetNodesCacheModified = false;
 
 /*! A cached version of the discovery dictionary. */
-CFMutableDictionaryRef sendTargetsDiscoveryCache = NULL;
+CFMutableDictionaryRef discoveryCache = NULL;
 
 /*! Flag that indicates whether the discovery cache was modified. */
-Boolean sendTargetsDiscoveryCacheModified = false;
+Boolean discoveryCacheModified = false;
 
 /*! A cached version of the initiator dictionary. */
 CFMutableDictionaryRef initiatorCache = NULL;
@@ -39,8 +39,8 @@ CFStringRef kiSCSIPKInitiator = CFSTR("Initiator Node");
 /*! Preference key name for iSCSI targets dictionary (holds all targets). */
 CFStringRef kiSCSIPKTargets = CFSTR("Target Nodes");
 
-/*! Preference key name for iSCSI SendTargets discovery dictionary. */
-CFStringRef kiSCSIPKSendTargetsDiscovery = CFSTR("SendTargets Discovery");
+/*! Preference key name for iSCSI discovery dictionary. */
+CFStringRef kiSCSIPKDiscovery = CFSTR("Discovery");
 
 
 
@@ -110,11 +110,11 @@ CFStringRef kiSCSIPVDefaultInitiatorIQN = CFSTR("iqn.2015-01.com.localhost:initi
 
 
 /*! Preference key name for iSCSI discovery portals key. */
-CFStringRef kiSCSIPKSendTargetsDiscoveryPortals = CFSTR("Portals");
+CFStringRef kiSCSIPKDiscoveryPortals = CFSTR("Portals");
 
 
 /*! Preference key name for iSCSI discovery enabled/disabled. */
-CFStringRef kiSCSIPKDiscoveryEnabled = CFSTR("Enabled");
+CFStringRef kiSCSIPKSendTargetsEnabled = CFSTR("SendTargets");
 
 /*! Preference key name for iSCSI discovery interval. */
 CFStringRef kiSCSIPKDiscoveryInterval = CFSTR("Interval");
@@ -123,7 +123,7 @@ CFStringRef kiSCSIPKDiscoveryInterval = CFSTR("Interval");
 
 /*! Retrieves a mutable dictionary for the specified key.
  *  @param key the name of the key, which can be either kiSCSIPKTargets,
- *  kiSCSIPKSendTargetsDiscovery, or kiSCSIPKInitiator.
+ *  kiSCSIPKDiscovery, or kiSCSIPKInitiator.
  *  @return mutable dictionary with list of properties for the specified key. */
 CFMutableDictionaryRef iSCSIPLCopyPropertyDict(CFStringRef key)
 {
@@ -169,7 +169,7 @@ CFMutableDictionaryRef iSCSIPLCreateDiscoveryDict()
     CFIndex interval = 0;
     CFNumberRef value = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&interval);
 
-    CFDictionaryAddValue(discoveryDict,kiSCSIPKDiscoveryEnabled,kCFBooleanFalse);
+    CFDictionaryAddValue(discoveryDict,kiSCSIPKSendTargetsEnabled,kCFBooleanFalse);
     CFDictionaryAddValue(discoveryDict,kiSCSIPKDiscoveryInterval,value);
 
     CFRelease(value);
@@ -227,10 +227,10 @@ CFMutableDictionaryRef iSCSIPLGetInitiatorDict(Boolean createIfMissing)
 
 CFMutableDictionaryRef iSCSIPLGetSendTargetsDiscoveryDict(Boolean createIfMissing)
 {
-    if(createIfMissing && !sendTargetsDiscoveryCache)
-        sendTargetsDiscoveryCache = iSCSIPLCreateDiscoveryDict();
+    if(createIfMissing && !discoveryCache)
+        discoveryCache = iSCSIPLCreateDiscoveryDict();
 
-    return sendTargetsDiscoveryCache;
+    return discoveryCache;
 }
 
 /*! Helper function. Retrieves the iSCSI discovery portals dictionary. */
@@ -242,7 +242,7 @@ CFMutableDictionaryRef iSCSIPLGetSendTargetsDiscoveryPortals(Boolean createIfMis
     if(discoveryDict)
     {
         if(createIfMissing &&
-           CFDictionaryGetCountOfKey(discoveryDict,kiSCSIPKSendTargetsDiscoveryPortals) == 0)
+           CFDictionaryGetCountOfKey(discoveryDict,kiSCSIPKDiscoveryPortals) == 0)
         {
             CFMutableDictionaryRef discoveryPortalsDict = CFDictionaryCreateMutable(
                 kCFAllocatorDefault,0,
@@ -250,11 +250,11 @@ CFMutableDictionaryRef iSCSIPLGetSendTargetsDiscoveryPortals(Boolean createIfMis
                 &kCFTypeDictionaryValueCallBacks);
 
             CFDictionarySetValue(discoveryDict,
-                                 kiSCSIPKSendTargetsDiscoveryPortals,
+                                 kiSCSIPKDiscoveryPortals,
                                  discoveryPortalsDict);
             CFRelease(discoveryPortalsDict);
         }
-        return (CFMutableDictionaryRef)CFDictionaryGetValue(discoveryDict,kiSCSIPKSendTargetsDiscoveryPortals);
+        return (CFMutableDictionaryRef)CFDictionaryGetValue(discoveryDict,kiSCSIPKDiscoveryPortals);
     }
     return NULL;
 }
@@ -647,7 +647,7 @@ void iSCSIPLAddDynamicTargetForSendTargets(CFStringRef targetIQN,
         CFArrayAppendValue(targetList,targetIQN);
 
         targetNodesCacheModified = true;
-        sendTargetsDiscoveryCacheModified = true;
+        discoveryCacheModified = true;
     }
 }
 
@@ -995,7 +995,7 @@ void iSCSIPLAddSendTargetsDiscoveryPortal(iSCSIPortalRef portal)
             CFRelease(targets);
             CFRelease(portalDict);
 
-            sendTargetsDiscoveryCacheModified = true;
+            discoveryCacheModified = true;
         }
     }
 }
@@ -1029,7 +1029,7 @@ void iSCSIPLRemoveSendTargetsDiscoveryPortal(iSCSIPortalRef portal)
 
             // Remove discovery portal from SendTargets dictionary
             CFDictionaryRemoveValue(discoveryPortals,portalAddress);
-            sendTargetsDiscoveryCacheModified = true;
+            discoveryCacheModified = true;
         }
     }
 }
@@ -1095,11 +1095,11 @@ void iSCSIPLSetSendTargetsDiscoveryEnable(Boolean enable)
     CFMutableDictionaryRef discoveryDict = iSCSIPLGetSendTargetsDiscoveryDict(true);
 
     if(enable)
-        CFDictionarySetValue(discoveryDict,kiSCSIPKSendTargetsDiscovery,kCFBooleanTrue);
+        CFDictionarySetValue(discoveryDict,kiSCSIPKSendTargetsEnabled,kCFBooleanTrue);
     else
-        CFDictionarySetValue(discoveryDict,kiSCSIPKSendTargetsDiscovery,kCFBooleanFalse);
+        CFDictionarySetValue(discoveryDict,kiSCSIPKSendTargetsEnabled,kCFBooleanFalse);
 
-    sendTargetsDiscoveryCacheModified = true;
+    discoveryCacheModified = true;
 }
 
 /*! Gets whether SendTargets discovery is set ot disabled or enabled.
@@ -1107,7 +1107,7 @@ void iSCSIPLSetSendTargetsDiscoveryEnable(Boolean enable)
 Boolean iSCSIPLGetSendTargetsDiscoveryEnable()
 {
     CFMutableDictionaryRef discoveryDict = iSCSIPLGetSendTargetsDiscoveryDict(true);
-    return CFBooleanGetValue(CFDictionaryGetValue(discoveryDict,kiSCSIPKSendTargetsDiscovery));
+    return CFBooleanGetValue(CFDictionaryGetValue(discoveryDict,kiSCSIPKSendTargetsEnabled));
 }
 
 /*! Sets SendTargets discovery interval.
@@ -1118,7 +1118,7 @@ void iSCSIPLSetSendTargetsDiscoveryInterval(CFIndex interval)
     CFNumberRef value = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&interval);
     CFDictionarySetValue(discoveryDict,kiSCSIPKDiscoveryInterval,value);
 
-    sendTargetsDiscoveryCacheModified = true;
+    discoveryCacheModified = true;
 }
 
 /*! Gets SendTargets disocvery interval.
@@ -1147,8 +1147,8 @@ void iSCSIPLSynchronize()
         CFPreferencesSetValue(kiSCSIPKInitiator,initiatorCache,kiSCSIPKAppId,
                               kCFPreferencesAnyUser,kCFPreferencesCurrentHost);
     
-    if(sendTargetsDiscoveryCacheModified)
-        CFPreferencesSetValue(kiSCSIPKSendTargetsDiscovery,sendTargetsDiscoveryCache,kiSCSIPKAppId,
+    if(discoveryCacheModified)
+        CFPreferencesSetValue(kiSCSIPKDiscovery,discoveryCache,kiSCSIPKAppId,
                               kCFPreferencesAnyUser,kCFPreferencesCurrentHost);
 
     CFPreferencesAppSynchronize(kiSCSIPKAppId);
@@ -1173,15 +1173,15 @@ void iSCSIPLSynchronize()
         initiatorCache = iSCSIPLCopyPropertyDict(kiSCSIPKInitiator);
     }
     
-    if(!sendTargetsDiscoveryCacheModified)
+    if(!discoveryCacheModified)
     {
         // Free old cache if present
-        if(sendTargetsDiscoveryCache)
-            CFRelease(sendTargetsDiscoveryCache);
+        if(discoveryCache)
+            CFRelease(discoveryCache);
         
         // Refresh cache from preferences
-        sendTargetsDiscoveryCache = iSCSIPLCopyPropertyDict(kiSCSIPKSendTargetsDiscovery);
+        discoveryCache = iSCSIPLCopyPropertyDict(kiSCSIPKDiscovery);
     }
 
-    initiatorNodeCacheModified = targetNodesCacheModified = sendTargetsDiscoveryCacheModified = false;
+    initiatorNodeCacheModified = targetNodesCacheModified = discoveryCacheModified = false;
 }
