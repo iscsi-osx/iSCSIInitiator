@@ -64,9 +64,8 @@ const struct iSCSIDCmdCreateCFPropertiesForConnection iSCSIDCmdCreateCFPropertie
     .portalLength = 0
 };
 
-const struct iSCSIDCmdToggleSendTargetsDiscovery iSCSIDCmdToggleSendTargetsDiscoveryInit = {
-    .funcCode = kiSCSIDToggleSendTargetsDiscovery,
-    .enable = 0,
+const struct iSCSIDCmdUpdateDiscovery iSCSIDCmdUpdateDiscoveryInit = {
+    .funcCode = kiSCSIDUpdateDiscovery
 };
 
 iSCSIDaemonHandle iSCSIDaemonConnect()
@@ -82,7 +81,7 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     // socket
     struct timeval tv;
     memset(&tv,0,sizeof(tv));
-    tv.tv_usec = 200000;
+    tv.tv_usec = 2000000;
     setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
     setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
 
@@ -611,26 +610,22 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForConnection(iSCSIDaemonHandle han
     return properties;
 }
 
-
-/*! Enables or disables SendTargets discovery.
+/*! Forces daemon to update discovery parameters from property list.
  *  @param handle a handle to a daemon connection.
- *  @param enable true to enable SendTargets discovery, false to disable.
  *  @return an error code indicating whether the operationg was successful. */
-errno_t iSCSIDaemonToggleSendTargetsDiscovery(iSCSIDaemonHandle handle,
-                                              Boolean enable)
+errno_t iSCSIDaemonUpdateDiscovery(iSCSIDaemonHandle handle)
 {
     // Validate inputs
     if(handle < 0)
         return EINVAL;
 
     // Send command to daemon
-    iSCSIDCmdToggleSendTargetsDiscovery cmd = iSCSIDCmdToggleSendTargetsDiscoveryInit;
-    cmd.enable = enable;
+    iSCSIDCmdUpdateDiscovery cmd = iSCSIDCmdUpdateDiscoveryInit;
 
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
         return EIO;
 
-    iSCSIDRspToggleSendTargetsDiscovery rsp;
+    iSCSIDRspUpdateDiscovery rsp;
 
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EIO;

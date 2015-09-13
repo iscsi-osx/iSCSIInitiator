@@ -1284,6 +1284,8 @@ errno_t iSCSICtlModifyDiscoveryPortal(iSCSIDaemonHandle handle,CFDictionaryRef o
  *  @return an error code indicating the result of the operation. */
 errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDictionary)
 {
+    iSCSIPLSynchronize();
+
     CFStringRef value = NULL;
 
     // Check if user enabled or disable a discovery method and act accordingly
@@ -1323,6 +1325,8 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
         }
     }
 
+    iSCSIDaemonUpdateDiscovery(handle);
+    
     return 0;
 }
 

@@ -35,13 +35,17 @@
 
 // iSCSI includes
 #include "iSCSISession.h"
+#include "iSCSIDiscovery.h"
 #include "iSCSIDaemonInterfaceShared.h"
 #include "iSCSIPropertyList.h"
+
 
 // Used to notify daemon of power state changes
 io_connect_t powerPlaneRoot;
 io_object_t powerNotifier;
 IONotificationPortRef powerNotifyPortRef;
+
+CFRunLoopTimerRef discoveryTimer = NULL;
 
 const struct iSCSIDRspLogin iSCSIDRspLoginInit = {
     .funcCode = kiSCSIDLogin,
@@ -103,8 +107,8 @@ const struct iSCSIDRspCreateCFPropertiesForConnection iSCSIDRspCreateCFPropertie
     .dataLength = 0
 };
 
-const struct iSCSIDRspToggleSendTargetsDiscovery iSCSIDRspToggleSendTargetsDiscoveryInit = {
-    .funcCode = kiSCSIDToggleSendTargetsDiscovery,
+const struct iSCSIDRspUpdateDiscovery iSCSIDRspUpdateDiscoveryInit = {
+    .funcCode = kiSCSIDUpdateDiscovery,
     .errorCode = 0,
 };
 
@@ -800,20 +804,50 @@ errno_t iSCSIDCreateCFPropertiesForConnection(int fd,struct iSCSIDCmdCreateCFPro
     return error;
 }
 
-errno_t iSCSIDToggleSendTargetsDiscovery(int fd,struct iSCSIDCmdToggleSendTargetsDiscovery * cmd)
+/*! Synchronizes the daemon with the property list. This function may be called
+ *  anytime changes are made to the property list (e.g., by an external
+ *  application) that require immediate action on the daemon's part. This
+ *  includes for example, the initiator name and alias and discovery settings
+ *  (whether discovery is enabled or disabled, and the time interval
+ *  associated with discovery). */
+errno_t iSCSIDUpdateDiscovery(int fd,struct iSCSIDCmdUpdateDiscovery * cmd)
 {
     errno_t error = 0;
 
-//TODO: toggle
+    iSCSIPLSynchronize();
+
+    // Check whether SendTargets discovery is enabled, and get interval (sec)
+    Boolean discoveryEnabled = iSCSIPLGetSendTargetsDiscoveryEnable();
+    CFTimeInterval interval = iSCSIPLGetSendTargetsDiscoveryInterval();
+    CFRunLoopTimerCallBack callout = &iSCSIDiscoveryRunSendTargets;
+
+    // Remove existing timer if one exists
+    if(discoveryTimer) {
+        CFRunLoopRemoveTimer(CFRunLoopGetMain(),discoveryTimer,kCFRunLoopDefaultMode);
+        CFRelease(discoveryTimer);
+        discoveryTimer = NULL;
+    }
+
+    // Add new timer with updated interval, if discovery is enabled
+    if(discoveryEnabled)
+    {
+        discoveryTimer = CFRunLoopTimerCreate(kCFAllocatorDefault,
+                                              CFAbsoluteTimeGetCurrent() + 2.0,
+                                              interval,0,0,callout,NULL);
+
+        CFRunLoopAddTimer(CFRunLoopGetMain(),discoveryTimer,kCFRunLoopDefaultMode);
+    }
 
     // Send back response
-    iSCSIDRspToggleSendTargetsDiscovery rsp = iSCSIDRspToggleSendTargetsDiscoveryInit;
+    iSCSIDRspUpdateDiscovery rsp = iSCSIDRspUpdateDiscoveryInit;
+    iSCSIPLSynchronize();
 
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
         error = EAGAIN;
 
     return error;
 }
+
 
 /*! Handles power event messages received from the kernel.  This callback
  *  is only active when iSCSIDRegisterForPowerEvents() has been called.
@@ -865,32 +899,31 @@ void iSCSIDDeregisterForPowerEvents()
     IONotificationPortDestroy(powerNotifyPortRef);
 }
 
+/*! Handle an incoming connection from iscsictl. Once a connection is
+ *  established, main runloop calls this function. This function processes
+ *  all incoming commands until a shutdown request is received, at which point
+ *  this function terminates and returns control to the run loop. For this
+ *  reason, no other commands (e.g., timers) can be executed until the 
+ *  incoming request is processed. */
 void iSCSIDProcessIncomingRequest(CFSocketRef socket,
                                   CFSocketCallBackType callbackType,
                                   CFDataRef address,
                                   const void * data,
                                   void * info)
 {
-    // File descriptor associated with the socket we're using
-    static int fd = 0;
+    // Wait for an incoming connection; upon timeout quit
+    struct sockaddr_storage peerAddress;
+    socklen_t length = sizeof(peerAddress);
 
-    // If this is the first connection, initialize the user client for the
-    // iSCSI initiator kernel extension
-    if(fd == 0) {
-        iSCSIInitialize(CFRunLoopGetCurrent());
-
-        // Wait for an incoming connection; upon timeout quit
-        struct sockaddr_storage peerAddress;
-        socklen_t length = sizeof(peerAddress);
-
-        // Get file descriptor associated with the connection
-        fd = accept(CFSocketGetNative(socket),(struct sockaddr *)&peerAddress,&length);
-    }
+    // Get file descriptor associated with the connection
+    int fd = accept(CFSocketGetNative(socket),(struct sockaddr *)&peerAddress,&length);
 
     struct iSCSIDCmd cmd;
 
-    while(recv(fd,&cmd,sizeof(cmd),MSG_PEEK) == sizeof(cmd)) {
-
+    // Parse all commands in sequence for this iscsictl session. Once iscsictl
+    // is done, it will issue a shutdown command, that will terminate this loop
+    // and return execution control to the main run loop.
+    while(fd != 0 && recv(fd,&cmd,sizeof(cmd),MSG_PEEK) == sizeof(cmd)) {
         recv(fd,&cmd,sizeof(cmd),MSG_WAITALL);
 
         errno_t error = 0;
@@ -916,11 +949,10 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
                 error = iSCSIDCreateCFPropertiesForSession(fd,(iSCSIDCmdCreateCFPropertiesForSession*)&cmd); break;
             case kiSCSIDCreateCFPropertiesForConnection:
                 error = iSCSIDCreateCFPropertiesForConnection(fd,(iSCSIDCmdCreateCFPropertiesForConnection*)&cmd); break;
-            case kiSCSIDToggleSendTargetsDiscovery:
-                error = iSCSIDToggleSendTargetsDiscovery(fd,(iSCSIDCmdToggleSendTargetsDiscovery*)&cmd); break;
+            case kiSCSIDUpdateDiscovery:
+                error = iSCSIDUpdateDiscovery(fd,(iSCSIDCmdUpdateDiscovery*)&cmd); break;
+            case kiSCSIDShutdownDaemon:
             default:
-                // Close our connection to the iSCSI kernel extension
-                iSCSICleanup();
                 close(fd);
                 fd = 0;
         };
@@ -930,10 +962,10 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
 /*! iSCSI daemon entry point. */
 int main(void)
 {
-    // Connect to the preferences .plist file associated with "iscsid" and
-    // read configuration parameters for the initiator
+    // Read configuration parameters from the iSCSI property list
     iSCSIPLSynchronize();
 
+    // Update initiator name and alias internally
     CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
 
     if(initiatorIQN) {
@@ -1001,7 +1033,11 @@ int main(void)
     CFRunLoopSourceRef clientSockSource = CFSocketCreateRunLoopSource(kCFAllocatorDefault,socket,0);
     CFRunLoopAddSource(CFRunLoopGetMain(),clientSockSource,kCFRunLoopDefaultMode);
 
+    // Initialize iSCSI connection to kernel (ability to call iSCSI kernel
+    // functions and receive notifications from the kernel).
+    iSCSIInitialize(CFRunLoopGetMain());
     CFRunLoopRun();
+    iSCSICleanup();
     
     // Deregister for power
     iSCSIDDeregisterForPowerEvents();

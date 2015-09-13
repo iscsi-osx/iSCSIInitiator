@@ -67,7 +67,7 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
                 CFSTR("discovered target %@ already exists with static configuration."),
                 targetIQN);
             
-            iSCSIDLogError(errorString);
+            //            iSCSIDLogError(errorString);
             CFRelease(errorString);
         }
         // Target doesn't exist, or target exists with SendTargets
@@ -78,7 +78,8 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
                 kCFAllocatorDefault,0,
                 CFSTR("discovered target %@ over discovery portal %@."),
                 targetIQN,discoveryPortal);
-            iSCSIDLogError(statusString);
+            //            iSCSIDLogError(statusString);
+            CFRelease(statusString);
         }
 
         // As we process each target we'll add it to a temporary dictionary
@@ -109,7 +110,7 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
     return 0;
 }
 
-errno_t iSCSIDiscoveryRunSendTargets()
+void iSCSIDiscoveryRunSendTargets(CFRunLoopTimerRef timer,void * context)
 {
     // Obtain a list of SendTargets portals from the property list
     iSCSIPLSynchronize();
@@ -155,7 +156,5 @@ errno_t iSCSIDiscoveryRunSendTargets()
         }
     }
 
-    iSCSIPLSynchronize();
-
-    return 0;
+  iSCSIPLSynchronize();
 }

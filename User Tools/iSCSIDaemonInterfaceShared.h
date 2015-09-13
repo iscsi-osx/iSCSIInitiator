@@ -378,24 +378,24 @@ typedef struct iSCSIDRspCreateCFPropertiesForConnection {
 } __attribute__((packed)) iSCSIDRspCreateCFPropertiesForConnection;
 
 
-/*! Command to toggle SendTargets discovery. */
-typedef struct iSCSIDCmdToggleSendTargetsDiscovery {
+/*! Command update discovery. */
+typedef struct iSCSIDCmdUpdateDiscovery {
 
     const UInt16 funcCode;
-    UInt16  enable;
-    UInt32  reserved;
+    UInt16  reserved;
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
     UInt32  reserved5;
+    UInt32  reserved6;
 
-} __attribute__((packed)) iSCSIDCmdToggleSendTargetsDiscovery;
+} __attribute__((packed)) iSCSIDCmdUpdateDiscovery;
 
-/*! Default initialization for a toggle SendTargets command. */
-extern const iSCSIDCmdToggleSendTargetsDiscovery iSCSIDCmdToggleSendTargetsDiscoveryInit;
+/*! Default initialization update discovery command. */
+extern const iSCSIDCmdUpdateDiscovery iSCSIDCmdUpdateDiscoveryInit;
 
-/*! Response to command to toggle SendTargets discovery  information about a connection. */
-typedef struct iSCSIDRspToggleSendTargetsDiscovery {
+/*! Response to command update discovery. */
+typedef struct iSCSIDRspUpdateDiscovery {
 
     const UInt8 funcCode;
     UInt16 reserved;
@@ -406,7 +406,7 @@ typedef struct iSCSIDRspToggleSendTargetsDiscovery {
     UInt32 reserved5;
     UInt32 reserved6;
 
-} __attribute__((packed)) iSCSIDRspToggleSendTargetsDiscovery;
+} __attribute__((packed)) iSCSIDRspUpdateDiscovery;
 
 
 ////////////////////////////// DAEMON FUNCTIONS ////////////////////////////////
@@ -443,8 +443,8 @@ enum iSCSIDFunctionCodes {
     /*! Query a target for supported authentication methods. */
     kiSCSIDQueryTargetForAuthMethod = 9,
 
-    /*! Toggle SendTargets discovery. */
-    kiSCSIDToggleSendTargetsDiscovery = 10,
+    /*! Update discovery parameters. */
+    kiSCSIDUpdateDiscovery = 10,
 
     /*! Set the initiator IQN. */
     kiSCSIDSetInitiatorIQN = 11,

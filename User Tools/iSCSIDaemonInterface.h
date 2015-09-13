@@ -127,12 +127,10 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForConnection(iSCSIDaemonHandle han
                                                            iSCSITargetRef target,
                                                            iSCSIPortalRef portal);
 
-/*! Enables or disables SendTargets discovery.
+/*! Forces daemon to update discovery parameters from property list.
  *  @param handle a handle to a daemon connection.
- *  @param enable true to enable SendTargets discovery, false to disable.
  *  @return an error code indicating whether the operationg was successful. */
-errno_t iSCSIDaemonToggleSendTargetsDiscovery(iSCSIDaemonHandle handle,
-                                              Boolean enable);
+errno_t iSCSIDaemonUpdateDiscovery(iSCSIDaemonHandle handle);
 
 
 
