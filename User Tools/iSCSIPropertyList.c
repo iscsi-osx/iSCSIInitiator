@@ -119,6 +119,9 @@ CFStringRef kiSCSIPKSendTargetsEnabled = CFSTR("SendTargets");
 /*! Preference key name for iSCSI discovery interval. */
 CFStringRef kiSCSIPKDiscoveryInterval = CFSTR("Interval");
 
+/*! Preference key naem for iSCSI discovery portal that manages target. */
+CFStringRef kiSCSIPKSendTargetsPortal = CFSTR("Managing Portal");
+
 
 
 /*! Retrieves a mutable dictionary for the specified key.
@@ -601,7 +604,8 @@ void iSCSIPLAddStaticTarget(CFStringRef targetIQN,iSCSIPortalRef portal)
     // Only proceed if the target does not exist; otherwise do nothing
     if(!iSCSIPLContainsTarget(targetIQN)) {
 
-        // Create list of target portals
+        // Create list of target portals for a specific target (since the target
+        // does not exist it is created)
         CFMutableDictionaryRef portalsList = iSCSIPLGetPortalsList(targetIQN,true);
 
         // Add portal to newly create list of portals for this target
@@ -630,7 +634,12 @@ void iSCSIPLAddDynamicTargetForSendTargets(CFStringRef targetIQN,
     // Only proceed if the target does not exist; otherwise do nothing
     if(!iSCSIPLContainsTarget(targetIQN)) {
 
-        // Create list of target portals
+        // Get target dictionary (since the target does not exist it is created)
+        CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,true);
+        CFDictionarySetValue(targetDict,kiSCSIPKSendTargetsPortal,sendTargetsPortal);
+
+        // Create list of target portals for a specific target (since the target
+        // does not exist it is created)
         CFMutableDictionaryRef portalsList = iSCSIPLGetPortalsList(targetIQN,true);
 
         // Add portal to newly create list of portals for this target
@@ -641,12 +650,21 @@ void iSCSIPLAddDynamicTargetForSendTargets(CFStringRef targetIQN,
 
         // Set target config
         iSCSIPLSetTargetConfigType(targetIQN,kiSCSITargetConfigDynamicSendTargets);
-
-        // Associate target with the specified iSCSI discovery portal
-        CFMutableArrayRef targetList = (CFMutableArrayRef)iSCSIPLGetDynamicTargetsForSendTargets(portalAddress,true);
-        CFArrayAppendValue(targetList,targetIQN);
-
         targetNodesCacheModified = true;
+    }
+
+    // Ensure target is associated with the specified iSCSI discovery portal
+    CFMutableArrayRef targetList = (CFMutableArrayRef)iSCSIPLGetDynamicTargetsForSendTargets(sendTargetsPortal,true);
+
+    CFIndex idx = 0, targetCount = CFArrayGetCount(targetList);
+    for(idx = 0; idx < targetCount; idx++) {
+        if(CFStringCompare(targetIQN,CFArrayGetValueAtIndex(targetList,idx),0) == kCFCompareEqualTo)
+            break;
+    }
+
+    // Target was not associated with the discovery portal, add it
+    if(idx == targetCount) {
+        CFArrayAppendValue(targetList,targetIQN);
         discoveryCacheModified = true;
     }
 }
@@ -912,7 +930,6 @@ enum iSCSITargetConfigTypes iSCSIPLGetTargetConfigType(CFStringRef targetIQN)
             CFDictionarySetValue(targetDict,kiSCSIPKTargetConfigType,kiSCSIPVTargetConfigTypeStatic);
         }
         else {
-
             if(CFStringCompare(configTypeString,kiSCSIPVTargetConfigTypeStatic,0) == kCFCompareEqualTo)
                 configType = kiSCSITargetConfigStatic;
             else if(CFStringCompare(configTypeString,kiSCSIPVTargetConfigTypeDiscovery,0) == kCFCompareEqualTo)
@@ -1132,10 +1149,25 @@ CFIndex iSCSIPLGetSendTargetsDiscoveryInterval()
     return interval;
 }
 
+/*! Resets the iSCSI property list, removing all defined targets and
+ *  configuration parameters. */
+void iSCSIPLReset()
+{
+    initiatorNodeCacheModified = true;
+    targetNodesCacheModified = true;
+    discoveryCacheModified = true;
+
+    CFRelease(initiatorCache);
+    CFRelease(targetsCache);
+    CFRelease(discoveryCache);
+
+    iSCSIPLSynchronize();
+}
+
 
 /*! Synchronizes the intitiator and target settings cache with the property
  *  list on the disk. */
-void iSCSIPLSynchronize()
+Boolean iSCSIPLSynchronize()
 {
     // If we have modified our targets dictionary, we write changes back and
     // otherwise we'll read in the latest.
@@ -1151,8 +1183,13 @@ void iSCSIPLSynchronize()
         CFPreferencesSetValue(kiSCSIPKDiscovery,discoveryCache,kiSCSIPKAppId,
                               kCFPreferencesAnyUser,kCFPreferencesCurrentHost);
 
-    CFPreferencesAppSynchronize(kiSCSIPKAppId);
-    
+    // If sychronization failed for a write...
+    if(!CFPreferencesSynchronize(kiSCSIPKAppId,kCFPreferencesAnyUser,kCFPreferencesCurrentHost))
+    {
+        if(targetNodesCacheModified || initiatorNodeCacheModified || discoveryCacheModified)
+            return false;
+    }
+
     if(!targetNodesCacheModified)
     {
         // Free old cache if present
@@ -1184,4 +1221,6 @@ void iSCSIPLSynchronize()
     }
 
     initiatorNodeCacheModified = targetNodesCacheModified = discoveryCacheModified = false;
+
+    return true;
 }

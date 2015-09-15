@@ -255,12 +255,13 @@ void iSCSIPLSetSendTargetsDiscoveryInterval(CFIndex interval);
  *  @return the discovery interval, in seconds. */
 CFIndex iSCSIPLGetSendTargetsDiscoveryInterval();
 
-
-
+/*! Resets the iSCSI property list, removing all defined targets and
+ *  configuration parameters. */
+void iSCSIPLReset();
 
 /*! Synchronizes the intitiator and target settings cache with the property
  *  list on the disk. */
-void iSCSIPLSynchronize();
+Boolean iSCSIPLSynchronize();
 
 
 #endif
