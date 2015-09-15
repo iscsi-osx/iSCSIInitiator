@@ -1157,11 +1157,17 @@ void iSCSIPLReset()
     targetNodesCacheModified = true;
     discoveryCacheModified = true;
 
-    CFRelease(initiatorCache);
-    CFRelease(targetsCache);
-    CFRelease(discoveryCache);
+    if(initiatorCache)
+        CFRelease(initiatorCache);
+    initiatorCache = iSCSIPLCreateInitiatorDict();
 
-    iSCSIPLSynchronize();
+    if(targetsCache)
+        CFRelease(targetsCache);
+    targetsCache = iSCSIPLCreateTargetDict();
+
+    if(discoveryCache)
+        CFRelease(discoveryCache);
+    discoveryCache = iSCSIPLCreateDiscoveryDict();
 }
 
 
