@@ -29,9 +29,10 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN);
  *  for the node is created if it does not exist. If it does exist, the shared
  *  secret for is updated.
  *  @param nodeIQN the iSCSI qualified name of the target or initiator.
- *  @param sharedSecret the shared secret to store. */
-void iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
-                                          CFStringRef sharedSecret);
+ *  @param sharedSecret the shared secret to store.
+ *  @param return error code indicating the result of the operation. */
+OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
+                                           CFStringRef sharedSecret);
 
 /*! Renames the iSCSI node in they keychain.
  *  @param oldNodeIQN the old node iSCSI qualified name (IQN).

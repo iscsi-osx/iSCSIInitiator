@@ -55,9 +55,10 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN)
  *  for the node is created if it does not exist. If it does exist, the shared
  *  secret for is updated.
  *  @param nodeIQN the iSCSI qualified name of the target or initiator.
- *  @param sharedSecret the shared secret to store. */
-void iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
-                                          CFStringRef sharedSecret)
+ *  @param sharedSecret the shared secret to store.
+ *  @param return error code indicating the result of the operation. */
+OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
+                                           CFStringRef sharedSecret)
 {
     SecKeychainRef sysKeychain = NULL;
     OSStatus status;
@@ -86,7 +87,7 @@ void iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
     }
     else {
         SecKeychainItemRef item;
-        SecKeychainAddGenericPassword(sysKeychain,
+        status = SecKeychainAddGenericPassword(sysKeychain,
             (UInt32)CFStringGetLength(kiSCSISecCHAPService),
             CFStringGetCStringPtr(kiSCSISecCHAPService,kCFStringEncodingASCII),
             (UInt32)CFStringGetLength(nodeIQN),
@@ -94,6 +95,8 @@ void iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
             (UInt32)CFStringGetLength(sharedSecret),
             CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),&item);
     }
+
+    return status;
 }
 
 /*! Renames the iSCSI node in they keychain.

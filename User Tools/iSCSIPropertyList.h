@@ -43,8 +43,9 @@ void iSCSIPLSetInitiatorCHAPName(CFStringRef name);
 /*! Copies the CHAP name associated with the initiator. */
 CFStringRef iSCSIPLCopyInitiatorCHAPName();
 
-/*! Sets the CHAP secret associated with the initiator. */
-void iSCSIPLSetInitiatorCHAPSecret(CFStringRef secret);
+/*! Sets the CHAP secret associated with the initiator.
+ *  @return status indicating the result of the operation. */
+OSStatus iSCSIPLSetInitiatorCHAPSecret(CFStringRef secret);
 
 /*! Copies the CHAP secret associated with the initiator. */
 CFStringRef iSCSIPLCopyInitiatorCHAPSecret();
@@ -174,8 +175,9 @@ CFStringRef iSCSIPLCopyTargetCHAPName(CFStringRef targetIQN);
 
 /*! Sets the CHAP secret associated with the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
- *  @param secret the CHAP shared secret associated with the target. */
-void iSCSIPLSetTargetCHAPSecret(CFStringRef targetIQN,CFStringRef secret);
+ *  @param secret the CHAP shared secret associated with the target.
+ *  @return status indicating the result of the operation. */
+OSStatus iSCSIPLSetTargetCHAPSecret(CFStringRef targetIQN,CFStringRef secret);
 
 /*! Copies the CHAP secret associated with the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
