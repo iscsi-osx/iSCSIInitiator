@@ -411,8 +411,16 @@ iSCSIPortalRef iSCSIPLCopyPortalForTarget(CFStringRef targetIQN,
 
 iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN)
 {
-    iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetIQN(target,targetIQN);
+    iSCSIMutableTargetRef target = NULL;
+
+    CFMutableDictionaryRef targetsDict = iSCSIPLGetTargets(false);
+
+    if(targetsDict) {
+        if(CFDictionaryContainsKey(targetsDict,targetIQN)) {
+            target = iSCSITargetCreateMutable();
+            iSCSITargetSetIQN(target,targetIQN);
+        }
+    }
 
     return target;
 }
@@ -1166,7 +1174,7 @@ void iSCSIPLReset()
 
     if(targetsCache)
         CFRelease(targetsCache);
-    targetsCache = iSCSIPLCreateTargetDict();
+    targetsCache = iSCSIPLCreateTargetsDict();
 
     if(discoveryCache)
         CFRelease(discoveryCache);
