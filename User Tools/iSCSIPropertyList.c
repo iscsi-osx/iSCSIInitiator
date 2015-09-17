@@ -700,13 +700,14 @@ void iSCSIPLSetInitiatorIQN(CFStringRef initiatorIQN)
 {
     if(!initiatorCache)
         initiatorCache = iSCSIPLCreateInitiatorDict();
-    
-    // Update initiator name
-    CFDictionarySetValue(initiatorCache,kiSCSIPKInitiatorIQN,initiatorIQN);
 
     // Update keychain if necessary
     CFStringRef oldInitiatorIQN = iSCSIPLCopyInitiatorIQN();
     iSCSIKeychainRenameNode(oldInitiatorIQN,initiatorIQN);
+
+    // Update initiator name
+    CFDictionarySetValue(initiatorCache,kiSCSIPKInitiatorIQN,initiatorIQN);
+    CFRelease(oldInitiatorIQN);
 
     initiatorNodeCacheModified = true;
 }
