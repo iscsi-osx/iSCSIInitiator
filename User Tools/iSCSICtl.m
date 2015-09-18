@@ -9,6 +9,8 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <Cocoa/Cocoa.h>
 
+#include <readpassphrase.h>
+
 #include "iSCSITypes.h"
 #include "iSCSIPropertyList.h"
 #include "iSCSIDaemonInterface.h"
@@ -45,6 +47,9 @@ enum iSCSICtlCmds {
 
     /*! Probe (target). */
     kiSCSICtlCmdProbe,
+
+    /*! Reset. */
+    kiSCSICtlCmdReset,
 
     /*! Invalid mode of operation. */
     kiSCSICtlCmdInvalid
@@ -150,6 +155,12 @@ CFStringRef kOptValueDiscoveryDisable = CFSTR("Disable");
 /*! Discovery interval command-line option. */
 CFStringRef kOptKeyDiscoveryInterval = CFSTR("interval");
 
+/*! Empty value. */
+CFStringRef kOptValueEmpty = CFSTR("");
+
+/*! Maximum number of attempts to enter a CHAP shared secret. */
+const int MAX_SECRET_RETRY_ATTEMPTS = 3;
+
 
 /*! Name of this command-line executable. */
 const char * executableName;
@@ -170,6 +181,7 @@ enum iSCSICtlCmds iSCSICtlGetCmdFromArguments(CFArrayRef arguments)
     CFDictionarySetValue(modesDict,CFSTR("mount"),(const void *)kiSCSICtlCmdMount);
     CFDictionarySetValue(modesDict,CFSTR("unmount"),(const void *)kiSCSICtlCmdUnmount);
     CFDictionarySetValue(modesDict,CFSTR("probe"),(const void *)kiSCSICtlCmdProbe);
+    CFDictionarySetValue(modesDict,CFSTR("reset"),(const void *)kiSCSICtlCmdReset);
 
     // If a mode was supplied (first argument after executable name)
     if(CFArrayGetCount(arguments) > 1) {
@@ -239,6 +251,36 @@ void iSCSICtlParseTargetAndPortalToDictionary(CFArrayRef arguments,
     }
 }
 
+void iSCSICtlParseSwitchesToDictionary(CFArrayRef arguments,
+                                       CFMutableDictionaryRef optDictionary)
+{
+    // Search for swtiches without arguments & add them to options dictionary
+    CFIndex argCount = CFArrayGetCount(arguments);
+    CFStringRef thisArg = NULL, nextArg = NULL;
+    for(CFIndex idx = 0; idx < argCount; idx++)
+    {
+        thisArg = (CFStringRef)CFArrayGetValueAtIndex(arguments,idx);
+
+        if(CFStringGetCharacterAtIndex(thisArg,0) == '-')
+        {
+            if((idx + 1) < argCount)
+                nextArg = (CFStringRef)CFArrayGetValueAtIndex(arguments,idx+1);
+
+            if(!nextArg || CFStringGetCharacterAtIndex(nextArg,0) == '-')
+            {
+                CFMutableStringRef arg = CFStringCreateMutableCopy(kCFAllocatorDefault,0,thisArg);
+                CFStringTrim(arg,CFSTR("-"));
+                CFDictionarySetValue(optDictionary,arg,kOptValueEmpty);
+                CFRelease(arg);
+            }
+
+            if(nextArg)
+                CFRelease(nextArg);
+        }
+        CFRelease(thisArg);
+    }
+}
+
 /*! Writes a string to stdout. */
 void iSCSICtlDisplayString(CFStringRef string)
 {
@@ -298,6 +340,56 @@ void iSCSICtlDisplayError(CFStringRef errorString)
     CFRelease(error);
 }
 
+
+void iSCSICtlDisplayPermissionsError()
+{
+    iSCSICtlDisplayError(CFSTR("Permission denied"));
+}
+
+CFStringRef iSCSICtlCreateSecretFromInput(CFIndex retries)
+{
+    CFStringRef secret = NULL;
+
+    const int MAX_SECRET_LENGTH = 256;
+    char * buffer[MAX_SECRET_LENGTH];
+    char * verify[MAX_SECRET_LENGTH];
+
+    // Retry as required...
+    for(CFIndex idx = 0; idx < retries; idx++)
+    {
+        // Print a message if this is not the first attempt
+        if(idx != 0)
+            iSCSICtlDisplayString(CFSTR("Shared secrets do not match. Try again.\n"));
+
+        if(readpassphrase("Enter shared secret: ",(char*)buffer,sizeof(buffer),RPP_ECHO_OFF))
+        {
+            if(readpassphrase("Verify shared secret: ",(char*)verify,sizeof(buffer),RPP_ECHO_OFF))
+            {
+                if(strncmp((const char*)buffer,(const char*)verify,MAX_SECRET_LENGTH) == 0)
+                {
+                    memset(verify,0,sizeof(verify));
+                    secret = CFStringCreateWithCString(kCFAllocatorDefault,
+                                                       (const char*)buffer,
+                                                       kCFStringEncodingASCII);
+                    break;
+                }
+                else {
+                    memset(buffer,0,sizeof(buffer));
+                    memset(verify,0,sizeof(verify));
+                }
+            }
+            // Clear password buffer
+            memset(buffer,0,sizeof(buffer));
+        }
+    }
+
+    if(!secret) {
+        iSCSICtlDisplayString(CFSTR("Exceeded the maximum number of attempts\n"));
+    }
+    return secret;
+}
+
+
 CFStringRef iSCSICtlGetStringForLoginStatus(enum iSCSILoginStatusCode statusCode)
 {
     switch(statusCode)
@@ -350,7 +442,7 @@ CFStringRef iSCSICtlGetStringForLoginStatus(enum iSCSILoginStatusCode statusCode
             return CFSTR("Target has been removed");
 
         case kiSCSILoginTooManyConnections:
-            return CFSTR(".\n");
+            return CFSTR("");
 
         case kiSCSILoginUnsupportedVer:
             return CFSTR("Target is incompatible with the initiator");
@@ -380,13 +472,13 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
         CFStringRef hostInterface = iSCSIPortalGetHostInterface(portal);
         if (statusCode == kiSCSILogoutSuccess) {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
+                CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] successful\n"),
                 targetIQN,portalAddress,portalPort,hostInterface);
         }
         else
         {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
+                CFSTR("Login to [ target: %@ portal: %@:%@ if: %@ ] failed: %@\n"),
                 targetIQN,portalAddress,portalPort,
                 hostInterface,iSCSICtlGetStringForLoginStatus(statusCode));
         }
@@ -394,10 +486,10 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
     } else {
         if (statusCode == kiSCSILogoutSuccess) {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Login to [ target: %@ ] successful.\n"),targetIQN);
+                                                    CFSTR("Login to [ target: %@ ] successful\n"),targetIQN);
         } else {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Login to [ target: %@ portal: <all> ] failed: %@.\n"),
+                                                    CFSTR("Login to [ target: %@ portal: <all> ] failed: %@\n"),
                                                     targetIQN,
                                                     iSCSICtlGetStringForLoginStatus(statusCode));
         }
@@ -433,7 +525,7 @@ void iSCSICtlDisplayProbeTargetLoginStatus(enum iSCSILoginStatusCode statusCode,
     CFStringRef portalInterface = iSCSIPortalGetHostInterface(portal);
     
     probeStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-        CFSTR("Probing [target: %@ portal: %@:%@ if: %@]: %@.\n"),
+        CFSTR("Probing [target: %@ portal: %@:%@ if: %@]: %@\n"),
         targetIQN,portalAddress,portalPort,portalInterface,probeStatus);
     
     iSCSICtlDisplayString(probeStatus);
@@ -476,11 +568,11 @@ void iSCSICtlDisplayLogoutStatus(enum iSCSILogoutStatusCode statusCode,
         CFStringRef hostInterface = iSCSIPortalGetHostInterface(portal);
         if (statusCode == kiSCSILogoutSuccess) {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] successful.\n"),
+                                                    CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] successful\n"),
                                                     targetIQN,portalAddress,portalPort,hostInterface);
         } else {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] failed: %@.\n"),
+                                                    CFSTR("Logout of [ target: %@ portal: %@:%@ if: %@ ] failed: %@\n"),
                                                     targetIQN,portalAddress,portalPort,
                                                     hostInterface,iSCSICtlGetStringForLogoutStatus(statusCode));
         }
@@ -488,10 +580,10 @@ void iSCSICtlDisplayLogoutStatus(enum iSCSILogoutStatusCode statusCode,
     } else {
         if (statusCode == kiSCSILogoutSuccess) {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Logout of [ target: %@ ] successful.\n"),targetIQN);
+                                                    CFSTR("Logout of [ target: %@ ] successful\n"),targetIQN);
         } else {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Logout of [ target: %@ portal: <all> ] failed: %@.\n"),
+                                                    CFSTR("Logout of [ target: %@ portal: <all> ] failed: %@\n"),
                                                     targetIQN,
                                                     iSCSICtlGetStringForLogoutStatus(statusCode));
         }
@@ -519,12 +611,12 @@ iSCSIMutableTargetRef iSCSICtlCreateTargetFromOptions(CFDictionaryRef options)
     CFStringRef targetIQN;
     if(!CFDictionaryGetValueIfPresent(options,kOptKeyTarget,(const void **)&targetIQN))
     {
-        iSCSICtlDisplayError(CFSTR("a target must be specified using a valid IQN or EUI-64 identifier."));
+        iSCSICtlDisplayError(CFSTR("A target must be specified using a valid IQN or EUI-64 identifier"));
         return NULL;
     }
     
     if(!iSCSIUtilsValidateIQN(targetIQN)) {
-        iSCSICtlDisplayError(CFSTR("the specified target name is not a valid IQN or EUI-64 identifier."));
+        iSCSICtlDisplayError(CFSTR("The specified target name is not a valid IQN or EUI-64 identifier"));
         return NULL;
     }
 
@@ -554,7 +646,7 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
     
     if(!CFDictionaryGetValueIfPresent(options,kOptKeyPortal,(const void **)&portalAddress))
     {
-        iSCSICtlDisplayError(CFSTR("a portal must be specified."));
+        iSCSICtlDisplayError(CFSTR("A portal must be specified"));
         return NULL;
     }
     
@@ -562,7 +654,7 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
     CFArrayRef portalParts = iSCSIUtilsCreateArrayByParsingPortalParts(portalAddress);
     
     if(!portalParts) {
-        iSCSICtlDisplayError(CFSTR("the specified portal is invalid."));
+        iSCSICtlDisplayError(CFSTR("The specified portal is invalid"));
         return NULL;
     }
     
@@ -579,7 +671,7 @@ iSCSIMutablePortalRef iSCSICtlCreatePortalFromOptions(CFDictionaryRef options)
         if(iSCSIUtilsValidatePort(port))
             iSCSIPortalSetPort(portal,port);
         else {
-            iSCSICtlDisplayError(CFSTR("the specified port is invalid."));
+            iSCSICtlDisplayError(CFSTR("The specified port is invalid"));
             return NULL;
         }
     }
@@ -664,7 +756,7 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
 
     if(!iSCSIPLContainsTarget(targetIQN)) {
-        iSCSICtlDisplayError(CFSTR("the specified target does not exist."));
+        iSCSICtlDisplayError(CFSTR("The specified target does not exist"));
         iSCSITargetRelease(target);
         return error;
     }
@@ -691,8 +783,8 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 CFRelease(portalAddress);
 
                 if(iSCSIDaemonIsPortalActive(handle,target,portal))
-                    iSCSICtlDisplayError(CFSTR("the specified target has an active "
-                                         "session over the specified portal."));
+                    iSCSICtlDisplayString(CFSTR("The specified target has an active "
+                                         "session over the specified portal\n"));
                 else {
                     error = iSCSIDaemonLogin(handle,target,portal,&statusCode);
 
@@ -701,7 +793,7 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 }
             }
             else
-                iSCSICtlDisplayError(CFSTR("the specified portal does not exist."));
+                iSCSICtlDisplayString(CFSTR("The specified portal does not exist\n"));
 
             iSCSIPortalRelease(portal);
         }
@@ -733,7 +825,7 @@ errno_t iSCSICtlLogout(iSCSIDaemonHandle handle,CFDictionaryRef options)
     // See if there exists an active session for this target
     if(!iSCSIDaemonIsTargetActive(handle,target))
     {
-        iSCSICtlDisplayError(CFSTR("the specified target has no active session."));
+        iSCSICtlDisplayString(CFSTR("The specified target has no active session"));
         error = EINVAL;
     }
     
@@ -745,7 +837,7 @@ errno_t iSCSICtlLogout(iSCSIDaemonHandle handle,CFDictionaryRef options)
     // If the portal was specified and a connection doesn't exist for it...
     if(!error && portal && !iSCSIDaemonIsPortalActive(handle,target,portal))
     {
-        iSCSICtlDisplayError(CFSTR("the specified portal has no active connections."));
+        iSCSICtlDisplayString(CFSTR("The specified portal has no active connections"));
         error = EINVAL;
     }
     
@@ -800,14 +892,20 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
             if(!iSCSIPLContainsTarget(targetIQN)) {
                 iSCSIPLAddStaticTarget(targetIQN,portal);
-                iSCSIPLSynchronize();
+                if(!iSCSIPLSynchronize())
+                    iSCSICtlDisplayPermissionsError();
+                else
+                    iSCSICtlDisplayString(CFSTR("The specified target has been added"));
             }
             else if(!iSCSIPLContainsPortalForTarget(targetIQN,iSCSIPortalGetAddress(portal))) {
                 iSCSIPLSetPortalForTarget(targetIQN,portal);
-                iSCSIPLSynchronize();
+                if(!iSCSIPLSynchronize())
+                    iSCSICtlDisplayPermissionsError();
+                else
+                    iSCSICtlDisplayString(CFSTR("The specified portal has been added"));
             }
             else {
-                iSCSICtlDisplayError(CFSTR("the specified target and portal already exist."));
+                iSCSICtlDisplayString(CFSTR("The specified target and portal already exist"));
             }
             iSCSIPortalRelease(portal);
         }
@@ -841,15 +939,15 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     
     // Verify that the target exists in the property list
     if(!iSCSIPLContainsTarget(targetIQN)) {
-        iSCSICtlDisplayError(CFSTR("the specified target does not exist."));
+        iSCSICtlDisplayString(CFSTR("The specified target does not exist\n"));
         error = EINVAL;
     }
 
     // Verify that the target is not a dynamic target managed by iSCSI
     // discovery
     if(iSCSIPLGetTargetConfigType(targetIQN) == kiSCSITargetConfigDynamicSendTargets) {
-        iSCSICtlDisplayError(CFSTR("the specified target is dynamically configured "
-                                   "using iSCSI discovery and cannot be removed."));
+        iSCSICtlDisplayString(CFSTR("The specified target is dynamically configured. "
+                                   "Remove the discovery portal to remove the target\n"));
         error = EINVAL;
     }
 
@@ -862,7 +960,7 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
     // Verify that portal exists in property list
     if(!error && portal && !iSCSIPLContainsPortalForTarget(targetIQN,iSCSIPortalGetAddress(portal))) {
-        iSCSICtlDisplayError(CFSTR("the specified portal does not exist."));
+        iSCSICtlDisplayString(CFSTR("The specified portal does not exist\n"));
         error = EINVAL;
     }
     
@@ -870,18 +968,23 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     if(!error) {
         if(portal)
             if(iSCSIDaemonIsPortalActive(handle,target,portal))
-                iSCSICtlDisplayError(CFSTR("the specified portal is connected and cannot be removed."));
+                iSCSICtlDisplayString(CFSTR("The specified portal is connected and cannot be removed\n"));
             else {
                 iSCSIPLRemovePortalForTarget(targetIQN,iSCSIPortalGetAddress(portal));
-                iSCSIPLSynchronize();
+                if(!iSCSIPLSynchronize())
+                    iSCSICtlDisplayPermissionsError();
+                else
+                    iSCSICtlDisplayString(CFSTR("The specified portal was removed\n"));
             }
         else
             if(iSCSIDaemonIsTargetActive(handle,target))
-                iSCSICtlDisplayError(CFSTR("the specified target has an active session and cannot be removed."));
+                iSCSICtlDisplayString(CFSTR("The specified target has an active session and cannot be removed\n"));
             else {
                 iSCSIPLRemoveTarget(targetIQN);
-                iSCSIPLSynchronize();
-
+                if(!iSCSIPLSynchronize())
+                    iSCSICtlDisplayPermissionsError();
+                else
+                    iSCSICtlDisplayString(CFSTR("The specified target was removed"));
             }
     }
 
@@ -898,41 +1001,65 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,CFDictionaryRef options
     CFStringRef value = NULL;
 
     iSCSIPLSynchronize();
+    errno_t error = 0;
 
     // Check for CHAP user name
     if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPUser,(const void **)&value))
-        iSCSIPLSetInitiatorCHAPName(value);
+    {
+        if(CFStringCompare(value,kOptValueEmpty,0) != kCFCompareEqualTo)
+            iSCSIPLSetInitiatorCHAPName(value);
+    }
 
     // Check for CHAP shared secret
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPSecret,(const void **)&value))
-        iSCSIPLSetInitiatorCHAPSecret(value);
+    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
+        CFStringRef secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+
+        if(secret != NULL) {
+            if(iSCSIPLSetInitiatorCHAPSecret(secret) != 0) {
+                iSCSICtlDisplayPermissionsError();
+                error = EAUTH;
+            }
+            CFRelease(secret);
+        }
+        else
+            error = EINVAL;
+    }
 
     // Check for authentication method
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyAutMethod,(const void**)&value))
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyAutMethod,(const void**)&value))
     {
         if(CFStringCompare(value,kOptValueAuthMethodNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetInitiatorAuthenticationMethod(kiSCSIAuthMethodNone);
         else if(CFStringCompare(value,kOptValueAuthMethodCHAP,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetInitiatorAuthenticationMethod(kiSCSIAuthMethodCHAP);
-        else
-            iSCSICtlDisplayError(CFSTR("the specified authentication method is invalid."));
+        else {
+            iSCSICtlDisplayError(CFSTR("The specified authentication method is invalid"));
+            error = EINVAL;
+        }
     }
 
     // Check for initiator alias
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeAlias,(const void**)&value))
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyNodeAlias,(const void**)&value))
         iSCSIPLSetInitiatorAlias(value);
 
     // Check for initiator IQN
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
     {
         // Validate the chosen initiator IQN
         if(iSCSIUtilsValidateIQN(value))
             iSCSIPLSetInitiatorIQN(value);
-        else
-            iSCSICtlDisplayError(CFSTR("the specified name is not a valid IQN or EUI-64 identifier."));
+        else {
+            iSCSICtlDisplayError(CFSTR("The specified name is not a valid IQN or EUI-64 identifier"));
+            error = EINVAL;
+        }
     }
 
-    iSCSIPLSynchronize();
+    if(!error) {
+        if(!iSCSIPLSynchronize())
+            iSCSICtlDisplayPermissionsError();
+        else
+            iSCSICtlDisplayString(CFSTR("Initiator settings have been udpated\n"));
+    }
 
     return 0;
 }
@@ -945,86 +1072,122 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
     CFStringRef value = NULL;
 
     iSCSIPLSynchronize();
+    errno_t error = 0;
 
-    // Check for CHAP user name
+    // Check for CHAP user name, ensure it is not blank
     if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPUser,(const void **)&value))
-        iSCSIPLSetTargetCHAPName(targetIQN,value);
+    {
+        if(CFStringCompare(value,kOptValueEmpty,0) != kCFCompareEqualTo)
+            iSCSIPLSetTargetCHAPName(targetIQN,value);
+    }
 
     // Check for CHAP shared secret
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPSecret,(const void **)&value))
-        iSCSIPLSetTargetCHAPSecret(targetIQN,value);
+    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
+        CFStringRef secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+
+        if(secret != NULL) {
+            iSCSIPLSetTargetCHAPSecret(targetIQN,secret);
+            CFRelease(secret);
+        }
+        else {
+            error = EINVAL;
+        }
+    }
 
     // Check for authentication method
     enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
 
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyAutMethod,(const void**)&value))
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyAutMethod,(const void**)&value))
     {
-        if(CFStringCompare(value,kOptValueAuthMethodNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+        if(CFStringCompare(value,kOptValueAuthMethodNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
             authMethod = kiSCSIAuthMethodNone;
+            iSCSIPLSetTargetAuthenticationMethod(targetIQN,authMethod);
+        }
         else if(CFStringCompare(value,kOptValueAuthMethodCHAP,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+        {
             authMethod = kiSCSIAuthMethodCHAP;
-        else
-            iSCSICtlDisplayError(CFSTR("the specified authentication method is invalid."));
+            iSCSIPLSetTargetAuthenticationMethod(targetIQN,authMethod);
+        }
+        else {
+            iSCSICtlDisplayError(CFSTR("The specified authentication method is invalid"));
+            error = EINVAL;
+        }
     }
 
-    iSCSIPLSetTargetAuthenticationMethod(targetIQN,authMethod);
-
     // Check for target IQN
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
     {
         // Validate the chosen target IQN
         if(iSCSIUtilsValidateIQN(value))
             iSCSIPLSetTargetIQN(targetIQN,value);
-        else
-            iSCSICtlDisplayError(CFSTR("the specified name is not a valid IQN or EUI-64 identifier."));
+        else {
+            iSCSICtlDisplayError(CFSTR("The specified name is not a valid IQN or EUI-64 identifier"));
+            error = EINVAL;
+        }
     }
 
     // Check for maximum connections
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyMaxConnections,(const void **)&value))
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyMaxConnections,(const void **)&value))
     {
         UInt32 maxConnections = CFStringGetIntValue(value);
-        if(maxConnections < kRFC3720_MaxConnections_Min)
-            iSCSICtlDisplayError(CFSTR("specified maximum number of connections is exceeds the maximum."));
-        else if(maxConnections > kRFC3720_MaxConnections_Max)
-            iSCSICtlDisplayError(CFSTR("specified maximum number of connections is not sufficient."));
+        if(maxConnections < kRFC3720_MaxConnections_Min) {
+            iSCSICtlDisplayError(CFSTR("Specified maximum number of connections is exceeds the maximum"));
+            error = EINVAL;
+        }
+        else if(maxConnections > kRFC3720_MaxConnections_Max) {
+            iSCSICtlDisplayError(CFSTR("Specified maximum number of connections is not sufficient"));
+            error = EINVAL;
+        }
         else
             iSCSIPLSetMaxConnectionsForTarget(targetIQN,maxConnections);
     }
 
     // Check for error recovery level
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyErrorRecoveryLevel,(const void **)&value))
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyErrorRecoveryLevel,(const void **)&value))
     {
         enum iSCSIErrorRecoveryLevels level = CFStringGetIntValue(value);
 
-        if(level < kRFC3720_ErrorRecoveryLevel_Min || level > kRFC3720_ErrorRecoveryLevel_Max)
-            iSCSICtlDisplayError(CFSTR("she specified error recovery level is invalid."));
-
-        iSCSIPLSetErrorRecoveryLevelForTarget(targetIQN,level);
+        if(level < kRFC3720_ErrorRecoveryLevel_Min || level > kRFC3720_ErrorRecoveryLevel_Max) {
+            iSCSICtlDisplayError(CFSTR("The specified error recovery level is invalid"));
+            error = EINVAL;
+        }
+        else {
+            iSCSIPLSetErrorRecoveryLevelForTarget(targetIQN,level);
+        }
     }
 
     // Check for header digest
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyHeaderDigest,(const void **)&value))
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyHeaderDigest,(const void **)&value))
     {
         if(CFStringCompare(value,kOptValueDigestNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetHeaderDigestForTarget(targetIQN,kiSCSIDigestNone);
         else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetHeaderDigestForTarget(targetIQN,kiSCSIDigestCRC32C);
-        else
-            iSCSICtlDisplayError(CFSTR("she specified digest type is invalid."));
+        else {
+            iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
+            error = EINVAL;
+        }
     }
 
     // Check for data digest
-    if(CFDictionaryGetValueIfPresent(options,kOptKeyDataDigest,(const void **)&value))
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyDataDigest,(const void **)&value))
     {
         if(CFStringCompare(value,kOptValueDigestNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetDataDigestForTarget(targetIQN,kiSCSIDigestNone);
         else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPLSetDataDigestForTarget(targetIQN,kiSCSIDigestCRC32C);
-        else
-            iSCSICtlDisplayError(CFSTR("she specified digest type is invalid."));
+        else {
+            iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
+            error = EINVAL;
+        }
     }
 
-    iSCSIPLSynchronize();
+    if(!error) {
+        if(!iSCSIPLSynchronize())
+            iSCSICtlDisplayPermissionsError();
+        else
+            iSCSICtlDisplayString(CFSTR("Target settings have been udpated\n"));
+    }
 
     return 0;
 }
@@ -1054,7 +1217,7 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
     // Verify that the target exists in the property list
     if(!iSCSIPLContainsTarget(targetIQN)) {
-        iSCSICtlDisplayError(CFSTR("the specified target does not exist."));
+        iSCSICtlDisplayString(CFSTR("The specified target does not exist\n"));
         error = EINVAL;
     }
 
@@ -1066,7 +1229,7 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
     // Verify that portal exists in property list
     if(!error && portal && !iSCSIPLContainsPortalForTarget(targetIQN,iSCSIPortalGetAddress(portal))) {
-        iSCSICtlDisplayError(CFSTR("the specified portal does not exist."));
+        iSCSICtlDisplayString(CFSTR("The specified portal does not exist\n"));
         error = EINVAL;
     }
 
@@ -1074,7 +1237,7 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     if(!error) {
         if(portal) {
             if(iSCSIDaemonIsPortalActive(handle,target,portal))
-                iSCSICtlDisplayError(CFSTR("the specified portal is connected and cannot be modified."));
+                iSCSICtlDisplayString(CFSTR("The specified portal is connected and cannot be modified\n"));
             else {
                 iSCSICtlModifyPortalFromOptions(options,portal);
                 iSCSIPLSetPortalForTarget(targetIQN,portal);
@@ -1084,7 +1247,7 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
         // Else we're modifying target parameters
         else {
             if(iSCSIDaemonIsTargetActive(handle,target))
-                iSCSICtlDisplayError(CFSTR("the specified target has an active session and cannot be modified."));
+                iSCSICtlDisplayString(CFSTR("The specified target has an active session and cannot be modified\n"));
             else {
                 iSCSICtlModifyTargetFromOptions(options,target,portal);
             }
@@ -1188,7 +1351,7 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
     CFArrayRef targetsList;
     
     if(!(targetsList = iSCSIPLCreateArrayOfTargets())) {
-        iSCSICtlDisplayString(CFSTR("No persistent targets are defined.\n"));
+        iSCSICtlDisplayString(CFSTR("No persistent targets are defined\n"));
         return 0;
     }
     
@@ -1237,6 +1400,19 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
     return 0;
 }
 
+/*! Lists information about a specific target.
+ *  @param handle handle to the iSCSI daemon.
+ *  @param options the command-line options dictionary.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
+{
+
+
+
+
+    return 0;
+}
+
 /*! Adds a discovery portal for SendTargets discovery.
  *  @param handle handle to the iSCSI daemon.
  *  @param options the command-line options dictionary.
@@ -1247,22 +1423,23 @@ errno_t iSCSICtlAddDiscoveryPortal(iSCSIDaemonHandle handle,CFDictionaryRef opti
     if((portal = iSCSICtlCreatePortalFromOptions(options)))
     {
         iSCSIPLSynchronize();
-        CFStringRef status = NULL;
         CFStringRef portalAddress = iSCSIPortalGetAddress(portal);
 
         if(!iSCSIPLContainsPortalForSendTargetsDiscovery(portalAddress)) {
             iSCSIPLAddSendTargetsDiscoveryPortal(portal);
-            iSCSIPLSynchronize();
-            status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                              CFSTR("The discovery portal %@ has been added.\n"),
-                                              iSCSIPortalGetAddress(portal));
-        }
-        else {
-            status = CFSTR("The specified discovery portal already exists.\n");
-        }
 
-        iSCSICtlDisplayString(status);
-        CFRelease(status);
+            if(!iSCSIPLSynchronize())
+                iSCSICtlDisplayPermissionsError();
+            else {
+                CFStringRef status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                              CFSTR("The discovery portal %@ has been added\n"),
+                                              iSCSIPortalGetAddress(portal));
+                iSCSICtlDisplayString(status);
+                CFRelease(status);
+            }
+        }
+        else
+            iSCSICtlDisplayString(CFSTR("The specified discovery portal already exists\n"));
     }
     return 0;
 }
@@ -1294,12 +1471,12 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
         if(CFStringCompare(value,kOptValueDiscoveryEnable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         {
             iSCSIPLSetSendTargetsDiscoveryEnable(true);
-            iSCSICtlDisplayString(CFSTR("SendTargets discovery has been enabled.\n"));
+            iSCSICtlDisplayString(CFSTR("SendTargets discovery has been enabled\n"));
         }
         else if(CFStringCompare(value,kOptValueDiscoveryDisable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         {
             iSCSIPLSetSendTargetsDiscoveryEnable(false);
-            iSCSICtlDisplayString(CFSTR("SendTargets discovery has been disabled.\n"));
+            iSCSICtlDisplayString(CFSTR("SendTargets discovery has been disabled\n"));
         }
         iSCSIPLSynchronize();
     }
@@ -1312,7 +1489,7 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
 
             CFStringRef errorString = CFStringCreateWithFormat(
                 kCFAllocatorDefault,0,
-                CFSTR("the specified discovery interval is invalid. Specify a value between %d - %d seconds."),
+                CFSTR("The specified discovery interval is invalid. Specify a value between %d - %d seconds"),
                 kiSCSIInitiator_DiscoveryInterval_Min,kiSCSIInitiator_DiscoveryInterval_Max);
             iSCSICtlDisplayError(errorString);
             CFRelease(errorString);
@@ -1321,7 +1498,7 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
             iSCSIPLSynchronize();
             iSCSIPLSetSendTargetsDiscoveryInterval(interval);
             iSCSIPLSynchronize();
-            iSCSICtlDisplayString(CFSTR("The discovery interval has been updated.\n"));
+            iSCSICtlDisplayString(CFSTR("The discovery interval has been updated\n"));
         }
     }
 
@@ -1344,18 +1521,56 @@ errno_t iSCSICtlRemoveDiscoveryPortal(iSCSIDaemonHandle handle,CFDictionaryRef o
         CFStringRef portalAddress = iSCSIPortalGetAddress(portal);
 
         if(iSCSIPLContainsPortalForSendTargetsDiscovery(portalAddress)) {
-            iSCSIPLRemoveSendTargetsDiscoveryPortal(portal);
-            iSCSIPLSynchronize();
-            status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                              CFSTR("The discovery portal %@ has been removed.\n"),
-                                              iSCSIPortalGetAddress(portal));
-        }
-        else {
-            status = CFSTR("The specified discovery portal does not exist.\n");
-        }
 
-        iSCSICtlDisplayString(status);
-        CFRelease(status);
+            // If targets associated with this discovery portal are logged in,
+            // notify user and do nothing
+            CFMutableArrayRef activeTargets = CFArrayCreateMutable(kCFAllocatorDefault,0,&kCFTypeArrayCallBacks);
+            CFArrayRef targets = iSCISPLCreateArrayOfDynamicTargetsForSendTargets(portalAddress);
+
+            CFIndex targetsCount = CFArrayGetCount(targets);
+            for(CFIndex idx = 0; idx < targetsCount; idx++)
+            {
+                CFStringRef targetIQN = CFArrayGetValueAtIndex(targets,idx);
+                iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
+                iSCSITargetSetIQN(target,targetIQN);
+
+                if(iSCSIDaemonIsTargetActive(handle,target))
+                    CFArrayAppendValue(activeTargets,targetIQN);
+
+                iSCSITargetRelease(target);
+            }
+
+            if((targetsCount = CFArrayGetCount(activeTargets)) > 0)
+            {
+                iSCSICtlDisplayString(CFSTR("\nThe following active target(s) are associated with the specified discovery portal:\n"));
+
+                for(CFIndex idx = 0; idx < targetsCount; idx++)
+                {
+                    CFStringRef targetIQN = CFArrayGetValueAtIndex(targets,idx);
+                    CFStringRef targetString = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\t%@\n"),targetIQN);
+                    iSCSICtlDisplayString(targetString);
+                    CFRelease(targetString);
+                }
+                iSCSICtlDisplayString(CFSTR("\nThe active targets must be logged out before the discovery portal can be removed\n\n"));
+            }
+            else {
+                iSCSIPLRemoveSendTargetsDiscoveryPortal(portal);
+                if(!iSCSIPLSynchronize())
+                    iSCSICtlDisplayPermissionsError();
+                else {
+                    status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+                                                  CFSTR("The discovery portal %@ has been removed\n"),
+                                                  iSCSIPortalGetAddress(portal));
+                    iSCSICtlDisplayString(status);
+                    CFRelease(status);
+                }
+            }
+
+            CFRelease(activeTargets);
+            CFRelease(targets);
+        }
+        else
+            iSCSICtlDisplayString(CFSTR("The specified discovery portal does not exist\n"));
     }
     return 0;
 }
@@ -1423,7 +1638,7 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
     target = IOIteratorNext(targetIterator);
 
     if(target == IO_OBJECT_NULL) {
-        iSCSICtlDisplayString(CFSTR("No active targets with LUNs exist.\n"));
+        iSCSICtlDisplayString(CFSTR("No active targets with LUNs exist\n"));
         IOObjectRelease(targetIterator);
         return 0;
     }
@@ -1491,7 +1706,7 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
 errno_t iSCSICtlListDiscoveryPortals(iSCSIDaemonHandle handle,
                                      CFDictionaryRef options)
 {
-    if(handle < 0 || !options)
+    if(!options)
         return EINVAL;
 
     iSCSIPLSynchronize();
@@ -1503,7 +1718,7 @@ errno_t iSCSICtlListDiscoveryPortals(iSCSIDaemonHandle handle,
         portalCount = CFArrayGetCount(portals);
 
     if(portalCount == 0)
-        iSCSICtlDisplayString(CFSTR("No discovery portals are defined.\n"));
+        iSCSICtlDisplayString(CFSTR("No discovery portals are defined\n"));
     else
         iSCSICtlDisplayString(CFSTR("\nThe following discovery portal(s) are defined:\n"));
 
@@ -1566,6 +1781,17 @@ errno_t iSCSICtlProbeTargetForAuthMethod(iSCSIDaemonHandle handle,
     return error;
 }
 
+errno_t iSCSICtlReset(iSCSIDaemonHandle handle,CFDictionaryRef options)
+{
+    iSCSIPLReset();
+    if(!iSCSIPLSynchronize())
+        iSCSICtlDisplayPermissionsError();
+    else
+        iSCSICtlDisplayString(CFSTR("iSCSI settings have been reset\n"));
+
+    return 0;
+}
+
 errno_t iSCSICtlMountForTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 {
     iSCSITargetRef target = NULL;
@@ -1626,7 +1852,7 @@ int main(int argc, char * argv[])
         kCFAllocatorDefault,options,kCFPropertyListMutableContainersAndLeaves);
 
     iSCSICtlParseTargetAndPortalToDictionary(arguments,optDictionary);
-
+    iSCSICtlParseSwitchesToDictionary(arguments,optDictionary);
 
     // Save command line executable name for later use
     executableName = argv[0];
@@ -1682,6 +1908,8 @@ int main(int argc, char * argv[])
             error = iSCSICtlUnmountForTarget(handle,optDictionary); break;
         case kiSCSICtlCmdProbe:
             error = iSCSICtlProbeTargetForAuthMethod(handle,optDictionary); break;
+        case kiSCSICtlCmdReset:
+            error = iSCSICtlReset(handle,optDictionary); break;
         case kiSCSICtlCmdInvalid:
             iSCSICtlDisplayUsage();
     };
