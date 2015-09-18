@@ -413,12 +413,15 @@ iSCSITargetRef iSCSIPLCopyTarget(CFStringRef targetIQN)
 {
     iSCSIMutableTargetRef target = NULL;
 
-    CFMutableDictionaryRef targetsDict = iSCSIPLGetTargets(false);
+    if(iSCSIUtilsValidateIQN(targetIQN)) {
 
-    if(targetsDict) {
-        if(CFDictionaryContainsKey(targetsDict,targetIQN)) {
-            target = iSCSITargetCreateMutable();
-            iSCSITargetSetIQN(target,targetIQN);
+        CFMutableDictionaryRef targetsDict = iSCSIPLGetTargets(false);
+
+        if(targetsDict) {
+            if(CFDictionaryContainsKey(targetsDict,targetIQN)) {
+                target = iSCSITargetCreateMutable();
+                iSCSITargetSetIQN(target,targetIQN);
+            }
         }
     }
 

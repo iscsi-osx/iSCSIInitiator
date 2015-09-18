@@ -14,6 +14,7 @@
 
 #include "iSCSIKeychain.h"
 #include "iSCSITypes.h"
+#include "iSCSIUtils.h"
 
 /*! Copies the initiator name from the property list into a CFString object.
  *  @return the initiator name. */
