@@ -178,8 +178,8 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target);
  *  with the specified target and portal, if one exists.  The following keys
  *  are guaranteed to be in the dictionary:
  *
- *  kRFC3720_Key_DataDigest                 (CFBoolean)
- *  kRFC3720_Key_HeaderDigest               (CFBoolean)
+ *  kRFC3720_Key_DataDigest                 (CFNumberRef)
+ *  kRFC3720_Key_HeaderDigest               (CFNumberRef)
  *  kRFC3720_Key_MaxRecvDataSegmentLength   (CFNumberRef)
  *
  *  @param handle a handle to a daemon connection.

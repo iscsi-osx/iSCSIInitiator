@@ -1432,17 +1432,25 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
             iSCSIKernelGetConnectionConfig(sessionId,connectionId,&config);
 
             CFNumberRef maxRecvDataSegmentLength = CFNumberCreate(
-                kCFAllocatorMalloc,kCFNumberSInt32Type,&config.maxRecvDataSegmentLength);
+                kCFAllocatorDefault,kCFNumberSInt32Type,&config.maxRecvDataSegmentLength);
 
-            CFBooleanRef dataDigest = kCFBooleanFalse;
-            CFBooleanRef headerDigest = kCFBooleanFalse;
+
+            enum iSCSIDigestTypes dataDigestType = kiSCSIDigestNone;
+            enum iSCSIDigestTypes headerDigestType = kiSCSIDigestNone;
 
             if(config.useDataDigest)
-                dataDigest = kCFBooleanTrue;
+                dataDigestType = kiSCSIDigestCRC32C;
 
             if(config.useHeaderDigest)
-                headerDigest = kCFBooleanTrue;
+                headerDigestType = kiSCSIDigestCRC32C;
 
+            CFNumberRef dataDigest = CFNumberCreate(kCFAllocatorDefault,
+                                                    kCFNumberCFIndexType
+                                                    ,&dataDigestType);
+
+            CFNumberRef headerDigest = CFNumberCreate(kCFAllocatorDefault,
+                                                      kCFNumberCFIndexType,
+                                                      &headerDigestType);
 
             const void * keys[] = {
                 kRFC3720_Key_DataDigest,
