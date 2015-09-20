@@ -1457,8 +1457,8 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
             };
 
             dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,
-                               &kCFTypeDictionaryKeyCallBacks,
-                               &kCFTypeDictionaryValueCallBacks);
+                                            &kCFTypeDictionaryKeyCallBacks,
+                                            &kCFTypeDictionaryValueCallBacks);
         }
     }
     return dictionary;

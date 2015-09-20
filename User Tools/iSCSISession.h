@@ -154,7 +154,20 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId);
 
 
 /*! Creates a dictionary of session parameters for the session associated with
- *  the specified target, if one exists.
+ *  the specified target, if one exists. The following keys are guaranteed
+ *  to be in the dictionary:
+ *
+ *  kRFC3720_Key_InitialR2T                 (CFBoolean)
+ *  kRFC3720_Key_ImmediateData              (CFBoolean)
+ *  kRFC3720_Key_DataPDUInOrder             (CFBoolean)
+ *  kRFC3720_Key_DataSequenceInOrder        (CFBoolean)
+ *  kRFC3720_Key_MaxConnections             (CFNumberRef)
+ *  kRFC3720_Key_MaxBurstLength             (CFNumberRef)
+ *  kRFC3720_Key_FirstBurstLength           (CFNumberRef)
+ *  kRFC3720_Key_MaxOutstandingR2T          (CFNumberRef)
+ *  kRFC3720_Key_DefaultTime2Retain         (CFNumberRef)
+ *  kRFC3720_Key_DefaultTime2Wait           (CFNumberRef)
+ *
  *  @param handle a handle to a daemon connection.
  *  @param target the target to check for associated sessions to generate
  *  a dictionary of session parameters.
@@ -165,8 +178,9 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target);
  *  with the specified target and portal, if one exists.  The following keys
  *  are guaranteed to be in the dictionary:
  *
- *  kiSCSIPropertyM (CFNumberRef)
- *  kIOPropertySCSIPeripheralDeviceType (CFNumberRef)
+ *  kRFC3720_Key_DataDigest                 (CFBoolean)
+ *  kRFC3720_Key_HeaderDigest               (CFBoolean)
+ *  kRFC3720_Key_MaxRecvDataSegmentLength   (CFNumberRef)
  *
  *  @param handle a handle to a daemon connection.
  *  @param target the target associated with the the specified portal.
