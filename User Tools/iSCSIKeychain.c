@@ -140,4 +140,16 @@ void iSCSIKeychainRenameNode(CFStringRef oldNodeIQN,CFStringRef newNodeIQN)
     }
 }
 
+/*! Gets whether a CHAP secret exists for the specified node.
+ *  @param nodeIQN the node to test.
+ *  @return true if a CHAP secret exists for the specified node. */
+Boolean iSCSIKeychainContainsCHAPSecretForNode(CFStringRef nodeIQN)
+{
+    CFStringRef secret = NULL;
+    if((secret = iSCSIKeychainCopyCHAPSecretForNode(nodeIQN))) {
+        CFRelease(secret);
+        return true;
+    }
+    return false;
+}
 
