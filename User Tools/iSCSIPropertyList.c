@@ -581,6 +581,16 @@ CFStringRef iSCSIPLCopyInitiatorCHAPSecret()
     return secret;
 }
 
+/*! Gets whether a CHAP secret exists for the initiator.
+ *  @return true if a CHAP secret exists for the initiator. */
+Boolean iSCSIPLExistsInitiatorCHAPSecret()
+{
+    CFStringRef initiatorIQN = iSCSIPLCopyInitiatorIQN();
+    Boolean exists = iSCSIKeychainContainsCHAPSecretForNode(initiatorIQN);
+    CFRelease(initiatorIQN);
+    return exists;
+}
+
 void iSCSIPLSetPortalForTarget(CFStringRef targetIQN,
                                iSCSIPortalRef portal)
 {
@@ -990,6 +1000,13 @@ OSStatus iSCSIPLSetTargetCHAPSecret(CFStringRef targetIQN,CFStringRef secret)
 CFStringRef iSCSIPLCopyTargetCHAPSecret(CFStringRef targetIQN)
 {
     return iSCSIKeychainCopyCHAPSecretForNode(targetIQN);
+}
+
+/*! Gets whether a CHAP secret exists for the specified target.
+ *  @return true if a CHAP secret exists for the target. */
+Boolean iSCSIPLExistsTargetCHAPSecret(CFStringRef nodeIQN)
+{
+    return iSCSIKeychainContainsCHAPSecretForNode(nodeIQN);
 }
 
 /*! Adds an iSCSI discovery portal to the list of discovery portals.

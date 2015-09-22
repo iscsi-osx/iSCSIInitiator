@@ -51,6 +51,10 @@ OSStatus iSCSIPLSetInitiatorCHAPSecret(CFStringRef secret);
 /*! Copies the CHAP secret associated with the initiator. */
 CFStringRef iSCSIPLCopyInitiatorCHAPSecret();
 
+/*! Gets whether a CHAP secret exists for the initiator.
+ *  @return true if a CHAP secret exists for the initiator. */
+Boolean iSCSIPLExistsInitiatorCHAPSecret();
+
 /*! Copies a target object for the specified target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return target the target object to copy. */
@@ -184,6 +188,10 @@ OSStatus iSCSIPLSetTargetCHAPSecret(CFStringRef targetIQN,CFStringRef secret);
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @return the CHAP shared secret associated with the target. */
 CFStringRef iSCSIPLCopyTargetCHAPSecret(CFStringRef targetIQN);
+
+/*! Gets whether a CHAP secret exists for the specified target.
+ *  @return true if a CHAP secret exists for the target. */
+Boolean iSCSIPLExistsTargetCHAPSecret(CFStringRef nodeIQN);
 
 /*! Gets whether a target is defined in the property list.
  *  @param targetIQN the target iSCSI qualified name (IQN).
