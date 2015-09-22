@@ -75,9 +75,6 @@ enum iSCSICtlSubCmds {
     /*! Sub mode for discovery portal operations. */
     kiSCSICtlSubCmdDiscoveryPortal,
 
-    /*! Sub mode for discovery portal operations (used for list only). */
-    kiSCSICtlSubCmdDiscoveryPortals,
-
     /*! Sub mode for discovery operations. */
     kiSCSICtlSubCmdDiscoveryConfig,
 
@@ -211,7 +208,6 @@ enum iSCSICtlSubCmds iSCSICtlGetSubCmdFromArguments(CFArrayRef arguments)
     CFDictionaryAddValue(subModesDict,CFSTR("targets"),(const void *)kiSCSICtlSubCmdTargets);
     CFDictionaryAddValue(subModesDict,CFSTR("discovery-portal"),(const void *)kiSCSICtlSubCmdDiscoveryPortal);
     CFDictionaryAddValue(subModesDict,CFSTR("discovery-config"),(const void *)kiSCSICtlSubCmdDiscoveryConfig);
-    CFDictionaryAddValue(subModesDict,CFSTR("discovery-portals"),(const void *)kiSCSICtlSubCmdDiscoveryPortals);
     CFDictionaryAddValue(subModesDict,CFSTR("luns"),(const void *)kiSCSICtlSubCmdLUNs);
 
     // If a mode was supplied (first argument after executable name)
@@ -1522,6 +1518,49 @@ errno_t iSCSICtlListDiscoveryConfig(iSCSIDaemonHandle handle,CFDictionaryRef opt
     return 0;
 }
 
+errno_t iSCSICtlListInitiatorConfig(iSCSIDaemonHandle handle,CFDictionaryRef optDictionary)
+{
+    iSCSIPLSynchronize();
+
+    CFStringRef format = CFSTR("\n    \x1b[1m Configuration \x1b[0m"
+                               "\n\t%@\t%@"
+                               "\n\t%@\t%@"
+                               "\n\n    \x1b[1m Authentication \x1b[0m"
+                               "\n\t%@\t%@"
+                               "\n\t%@\t%@"
+                               "\n\t%@\t%@"
+                               "\n\n");
+
+    CFStringRef name = iSCSIPLCopyInitiatorIQN();
+    CFStringRef alias = iSCSIPLCopyInitiatorAlias();
+    CFStringRef CHAPName = iSCSIPLCopyInitiatorCHAPName();
+
+    CFStringRef authMethod = NULL;
+    switch(iSCSIPLGetInitiatorAuthenticationMethod()) {
+        case kiSCSIAuthMethodCHAP:
+            authMethod = CFSTR("CHAP"); break;
+        default:
+            authMethod = CFSTR("None"); break;
+    };
+
+    CFStringRef CHAPSecret = CFSTR("••••••••••••");
+    if(!iSCSIPLExistsInitiatorCHAPSecret())
+        CHAPSecret = CFSTR("(Unspecified)");
+
+    CFStringRef initiatorConfig = CFStringCreateWithFormat(
+        kCFAllocatorDefault,0,format,
+        kOptKeyNodeName,name,
+        kOptKeyNodeAlias,alias,
+        kOptKeyAutMethod,authMethod,
+        kOptKeyCHAPName,CHAPName,
+        kOptKeyCHAPSecret,CHAPSecret);
+
+    iSCSICtlDisplayString(initiatorConfig);
+    CFRelease(initiatorConfig);
+
+    return 0;
+}
+
 /*! Adds a discovery portal for SendTargets discovery.
  *  @param handle handle to the iSCSI daemon.
  *  @param options the command-line options dictionary.
@@ -1802,45 +1841,6 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
     return 0;
 }
 
-errno_t iSCSICtlListDiscoveryPortals(iSCSIDaemonHandle handle,
-                                     CFDictionaryRef options)
-{
-    if(!options)
-        return EINVAL;
-
-    iSCSIPLSynchronize();
-
-    CFArrayRef portals = iSCSIPLCreateArrayOfPortalsForSendTargetsDiscovery();
-    CFIndex portalCount = 0;
-
-    if(portals)
-        portalCount = CFArrayGetCount(portals);
-
-    if(portalCount == 0)
-        iSCSICtlDisplayString(CFSTR("No discovery portals are defined\n"));
-    else
-        iSCSICtlDisplayString(CFSTR("\nThe following discovery portal(s) are defined:\n\n"));
-
-    for(CFIndex idx = 0; idx < portalCount; idx++) {
-        CFStringRef portalAddress = CFArrayGetValueAtIndex(portals,idx);
-        iSCSIPortalRef portal = iSCSIPLCopySendTargetsDiscoveryPortal(portalAddress);
-
-        CFStringRef entry =
-            CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                     CFSTR("\t%s  <Port: %s, Interface: %@>\n"),
-                                     CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
-                                     CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
-                                     iSCSIPortalGetHostInterface(portal));
-        iSCSICtlDisplayString(entry);
-        CFRelease(entry);
-    }
-
-    if(portalCount != 0)
-        iSCSICtlDisplayString(CFSTR("\n"));
-
-    return 0;
-}
-
 errno_t iSCSICtlProbeTargetForAuthMethod(iSCSIDaemonHandle handle,
                                          CFDictionaryRef options)
 {
@@ -1993,10 +1993,10 @@ int main(int argc, char * argv[])
                 error = iSCSICtlListTarget(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdLUNs)
                 error = iSCSICtlListLUNs(handle,optDictionary);
-            else if(subCmd == kiSCSICtlSubCmdDiscoveryPortals)
-                error = iSCSICtlListDiscoveryPortals(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscoveryConfig)
                 error = iSCSICtlListDiscoveryConfig(handle,optDictionary);
+            else if(subCmd == kiSCSICtlSubCmdInitiatorConfig)
+                error = iSCSICtlListInitiatorConfig(handle,optDictionary);
             break;
 
         case kiSCSICtlCmdLogin:
