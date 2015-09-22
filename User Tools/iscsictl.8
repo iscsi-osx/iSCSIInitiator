@@ -13,17 +13,18 @@ add
 .Op Fl interface Ar interface
 .Nm
 remove target
-.Ar target,portal
+.Ar target
+.Op , Ar portal
 
 .Nm
 login
-.Ar	target
+.Ar " target" Op , Ar portal
 .Nm
 logout
-.Ar	target
+.Ar target Op , Ar portal
 .Nm
 mount
-.Ar  target
+.Ar  "  target"
 .Nm
 unmount
 .Ar	target
@@ -32,7 +33,7 @@ unmount
 modify initiator-config
 .Nm
 modify target-config
-.Ar target
+.Ar target Op , Ar portal
 .Op ...
 .Nm
 modify discovery-config
@@ -46,7 +47,6 @@ list target-config
 .Nm
 list discovery-config
 
-
 .Nm
 add discovery-portal
 .Ar portal
@@ -59,13 +59,11 @@ remove discovery-portal
 list targets
 .Nm
 list luns
-.Nm
-list discovery-portals
 
 .Sh DESCRIPTION
 The
 .B iscsictl
-utility is used to configure the iSCSI initiator and manage sessions.  Users may login or logout of targets after they have been defined with appropriate portals and optional authentication method, session parameters and connection parameters.  Superuser access is required for add, remove and modify operations.
+utility is used to configure the iSCSI initiator and manage sessions.  Users may login or logout of targets after they have been defined with appropriate portals and optional authentication method, session parameters and connection parameters.  Unprivileged users cannot perform add, remove and modify operations.
 .Pp
 The options are as follows:
 .Bl -tag -width "-discovery"
@@ -85,8 +83,6 @@ Logs out of a target or connection.
 Mounts all volumes associated with the specified target.
 .It unmount
 Unmounts all volumes associated with the specified target.
-.It probe
-Probes the specified target and portal for authentication parameters.
 .El
 .Pp
 The
