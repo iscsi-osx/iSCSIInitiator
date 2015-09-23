@@ -1719,14 +1719,25 @@ void displayLUNProperties(CFDictionaryRef propertiesDict)
     
     CFNumberRef SCSILUNIdentifier = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSILogicalUnitNumberKey));
     CFNumberRef peripheralType = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIPeripheralDeviceType));
+    CFStringRef vendor = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIVendorIdentification));
+    CFStringRef product = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIProductIdentification));
     
-    // Get a string description of the peripheral device type
-    UInt8 peripheralTypeCode;
+    // Get a description of the peripheral device type
+    int peripheralTypeCode;
     CFNumberGetValue(peripheralType,kCFNumberIntType,&peripheralTypeCode);
 
-    CFStringRef properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                      CFSTR("  +-o LUN %@  <Type 0x%02x>\n"),
-                                                      SCSILUNIdentifier,peripheralTypeCode);
+    CFStringRef properties = NULL;
+    if(vendor && product) {
+        properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
+                                              CFSTR("  +-o LUN %@  <Type 0x%02x, %@ (%@)>\n"),
+                                              SCSILUNIdentifier,peripheralTypeCode,vendor,product);
+    }
+    else {
+        properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
+                                              CFSTR("  +-o LUN %@  <Type 0x%02x>\n"),
+                                              SCSILUNIdentifier,peripheralTypeCode);
+    }
+
     iSCSICtlDisplayString(properties);
     CFRelease(properties);
 }
@@ -1746,9 +1757,9 @@ void displayIOMediaProperties(CFDictionaryRef propertiesDict,Boolean lastLUN)
 
     CFStringRef templateString = NULL;
     if(lastLUN)
-        templateString = CFSTR("    +-o /dev/%@  <Capacity: %@>\n");
+        templateString = CFSTR("    +-o %@  <Capacity: %@>\n");
     else
-        templateString = CFSTR("  | +-o /dev/%@  <Capacity: %@>\n");
+        templateString = CFSTR("  | +-o %@  <Capacity: %@>\n");
     
     CFStringRef properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
                                                       templateString,
@@ -1790,11 +1801,21 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
         CFStringRef targetVendor = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSIVendorIdentification));
         CFStringRef targetProduct = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSIProductIdentification));
         CFNumberRef targetId = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSITargetIdentifierKey));
-        
-        CFStringRef targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                         CFSTR("\n+-o %s  <Id %@, Vendor: %@, Model: %@>\n"),
-                                                         CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
-                                                         targetId,targetVendor,targetProduct);
+
+        CFStringRef targetStr = NULL;
+        if(targetVendor && targetProduct) {
+            targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
+                                                 CFSTR("\n+-o %s  <Id %@, %@ (%@)>\n"),
+                                                 CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+                                                 targetId,targetVendor,targetProduct);
+        }
+        else {
+            targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
+                                                 CFSTR("\n+-o %s  <Id %@>\n"),
+                                                 CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+                                                 targetId);
+        }
+
         iSCSICtlDisplayString(targetStr);
 
         // Get a dictionary of properties for each LUN and display those
