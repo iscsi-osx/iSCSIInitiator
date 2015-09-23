@@ -70,6 +70,8 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target);
 /*! Creates a dictionary of properties associated with the LUN.  These
  *  include the following keys:
  *
+ *  kIOPropertySCSIVendorIdentification (CFStringRef)
+ *  kIOPropertySCSIProductIdentification (CFStringRef)
  *  kIOPropertySCSILogicalUnitNumberKey (CFNumberRef)
  *  kIOPropertySCSIPeripheralDeviceType (CFNumberRef)
  *

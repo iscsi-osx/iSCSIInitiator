@@ -224,19 +224,15 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target)
     CFStringRef vendor = IORegistryEntryCreateCFProperty(
         child,CFSTR(kIOPropertySCSIVendorIdentification),kCFAllocatorDefault,0);
 
-    if(CFStringCompare(vendor,CFSTR(""),0) == kCFCompareEqualTo) {
-        CFRelease(vendor);
-        vendor = CFSTR("Unknown");
-    }
+    if(!vendor)
+        vendor = CFSTR("");
 
     CFStringRef product = IORegistryEntryCreateCFProperty(
         child,CFSTR(kIOPropertySCSIProductIdentification),kCFAllocatorDefault,0);
 
-    if(CFStringCompare(product,CFSTR(""),0) == kCFCompareEqualTo) {
-        CFRelease(product);
-        product = CFSTR("Unknown");
-    }
-    
+    if(!product)
+        product = CFSTR("");
+
     CFDictionaryRef protocolDict = IORegistryEntryCreateCFProperty(
         child,CFSTR(kIOPropertyProtocolCharacteristicsKey),kCFAllocatorDefault,0);
 
@@ -271,6 +267,8 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target)
 /*! Creates a dictionary of properties associated with the LUN.  These
  *  include the following keys:
  *
+ *  kIOPropertySCSIVendorIdentification (CFStringRef)
+ *  kIOPropertySCSIProductIdentification (CFStringRef)
  *  kIOPropertySCSILogicalUnitNumberKey (CFNumberRef)
  *  kIOPropertySCSIPeripheralDeviceType (CFNumberRef)
  *
