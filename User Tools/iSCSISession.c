@@ -1358,13 +1358,6 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
         CFNumberRef defaultTime2Wait = CFNumberCreate(
             kCFAllocatorMalloc,kCFNumberSInt32Type,&config.defaultTime2Wait);
 
-        CFNumberRef targetPortalGroupTag = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberSInt32Type,&config.targetPortalGroupTag);
-
-        CFNumberRef targetSessionId = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberSInt32Type,&config.targetSessionId);
-
-
         CFStringRef initialR2T = kRFC3720_Value_No;
         CFStringRef immediateData = kRFC3720_Value_No;
         CFStringRef dataPDUInOrder = kRFC3720_Value_No;
@@ -1393,7 +1386,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             kRFC3720_Key_MaxOutstandingR2T,
             kRFC3720_Key_DefaultTime2Retain,
             kRFC3720_Key_DefaultTime2Wait,
-            kRFC3720_Key_TargetGroupPortalTag,
+            kRFC3720_Key_TargetPortalGroupTag,
             kRFC3720_Key_TargetSessionId
         };
 

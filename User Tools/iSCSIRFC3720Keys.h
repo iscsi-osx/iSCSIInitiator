@@ -51,7 +51,6 @@ static CFStringRef kRFC3720_Value_DataDigestNone = CFSTR("None");
 static CFStringRef kRFC3720_Value_DataDigestCRC32C = CFSTR("CRC32C");
 
 static CFStringRef kRFC3720_Key_MaxConnections = CFSTR("MaxConnections");
-static CFStringRef kRFC3720_Key_TargetGroupPortalTag = CFSTR("TargetGroupPortalTag");
 
 static CFStringRef kRFC3720_Key_InitialR2T = CFSTR("InitialR2T");
 
