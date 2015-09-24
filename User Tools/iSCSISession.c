@@ -1390,7 +1390,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             kRFC3720_Key_DefaultTime2Retain,
             kRFC3720_Key_DefaultTime2Wait,
             kRFC3720_Key_TargetPortalGroupTag,
-            kRFC3720_Key_TargetSessionId
+            kRFC3720_Key_TargetSessionId,
             kRFC3720_Key_ErrorRecoveryLevel
         };
 
