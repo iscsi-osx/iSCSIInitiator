@@ -84,4 +84,8 @@ static CFStringRef kRFC3720_Value_SendTargetsAll = CFSTR("All");
 static CFStringRef kRFC3720_Value_Yes = CFSTR("Yes");
 static CFStringRef kRFC3720_Value_No = CFSTR("No");
 
+// Other keys associated with sessions
+
+static CFStringRef kRFC3720_Key_TargetSessionId = CFSTR("TSIH");
+
 #endif
