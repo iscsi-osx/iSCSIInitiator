@@ -1335,28 +1335,31 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
         iSCSIKernelGetSessionConfig(sessionId,&config);
 
         CFNumberRef maxConnections = CFNumberCreate(
-            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.maxConnections);
+            kCFAllocatorDefault,kCFNumberIntType,&config.maxConnections);
 
         CFNumberRef maxBurstLength = CFNumberCreate(
-            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.maxBurstLength);
+            kCFAllocatorDefault,kCFNumberIntType,&config.maxBurstLength);
 
         CFNumberRef firstBurstLength = CFNumberCreate(
-            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.firstBurstLength);
+            kCFAllocatorDefault,kCFNumberIntType,&config.firstBurstLength);
 
         CFNumberRef maxOutStandingR2T = CFNumberCreate(
-            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.maxOutStandingR2T);
+            kCFAllocatorDefault,kCFNumberIntType,&config.maxOutStandingR2T);
 
         CFNumberRef targetPortalGroupTag = CFNumberCreate(
-            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.targetPortalGroupTag);
+            kCFAllocatorDefault,kCFNumberIntType,&config.targetPortalGroupTag);
 
         CFNumberRef targetSessionId = CFNumberCreate(
-            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.targetSessionId);
+            kCFAllocatorDefault,kCFNumberIntType,&config.targetSessionId);
 
         CFNumberRef defaultTime2Retain = CFNumberCreate(
-            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.defaultTime2Retain);
+            kCFAllocatorDefault,kCFNumberIntType,&config.defaultTime2Retain);
 
         CFNumberRef defaultTime2Wait = CFNumberCreate(
-            kCFAllocatorMalloc,kCFNumberSInt32Type,&config.defaultTime2Wait);
+            kCFAllocatorDefault,kCFNumberIntType,&config.defaultTime2Wait);
+
+        CFNumberRef errorRecoveryLevel = CFNumberCreate(
+            kCFAllocatorDefault,kCFNumberIntType,&config.errorRecoveryLevel);
 
         CFStringRef initialR2T = kRFC3720_Value_No;
         CFStringRef immediateData = kRFC3720_Value_No;
@@ -1388,6 +1391,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             kRFC3720_Key_DefaultTime2Wait,
             kRFC3720_Key_TargetPortalGroupTag,
             kRFC3720_Key_TargetSessionId
+            kRFC3720_Key_ErrorRecoveryLevel
         };
 
         const void * values[] = {
@@ -1402,7 +1406,8 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             defaultTime2Retain,
             defaultTime2Wait,
             targetPortalGroupTag,
-            targetSessionId
+            targetSessionId,
+            errorRecoveryLevel
         };
 
         dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
