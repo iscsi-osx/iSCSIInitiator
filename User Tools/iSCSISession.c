@@ -692,9 +692,13 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
         if(interface->ifa_addr->sa_family == ssTarget->ss_family)
         {
             CFStringRef currIface = CFStringCreateWithCStringNoCopy(
-                kCFAllocatorDefault,interface->ifa_name,kCFStringEncodingUTF8,kCFAllocatorNull);
-            Boolean ifaceNameMatch = CFStringCompare(currIface,hostIface,kCFCompareCaseInsensitive)
-                                        == kCFCompareEqualTo;
+                kCFAllocatorDefault,
+                interface->ifa_name,
+                kCFStringEncodingUTF8,
+                kCFAllocatorNull);
+
+            Boolean ifaceNameMatch =
+                CFStringCompare(currIface,hostIface,kCFCompareCaseInsensitive) == kCFCompareEqualTo;
             CFRelease(currIface);
             // Check if interface names match...
             if(ifaceNameMatch)
@@ -1354,6 +1358,13 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
         CFNumberRef defaultTime2Wait = CFNumberCreate(
             kCFAllocatorMalloc,kCFNumberSInt32Type,&config.defaultTime2Wait);
 
+        CFNumberRef targetPortalGroupTag = CFNumberCreate(
+            kCFAllocatorDefault,kCFNumberSInt32Type,&config.targetPortalGroupTag);
+
+        CFNumberRef targetSessionId = CFNumberCreate(
+            kCFAllocatorDefault,kCFNumberSInt32Type,&config.targetSessionId);
+
+
         CFStringRef initialR2T = kRFC3720_Value_No;
         CFStringRef immediateData = kRFC3720_Value_No;
         CFStringRef dataPDUInOrder = kRFC3720_Value_No;
@@ -1381,7 +1392,9 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             kRFC3720_Key_FirstBurstLength,
             kRFC3720_Key_MaxOutstandingR2T,
             kRFC3720_Key_DefaultTime2Retain,
-            kRFC3720_Key_DefaultTime2Wait
+            kRFC3720_Key_DefaultTime2Wait,
+            kRFC3720_Key_TargetGroupPortalTag,
+            kRFC3720_Key_TargetSessionId
         };
 
         const void * values[] = {
@@ -1394,10 +1407,13 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             firstBurstLength,
             maxOutStandingR2T,
             defaultTime2Retain,
-            defaultTime2Wait
+            defaultTime2Wait,
+            targetPortalGroupTag,
+            targetSessionId
         };
 
-        dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,10,
+        dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
+                                        sizeof(keys)/sizeof(void*),
                                         &kCFTypeDictionaryKeyCallBacks,
                                         &kCFTypeDictionaryValueCallBacks);
     }
@@ -1451,7 +1467,6 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
             CFNumberRef headerDigest = CFNumberCreate(kCFAllocatorDefault,
                                                       kCFNumberCFIndexType,
                                                       &headerDigestType);
-
             const void * keys[] = {
                 kRFC3720_Key_DataDigest,
                 kRFC3720_Key_HeaderDigest,
@@ -1464,7 +1479,8 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
                 maxRecvDataSegmentLength
             };
 
-            dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,
+            dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
+                                            sizeof(keys)/sizeof(void*),
                                             &kCFTypeDictionaryKeyCallBacks,
                                             &kCFTypeDictionaryValueCallBacks);
         }
