@@ -370,7 +370,7 @@ UInt32 iSCSIPLGetMaxConnectionsForTarget(CFStringRef targetIQN)
 {
     // Get the target information dictionary
     CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
-    CFNumberRef value = CFDictionaryGetValue(targetDict,kiSCSIPKErrorRecoveryLevel);
+    CFNumberRef value = CFDictionaryGetValue(targetDict,kiSCSIPKMaxConnections);
 
     UInt32 maxConnections = kRFC3720_MaxConnections;
     CFNumberGetValue(value,kCFNumberIntType,&maxConnections);
