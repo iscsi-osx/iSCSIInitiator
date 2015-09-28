@@ -1438,6 +1438,9 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     
     // Initialize default error (try again)
     errno_t error = EAGAIN;
+
+    // Define non-blocking socket parameter
+    const int NO_BLOCK = 1;
     
     if(!(newConn->taskQueue = OSTypeAlloc(iSCSITaskQueue)))
         goto TASKQUEUE_ALLOC_FAILURE;
@@ -1478,8 +1481,8 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     timeout.tv_sec = kiSCSITCPTimeoutSec;
     timeout.tv_usec = 0;
 
-    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_SNDTIMEO,(const void*)&timeout,sizeof(struct timeval));
-    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_RCVTIMEO,(const void*)&timeout,sizeof(struct timeval));
+    // Set connection timeout...
+    sock_setsockopt(newConn->socket,IPPROTO_TCP,TCP_CONNECTIONTIMEOUT,(const void*)&timeout,sizeof(struct timeval));
 
     // Bind socket to a particular host connection
     if((error = sock_bind(newConn->socket,(sockaddr*)hostSockaddr)))
@@ -1489,7 +1492,10 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     if((error = sock_connect(newConn->socket,(sockaddr*)portalSockaddr,0)))
         goto SOCKET_CONNECT_FAILURE;
 
-//TODO: connect with timeout
+    // Set socket to non-blocking & set timeouts
+    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_SNDTIMEO,(const void*)&timeout,sizeof(struct timeval));
+    sock_setsockopt(newConn->socket,SOL_SOCKET,SO_RCVTIMEO,(const void*)&timeout,sizeof(struct timeval));
+
     // Initialize queue that keeps track of connection speed
     memset(newConn->bytesPerSecondHistory,0,sizeof(UInt8)*newConn->kBytesPerSecAvgWindowSize);
     newConn->bytesPerSecHistoryIdx = 0;
