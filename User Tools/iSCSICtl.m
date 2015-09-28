@@ -312,17 +312,6 @@ void iSCSICtlDisplayString(CFStringRef string)
     CFWriteStreamWrite(stdoutStream,buffer,usedBufLen);
 }
 
-/*! Displays a list of valid command-line options. */
-void iSCSICtlDisplayUsage()
-{
-// TODO: print usage string
-    CFStringRef usage = CFSTR(
-        "usage: iscisctl ...\n");
-    
-    iSCSICtlDisplayString(usage);
-    CFRelease(usage);
-}
-
 /*! Displays error for a missing option.
  *  @param option the missing option. */
 void iSCSICtlDisplayMissingOptionError(CFStringRef option)
@@ -345,6 +334,17 @@ void iSCSICtlDisplayError(CFStringRef errorString)
     CFStringRef error = CFStringCreateWithFormat(
         kCFAllocatorDefault,NULL,CFSTR("%s: %@\n"),executableName,errorString);
     
+    iSCSICtlDisplayString(error);
+    CFRelease(error);
+}
+
+/*! Displays a C error code. 
+ *  @param errorCode the C error code. */
+void iSCSICtlDisplayErrorCode(errno_t errorCode)
+{
+    CFStringRef error = CFStringCreateWithFormat(
+        kCFAllocatorDefault,NULL,CFSTR("%s: %s\n"),executableName,strerror(errorCode));
+
     iSCSICtlDisplayString(error);
     CFRelease(error);
 }
@@ -492,13 +492,13 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
         CFStringRef hostInterface = iSCSIPortalGetHostInterface(portal);
         if (statusCode == kiSCSILogoutSuccess) {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                CFSTR("Login to <target: %@ portal: %@:%@ if: %@> successful\n"),
+                CFSTR("Login to <%@,%@:%@ interface %@> successful\n"),
                 targetIQN,portalAddress,portalPort,hostInterface);
         }
         else
         {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                CFSTR("Login to <target: %@ portal: %@:%@ if: %@> failed: %@\n"),
+                CFSTR("Login to <%@,%@:%@ interface %@> failed: %@\n"),
                 targetIQN,portalAddress,portalPort,
                 hostInterface,iSCSICtlGetStringForLoginStatus(statusCode));
         }
@@ -506,10 +506,10 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
     } else {
         if (statusCode == kiSCSILogoutSuccess) {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Login to <target: %@> successful\n"),targetIQN);
+                                                    CFSTR("Login to <%@> successful\n"),targetIQN);
         } else {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Login to <target: %@ portal: <all>> failed: %@\n"),
+                                                    CFSTR("Login to <%@> failed: %@\n"),
                                                     targetIQN,
                                                     iSCSICtlGetStringForLoginStatus(statusCode));
         }
@@ -588,26 +588,27 @@ void iSCSICtlDisplayLogoutStatus(enum iSCSILogoutStatusCode statusCode,
         CFStringRef hostInterface = iSCSIPortalGetHostInterface(portal);
         if (statusCode == kiSCSILogoutSuccess) {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Logout of <target: %@ portal: %@:%@ if: %@> successful\n"),
+                                                    CFSTR("Logout of <%@,%@:%@ interface %@> successful\n"),
                                                     targetIQN,portalAddress,portalPort,hostInterface);
         } else {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Logout of <target: %@ portal: %@:%@ if: %@> failed: %@\n"),
+                                                    CFSTR("Logout of <%@,%@:%@ interface %@> failed: %@\n"),
                                                     targetIQN,portalAddress,portalPort,
                                                     hostInterface,iSCSICtlGetStringForLogoutStatus(statusCode));
         }
-        
+
     } else {
         if (statusCode == kiSCSILogoutSuccess) {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Logout of <target: %@> successful\n"),targetIQN);
+                                                    CFSTR("Logout of <%@> successful\n"),targetIQN);
         } else {
             logoutStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                                    CFSTR("Logout of <target: %@ portal: <all>> failed: %@\n"),
+                                                    CFSTR("Logout of <%@> failed: %@\n"),
                                                     targetIQN,
                                                     iSCSICtlGetStringForLogoutStatus(statusCode));
         }
     }
+
     iSCSICtlDisplayString(logoutStatus);
     CFRelease(logoutStatus);
 }
@@ -726,9 +727,6 @@ errno_t iSCSICtlModifyPortalFromOptions(CFDictionaryRef options,
     if(CFDictionaryContainsKey(options,kOptAutostart))
         iSCSIPortalSetAutostart(portal,iSCSIPortalGetAutostart(portalUpdates));
 
-
-    iSCSICtlDisplayString(CFSTR("Portal settings have been updated\n"));
-
     return 0;
 }
 
@@ -820,6 +818,8 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
         if(!error)
             iSCSICtlDisplayLoginStatus(statusCode,target,NULL);
+        else
+            iSCSICtlDisplayErrorCode(error);
     }
 
     iSCSITargetRelease(target);
@@ -866,12 +866,9 @@ errno_t iSCSICtlLogout(iSCSIDaemonHandle handle,CFDictionaryRef options)
         error = iSCSIDaemonLogout(handle, target, portal, &statusCode);
 
         if(!error)
-            iSCSICtlDisplayLogoutStatus(statusCode,target,portal);
-        else {
-            CFStringRef errorString = CFStringCreateWithCString(kCFAllocatorDefault,strerror(error),kCFStringEncodingASCII);
-            iSCSICtlDisplayError(errorString);
-            CFRelease(errorString);
-        }
+            iSCSICtlDisplayLogoutStatus(statusCode,target,NULL);
+        else
+            iSCSICtlDisplayErrorCode(error);
     }
 
     if(portal)
@@ -963,8 +960,8 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     // Verify that the target is not a dynamic target managed by iSCSI
     // discovery
     if(iSCSIPLGetTargetConfigType(targetIQN) == kiSCSITargetConfigDynamicSendTargets) {
-        iSCSICtlDisplayString(CFSTR("The specified target is dynamically configured. "
-                                   "Remove the discovery portal to remove the target\n"));
+        iSCSICtlDisplayString(CFSTR("The target is configured using iSCSI discovery (.. "
+                                    "Remove the discovery portal to remove the target\n"));
         error = EINVAL;
     }
 
@@ -1258,6 +1255,11 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
             else {
                 iSCSICtlModifyPortalFromOptions(options,portal);
                 iSCSIPLSetPortalForTarget(targetIQN,portal);
+
+                if(!iSCSIPLSynchronize())
+                    iSCSICtlDisplayPermissionsError();
+                else
+                    iSCSICtlDisplayString(CFSTR("Portal settings have been updated\n"));
             }
 
         }
@@ -1267,12 +1269,14 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 iSCSICtlDisplayString(CFSTR("The specified target has an active session and cannot be modified\n"));
             else {
                 iSCSICtlModifyTargetFromOptions(options,target,portal);
+                if(!iSCSIPLSynchronize())
+                    iSCSICtlDisplayPermissionsError();
+                else
+                    iSCSICtlDisplayString(CFSTR("Target settings have been updated\n"));
+
             }
         }
     }
-
-    if(!error)
-        iSCSIPLSynchronize();
 
     if(portal)
         iSCSIPortalRelease(portal);
@@ -2152,7 +2156,7 @@ int main(int argc, char * argv[])
         case kiSCSICtlCmdReset:
             error = iSCSICtlReset(handle,optDictionary); break;
         case kiSCSICtlCmdInvalid:
-            iSCSICtlDisplayUsage();
+            iSCSICtlListTargets(handle,optDictionary); break;
     };
 
     iSCSIDaemonDisconnect(handle);
