@@ -99,12 +99,13 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
     return status;
 }
 
-/*! Renames the iSCSI node in they keychain.
- *  @param oldNodeIQN the old node iSCSI qualified name (IQN).
- *  @param newNodeIQN the new node iSCSI qualified name (IQN). */
-void iSCSIKeychainRenameNode(CFStringRef oldNodeIQN,CFStringRef newNodeIQN)
+/*! Removes the shared secret associated with a particular
+ *  iSCSI node (either initiator or target) from the system keychain. 
+ *  @param nodeIQN the iSCSI qualified name of the target or initiator.
+ *  @param return error code indicating the result of the operation. */
+OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
 {
-    SecKeychainRef sysKeychain;
+    SecKeychainRef sysKeychain = NULL;
     OSStatus status;
     SecKeychainItemRef item = NULL;
 
@@ -114,31 +115,22 @@ void iSCSIKeychainRenameNode(CFStringRef oldNodeIQN,CFStringRef newNodeIQN)
     if(status == errSecSuccess)
         status = SecKeychainUnlock(sysKeychain,0,NULL,false);
 
-    UInt32 sharedSecretLength = 0;
-    void * sharedSecretData = NULL;
-
     if(status == errSecSuccess) {
         status = SecKeychainFindGenericPassword(sysKeychain,
             (UInt32)CFStringGetLength(kiSCSISecCHAPService),
             CFStringGetCStringPtr(kiSCSISecCHAPService,kCFStringEncodingASCII),
-            (UInt32)CFStringGetLength(oldNodeIQN),
-            CFStringGetCStringPtr(oldNodeIQN,kCFStringEncodingASCII),
-            &sharedSecretLength,&sharedSecretData,&item);
+            (UInt32)CFStringGetLength(nodeIQN),
+            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
+            0,0,&item);
     }
 
-    if(status == errSecSuccess) {
+    // Remove item from keychain
+    if(status == errSecSuccess)
+        SecKeychainItemDelete(item);
 
-        SecKeychainAttribute attributes[] = {
-            { kSecAccountItemAttr,
-              (UInt32)CFStringGetLength(newNodeIQN),
-              (void*)CFStringGetCStringPtr(newNodeIQN,kCFStringEncodingASCII) }
-        };
-
-        SecKeychainAttributeList attrList[] = { 1, attributes };
-
-        status = SecKeychainItemModifyContent(item,attrList,0,NULL);
-    }
+    return status;
 }
+
 
 /*! Gets whether a CHAP secret exists for the specified node.
  *  @param nodeIQN the node to test.

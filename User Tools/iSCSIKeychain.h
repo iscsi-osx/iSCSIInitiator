@@ -34,10 +34,11 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN);
 OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
                                            CFStringRef sharedSecret);
 
-/*! Renames the iSCSI node in they keychain.
- *  @param oldNodeIQN the old node iSCSI qualified name (IQN).
- *  @param newNodeIQN the new node iSCSI qualified name (IQN). */
-void iSCSIKeychainRenameNode(CFStringRef oldNodeIQN,CFStringRef newNodeIQN);
+/*! Removes the shared secret associated with a particular
+ *  iSCSI node (either initiator or target) from the system keychain.
+ *  @param nodeIQN the iSCSI qualified name of the target or initiator.
+ *  @param return error code indicating the result of the operation. */
+OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN);
 
 /*! Gets whether a CHAP secret exists for the specified node.
  *  @param nodeIQN the node to test.
