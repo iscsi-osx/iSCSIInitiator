@@ -76,21 +76,36 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     address.sun_family = AF_LOCAL;
     strcpy(address.sun_path,"/tmp/iscsid_local");
     
-    // Set the timeout for this socket so that the client will quit if
-    // the daemon isn't running (otherwise it will hang on the non-blocking
-    // socket
+    // Do non-blocking connect
+    fcntl(handle,F_SETFL,O_NONBLOCK);
+    connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address));
+
+    // Set timeout for connect()
     struct timeval tv;
     memset(&tv,0,sizeof(tv));
     tv.tv_usec = 2000000;
-    setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
-    setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
 
-    // Connect to local socket and return handle
-    if(connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address))==0)
-        return handle;
+    fd_set fdset;
+    FD_ZERO(&fdset);
+    FD_SET(handle,&fdset);
+
+    if(select(handle,NULL,&fdset,NULL,&tv)) {
+        errno_t error;
+        socklen_t errorSize = sizeof(errno_t);
+        getsockopt(handle, SOL_SOCKET, SO_ERROR,&error,&errorSize);
+
+        if(error) {
+            close(handle);
+            handle = -1;
+        }
+        else {
+            // Set send & receive timeouts
+            setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
+            setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
+        }
+    }
     
-    close(handle);
-    return -1;
+    return handle;
 }
 
 void iSCSIDaemonDisconnect(iSCSIDaemonHandle handle)
