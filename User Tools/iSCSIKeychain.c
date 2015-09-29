@@ -9,44 +9,37 @@
 
 #include "iSCSIKeychain.h"
 
-/*! The iSCSI service name to use when storing CHAP information in the
- *  OS X keychain. */
-CFStringRef kiSCSISecCHAPService = CFSTR("iSCSI CHAP");
-
 /*! Copies a shared secret associated with a particular
  *  iSCSI node (either initiator or target) to the system keychain.
  *  @param nodeIQN the iSCSI qualified name of the target or initiator.
  *  @return the shared secret for the specified node. */
 CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN)
 {
-    SecKeychainRef sysKeychain = NULL;
     CFStringRef sharedSecret = NULL;
     OSStatus status;
     SecKeychainItemRef item = NULL;
 
     // Get the system keychain and unlock it (prompts user if required)
-    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&sysKeychain);
-
-    if(status == errSecSuccess)
-        status = SecKeychainUnlock(sysKeychain,0,NULL,false);
+    SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
 
     UInt32 sharedSecretLength = 0;
     void * sharedSecretData = NULL;
 
-    if(status == errSecSuccess) {
-        SecKeychainFindGenericPassword(sysKeychain,
-            (UInt32)CFStringGetLength(kiSCSISecCHAPService),
-            CFStringGetCStringPtr(kiSCSISecCHAPService,kCFStringEncodingASCII),
+    status = SecKeychainFindGenericPassword(NULL,
+            (UInt32)CFStringGetLength(nodeIQN),
+            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
             (UInt32)CFStringGetLength(nodeIQN),
             CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
             &sharedSecretLength,
             &sharedSecretData,&item);
 
-        if(sharedSecretData)
-            sharedSecret = CFStringCreateWithCString(kCFAllocatorDefault,
-                                                     sharedSecretData,
-                                                     kCFStringEncodingASCII);
+    if(sharedSecretData) {
+        sharedSecret = CFStringCreateWithCString(kCFAllocatorDefault,
+                                                 sharedSecretData,
+                                                 kCFStringEncodingASCII);
+        SecKeychainItemFreeContent(NULL,sharedSecretData);
     }
+
     return sharedSecret;
 }
 
@@ -65,35 +58,36 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
     SecKeychainItemRef item = NULL;
 
     // Get the system keychain and unlock it (prompts user if required)
-    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&sysKeychain);
+    SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
 
-    if(status == errSecSuccess)
-        status = SecKeychainUnlock(sysKeychain,0,NULL,false);
-
-    if(status == errSecSuccess) {
-        status = SecKeychainFindGenericPassword(sysKeychain,
-            (UInt32)CFStringGetLength(kiSCSISecCHAPService),
-            CFStringGetCStringPtr(kiSCSISecCHAPService,kCFStringEncodingASCII),
+    SecKeychainFindGenericPassword(NULL,
+            (UInt32)CFStringGetLength(nodeIQN),
+            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
             (UInt32)CFStringGetLength(nodeIQN),
             CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
             0,0,&item);
-    }
 
     // Update the secret if it exists; else create a new entry
-    if(status == errSecSuccess) {
+    if(item) {
         status = SecKeychainItemModifyContent(item,0,
             (UInt32)CFStringGetLength(sharedSecret),
             CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII));
+
+        CFRelease(item);
     }
     else {
-        SecKeychainItemRef item;
-        status = SecKeychainAddGenericPassword(sysKeychain,
-            (UInt32)CFStringGetLength(kiSCSISecCHAPService),
-            CFStringGetCStringPtr(kiSCSISecCHAPService,kCFStringEncodingASCII),
+        SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
+
+        status = SecKeychainAddGenericPassword(NULL,
             (UInt32)CFStringGetLength(nodeIQN),
             CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
-            (UInt32)CFStringGetLength(sharedSecret),
-            CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),&item);
+            (UInt32)CFStringGetLength(nodeIQN),
+            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
+            (UInt32)CFStringGetLength(sharedSecret)+1,  // Include NULL character
+            CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),NULL);
+
+        if(sysKeychain)
+            CFRelease(sysKeychain);
     }
 
     return status;
@@ -110,27 +104,25 @@ OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
     SecKeychainItemRef item = NULL;
 
     // Get the system keychain and unlock it (prompts user if required)
-    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&sysKeychain);
+    SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
 
-    if(status == errSecSuccess)
-        status = SecKeychainUnlock(sysKeychain,0,NULL,false);
-
-    if(status == errSecSuccess) {
-        status = SecKeychainFindGenericPassword(sysKeychain,
-            (UInt32)CFStringGetLength(kiSCSISecCHAPService),
-            CFStringGetCStringPtr(kiSCSISecCHAPService,kCFStringEncodingASCII),
+    status = SecKeychainFindGenericPassword(NULL,
+            (UInt32)CFStringGetLength(nodeIQN),
+            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
             (UInt32)CFStringGetLength(nodeIQN),
             CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
             0,0,&item);
-    }
 
     // Remove item from keychain
-    if(status == errSecSuccess)
+    if(status == errSecSuccess) {
         SecKeychainItemDelete(item);
+    }
+
+    if(sysKeychain)
+        CFRelease(sysKeychain);
 
     return status;
 }
-
 
 /*! Gets whether a CHAP secret exists for the specified node.
  *  @param nodeIQN the node to test.

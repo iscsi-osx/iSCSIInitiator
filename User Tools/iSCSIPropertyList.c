@@ -723,12 +723,19 @@ void iSCSIPLSetInitiatorIQN(CFStringRef initiatorIQN)
         initiatorCache = iSCSIPLCreateInitiatorDict();
 
     // Update keychain if necessary
-    CFStringRef oldInitiatorIQN = iSCSIPLCopyInitiatorIQN();
-    iSCSIKeychainRenameNode(oldInitiatorIQN,initiatorIQN);
+    CFStringRef existingIQN = iSCSIPLCopyInitiatorIQN();
+
+    CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(existingIQN);
+
+    if(secret) {
+        iSCSIKeychainSetCHAPSecretForNode(initiatorIQN,secret);
+        CFRelease(secret);
+        iSCSIKeychainDeleteCHAPSecretForNode(existingIQN);
+    }
 
     // Update initiator name
     CFDictionarySetValue(initiatorCache,kiSCSIPKInitiatorIQN,initiatorIQN);
-    CFRelease(oldInitiatorIQN);
+    CFRelease(existingIQN);
 
     initiatorNodeCacheModified = true;
 }
@@ -875,7 +882,13 @@ void iSCSIPLSetTargetIQN(CFStringRef existingIQN,CFStringRef newIQN)
         CFDictionaryRemoveValue(targetNodes,existingIQN);
 
         // Rename keychain if required
-        iSCSIKeychainRenameNode(existingIQN,newIQN);
+        if(iSCSIKeychainContainsCHAPSecretForNode(existingIQN)) {
+            CFStringRef secret = iSCSIKeychainCopyCHAPSecretForNode(existingIQN);
+            iSCSIKeychainSetCHAPSecretForNode(newIQN,secret);
+            CFRelease(secret);
+
+            iSCSIKeychainDeleteCHAPSecretForNode(existingIQN);
+        }
 
         targetNodesCacheModified = true;
     }
