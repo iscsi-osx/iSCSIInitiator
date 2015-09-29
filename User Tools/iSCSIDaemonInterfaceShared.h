@@ -257,36 +257,6 @@ typedef struct iSCSIDRspIsPortalActive {
 
 } __attribute__((packed)) iSCSIDRspIsPortalActive;
 
-/*! Command to query a portal for targets. */
-typedef struct iSCSIDCmdQueryPortalForTargets {
-    
-    const UInt16 funcCode;
-    UInt16  reserved;
-    UInt32  reserved2;
-    UInt32  reserved3;
-    UInt32  portalLength;
-    UInt32  authLength;
-    UInt32  reserved5;
-
-} __attribute__((packed)) iSCSIDCmdQueryPortalForTargets;
-
-/*! Default initialization for a portal query command. */
-extern const iSCSIDCmdQueryPortalForTargets iSCSIDCmdQueryPortalForTargetsInit;
-
-/*! Response to query a portal for targets.  This response typedef struct is followed
- *  by a discovery record (an iSCSIDiscoveryRec object).  */
-typedef struct iSCSIDRspQueryPortalForTargets {
-    
-    const UInt8 funcCode;
-    UInt8 reserved;
-    UInt32 errorCode;
-    UInt16  statusCode;
-    UInt32 reserved2;
-    UInt32 reserved3;
-    UInt32 discoveryLength;
-    UInt32 reserved4;
-    
-} __attribute__((packed)) iSCSIDRspQueryPortalForTargets;
 
 /*! Command to query target for authentication method. */
 typedef struct iSCSIDCmdQueryTargetForAuthMethod {

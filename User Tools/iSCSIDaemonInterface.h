@@ -82,19 +82,6 @@ Boolean iSCSIDaemonIsPortalActive(iSCSIDaemonHandle handle,
                                   iSCSITargetRef target,
                                   iSCSIPortalRef portal);
 
-/*! Queries a portal for available targets.
- *  @param handle a handle to a daemon connection.
- *  @param portal the iSCSI portal to query.
- *  @param auth specifies the authentication parameters to use.
- *  @param discoveryRec a discovery record, containing the query results.
- *  @param statusCode iSCSI response code indicating operation status.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
-                                         iSCSIPortalRef portal,
-                                         iSCSIAuthRef auth,
-                                         iSCSIMutableDiscoveryRecRef * discoveryRec,
-                                         enum iSCSILoginStatusCode * statuscode);
-
 /*! Retrieves a list of targets available from a give portal.
  *  @param handle a handle to a daemon connection.
  *  @param portal the iSCSI portal to look for targets.

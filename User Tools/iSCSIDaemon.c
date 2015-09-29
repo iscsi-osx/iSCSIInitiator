@@ -81,13 +81,6 @@ const struct iSCSIDRspIsPortalActive iSCSIDRspIsPortalActiveInit = {
     .active = false
 };
 
-const struct iSCSIDRspQueryPortalForTargets iSCSIDRspQueryPortalForTargetsInit = {
-    .funcCode = kiSCSIDQueryPortalForTargets,
-    .errorCode = 0,
-    .statusCode = (UInt8) kiSCSILogoutInvalidStatusCode,
-    .discoveryLength = 0
-};
-
 const struct iSCSIDRspQueryTargetForAuthMethod iSCSIDRspQueryTargetForAuthMethodInit = {
     .funcCode = kiSCSIDQueryTargetForAuthMethod,
     .errorCode = 0,
@@ -648,55 +641,6 @@ errno_t iSCSIDIsPortalActive(int fd,struct iSCSIDCmdIsPortalActive *cmd)
 }
 
 
-errno_t iSCSIDQueryPortalForTargets(int fd,struct iSCSIDCmdQueryPortalForTargets * cmd)
-{
-    // Grab objects from stream
-    iSCSIPortalRef portal = iSCSIDCreateObjectFromSocket(fd,cmd->portalLength,
-                                                         (void *(* )(CFDataRef))&iSCSIPortalCreateWithData);
-
-    // Grab objects from stream
-    iSCSIAuthRef auth = iSCSIDCreateObjectFromSocket(fd,cmd->authLength,
-                                                     (void *(* )(CFDataRef))&iSCSIAuthCreateWithData);
-
-    enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
-
-    iSCSIMutableDiscoveryRecRef discoveryRec;
-    errno_t error = iSCSIQueryPortalForTargets(portal,auth,&discoveryRec,&statusCode);
-
-    iSCSIPortalRelease(portal);
-    iSCSIAuthRelease(auth);
-
-    // Compose a response to send back to the client
-    struct iSCSIDRspQueryPortalForTargets rsp = iSCSIDRspQueryPortalForTargetsInit;
-    rsp.errorCode = error;
-    rsp.statusCode = statusCode;
-    CFDataRef data = NULL;
-
-    // If a discovery record was returned, get data and free discovery object
-    if(discoveryRec) {
-        data = iSCSIDiscoveryRecCreateData(discoveryRec);
-        iSCSIDiscoveryRecRelease(discoveryRec);
-        rsp.discoveryLength = (UInt32)CFDataGetLength(data);
-    }
-
-    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
-    {
-        CFRelease(data);
-        return EAGAIN;
-    }
-
-    // Send discovery data if any
-    if(data) {
-        if(send(fd,CFDataGetBytePtr(data),CFDataGetLength(data),0) != CFDataGetLength(data))
-        {
-            CFRelease(data);
-            return EAGAIN;
-        }
-        CFRelease(data);
-    }
-    return 0;
-}
-
 errno_t iSCSIDQueryTargetForAuthMethod(int fd,struct iSCSIDCmdQueryTargetForAuthMethod * cmd)
 {
     // Grab objects from stream
@@ -941,8 +885,6 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
                 error = iSCSIDIsTargetActive(fd,(iSCSIDCmdIsTargetActive*)&cmd); break;
             case kiSCSIDIsPortalActive:
                 error = iSCSIDIsPortalActive(fd,(iSCSIDCmdIsPortalActive*)&cmd); break;
-            case kiSCSIDQueryPortalForTargets:
-                error = iSCSIDQueryPortalForTargets(fd,(iSCSIDCmdQueryPortalForTargets*)&cmd); break;
             case kiSCSIDQueryTargetForAuthMethod:
                 error = iSCSIDQueryTargetForAuthMethod(fd,(iSCSIDCmdQueryTargetForAuthMethod*)&cmd); break;
             case kiSCSIDCreateCFPropertiesForSession:

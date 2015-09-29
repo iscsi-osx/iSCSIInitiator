@@ -45,10 +45,6 @@ const struct iSCSIDCmdIsPortalActive iSCSIDCmdIsPortalActiveInit  = {
     .portalLength = 0
 };
 
-const struct iSCSIDCmdQueryPortalForTargets iSCSIDCmdQueryPortalForTargetsInit  = {
-    .funcCode = kiSCSIDQueryPortalForTargets,
-};
-
 const struct iSCSIDCmdQueryTargetForAuthMethod iSCSIDCmdQueryTargetForAuthMethodInit  = {
     .funcCode = kiSCSIDQueryTargetForAuthMethod,
 };
@@ -316,68 +312,6 @@ Boolean iSCSIDaemonIsPortalActive(iSCSIDaemonHandle handle,
         return false;
     
     return rsp.active;
-}
-
-
-/*! Queries a portal for available targets.
- *  @param handle a handle to a daemon connection.
- *  @param portal the iSCSI portal to query.
- *  @param auth specifies the authentication parameters to use.
- *  @param discoveryRec a discovery record, containing the query results.
- *  @param statusCode iSCSI response code indicating operation status.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
-                                         iSCSIPortalRef portal,
-                                         iSCSIAuthRef auth,
-                                         iSCSIMutableDiscoveryRecRef * discoveryRec,
-                                         enum iSCSILoginStatusCode * statusCode)
-{
-    // Validate inputs
-    if(handle < 0 || !portal || !auth || !discoveryRec || !statusCode)
-        return EINVAL;
-    
-    // Generate data to transmit (no longer need target object after this)
-    CFDataRef portalData = iSCSIPortalCreateData(portal);
-    CFDataRef authData = iSCSIAuthCreateData(auth);
-    
-    // Create command header to transmit
-    iSCSIDCmdQueryPortalForTargets cmd = iSCSIDCmdQueryPortalForTargetsInit;
-    cmd.portalLength = (UInt32)CFDataGetLength(portalData);
-    cmd.authLength = (UInt32)CFDataGetLength(authData);
-    
-    if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,portalData,authData,NULL))
-    {
-        CFRelease(portalData);
-        CFRelease(authData);
-        return EIO;
-    }
-
-    CFRelease(portalData);
-    CFRelease(authData);
-    iSCSIDRspQueryPortalForTargets rsp;
-    
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
-    
-    // Retrieve the discovery record...
-    UInt8 * bytes = malloc(rsp.discoveryLength);
-    
-    if(bytes && (recv(handle,bytes,rsp.discoveryLength,0) != rsp.discoveryLength))
-    {
-        free(bytes);
-        return EIO;
-    }
-    
-    CFDataRef discData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,bytes,
-                                                     rsp.discoveryLength,
-                                                     kCFAllocatorMalloc);
-    *discoveryRec = iSCSIDiscoveryRecCreateMutableWithData(discData);
-    CFRelease(discData);
-    if(!discoveryRec)
-        return EIO;
-    
-    *statusCode = rsp.statusCode;
-    return rsp.errorCode;
 }
 
 
