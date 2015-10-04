@@ -1439,9 +1439,6 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     // Initialize default error (try again)
     errno_t error = EAGAIN;
 
-    // Define non-blocking socket parameter
-    const int NO_BLOCK = 1;
-    
     if(!(newConn->taskQueue = OSTypeAlloc(iSCSITaskQueue)))
         goto TASKQUEUE_ALLOC_FAILURE;
     
