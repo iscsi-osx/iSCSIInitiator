@@ -975,6 +975,8 @@ int main(void)
     CFRunLoopSourceRef clientSockSource = CFSocketCreateRunLoopSource(kCFAllocatorDefault,socket,0);
     CFRunLoopAddSource(CFRunLoopGetMain(),clientSockSource,kCFRunLoopDefaultMode);
 
+    iSCSIDLogError(CFSTR("daemon started."));
+
     // Initialize iSCSI connection to kernel (ability to call iSCSI kernel
     // functions and receive notifications from the kernel).
     iSCSIInitialize(CFRunLoopGetMain());
