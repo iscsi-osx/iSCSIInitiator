@@ -5,9 +5,7 @@
 	<key>KeepAlive</key>
 	<true/>
 	<key>StandardErrorPath</key>
-	<string>/var/log/iscsid.log</string>
-	<key>ServiceIPC</key>
-	<true/>
+	<string>/var/log/iscsid</string>
 	<key>Sockets</key>
 	<dict>
 		<key>iscsid</key>
