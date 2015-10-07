@@ -465,8 +465,10 @@ void iSCSIPLSetDataDigestForTarget(CFStringRef targetIQN,enum iSCSIDigestTypes d
             case kiSCSIDigestInvalid: break;
         };
 
-        if(digest)
+        if(digest) {
             CFDictionarySetValue(targetDict,kiSCSIPKDataDigest,digest);
+            targetNodesCacheModified = true;
+        }
     }
 }
 
@@ -507,8 +509,10 @@ void iSCSIPLSetHeaderDigestForTarget(CFStringRef targetIQN,enum iSCSIDigestTypes
             case kiSCSIDigestInvalid: break;
         };
 
-        if(digest)
+        if(digest) {
             CFDictionarySetValue(targetDict,kiSCSIPKHeaderDigest,digest);
+            targetNodesCacheModified = true;
+        }
     }
 }
 
