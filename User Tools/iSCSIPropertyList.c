@@ -699,6 +699,9 @@ void iSCSIPLRemoveTarget(CFStringRef targetIQN)
         CFDictionaryRemoveValue(targetsList,targetIQN);
         targetNodesCacheModified = true;
     }
+
+    // Remove CHAP secret if one exists
+    iSCSIKeychainDeleteCHAPSecretForNode(targetIQN);
 }
 
 /*! Copies the initiator name from the iSCSI property list to a CFString object.
