@@ -129,11 +129,30 @@ OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
  *  @return true if a CHAP secret exists for the specified node. */
 Boolean iSCSIKeychainContainsCHAPSecretForNode(CFStringRef nodeIQN)
 {
-    CFStringRef secret = NULL;
-    if((secret = iSCSIKeychainCopyCHAPSecretForNode(nodeIQN))) {
-        CFRelease(secret);
-        return true;
-    }
-    return false;
+    // Get the system keychain and unlock it (prompts user if required)
+    SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
+
+    SecKeychainItemRef item = NULL;
+
+    CFStringRef keys[] = {
+        kSecClass,
+        kSecAttrAccount
+
+    };
+
+    CFStringRef values[] = {
+        kSecClassGenericPassword,
+        nodeIQN,
+    };
+
+    CFDictionaryRef query = CFDictionaryCreate(kCFAllocatorDefault,
+                                               (void*)keys,(void*)values,
+                                               sizeof(keys)/sizeof(void*),
+                                               &kCFTypeDictionaryKeyCallBacks,
+                                               &kCFTypeDictionaryValueCallBacks);
+
+    SecItemCopyMatching(query,(CFTypeRef *)&item);
+
+    return (item != NULL);
 }
 
