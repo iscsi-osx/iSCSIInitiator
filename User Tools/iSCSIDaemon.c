@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <asl.h>
 
 // Foundation includes
 #include <launch.h>
@@ -105,18 +106,6 @@ const struct iSCSIDRspUpdateDiscovery iSCSIDRspUpdateDiscoveryInit = {
     .errorCode = 0,
 };
 
-
-void iSCSIDLogError(CFStringRef logEntry)
-{
-    CFStringRef stamp = CFDateFormatterCreateStringWithAbsoluteTime(
-                                                kCFAllocatorDefault,
-                                                0,
-                                                CFAbsoluteTimeGetCurrent());
-    fprintf(stderr,"%s %s\n",
-            CFStringGetCStringPtr(stamp,kCFStringEncodingASCII),
-            CFStringGetCStringPtr(logEntry,kCFStringEncodingASCII));
-}
-
 iSCSISessionConfigRef iSCSIDCreateSessionConfig(CFStringRef targetIQN)
 {
     iSCSIMutableSessionConfigRef config = iSCSISessionConfigCreateMutable();
@@ -162,11 +151,11 @@ iSCSIAuthRef iSCSIDCreateAuthenticationForTarget(CFStringRef targetIQN)
         CFStringRef sharedSecret = iSCSIPLCopyTargetCHAPSecret(targetIQN);
 
         if(!name) {
-            iSCSIDLogError(CFSTR("CHAP name for target has not been set, reverting to no authentication."));
+            asl_log_message(ASL_LEVEL_WARNING,"CHAP name for target has not been set, reverting to no authentication");
             auth = iSCSIAuthCreateNone();
         }
         else if(!sharedSecret) {
-            iSCSIDLogError(CFSTR("CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication."));
+            asl_log_message(ASL_LEVEL_WARNING,"CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication");
             auth = iSCSIAuthCreateNone();
         }
         else {
@@ -196,11 +185,11 @@ iSCSIAuthRef iSCSIDCreateAuthenticationForInitiator()
         CFStringRef sharedSecret = iSCSIPLCopyInitiatorCHAPSecret();
 
         if(!name) {
-            iSCSIDLogError(CFSTR("CHAP name for target has not been set, reverting to no authentication."));
+            asl_log_message(ASL_LEVEL_WARNING,"CHAP name for target has not been set, reverting to no authentication.");
             auth = iSCSIAuthCreateNone();
         }
         else if(!sharedSecret) {
-            iSCSIDLogError(CFSTR("CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication."));
+            asl_log_message(ASL_LEVEL_WARNING,"CHAP secret is missing or insufficient privileges to system keychain, reverting to no authentication.");
             auth = iSCSIAuthCreateNone();
         }
         else {
@@ -255,6 +244,21 @@ errno_t iSCSIDLoginCommon(SID sessionId,
         error = iSCSILoginSession(target,portal,initiatorAuth,targetAuth,sessCfg,connCfg,&sessionId,&connectionId,statusCode);
     else
         error = iSCSILoginConnection(sessionId,portal,initiatorAuth,targetAuth,connCfg,&connectionId,statusCode);
+
+    // Log error message
+    if(error) {
+        CFStringRef errorString = CFStringCreateWithFormat(
+            kCFAllocatorDefault,0,
+            CFSTR("Login to <%@,%@:%@ interface %@> failed: %s\n"),
+            targetIQN,
+            iSCSIPortalGetAddress(portal),
+            iSCSIPortalGetPort(portal),
+            iSCSIPortalGetHostInterface(portal),
+            strerror(error));
+
+        asl_log_message(ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        CFRelease(errorString);
+    }
 
     return error;
 }
@@ -480,12 +484,23 @@ errno_t iSCSIDLogout(int fd,struct iSCSIDCmdLogout * cmd)
             errorCode = iSCSILogoutSession(sessionId,&statusCode);
         else
             errorCode = iSCSILogoutConnection(sessionId,connectionId,&statusCode);
-        /*
-         if(!error)
-         iSCSICtlDisplayLogoutStatus(statusCode,target,portal);
-         else
-         iSCSICtlDisplayError(strerror(error));*/
     }
+
+    // Log error message
+    if(errorCode) {
+        CFStringRef errorString = CFStringCreateWithFormat(
+            kCFAllocatorDefault,0,
+            CFSTR("Logout of <%@,%@:%@ interface %@> failed: %s\n"),
+            iSCSITargetGetIQN(target),
+            iSCSIPortalGetAddress(portal),
+            iSCSIPortalGetPort(portal),
+            iSCSIPortalGetHostInterface(portal),
+            strerror(errorCode));
+
+        asl_log_message(ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        CFRelease(errorString);
+    }
+
 
     if(portal)
         iSCSIPortalRelease(portal);
@@ -699,7 +714,7 @@ errno_t iSCSIDCreateCFPropertiesForSession(int fd,struct iSCSIDCmdCreateCFProper
     // Send data if any
     if(data && !error) {
         if(send(fd,CFDataGetBytePtr(data),CFDataGetLength(data),0) != CFDataGetLength(data))
-            error =  EAGAIN;
+            error = EAGAIN;
         
         CFRelease(data);
     }
@@ -904,6 +919,9 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
 /*! iSCSI daemon entry point. */
 int main(void)
 {
+    // Initialize logging
+    asl_open(NULL,NULL,ASL_OPT_STDERR);
+
     // Read configuration parameters from the iSCSI property list
     iSCSIPLSynchronize();
 
@@ -915,7 +933,7 @@ int main(void)
         CFRelease(initiatorIQN);
     }
     else {
-        iSCSIDLogError(CFSTR("initiator IQN not set, reverting to internal default."));
+        asl_log_message(ASL_LEVEL_WARNING,"initiator IQN not set, reverting to internal default");
     }
 
     CFStringRef initiatorAlias = iSCSIPLCopyInitiatorAlias();
@@ -925,7 +943,7 @@ int main(void)
         CFRelease(initiatorAlias);
     }
     else {
-        iSCSIDLogError(CFSTR("initiator alias not set, reverting to internal default."));
+        asl_log_message(ASL_LEVEL_WARNING,"initiator alias not set, reverting to internal default");
     }
 
     // Register with launchd so it can manage this daemon
@@ -933,7 +951,7 @@ int main(void)
 
     // Quit if we are unable to checkin...
     if(!reg_request) {
-        iSCSIDLogError(CFSTR("fatal error: failed to checkin with launchd."));
+        asl_log_message(ASL_LEVEL_ALERT,"failed to checkin with launchd");
         goto ERROR_LAUNCH_DATA;
     }
 
@@ -941,7 +959,7 @@ int main(void)
 
     // Ensure registration was successful
     if((launch_data_get_type(reg_response) == LAUNCH_DATA_ERRNO)) {
-        iSCSIDLogError(CFSTR("fatal error: failed to checkin with launchd."));
+        asl_log_message(ASL_LEVEL_ALERT,"failed to checkin with launchd");
         goto ERROR_NO_SOCKETS;
     }
 
@@ -950,7 +968,7 @@ int main(void)
     launch_data_t sockets = launch_data_dict_lookup(reg_response,LAUNCH_JOBKEY_SOCKETS);
 
     if(!label || !sockets) {
-        iSCSIDLogError(CFSTR("fatal error: could not find socket definition, plist may be damaged."));
+        asl_log_message(ASL_LEVEL_ALERT,"could not find socket definition, plist may be damaged");
         goto ERROR_NO_SOCKETS;
     }
 
@@ -962,8 +980,10 @@ int main(void)
     // Grab handle to socket we want to listen on...
     launch_data_t listen_socket = launch_data_array_get_index(listen_socket_array,0);
 
-    if(!iSCSIDRegisterForPowerEvents())
+    if(!iSCSIDRegisterForPowerEvents()) {
+        asl_log_message(ASL_LEVEL_ALERT,"could not register to receive system power events");
         goto ERROR_PWR_MGMT_FAIL;
+    }
 
     // Create a socket that will
     CFSocketRef socket = CFSocketCreateWithNative(kCFAllocatorDefault,
@@ -975,7 +995,8 @@ int main(void)
     CFRunLoopSourceRef clientSockSource = CFSocketCreateRunLoopSource(kCFAllocatorDefault,socket,0);
     CFRunLoopAddSource(CFRunLoopGetMain(),clientSockSource,kCFRunLoopDefaultMode);
 
-    iSCSIDLogError(CFSTR("daemon started."));
+    asl_log_message(ASL_LEVEL_INFO,"daemon started");
+
 
     // Initialize iSCSI connection to kernel (ability to call iSCSI kernel
     // functions and receive notifications from the kernel).

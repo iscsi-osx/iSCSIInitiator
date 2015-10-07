@@ -8,9 +8,6 @@
 
 #include "iSCSIDiscovery.h"
 
-/*! Defined in iSCSIDaemon.c and used to log messages. */
-extern void iSCSIDLogError(CFStringRef logEntry);
-
 errno_t iSCSIDiscoveryAddTargetForSendTargets(CFStringRef targetIQN,
                                               iSCSIDiscoveryRecRef discoveryRec,
                                               CFStringRef discoveryPortal)
@@ -62,13 +59,15 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
         if(iSCSIPLContainsTarget(targetIQN) &&
            iSCSIPLGetTargetConfigType(targetIQN) != kiSCSITargetConfigDynamicSendTargets)
         {
-            CFStringRef errorString = CFStringCreateWithFormat(
+            CFStringRef statusString = CFStringCreateWithFormat(
                 kCFAllocatorDefault,0,
                 CFSTR("discovered target %@ already exists with static configuration."),
                 targetIQN);
-            
-            //            iSCSIDLogError(errorString);
-            CFRelease(errorString);
+
+            asl_log_message(ASL_LEVEL_INFO,"%s",
+                            CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+
+            CFRelease(statusString);
         }
         // Target doesn't exist, or target exists with SendTargets
         // configuration (add or update as necessary)
@@ -78,7 +77,10 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
                 kCFAllocatorDefault,0,
                 CFSTR("discovered target %@ over discovery portal %@."),
                 targetIQN,discoveryPortal);
-            //            iSCSIDLogError(statusString);
+
+            asl_log_message(ASL_LEVEL_INFO,"%s",
+                            CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+
             CFRelease(statusString);
         }
 
@@ -145,7 +147,7 @@ void iSCSIDiscoveryRunSendTargets(CFRunLoopTimerRef timer,void * context)
                 CFSTR("system error (code %d) occurred during SendTargets discovery of %@."),
                 error,discoveryPortal);
 
-            iSCSIDLogError(errorString);
+            asl_log_message(ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
             CFRelease(errorString);
         }
         else if(statusCode != kiSCSILoginSuccess) {
@@ -154,7 +156,7 @@ void iSCSIDiscoveryRunSendTargets(CFRunLoopTimerRef timer,void * context)
                 CFSTR("login failed with (code %d) during SendTargets discovery of %@."),
                 statusCode,discoveryPortal);
             
-            iSCSIDLogError(errorString);
+            asl_log_message(ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
             CFRelease(errorString);
         }
         else {

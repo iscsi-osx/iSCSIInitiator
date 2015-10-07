@@ -11,10 +11,12 @@
 #define __ISCSI_DISCOVERY_H__
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <asl.h>
 
 #include "iSCSISession.h"
 #include "iSCSITypes.h"
 #include "iSCSIPropertyList.h"
+
 
 /*! Scans all iSCSI discovery portals for targets (SendTargets). Updates
  *  the iSCSI property list with information about targets and portals.
