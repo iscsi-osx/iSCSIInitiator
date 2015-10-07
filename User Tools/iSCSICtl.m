@@ -1520,9 +1520,9 @@ errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
             authMethod = CFSTR("none"); break;
     };
 
-    CFStringRef CHAPSecret = CFSTR("specified");
-    if(!iSCSIPLExistsInitiatorCHAPSecret())
-        CHAPSecret = CFSTR("unspecified");
+    CFStringRef CHAPSecret = CFSTR("<specified>");
+    if(!iSCSIPLExistsTargetCHAPSecret(targetIQN))
+        CHAPSecret = CFSTR("<unspecified>");
 
     format = CFSTR("\n\tAuthentication: %@"
                    "\n\t\t%@ %@"  // CHAP-name
@@ -1657,9 +1657,9 @@ errno_t iSCSICtlListInitiatorConfig(iSCSIDaemonHandle handle,CFDictionaryRef opt
             authMethod = CFSTR("none"); break;
     };
 
-    CFStringRef CHAPSecret = CFSTR("set");
+    CFStringRef CHAPSecret = CFSTR("<specified>");
     if(!iSCSIPLExistsInitiatorCHAPSecret())
-        CHAPSecret = CFSTR("(unspecified)");
+        CHAPSecret = CFSTR("<unspecified>");
 
 
     CFStringRef format = CFSTR("%@"
