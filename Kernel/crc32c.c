@@ -33,6 +33,7 @@
  1.0  10 Feb 2013  First version
  1.1   1 Aug 2013  Correct comments on why three crc instructions in parallel
  1.2  20 Dec 2014  Modified by Nareg Sinenian to include hardware CRC32C only
+ 1.3   4 Oct 2015  Modified by Nareg Sinenian to cast 64-bit vars to 32 bits.
  */
 
 #include "crc32c.h"
