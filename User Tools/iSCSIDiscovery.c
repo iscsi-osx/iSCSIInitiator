@@ -64,8 +64,7 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
                 CFSTR("discovered target %@ already exists with static configuration."),
                 targetIQN);
 
-            asl_log_message(ASL_LEVEL_INFO,"%s",
-                            CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+            asl_log(NULL,NULL,ASL_LEVEL_INFO,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
 
             CFRelease(statusString);
         }
@@ -78,8 +77,7 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
                 CFSTR("discovered target %@ over discovery portal %@."),
                 targetIQN,discoveryPortal);
 
-            asl_log_message(ASL_LEVEL_INFO,"%s",
-                            CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+            asl_log(NULL,NULL,ASL_LEVEL_INFO,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
 
             CFRelease(statusString);
         }
@@ -147,7 +145,7 @@ void iSCSIDiscoveryRunSendTargets(CFRunLoopTimerRef timer,void * context)
                 CFSTR("system error (code %d) occurred during SendTargets discovery of %@."),
                 error,discoveryPortal);
 
-            asl_log_message(ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
             CFRelease(errorString);
         }
         else if(statusCode != kiSCSILoginSuccess) {
@@ -156,7 +154,7 @@ void iSCSIDiscoveryRunSendTargets(CFRunLoopTimerRef timer,void * context)
                 CFSTR("login failed with (code %d) during SendTargets discovery of %@."),
                 statusCode,discoveryPortal);
             
-            asl_log_message(ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
             CFRelease(errorString);
         }
         else {
@@ -166,5 +164,5 @@ void iSCSIDiscoveryRunSendTargets(CFRunLoopTimerRef timer,void * context)
         }
     }
 
-  iSCSIPLSynchronize();
+    iSCSIPLSynchronize();
 }
