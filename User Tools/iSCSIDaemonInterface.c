@@ -11,6 +11,15 @@
 #include "iSCSIDaemonInterface.h"
 #include "iSCSIDaemonInterfaceShared.h"
 
+/*! Timeout used when connecting to daemon. */
+static const int kiSCSIDaemonConnectTimeoutMilliSec = 100;
+
+/*! Timeout to use for normal communication with daemon. This is the time
+ *  that the client will have to wait for the deamon to perform the desired
+ *  operation (potentially over the network). */
+static const int kiSCSIDaemonDefaultTimeoutSec = 20;
+
+
 const struct iSCSIDCmdShutdown iSCSIDCmdShutdownInit = {
     .funcCode = kiSCSIDShutdownDaemon
 };
@@ -79,7 +88,7 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     // Set timeout for connect()
     struct timeval tv;
     memset(&tv,0,sizeof(tv));
-    tv.tv_usec = 2000000;
+    tv.tv_usec = kiSCSIDaemonConnectTimeoutMilliSec*1000;
 
     fd_set fdset;
     FD_ZERO(&fdset);
@@ -88,7 +97,7 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     if(select(handle,NULL,&fdset,NULL,&tv)) {
         errno_t error;
         socklen_t errorSize = sizeof(errno_t);
-        getsockopt(handle, SOL_SOCKET, SO_ERROR,&error,&errorSize);
+        getsockopt(handle,SOL_SOCKET,SO_ERROR,&error,&errorSize);
 
         if(error) {
             close(handle);
@@ -96,6 +105,9 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
         }
         else {
             // Set send & receive timeouts
+            memset(&tv,0,sizeof(tv));
+            tv.tv_sec = kiSCSIDaemonDefaultTimeoutSec;
+
             setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
             setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
         }
