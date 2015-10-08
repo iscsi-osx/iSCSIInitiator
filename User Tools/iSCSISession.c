@@ -262,18 +262,14 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         
         sessCfgKernel->maxConnections = iSCSILVGetMin(initCmd,targetRsp);
     }
-    else
-        return ENOTSUP;
-   
+
     // Grab the OR for initialR2T command and response
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_InitialR2T,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_InitialR2T);
         sessCfgKernel->initialR2T = iSCSILVGetOr(initCmd,targetRsp);
     }
-    else
-        return ENOTSUP;
-    
+
     
     // Grab the AND for immediate data command and response
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_ImmediateData,(void*)&targetRsp))
@@ -281,17 +277,14 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_ImmediateData);
         sessCfgKernel->immediateData = iSCSILVGetAnd(initCmd,targetRsp);
     }
-    else
-        return ENOTSUP;
-    
+
+
     // Get the OR of data PDU in order
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_DataPDUInOrder,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_DataPDUInOrder);
         sessCfgKernel->dataPDUInOrder = iSCSILVGetAnd(initCmd,targetRsp);
     }
-    else
-        return ENOTSUP;
     
     // Get the OR of data PDU in order
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_DataSequenceInOrder,(void*)&targetRsp))
@@ -299,8 +292,6 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_DataSequenceInOrder);
         sessCfgKernel->dataSequenceInOrder = iSCSILVGetAnd(initCmd,targetRsp);
     }
-    else
-        return ENOTSUP;
 
     // Grab minimum of max burst length
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_MaxBurstLength,(void*)&targetRsp))
@@ -308,8 +299,6 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_MaxBurstLength);
         sessCfgKernel->maxBurstLength = iSCSILVGetMin(initCmd,targetRsp);
     }
-    else
-        return ENOTSUP;
 
     // Grab minimum of first burst length
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_FirstBurstLength,(void*)&targetRsp))
@@ -323,8 +312,6 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         
         sessCfgKernel->firstBurstLength = iSCSILVGetMin(initCmd,targetRsp);
     }
-    else
-        return ENOTSUP;
 
     // Grab minimum of max outstanding R2T
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_MaxOutstandingR2T,(void*)&targetRsp))
@@ -338,8 +325,6 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         
         sessCfgKernel->maxOutStandingR2T = iSCSILVGetMin(initCmd,targetRsp);
     }
-    else
-        return ENOTSUP;
     
     // Success
     return 0;
