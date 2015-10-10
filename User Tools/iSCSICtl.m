@@ -490,7 +490,7 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
         CFStringRef portalAddress = iSCSIPortalGetAddress(portal);
         CFStringRef portalPort    = iSCSIPortalGetPort(portal);
         CFStringRef hostInterface = iSCSIPortalGetHostInterface(portal);
-        if (statusCode == kiSCSILogoutSuccess) {
+        if (statusCode == kiSCSILoginSuccess) {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
                 CFSTR("Login to <%@,%@:%@ interface %@> successful\n"),
                 targetIQN,portalAddress,portalPort,hostInterface);
@@ -504,7 +504,7 @@ void iSCSICtlDisplayLoginStatus(enum iSCSILoginStatusCode statusCode,
         }
 
     } else {
-        if (statusCode == kiSCSILogoutSuccess) {
+        if (statusCode == kiSCSILoginSuccess) {
             loginStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
                                                     CFSTR("Login to <%@> successful\n"),targetIQN);
         } else {
@@ -1194,13 +1194,6 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
             iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
             error = EINVAL;
         }
-    }
-
-    if(!error) {
-        if(!iSCSIPLSynchronize())
-            iSCSICtlDisplayPermissionsError();
-        else
-            iSCSICtlDisplayString(CFSTR("Target settings have been updated\n"));
     }
 
     return 0;
@@ -2120,15 +2113,14 @@ int main(int argc, char * argv[])
                 error = iSCSICtlModifyInitiator(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscoveryConfig)
                 error = iSCSICtlModifyDiscovery(handle,optDictionary);
-
             break;
+
         case kiSCSICtlCmdRemove:
             if(subCmd == kiSCSICtlSubCmdTarget)
                 error = iSCSICtlRemoveTarget(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscoveryPortal)
                 error = iSCSICtlRemoveDiscoveryPortal(handle,optDictionary);
             break;
-
 
         case kiSCSICtlCmdList:
             if(subCmd == kiSCSICtlSubCmdTargets)
