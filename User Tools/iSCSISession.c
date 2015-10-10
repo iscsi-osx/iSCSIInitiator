@@ -475,15 +475,17 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
                                            sessCmd,sessRsp);
     
     // Parse dictionaries and store session parameters if no I/O error occured
-    if(!error)
-        error = iSCSINegotiateParseSWDictCommon(sessCmd,sessRsp,&sessCfgKernel);
+    if(*statusCode == kiSCSILoginSuccess) {
+
+        if(!error)
+            error = iSCSINegotiateParseSWDictCommon(sessCmd,sessRsp,&sessCfgKernel);
     
-    if(!error)
-        if(iSCSITargetGetIQN(target) != NULL)
+        if(!error && iSCSITargetGetIQN(target) != NULL)
             error = iSCSINegotiateParseSWDictNormal(sessCmd,sessRsp,&sessCfgKernel);
     
-    if(!error)
-        error = iSCSINegotiateParseCWDict(sessCmd,sessRsp,&connCfgKernel);
+        if(!error)
+            error = iSCSINegotiateParseCWDict(sessCmd,sessRsp,&connCfgKernel);
+    }
     
     // Update the kernel session & connection configuration
     iSCSIKernelSetSessionConfig(sessionId,&sessCfgKernel);
@@ -547,7 +549,7 @@ errno_t iSCSINegotiateConnection(iSCSITargetRef target,
                                            connRsp);
 
     // If no error, parse received dictionary and store connection options
-    if(!error)
+    if(!error && *statusCode == kiSCSILoginSuccess)
         error = iSCSINegotiateParseCWDict(connCmd,connRsp,&connCfgKernel);
 
     // Update the kernel connection configuration
@@ -748,10 +750,10 @@ errno_t iSCSILoginConnection(SID sessionId,
     iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
     
     // If no error, authenticate (negotiate security parameters)
-    if(!error)
+    if(!error && *statusCode == kiSCSILoginSuccess)
        error = iSCSIAuthNegotiate(target,initiatorAuth,targetAuth,sessionId,*connectionId,statusCode);
     
-    if (!error)
+    if(!error && *statusCode == kiSCSILoginSuccess)
         iSCSIKernelActivateConnection(sessionId,*connectionId);
     else
         iSCSIKernelReleaseConnection(sessionId,*connectionId);
@@ -890,14 +892,14 @@ errno_t iSCSILoginSession(iSCSITargetRef target,
     }
 
     // Negotiate session & connection parameters
-    if(!error)
+    if(!error && *statusCode == kiSCSILoginSuccess)
         error = iSCSINegotiateSession(target,*sessionId,*connectionId,sessCfg,connCfg,statusCode);
 
     // Only activate connections for kernel use if no errors have occurred and
     // the session is not a discovery session
-    if(error)
+    if(error || *statusCode != kiSCSILoginSuccess)
         iSCSIKernelReleaseSession(*sessionId);
-    else if(!error && CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
+    else if(CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
             iSCSIKernelActivateConnection(*sessionId,*connectionId);
     
     return error;

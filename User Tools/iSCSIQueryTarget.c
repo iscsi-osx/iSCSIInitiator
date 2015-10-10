@@ -75,10 +75,8 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
             // where the class is the high byte and the detail is the low
             *statusCode = ((((UInt16)rsp.statusClass)<<8) | rsp.statusDetail);
 
-            if(*statusCode != kiSCSILoginSuccess) {
-                error = EINVAL;
+            if(*statusCode != kiSCSILoginSuccess)
                 break;
-            }
             
             iSCSIPDUDataParseToDict(data,length,textRsp);
         }

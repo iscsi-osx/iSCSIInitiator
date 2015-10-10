@@ -217,7 +217,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
                                            authCmd,authRsp);
     
     // Quit if the query failed for whatever reason, release dictionaries
-    if(error) {
+    if(error || *statusCode != kiSCSILoginSuccess) {
         CFRelease(authCmd);
         CFRelease(authRsp);
         return error;
@@ -400,7 +400,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                                            authRsp);
     
     // Quit if the query failed for whatever reason, release dictionaries
-    if(error)
+    if(error || *statusCode != kiSCSILoginSuccess)
         goto ERROR_GENERIC;
     
     // Determine if target supports desired authentication method
@@ -460,7 +460,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                                        connectionId,
                                        sessCfgKernel.targetSessionId,
                                        statusCode);
-        if(error)
+        if(error || *statusCode != kiSCSILoginSuccess)
             goto ERROR_AUTHENTICATE_CHAP;
     }
     
@@ -530,7 +530,7 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
                                            authCmd,authRsp);
     
     // Quit if the query failed for whatever reason, release dictionaries
-    if(!error) {
+    if(!error && *statusCode == kiSCSILoginSuccess) {
         // Grab authentication method that the target chose, if available
         if(CFDictionaryContainsKey(authRsp, kRFC3720_Key_AuthMethod))
         {
