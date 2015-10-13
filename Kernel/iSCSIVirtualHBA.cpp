@@ -56,10 +56,10 @@ const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
 const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 
 /*! Default task timeout for new tasks (milliseconds). */
-const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 2000;
+const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 10000;
 
 /*! Default TCP timeout for new connections (seconds). */
-const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 1;
+const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 10;
 
 
 OSDefineMetaClassAndStructors(iSCSIVirtualHBA,IOSCSIParallelInterfaceController);
@@ -140,8 +140,8 @@ SCSIServiceResponse iSCSIVirtualHBA::AbortTaskRequest(SCSITargetIdentifier targe
 
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
-    
-    DBLog("iSCSI: Abort task request\n");
+
+    DBLog("iscsi: Abort task request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -163,7 +163,7 @@ SCSIServiceResponse iSCSIVirtualHBA::AbortTaskSetRequest(SCSITargetIdentifier ta
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
     
-    DBLog("iSCSI: Abort task set request\n");
+    DBLog("iscsi: Abort task set request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -185,7 +185,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ClearACARequest(SCSITargetIdentifier target
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
     
-    DBLog("iSCSI: Clear ACA request\n");
+    DBLog("iscsi: Clear ACA request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -207,7 +207,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ClearTaskSetRequest(SCSITargetIdentifier ta
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
     
-    DBLog("iSCSI: Clear task set request\n");
+    DBLog("iscsi: Clear task set request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -229,7 +229,7 @@ SCSIServiceResponse iSCSIVirtualHBA::LogicalUnitResetRequest(SCSITargetIdentifie
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
 
-    DBLog("iSCSI: LUN reset request\n");
+    DBLog("iscsi: LUN reset request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -249,7 +249,7 @@ SCSIServiceResponse iSCSIVirtualHBA::TargetResetRequest(SCSITargetIdentifier tar
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
     
-    DBLog("iSCSI: Target reset request\n");
+    DBLog("iscsi: Target reset request (TID: %llu)\n",targetId);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -293,7 +293,7 @@ bool iSCSIVirtualHBA::DoesHBAPerformDeviceManagement()
 
 bool iSCSIVirtualHBA::InitializeController()
 {
-    DBLog("iSCSI: Initializing virtual HBA\n");
+    DBLog("iscsi: Initializing virtual HBA\n");
     
     // Initialize CRC32C
     crc32c_init();
@@ -324,7 +324,7 @@ bool iSCSIVirtualHBA::InitializeController()
 
 void iSCSIVirtualHBA::TerminateController()
 {
-    DBLog("iSCSI: Terminating virtual HBA\n");
+    DBLog("iscsi: Terminating virtual HBA\n");
     
     ReleaseAllSessions();
     
@@ -410,6 +410,8 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SID sessionId,CID connectionId)
         ReleaseConnection(sessionId,connectionId);
     else
         ReleaseSession(sessionId);
+
+    DBLog("iscsi: Connection timeout (sid: %d, cid: %d)\n",sessionId,connectionId);
 }
 
 SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask)
@@ -468,13 +470,16 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     UInt32 initiatorTaskTag = BuildInitiatorTaskTag(kInitiatorTaskTypeSCSITask,LUN,taskId);
     SetControllerTaskIdentifier(parallelTask,initiatorTaskTag);
     
-    DBLog("iSCSI: Transfer size: %llu\n",connection->dataToTransfer);
+    DBLog("iscsi: Transfer size: %llu (sid: %d, cid: %d)\n",
+          connection->dataToTransfer,session->sessionId,connection->CID);
     
     // Queue task in the event source (we'll remove it from the queue when were
     // done processing the task)
     connection->taskQueue->queueTask(initiatorTaskTag);
     
-    DBLog("iSCSI: Queued task %llx\n",taskId);
+    DBLog("iscsi: Queued task %llx (sid: %d, cid: %d)\n",
+          taskId,session->sessionId,connection->CID);
+
     return kSCSIServiceResponse_Request_In_Process;
 }
 
@@ -497,7 +502,8 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     
     if(!parallelTask)
     {
-        DBLog("iSCSI: Task not found, flushing stream (BeginTaskOnWorkloopThread)\n");
+        DBLog("iscsi: Task not found, flushing stream (BeginTaskOnWorkloopThread) (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
         return;
     }
     
@@ -620,19 +626,24 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
             bhsDataOut.dataSN = OSSwapHostToBigInt32(dataSN);
             
             if(maxTransferLength < remainingDataLength) {
-                DBLog("iSCSI: Max transfer length: %d\n",maxTransferLength);
+
+                DBLog("iscsi: Max transfer length: %d (sid: %d, cid: %d)\n",
+                      maxTransferLength,session->sessionId,connection->CID);
+
                 int err = owner->SendPDU(session,connection,
                                          (iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,
                                          data,maxTransferLength);
                 
                 if(err != 0) {
-                    DBLog("iSCSI: Send error: %d\n",err);
+                    DBLog("iscsi: Send error: %d (sid: %d, cid: %d)\n",
+                          err,session->sessionId,connection->CID);
                     dataMap->unmap();
                     dataMap->release();
                     return;
                 }
                 
-                DBLog("iSCSI: dataoffset: %d\n",dataOffset);
+                DBLog("iscsi: dataoffset: %d (sid: %d, cid: %d)\n",
+                      dataOffset,session->sessionId,connection->CID);
                 
                 remainingDataLength -= maxTransferLength;
                 data                += maxTransferLength;
@@ -640,14 +651,19 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
             }
             // This is the final PDU of the sequence
             else {
-                DBLog("iSCSI: Sending final data out\n");
+
+                DBLog("iscsi: Sending final data out (sid: %d, cid: %d)\n",
+                      session->sessionId,connection->CID);
+
                 bhsDataOut.flags = kiSCSIPDUDataOutFinalFlag;
                 int err = owner->SendPDU(session,connection,
                                          (iSCSIPDUInitiatorBHS*)&bhsDataOut,NULL,
                                          data,remainingDataLength);
                 
                 if(err != 0) {
-                    DBLog("iSCSI: Send error: %d\n",err);
+                    DBLog("iscsi: Send error: %d (sid: %d, cid: %d)\n",
+                          err,session->sessionId,connection->CID);
+
                     dataMap->unmap();
                     dataMap->release();
                     return;
@@ -677,11 +693,13 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     iSCSIPDUTargetBHS bhs;
     if(owner->RecvPDUHeader(session,connection,&bhs,0))
     {
-        DBLog("iSCSI: Failed to get PDU header\n");
+        DBLog("iscsi: Failed to get PDU header (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
         return true;
     }
     else
-        DBLog("iSCSI: Received PDU\n");
+        DBLog("iscsi: Received PDU (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
 
     // Determine the kind of PDU that was received and process accordingly
     enum iSCSIPDUTargetOpCodes opCode = (iSCSIPDUTargetOpCodes)bhs.opCode;
@@ -770,7 +788,8 @@ void iSCSIVirtualHBA::CompleteParallelTask(iSCSISession * session,
         if(connection->bytesPerSecond < connection->bytesPerSecondHistory[i])
             connection->bytesPerSecond = connection->bytesPerSecondHistory[i];
     
-    DBLog("iSCSI: Bytes per second: %d\n",connection->bytesPerSecond);
+    DBLog("iscsi: Bytes per second: %d (sid: %d, cid: %d)\n",
+          connection->bytesPerSecond,session->sessionId,connection->CID);
 
     super::CompleteParallelTask(parallelRequest,completionStatus,serviceResponse);
 }
@@ -834,7 +853,8 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
     UInt8 data[length];
 
     if(length > 0 && RecvPDUData(session,connection,data,length,MSG_WAITALL) != 0) {
-        DBLog("iSCSI: Failed to retreive NOP in data\n");
+        DBLog("iscsi: Failed to retreive NOP in data (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
         return;
     }
     
@@ -858,7 +878,8 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
     
         UInt32 latency_ms = (secs - secs_stamp)*1e3 + (microsecs - microsecs_stamp)/1e3;
         
-        DBLog("iSCSI: Connection latency: %d ms\n",latency_ms);
+        DBLog("iscsi: Connection latency: %d ms (sid: %d, cid: %d)\n",
+              latency_ms,session->sessionId,connection->CID);
         
         // Remove latency measurement task from queue
         connection->taskQueue->completeCurrentTask();
@@ -871,7 +892,8 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
         bhsRsp.targetTransferTag = bhs->targetTransferTag;
         
         if(SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsRsp,NULL,data,length))
-            DBLog("iSCSI: Failed to send NOP response\n");
+            DBLog("iscsi: Failed to send NOP response (sid: %d, cid: %d)\n",
+                  session->sessionId,connection->CID);
     }
 }
 
@@ -887,9 +909,11 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     memset(data, length, 0);
     if(length > 0) {
         if(RecvPDUData(session,connection,data,length,MSG_WAITALL))
-            DBLog("iSCSI: Error retrieving data segment\n");
+            DBLog("iscsi: Error retrieving data segment (sid: %d, cid: %d)\n",
+                  session->sessionId,connection->CID);
         else
-            DBLog("iSCSI: Received sense data\n");
+            DBLog("iscsi: Received sense data (sid: %d, cid: %d)\n",
+                  session->sessionId,connection->CID);
     }
 
     // Grab parallel task associated with this PDU, indexed by task tag
@@ -898,7 +922,8 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     
     if(!parallelTask)
     {
-        DBLog("iSCSI: Task not found, flushing stream (ProcessSCSIResponse)\n");
+        DBLog("iscsi: Task not found, flushing stream (ProcessSCSIResponse) (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
         
         // Flush stream
         UInt8 buffer[length];
@@ -917,7 +942,8 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
         senseDataLength = OSSwapBigToHostInt16(senseDataLength);
         
         if(length < senseDataLength + senseDataHeaderSize) {
-            DBLog("iSCSI: Received invalid sense data\n");
+            DBLog("iscsi: Received invalid sense data (sid: %d, cid: %d)\n",
+                  session->sessionId,connection->CID);
         }
         else {
         
@@ -927,7 +953,8 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
             // Incorporate sense data into the task
             SetAutoSenseData(parallelTask,newSenseData,senseDataLength);
             
-            DBLog("iSCSI: Processed sense data\n");
+            DBLog("iscsi: Processed sense data (sid: %d, cid: %d)\n",
+                  session->sessionId,connection->CID);
         }
     }
     
@@ -947,7 +974,8 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     // Task is complete, remove it from the queue
     connection->taskQueue->completeCurrentTask();
     
-    DBLog("iSCSI: Processed SCSI response\n");
+    DBLog("iscsi: Processed SCSI response (sid: %d, cid: %d)\n",
+          session->sessionId,connection->CID);
 }
 
 void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
@@ -962,7 +990,8 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     
     if(length == 0)
     {
-        DBLog("iSCSI: Missing data segment in data-in PDU\n");
+        DBLog("iscsi: Missing data segment in data-in PDU (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
         return;
     }
     
@@ -971,7 +1000,8 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     // If task not found, flush stream
     if(!parallelTask)
     {
-        DBLog("iSCSI: Task not found\n");
+        DBLog("iscsi: Task not found (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
         RecvPDUData(session,connection,buffer,length,MSG_WAITALL);
         return;
     }
@@ -980,7 +1010,8 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     UInt32 dataOffset = OSSwapBigToHostInt32(bhs->bufferOffset);
     
     if(RecvPDUData(session,connection,buffer,length,0))
-        DBLog("iSCSI: Error in retrieving data segment length.\n");
+        DBLog("iscsi: Error in retrieving data segment length (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
     else {
         IOMemoryDescriptor  * dataDesc = GetDataBuffer(parallelTask);
         dataDesc->writeBytes(dataOffset,buffer,length);
@@ -1002,7 +1033,8 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
         // Task is complete, remove it from the queue
         connection->taskQueue->completeCurrentTask();
         
-        DBLog("iSCSI: Processed data-in PDU\n");
+        DBLog("iscsi: Processed data-in PDU (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
     }
     
     // Send acknowledgement to target if one is required
@@ -1074,7 +1106,8 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     
     if(!parallelTask)
     {
-        DBLog("iSCSI: Task not found\n");
+        DBLog("iscsi: Couldn't find requested task to process (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
         return;
     }
     
@@ -1091,7 +1124,9 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     // Ensure that our data buffer contains all of the requested data
     if(dataOffset + remainingDataLength > (UInt32)dataMap->getLength())
     {
-        DBLog("iSCSI: Host data buffer doesn't contain requested data");
+        DBLog("iscsi: Host data buffer doesn't contain requested data (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
+
         dataMap->unmap();
         dataMap->release();
         return;
@@ -1102,8 +1137,10 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     
     data += dataOffset;
     
-    DBLog("iSCSI: dataoffset: %d\n",dataOffset);
-    DBLog("iSCSI: desired data length: %d\n",remainingDataLength);
+    DBLog("iscsi: dataoffset: %d (sid: %d, cid: %d)\n",
+          dataOffset,session->sessionId,connection->CID);
+    DBLog("iscsi: desired data length: %d (sid: %d, cid: %d)\n",
+          remainingDataLength,session->sessionId,connection->CID);
     
     UInt32 dataSN = 0;
     
@@ -1122,19 +1159,23 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
         bhsDataOut.dataSN = OSSwapHostToBigInt32(dataSN);
 
         if(maxTransferLength < remainingDataLength) {
-            DBLog("iSCSI: Max transfer length: %d\n",maxTransferLength);
+            DBLog("iscsi: Max transfer length: %d (sid: %d, cid: %d)\n",
+                  maxTransferLength,session->sessionId,connection->CID);
             int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,
                               NULL,data,maxTransferLength);
             
             if(err != 0) {
-                DBLog("iSCSI: Send error: %d\n",err);
+                DBLog("iscsi: Send error: %d (sid: %d, cid: %d)\n",
+                      err,session->sessionId,connection->CID);
                 dataMap->unmap();
                 dataMap->release();
                 return;
             }
             
-            DBLog("iSCSI: dataoffset: %d\n",dataOffset);
-            DBLog("iSCSI: desired data length: %d\n",remainingDataLength);
+            DBLog("iscsi: dataoffset: %d (sid: %d, cid: %d)\n",
+                  dataOffset,session->sessionId,connection->CID);
+            DBLog("iscsi: desired data length: %d (sid: %d, cid: %d)\n",
+                  remainingDataLength,session->sessionId,connection->CID);
             
             remainingDataLength -= maxTransferLength;
             data                += maxTransferLength;
@@ -1142,13 +1183,15 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
         }
         // This is the final PDU of the sequence
         else {
-            DBLog("iSCSI: Sending final data out\n");
+            DBLog("iscsi: Sending final data out (sid: %d, cid: %d)\n",
+                  session->sessionId,connection->CID);
             bhsDataOut.flags = kiSCSIPDUDataOutFinalFlag;
             int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,
                               NULL,data,remainingDataLength);
             
             if(err != 0) {
-                DBLog("iSCSI: Send error: %d\n",err);
+                DBLog("iscsi: Send error: %d (sid: %d, cid: %d)\n",
+                      err,session->sessionId,connection->CID);
                 dataMap->unmap();
                 dataMap->release();
                 return;
@@ -1350,7 +1393,7 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
     if(!theSession)
         return;
     
-    DBLog("iSCSI: Releasing session...\n");
+    DBLog("iscsi: Releasing session...\n");
     
     // Disconnect all connections
     for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
@@ -1423,6 +1466,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     newConn->expStatSN = 0;
     newConn->dataToTransfer = 0;
     newConn->bytesPerSecond = 0;
+    newConn->CID = index;
     
     newConn->opts.maxRecvDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
     newConn->opts.maxSendDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
@@ -1561,12 +1605,10 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
 
     sock_close(connection->socket);
 
-    DBLog("iSCSI: Deactivated connection.\n");
-
     GetWorkLoop()->removeEventSource(connection->dataRecvEventSource);
     GetWorkLoop()->removeEventSource(connection->taskQueue);
     
-    DBLog("iSCSI: Removed event sources.\n");
+    DBLog("iscsi: Removed event sources (sid: %d, cid: %d)\n",sessionId,connectionId);
     
     connection->dataRecvEventSource->release();
     connection->taskQueue->release();
@@ -1575,7 +1617,7 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
     IOFree(connection,sizeof(iSCSIConnection));
     session->connections[connectionId] = NULL;
     
-    DBLog("iSCSI: Released connection.\n");
+    DBLog("iscsi: Released connection (sid: %d, cid: %d)\n",sessionId,connectionId);
 }
 
 /*! Activates an iSCSI connection, indicating to the kernel that the iSCSI
@@ -1695,7 +1737,7 @@ errno_t iSCSIVirtualHBA::DeactivateConnection(SID sessionId,CID connectionId)
     if(session->numActiveConnections == 0)
         DestroyTargetForID(sessionId);
     
-    DBLog("iSCSI: Connection Deactivated");
+    DBLog("iscsi: Deactivated connection (sid: %d, cid: %d)\n",sessionId,connectionId);
     
     return 0;
 }
@@ -1889,18 +1931,18 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     }
     
     msg.msg_iovlen = iovecCnt;
-    
+
     // Bytes received from sock_receive call
     size_t bytesRecv;
     errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
     
     if(result != 0)
-        DBLog("iSCSI: sock_receive error returned with code %d\n",result);
+        DBLog("iscsi: sock_receive error returned with code %d (sid: %d, cid: %d)\n",result,session->sessionId,connection->CID);
 
     // Verify length; incoming PDUS from a target should have no AHS, verify.
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
     {
-        DBLog("iSCSI: Received incomplete PDU header: %zu bytes.\n",bytesRecv);
+        DBLog("iscsi: Received incomplete PDU header: %zu bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->CID);
         
 // TODO: handle error
         
@@ -1913,7 +1955,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
         // Compute digest (should be 0 since we start with the digest)
         if(headerDigest != crc32c(0,bhs,kiSCSIPDUBasicHeaderSegmentSize))
         {
-            DBLog("iSCSI: Failed header digest.\n");
+            DBLog("iscsi: Failed header digest (sid: %d, cid: %d)\n",session->sessionId,connection->CID);
             
 // TODO: handle error
             
@@ -2009,7 +2051,7 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
         
         if(dataDigest != calcDigest)
         {
-            DBLog("iSCSI: Failed data digest.\n");
+            DBLog("iscsi: Failed data digest (sid: %d, cid: %d)\n",session->sessionId,connection->CID);
             
 // TODO: handle error
             
