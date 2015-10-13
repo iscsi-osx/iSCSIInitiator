@@ -670,7 +670,6 @@ errno_t iSCSIDIsPortalActive(int fd,iSCSIDMsgIsPortalActiveCmd *cmd)
     return 0;
 }
 
-
 errno_t iSCSIDQueryTargetForAuthMethod(int fd,iSCSIDMsgQueryTargetForAuthMethodCmd * cmd)
 {
     CFDataRef targetData = NULL, portalData = NULL;
@@ -959,7 +958,7 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
 int main(void)
 {
     // Initialize logging
-    asl_open(NULL,NULL,ASL_OPT_STDERR);
+    asl_object_t log = asl_open(NULL,NULL,ASL_OPT_STDERR);
 
     // Read configuration parameters from the iSCSI property list
     iSCSIPLSynchronize();
@@ -1050,6 +1049,7 @@ int main(void)
     iSCSIDDeregisterForPowerEvents();
     
     launch_data_free(reg_response);
+    asl_close(log);
     return 0;
     
     // TODO: verify that launch data is freed under all possible execution paths
@@ -1059,7 +1059,7 @@ ERROR_NO_SOCKETS:
     launch_data_free(reg_response);
     
 ERROR_LAUNCH_DATA:
-    
+    asl_close(log);
     return ENOTSUP;
 }
 
