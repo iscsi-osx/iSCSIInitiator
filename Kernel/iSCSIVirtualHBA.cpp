@@ -398,6 +398,8 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SID sessionId,CID connectionId)
     
     if(!(session = sessionList[sessionId]))
        return;
+
+    DBLog("iscsi: Connection timeout (sid: %d, cid: %d)\n",sessionId,connectionId);
     
     CID connectionCount = 0;
     for(CID connectionId = 0; connectionId < kiSCSIMaxConnectionsPerSession; connectionId++)
@@ -405,13 +407,10 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SID sessionId,CID connectionId)
             connectionCount++;
 
     // In the future add recovery here...
-    
     if(connectionCount > 1)
         ReleaseConnection(sessionId,connectionId);
     else
         ReleaseSession(sessionId);
-
-    DBLog("iscsi: Connection timeout (sid: %d, cid: %d)\n",sessionId,connectionId);
 }
 
 SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask)
