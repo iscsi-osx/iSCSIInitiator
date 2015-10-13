@@ -11,7 +11,7 @@
 		<key>iscsid</key>
 		<dict>
 			<key>SockPathName</key>
-			<string>/tmp/iscsid_local</string>
+			<string>/var/tmp/iscsid</string>
 		</dict>
 	</dict>
 	<key>Program</key>
