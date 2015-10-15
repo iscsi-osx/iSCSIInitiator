@@ -779,7 +779,7 @@ void iSCSIPLSetInitiatorAlias(CFStringRef initiatorAlias)
  *  @return true if the target exists, false otherwise. */
 Boolean iSCSIPLContainsTarget(CFStringRef targetIQN)
 {
-    CFDictionaryRef targetsList = iSCSIPLGetTargets(false);
+    CFDictionaryRef targetsList = iSCSIPLGetTargets(true);
     return CFDictionaryContainsKey(targetsList,targetIQN);
 }
 
