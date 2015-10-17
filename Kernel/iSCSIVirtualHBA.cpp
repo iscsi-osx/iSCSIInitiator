@@ -866,16 +866,16 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
             return;
         
         clock_sec_t secs_stamp, secs;
-        clock_usec_t microsecs_stamp, microsecs;
+        clock_usec_t usecs_stamp, usecs;
         
         // Grab timestamp from NOP-in PDU
         memcpy(&secs_stamp,data,sizeof(secs_stamp));
-        memcpy(&microsecs_stamp,data+sizeof(secs_stamp),sizeof(microsecs_stamp));
+        memcpy(&usecs_stamp,data+sizeof(secs_stamp),sizeof(usecs_stamp));
         
         // Grab current system uptime
-        clock_get_system_microtime(&secs,&microsecs);
+        clock_get_system_microtime(&secs,&usecs);
     
-        UInt32 latency_ms = (secs - secs_stamp)*1e3 + (microsecs - microsecs_stamp)/1e3;
+        UInt32 latency_ms = (secs - secs_stamp)*1e3 + (usecs - usecs_stamp)/1e3;
         
         DBLog("iscsi: Connection latency: %d ms (sid: %d, cid: %d)\n",
               latency_ms,session->sessionId,connection->CID);
@@ -1241,10 +1241,14 @@ void iSCSIVirtualHBA::MeasureConnectionLatency(iSCSISession * session,
     // Calculate current uptime and send it to the target with this NOP out.
     // The target will echo the value and this allows us to estimate the
     // overall latency of the iSCSI stack and TCP connection
-    const UInt32 length = sizeof(clock_sec_t) + sizeof(clock_usec_t);
+    clock_sec_t secs = 0;
+    clock_usec_t usecs = 0;
+    clock_get_system_microtime(&secs,&usecs);
+    
+    const size_t length = (sizeof(clock_sec_t) + sizeof(clock_usec_t));
     UInt8 data[length];
-    clock_get_system_microtime((clock_sec_t*)data,
-                               (clock_usec_t*)(data+sizeof(clock_sec_t)));
+    memcpy(data,&secs,sizeof(clock_sec_t));
+    memcpy(data+sizeof(clock_sec_t),&usecs,sizeof(clock_usec_t));
     
     SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhs,NULL,data,length);
 }
@@ -1820,13 +1824,16 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     iovec[iovecCnt].iov_base  = bhs;
     iovec[iovecCnt].iov_len   = kiSCSIPDUBasicHeaderSegmentSize;
     iovecCnt++;
-
+    
+    DBLog("iscsi: sending pdu type %d\n",bhs->opCodeAndDeliveryMarker);
+    
     // Leave room for a header digest
     if(connection->opts.useHeaderDigest)    {
         UInt32 headerDigest;
         
         // Compute digest
         headerDigest = crc32c(0,bhs,kiSCSIPDUBasicHeaderSegmentSize);
+        DBLog("iscsi: header digest: %d\n",headerDigest);
         
         iovec[iovecCnt].iov_base = &headerDigest;
         iovec[iovecCnt].iov_len  = sizeof(headerDigest);
@@ -1834,7 +1841,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     }
  
     // If theres data to send...
-    if(data)
+    if(data && length)
     {
         // Add data segment
         iovec[iovecCnt].iov_base = (void*)data;
@@ -1850,7 +1857,9 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
             iovec[iovecCnt].iov_len   = paddingLen;
             iovecCnt++;
         }
- 
+
+        DBLog("iscsi: sending data length: %zu\n",length);
+
         // Leave room for a data digest
         if(connection->opts.useDataDigest) {
             UInt32 dataDigest;
@@ -1858,9 +1867,12 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
             // Compute digest
             dataDigest = crc32c(0,data,length);
             
-            // Add padding to digest calculation
-            if(paddingLen != 0 && paddingLen != 4)
-                dataDigest = crc32c(dataDigest,&padding,paddingLen);
+            DBLog("iscsi: data digest: %d\n",dataDigest);
+            
+            
+//            // Add padding to digest calculation
+      //      if(paddingLen != 0 && paddingLen != 4)
+    //            dataDigest = crc32c(dataDigest,&padding,paddingLen);
 
             iovec[iovecCnt].iov_base = &dataDigest;
             iovec[iovecCnt].iov_len  = sizeof(dataDigest);
