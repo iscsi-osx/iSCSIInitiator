@@ -359,19 +359,20 @@ CFArrayRef iSCSIDaemonCreateArrayOfActiveTargets(iSCSIDaemonHandle handle)
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
         error = EIO;
 
+    iSCSIDMsgCreateArrayOfActiveTargetsRsp rsp;
+
+    if(!error)
+        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,NULL);
+    
     if(!error) {
-
-        iSCSIDMsgCreateArrayOfActiveTargetsRsp rsp;
         CFDataRef data = NULL;
-
-        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,
-                                   &data,rsp.dataLength,NULL);
-
+        error = iSCSIDaemonRecvMsg(handle,0,&data,rsp.dataLength,NULL);
+        
         if(!error && data) {
             CFPropertyListFormat format;
             activeTargets = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
             CFRelease(data);
-
+            
             if(format != kCFPropertyListBinaryFormat_v1_0) {
                 if(activeTargets) {
                     CFRelease(activeTargets);
@@ -404,14 +405,16 @@ CFArrayRef iSCSIDaemonCreateArrayOfActivePortalsForTarget(iSCSIDaemonHandle hand
 
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
         error = EIO;
+    
+    iSCSIDMsgCreateArrayOfActivePortalsForTargetRsp rsp;
+    
+    if(!error)
+        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,NULL);
 
     if(!error) {
-
-        iSCSIDMsgCreateArrayOfActivePortalsForTargetRsp rsp;
         CFDataRef data = NULL;
+        error = iSCSIDaemonRecvMsg(handle,0,&data,rsp.dataLength,NULL);
 
-        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,
-                                   &data,rsp.dataLength,NULL);
         if(!error && data) {
             CFPropertyListFormat format;
             activePortals = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
@@ -454,20 +457,22 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForSession(iSCSIDaemonHandle handle
                                        targetData,NULL);
     CFRelease(targetData);
 
+    iSCSIDMsgCreateCFPropertiesForSessionRsp rsp;
+
+    if(!error)
+        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,NULL);
+    
     if(!error) {
-
-        iSCSIDMsgCreateCFPropertiesForSessionRsp rsp;
         CFDataRef data = NULL;
-
-        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,
-                                   &data,rsp.dataLength,NULL);
-
+        error = iSCSIDaemonRecvMsg(handle,0,&data,rsp.dataLength,NULL);
+        
         if(!error && data) {
             CFPropertyListFormat format;
             properties = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
             CFRelease(data);
         }
     }
+
     return properties;
 }
 
@@ -502,14 +507,15 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForConnection(iSCSIDaemonHandle han
     CFRelease(targetData);
     CFRelease(portalData);
 
+    iSCSIDMsgCreateCFPropertiesForConnectionRsp rsp;
+    
+    if(!error)
+        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,NULL);
+    
     if(!error) {
-
-        iSCSIDMsgCreateCFPropertiesForConnectionRsp rsp;
         CFDataRef data = NULL;
-
-        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,
-                                   &data,rsp.dataLength,NULL);
-
+        error = iSCSIDaemonRecvMsg(handle,0,&data,rsp.dataLength,NULL);
+        
         if(!error && data) {
             CFPropertyListFormat format;
             properties = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
