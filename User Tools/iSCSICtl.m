@@ -1282,8 +1282,7 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 /*! Helper function. Displays information about a target/session. */
 void displayTargetInfo(iSCSIDaemonHandle handle,
                        iSCSITargetRef target,
-                       CFDictionaryRef properties,
-                       Boolean treeView)
+                       CFDictionaryRef properties)
 {
     CFStringRef targetState = NULL;
     CFStringRef targetConfig = NULL;
@@ -1305,17 +1304,12 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
         targetState = CFSTR("active");
     else
         targetState = CFSTR("inactive");
-
-    CFStringRef prefix = CFSTR("+-o ");
-    if(!treeView)
-        prefix = CFSTR("");
-
+    
     CFStringRef status = NULL;
 
     if(!properties) {
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                          CFSTR("%@%s <%@, %@>\n"),
-                                          prefix,
+                                          CFSTR("%s <%@, %@>\n"),
                                           CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
                                           targetState,targetConfig);
     }
@@ -1324,8 +1318,7 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
         CFNumberRef targetSessionId = CFDictionaryGetValue(properties,kRFC3720_Key_TargetSessionId);
 
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                          CFSTR("%@%s <%@, %@, id 0, portalGroupTag %@, targetSessionId %@>\n"),
-                                          prefix,
+                                          CFSTR("%s <%@, %@, id 0, portalGroupTag %@, targetSessionId %@>\n"),
                                           CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
                                           targetState,
                                           targetConfig,
@@ -1343,21 +1336,16 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
 void displayPortalInfo(iSCSIDaemonHandle handle,
                        iSCSITargetRef target,
                        iSCSIPortalRef portal,
-                       CFDictionaryRef properties,
-                       Boolean treeView)
+                       CFDictionaryRef properties)
 {
     CFStringRef portalStatus = NULL;
     CFStringRef portalAddress = iSCSIPortalGetAddress(portal);
-
-    CFStringRef prefix = CFSTR("  +-o ");
-    if(!treeView)
-        prefix = CFSTR("");
 
     // If not connected
     if(!properties) {
         portalStatus = CFStringCreateWithFormat(
             kCFAllocatorDefault,NULL,
-            CFSTR("%@%s <inactive, port %s, interface %@>\n"),prefix,
+            CFSTR("\t%s <inactive, port %s, interface %@>\n"),
             CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
             CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
             iSCSIPortalGetHostInterface(portal));
@@ -1365,7 +1353,7 @@ void displayPortalInfo(iSCSIDaemonHandle handle,
     else {
         portalStatus = CFStringCreateWithFormat(
             kCFAllocatorDefault,NULL,
-            CFSTR("%@%s <active, port %s, interface %@>\n"),prefix,
+            CFSTR("\t%s <active, port %s, interface %@>\n"),
             CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
             CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
             iSCSIPortalGetHostInterface(portal));
@@ -1411,7 +1399,7 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
         if(!(handle < 0))
             properties = iSCSIDaemonCreateCFPropertiesForSession(handle,target);
 
-        displayTargetInfo(handle,target,properties,true);
+        displayTargetInfo(handle,target,properties);
         
         CFArrayRef portalsList = iSCSIPLCreateArrayOfPortalsForTarget(targetIQN);
         CFIndex portalCount = CFArrayGetCount(portalsList);
@@ -1426,7 +1414,7 @@ errno_t iSCSICtlListTargets(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 if(!(handle < 0))
                     properties = iSCSIDaemonCreateCFPropertiesForConnection(handle,target,portal);
 
-                displayPortalInfo(handle,target,portal,properties,true);
+                displayPortalInfo(handle,target,portal,properties);
                 iSCSIPortalRelease(portal);
             }
         }
@@ -1460,7 +1448,7 @@ errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     }
 
     CFDictionaryRef properties = iSCSIDaemonCreateCFPropertiesForSession(handle,target);
-    displayTargetInfo(handle,target,properties,false);
+    displayTargetInfo(handle,target,properties);
 
     CFStringRef targetParams, targetAuth;
     CFStringRef format = NULL;
@@ -1565,13 +1553,9 @@ errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 kRFC3720_Key_HeaderDigest,headerDigestString,
                 kRFC3720_Key_DataDigest,dataDigestString,
                 kRFC3720_Key_MaxRecvDataSegmentLength,maxDataRecvSegLength);
-        } else {
-
         }
 
-
-        iSCSICtlDisplayString(CFSTR("\t"));
-        displayPortalInfo(handle,target,portal,properties,false);
+        displayPortalInfo(handle,target,portal,properties);
         iSCSICtlDisplayString(portalConfig);
         CFRelease(portal);
     }
@@ -1848,12 +1832,12 @@ void displayLUNProperties(CFDictionaryRef propertiesDict)
     CFStringRef properties = NULL;
     if(vendor && product) {
         properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                              CFSTR("  +-o LUN %@  <type 0x%02x, %@ (%@)>\n"),
+                                              CFSTR("\tLUN %@  <type 0x%02x, %@ (%@)>\n"),
                                               SCSILUNIdentifier,peripheralTypeCode,vendor,product);
     }
     else {
         properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                              CFSTR("  +-o LUN %@  <type 0x%02x>\n"),
+                                              CFSTR("\tLUN %@  <type 0x%02x>\n"),
                                               SCSILUNIdentifier,peripheralTypeCode);
     }
 
@@ -1875,10 +1859,8 @@ void displayIOMediaProperties(CFDictionaryRef propertiesDict,Boolean lastLUN)
         ([NSByteCountFormatter stringFromByteCount:capacity countStyle:NSByteCountFormatterCountStyleFile]);
 
     CFStringRef templateString = NULL;
-    if(lastLUN)
-        templateString = CFSTR("    +-o %@  <capacity %@>\n");
-    else
-        templateString = CFSTR("  | +-o %@  <capacity %@>\n");
+
+    templateString = CFSTR("\t\t%@  <capacity %@>\n");
     
     CFStringRef properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
                                                       templateString,
@@ -1923,13 +1905,13 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
         CFStringRef targetStr = NULL;
         if(targetVendor && targetProduct) {
             targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                 CFSTR("+-o %s  <id %@, %@ (%@)>\n"),
+                                                 CFSTR("%s  <id %@, %@ (%@)>\n"),
                                                  CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
                                                  targetId,targetVendor,targetProduct);
         }
         else {
             targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                 CFSTR("+-o %s  <id %@>\n"),
+                                                 CFSTR("%s  <id %@>\n"),
                                                  CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
                                                  targetId);
         }
