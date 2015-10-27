@@ -712,8 +712,10 @@ void iSCSIPLRemoveTarget(CFStringRef targetIQN)
  *  @return the initiator name. */
 CFStringRef iSCSIPLCopyInitiatorIQN()
 {
-    if(!initiatorCache)
-        return NULL;
+    if(!initiatorCache) {
+        initiatorCache = iSCSIPLCreateInitiatorDict();
+        initiatorNodeCacheModified = true;
+    }
     
     // Lookup and copy the initiator name from the dictionary
     CFStringRef initiatorIQN = CFStringCreateCopy(
@@ -751,8 +753,10 @@ void iSCSIPLSetInitiatorIQN(CFStringRef initiatorIQN)
  *  @return the initiator alias. */
 CFStringRef iSCSIPLCopyInitiatorAlias()
 {
-    if(!initiatorCache)
-        return NULL;
+    if(!initiatorCache) {
+        initiatorCache = iSCSIPLCreateInitiatorDict();
+        initiatorNodeCacheModified = true;
+    }
     
     // Lookup and copy the initiator alias from the dictionary
     CFStringRef initiatorAlias = CFStringCreateCopy(
