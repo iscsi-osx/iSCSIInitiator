@@ -15,7 +15,7 @@
 CFStringRef kiSCSIPortalAddresssKey = CFSTR("Address");
 CFStringRef kiSCSIPortalPortKey = CFSTR("Port");
 CFStringRef kiSCSIPortalHostInterfaceKey = CFSTR("Host Interface");
-CFStringRef kiSCSIPortalAutostartKey = CFSTR("Autostart");
+
 
 
 /*! Creates a new portal object from byte representation. */
@@ -79,22 +79,6 @@ CFStringRef iSCSIPortalGetHostInterface(iSCSIPortalRef portal)
 void iSCSIPortalSetHostInterface(iSCSIMutablePortalRef portal,CFStringRef hostInterface)
 {
     CFDictionarySetValue(portal,kiSCSIPortalHostInterfaceKey,hostInterface);
-}
-
-/*! Gets whether startup is automatic for this portal. */
-Boolean iSCSIPortalGetAutostart(iSCSIPortalRef portal)
-{
-    CFBooleanRef autostart = CFDictionaryGetValue(portal,kiSCSIPortalAutostartKey);
-
-    if(autostart)
-        return CFBooleanGetValue(autostart);
-    return false;
-}
-
-/*! Sets whether startup is automatic for this portal. */
-void iSCSIPortalSetAutostart(iSCSIMutablePortalRef portal,Boolean autostart)
-{
-    CFDictionarySetValue(portal,kiSCSIPortalAutostartKey,kCFBooleanFalse);
 }
 
 /*! Releases memory associated with iSCSI portals. */
