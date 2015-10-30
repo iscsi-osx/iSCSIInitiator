@@ -56,7 +56,7 @@ const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
 const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 
 /*! Default task timeout for new tasks (milliseconds). */
-const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 10000;
+const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 60000;
 
 /*! Default TCP timeout for new connections (seconds). */
 const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 10;
@@ -367,6 +367,9 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
     iSCSIConnection * connection = session->connections[connectionId];
     if(!connection)
         return;
+    
+    DBLog("iscsi: Task timeout for task %d (sid: %d, cid: %d)\n",task,sessionId,connectionId);
+
     
     // If the task timeout is due to a broken connection, handle it.
     // Otherwise the target may be taking too long, just report it up the
@@ -697,8 +700,8 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         return true;
     }
     else
-        DBLog("iscsi: Received PDU (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+        DBLog("iscsi: Received PDU type %d (sid: %d, cid: %d)\n",
+              bhs.opCode,session->sessionId,connection->CID);
 
     // Determine the kind of PDU that was received and process accordingly
     enum iSCSIPDUTargetOpCodes opCode = (iSCSIPDUTargetOpCodes)bhs.opCode;
@@ -846,7 +849,7 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
                                    iSCSIConnection * connection,
                                    iSCSIPDU::iSCSIPDUNOPInBHS * bhs)
 {
-    const UInt32 length = GetDataSegmentLength((iSCSIPDUTargetBHS*)bhs);
+    const size_t length = GetDataSegmentLength((iSCSIPDUTargetBHS*)bhs);
     
     // Grab data payload (could be ping data or other data, if it exists)
     UInt8 data[length];
@@ -1825,7 +1828,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     iovec[iovecCnt].iov_len   = kiSCSIPDUBasicHeaderSegmentSize;
     iovecCnt++;
     
-    DBLog("iscsi: sending pdu type %d\n",bhs->opCodeAndDeliveryMarker);
+    DBLog("iscsi: Sent PDU type %d\n",bhs->opCodeAndDeliveryMarker);
     
     // Leave room for a header digest
     if(connection->opts.useHeaderDigest)    {
