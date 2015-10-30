@@ -367,8 +367,8 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
     iSCSIConnection * connection = session->connections[connectionId];
     if(!connection)
         return;
-    
-    DBLog("iscsi: Task timeout for task %d (sid: %d, cid: %d)\n",task,sessionId,connectionId);
+
+    DBLog("iscsi: Task timeout for task %llu (sid: %d, cid: %d)\n",GetTaggedTaskIdentifier(task),sessionId,connectionId);
 
     
     // If the task timeout is due to a broken connection, handle it.
