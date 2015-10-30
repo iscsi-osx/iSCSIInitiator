@@ -1,10 +1,10 @@
-sudo cp -R ./DerivedData/iSCSIInitiator/Build/Products/Debug/iSCSIInitiator.kext /tmp/
+sudo cp -R ./DerivedData/Build/Products/Debug/iSCSIInitiator.kext /tmp/
 sudo chmod -R 755 /tmp/iSCSIInitiator.kext
 sudo chown -R root:wheel /tmp/iSCSIInitiator.kext
 sudo kextload /tmp/iSCSIInitiator.kext
 
 sudo rm -f /var/logs/iscsid.log
-sudo cp ./DerivedData/iSCSIInitiator/Build/Products/Debug/iscsid /tmp/iscsid
+sudo cp ./DerivedData/Build/Products/Debug/iscsid /tmp/iscsid
 sudo cp ./User\ Tools/com.github.iscsi-osx.iscsid.plist /System/Library/LaunchDaemons
 
 sudo chmod -R 744 /tmp/iscsid
