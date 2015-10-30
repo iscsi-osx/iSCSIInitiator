@@ -98,8 +98,15 @@ CFStringRef kOptKeyPort = CFSTR("port");
 /*! Interface command-line option. */
 CFStringRef kOptKeyInterface = CFSTR("interface");
 
-/*! Autostart command-line option. */
-CFStringRef kOptAutostart = CFSTR("autostart");
+/*! Auto login command-line option. */
+CFStringRef kOptKeyAutoLogin = CFSTR("auto-login");
+
+/*! Auto-login enable/disable command-line value. */
+CFStringRef kOptValueAutoLoginEnable = CFSTR("enable");
+
+/*! Auto login enable/disable command-line value. */
+CFStringRef kOptValueAutoLoginDisable = CFSTR("disable");
+
 
 /*! Digest command-line options. */
 CFStringRef kOptKeyDigest = CFSTR("digest");
@@ -154,10 +161,10 @@ CFStringRef kOptValueDigestCRC32C = CFSTR("CRC32C");
 CFStringRef kOptKeySendTargetsEnable = CFSTR("SendTargets");
 
 /*! Discovery enable/disable command-line value. */
-CFStringRef kOptValueDiscoveryEnable = CFSTR("Enable");
+CFStringRef kOptValueDiscoveryEnable = CFSTR("enable");
 
 /*! Discovery enable/disable command-line value. */
-CFStringRef kOptValueDiscoveryDisable = CFSTR("Disable");
+CFStringRef kOptValueDiscoveryDisable = CFSTR("disable");
 
 /*! Discovery interval command-line option. */
 CFStringRef kOptKeyDiscoveryInterval = CFSTR("interval");
@@ -723,10 +730,6 @@ errno_t iSCSICtlModifyPortalFromOptions(CFDictionaryRef options,
     if(CFDictionaryContainsKey(options,kOptKeyInterface))
         iSCSIPortalSetHostInterface(portal,iSCSIPortalGetHostInterface(portalUpdates));
 
-    // If autostart was cahnged, update it
-    if(CFDictionaryContainsKey(options,kOptAutostart))
-        iSCSIPortalSetAutostart(portal,iSCSIPortalGetAutostart(portalUpdates));
-
     return 0;
 }
 
@@ -1139,6 +1142,23 @@ errno_t iSCSICtlModifyTargetFromOptions(CFDictionaryRef options,
             error = EINVAL;
         }
     }
+    
+    // Check for auto-login
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyAutoLogin,(const void **)&value))
+    {
+
+        if(CFStringCompare(value,kOptValueAutoLoginEnable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPLSetAutoLoginForTarget(targetIQN,true);
+        else if(CFStringCompare(value,kOptValueAutoLoginDisable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPLSetAutoLoginForTarget(targetIQN,false);
+        else {
+            CFStringRef errorString = CFStringCreateWithFormat(
+                kCFAllocatorDefault,0,CFSTR("Invalid argument for %@"),kOptKeyAutoLogin);
+            iSCSICtlDisplayError(errorString);
+            CFRelease(errorString);
+            error = EINVAL;
+        }
+    }
 
     // Check for maximum connections
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyMaxConnections,(const void **)&value))
@@ -1306,6 +1326,7 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
         targetState = CFSTR("inactive");
     
     CFStringRef status = NULL;
+    
 
     if(!properties) {
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
@@ -1449,6 +1470,16 @@ errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
 
     CFDictionaryRef properties = iSCSIDaemonCreateCFPropertiesForSession(handle,target);
     displayTargetInfo(handle,target,properties);
+    
+    // Get information about automatic login
+    CFStringRef autoLogin = CFSTR("disabled");
+    
+    if(iSCSIPLGetAutoLoginForTarget(targetIQN))
+        autoLogin = CFSTR("enabled");
+    
+    CFStringRef targetConfig = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\t%@: %@\n"),kOptKeyAutoLogin,autoLogin);
+    iSCSICtlDisplayString(targetConfig);
+    CFRelease(targetConfig);
 
     CFStringRef targetParams, targetAuth;
     CFStringRef format = NULL;
@@ -1704,6 +1735,7 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
     iSCSIPLSynchronize();
 
     CFStringRef value = NULL;
+    errno_t error = 0;
 
     // Check if user enabled or disable a discovery method and act accordingly
     if(CFDictionaryGetValueIfPresent(optDictionary,kOptKeySendTargetsEnable,(const void **)&value))
@@ -1718,11 +1750,21 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
             iSCSIPLSetSendTargetsDiscoveryEnable(false);
             iSCSICtlDisplayString(CFSTR("SendTargets discovery has been disabled\n"));
         }
-        iSCSIPLSynchronize();
+        else {
+            CFStringRef errorString = CFStringCreateWithFormat(
+                kCFAllocatorDefault,0,CFSTR("Invalid argument for %@"),kOptKeySendTargetsEnable);
+            iSCSICtlDisplayError(errorString);
+            CFRelease(errorString);
+            error = EINVAL;
+        }
+        
+        if(!error)
+            iSCSIPLSynchronize();
+
     }
 
     // Check if user modified the discovery interval
-    if(CFDictionaryGetValueIfPresent(optDictionary,kOptKeyDiscoveryInterval,(const void **)&value))
+    if(!error && CFDictionaryGetValueIfPresent(optDictionary,kOptKeyDiscoveryInterval,(const void **)&value))
     {
         int interval = CFStringGetIntValue(value);
         if(interval < kiSCSIInitiator_DiscoveryInterval_Min || interval > kiSCSIInitiator_DiscoveryInterval_Max) {
@@ -1742,9 +1784,10 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
         }
     }
 
-    iSCSIDaemonUpdateDiscovery(handle);
+    if(!error)
+        iSCSIDaemonUpdateDiscovery(handle);
     
-    return 0;
+    return error;
 }
 
 /*! Removes a discovery portal from SendTargets discovery.

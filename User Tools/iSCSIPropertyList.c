@@ -56,6 +56,9 @@ CFStringRef kiSCSIPVTargetConfigTypeStatic = CFSTR("Static");
 /*! Preference key value for discovery target configuration. */
 CFStringRef kiSCSIPVTargetConfigTypeDiscovery = CFSTR("SendTargets");
 
+/*! Preference key name for auto-login of target. */
+CFStringRef kiSCSIPKAutoLogin = CFSTR("Automatic Login");
+
 /*! Preference key name for error recovery level. */
 CFStringRef kiSCSIPKErrorRecoveryLevel = CFSTR("Error Recovery Level");
 
@@ -209,6 +212,7 @@ CFMutableDictionaryRef iSCSIPLCreateTargetDict()
 
     CFDictionaryAddValue(targetDict,kiSCSIPKAuthCHAPName,(void *)CFSTR(""));
     CFDictionaryAddValue(targetDict,kiSCSIPKAuth,kiSCSIPVAuthNone);
+    CFDictionaryAddValue(targetDict,kiSCSIPKAutoLogin,kCFBooleanFalse);
     CFDictionaryAddValue(targetDict,kiSCSIPKMaxConnections,maxConnections);
     CFDictionaryAddValue(targetDict,kiSCSIPKErrorRecoveryLevel,errorRecoveryLevel);
     CFDictionaryAddValue(targetDict,kiSCSIPKHeaderDigest,kiSCSIPVDigestNone);
@@ -620,6 +624,38 @@ void iSCSIPLRemovePortalForTarget(CFStringRef targetIQN,
         CFDictionaryRemoveValue(portalsList,portalAddress);
         targetNodesCacheModified = true;
     }
+}
+
+/*! Sets whether the target should be logged in during startup.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param autoLogin true to auto login, false otherwise. */
+void iSCSIPLSetAutoLoginForTarget(CFStringRef targetIQN,Boolean autoLogin)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,true);
+    
+    if(targetDict) {
+        if(autoLogin)
+            CFDictionarySetValue(targetDict,kiSCSIPKAutoLogin,kCFBooleanTrue);
+        else
+            CFDictionarySetValue(targetDict,kiSCSIPKAutoLogin,kCFBooleanFalse);
+        
+        targetNodesCacheModified = true;
+    }
+}
+
+/*! Gets whether the target should be logged in during startup.
+ *  @param targetIQN the target iSCSI qualified name (IQN). */
+Boolean iSCSIPLGetAutoLoginForTarget(CFStringRef targetIQN)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,true);
+    Boolean autoLogin = false;
+
+    if(targetDict) {
+        if(CFDictionaryGetValue(targetDict,kiSCSIPKAutoLogin) == kCFBooleanTrue)
+            autoLogin = true;
+    }
+    
+    return autoLogin;
 }
 
 /*! Adds a target object with a specified portal.

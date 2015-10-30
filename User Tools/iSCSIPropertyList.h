@@ -97,6 +97,15 @@ void iSCSIPLSetPortalForTarget(CFStringRef targetIQN,iSCSIPortalRef portal);
 void iSCSIPLRemovePortalForTarget(CFStringRef targetIQN,
                                   CFStringRef portalAddress);
 
+/*! Sets whether the target should be logged in during startup.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param autoLogin true to auto login, false otherwise. */
+void iSCSIPLSetAutoLoginForTarget(CFStringRef targetIQN,Boolean autoLogin);
+
+/*! Gets whether the target should be logged in during startup.
+ *  @param targetIQN the target iSCSI qualified name (IQN). */
+Boolean iSCSIPLGetAutoLoginForTarget(CFStringRef targetIQN);
+
 /*! Sets the maximum number of connections for the specified target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param maxConnections the maximum number of connections. */

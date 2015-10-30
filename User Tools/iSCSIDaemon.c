@@ -810,7 +810,9 @@ errno_t iSCSIDCreateCFPropertiesForConnection(int fd,
  *  application) that require immediate action on the daemon's part. This
  *  includes for example, the initiator name and alias and discovery settings
  *  (whether discovery is enabled or disabled, and the time interval
- *  associated with discovery). */
+ *  associated with discovery).
+ *  @param fd unused, pass in 0 (retained for interface consistency). 
+ *  @param cmd unused, pass in 0 (retained for interface consistency). */
 errno_t iSCSIDUpdateDiscovery(int fd,
                               iSCSIDMsgUpdateDiscoveryCmd * cmd)
 {
@@ -850,6 +852,32 @@ errno_t iSCSIDUpdateDiscovery(int fd,
     return error;
 }
 
+/*! Automatically logs in to targets that were specified for auto-login.
+ *  Used during startup of the daemon to log in to either static 
+ *  dynamic targets for which the auto-login option is enabled. */
+void iSCSIDAutoLogin()
+{
+    // Iterate over all targets and auto-login as required
+    iSCSIPLSynchronize();
+    
+    CFArrayRef targets = NULL;
+
+    if(!(targets = iSCSIPLCreateArrayOfTargets()))
+       return;
+    
+    CFIndex targetsCount = CFArrayGetCount(targets);
+    
+    for(CFIndex idx = 0; idx < targetsCount; idx++)
+    {
+        CFStringRef targetIQN = CFArrayGetValueAtIndex(targets,idx);
+        iSCSITargetRef target = iSCSIPLCopyTarget(targetIQN);
+    
+        enum iSCSILoginStatusCode statusCode;
+        iSCSIDLoginAllPortals(target,&statusCode);
+        iSCSITargetRelease(target);
+    }
+    CFRelease(targets);
+}
 
 /*! Handles power event messages received from the kernel.  This callback
  *  is only active when iSCSIDRegisterForPowerEvents() has been called.
@@ -1042,6 +1070,13 @@ int main(void)
     // Initialize iSCSI connection to kernel (ability to call iSCSI kernel
     // functions and receive notifications from the kernel).
     iSCSIInitialize(CFRunLoopGetMain());
+    
+    // Sync discovery parameters upon startup
+    iSCSIDUpdateDiscovery(0,NULL);
+    
+    // Auto-login upon startup
+    iSCSIDAutoLogin();
+    
     CFRunLoopRun();
     iSCSICleanup();
     
