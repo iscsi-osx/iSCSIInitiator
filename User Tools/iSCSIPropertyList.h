@@ -177,6 +177,11 @@ void iSCSIPLSetTargetConfigType(CFStringRef targetIQN,
  *  @return the target configuration type. */
 enum iSCSITargetConfigTypes iSCSIPLGetTargetConfigType(CFStringRef targetIQN);
 
+/*! Gets the SendTargets discovery portal associated with the dynamic target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return address of the discovery portal that manages the target. */
+CFStringRef iSCSIPLGetDiscoveryPortalForTarget(CFStringRef targetIQN);
+
 /*! Sets the CHAP name associated with the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param name the CHAP name associated with the target. */

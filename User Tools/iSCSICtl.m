@@ -362,6 +362,30 @@ void iSCSICtlDisplayPermissionsError()
     iSCSICtlDisplayError(CFSTR("Permission denied"));
 }
 
+void iSCSICtlDisplayUsage()
+{
+    iSCSICtlDisplayString(CFSTR("Usage: iscsictl <command> <subcommand> <arguments>\n\n"
+                                "Commands:\n"
+                                "\tadd\tAdds an entity to the specified database.\n"
+                                "\tmodify\tModifies an existing entity in the specified database.\n"
+                                "\tremove\tRemoves an existing entity from the specified database.\n"));
+    
+    iSCSICtlDisplayString(CFSTR("\tlist\tLists entities in the specified database.\n"
+                                "\tlogin\tLogs into a target or connection.\n"
+                                "\tlogout\tLogs out of a target or connection.\n"));
+    
+    iSCSICtlDisplayString(CFSTR("\tmount\tMounts all volumes associated with the specified target.\n"
+                                "\tunmount\tUnmounts all volumes associated with the specified target.\n"
+                                ));
+
+    iSCSICtlDisplayString(CFSTR("Subcommands:\n"
+                                "\\tMounts all volumes associated with the specified target.\n"
+                                "\tunmount\tUnmounts all volumes associated with the specified target.\n"
+                                ));
+
+
+}
+
 CFStringRef iSCSICtlCreateSecretFromInput(CFIndex retries)
 {
     CFStringRef secret = NULL;
@@ -1480,6 +1504,14 @@ errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     CFStringRef targetConfig = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\t%@: %@\n"),kOptKeyAutoLogin,autoLogin);
     iSCSICtlDisplayString(targetConfig);
     CFRelease(targetConfig);
+    
+    if(iSCSIPLGetTargetConfigType(targetIQN) == kiSCSITargetConfigDynamicSendTargets)
+    {
+        CFStringRef discoveryPortal = iSCSIPLGetDiscoveryPortalForTarget(targetIQN);
+        CFStringRef discoveryCfg = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\tdiscovery portal: %@\n"),discoveryPortal);
+        iSCSICtlDisplayString(discoveryCfg);
+        CFRelease(discoveryCfg);
+    }
 
     CFStringRef targetParams, targetAuth;
     CFStringRef format = NULL;
@@ -2129,6 +2161,8 @@ int main(int argc, char * argv[])
                 error = iSCSICtlAddTarget(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscoveryPortal)
                 error = iSCSICtlAddDiscoveryPortal(handle,optDictionary);
+            else
+                iSCSICtlDisplayError(CFSTR("invalid subcommand for add"));
             break;
 
         case kiSCSICtlCmdModify:
@@ -2138,6 +2172,8 @@ int main(int argc, char * argv[])
                 error = iSCSICtlModifyInitiator(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscoveryConfig)
                 error = iSCSICtlModifyDiscovery(handle,optDictionary);
+            else
+                iSCSICtlDisplayError(CFSTR("invalid subcommand for modify"));
             break;
 
         case kiSCSICtlCmdRemove:
@@ -2145,12 +2181,14 @@ int main(int argc, char * argv[])
                 error = iSCSICtlRemoveTarget(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscoveryPortal)
                 error = iSCSICtlRemoveDiscoveryPortal(handle,optDictionary);
+            else
+                iSCSICtlDisplayError(CFSTR("invalid subcommand for remove"));
             break;
 
         case kiSCSICtlCmdList:
             if(subCmd == kiSCSICtlSubCmdTargets)
                 error = iSCSICtlListTargets(handle,optDictionary);
-            if(subCmd == kiSCSICtlSubCmdTargetConfig)
+            else if(subCmd == kiSCSICtlSubCmdTargetConfig)
                 error = iSCSICtlListTarget(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdLUNs)
                 error = iSCSICtlListLUNs(handle,optDictionary);
@@ -2158,6 +2196,8 @@ int main(int argc, char * argv[])
                 error = iSCSICtlListDiscoveryConfig(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdInitiatorConfig)
                 error = iSCSICtlListInitiatorConfig(handle,optDictionary);
+            else
+                iSCSICtlDisplayError(CFSTR("invalid subcommand for list"));
             break;
 
         case kiSCSICtlCmdLogin:
@@ -2173,7 +2213,9 @@ int main(int argc, char * argv[])
         case kiSCSICtlCmdReset:
             error = iSCSICtlReset(handle,optDictionary); break;
         case kiSCSICtlCmdInvalid:
-            iSCSICtlListTargets(handle,optDictionary); break;
+            iSCSICtlDisplayUsage();
+            
+            break;
     };
 
     iSCSIDaemonDisconnect(handle);

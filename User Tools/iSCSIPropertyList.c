@@ -1022,6 +1022,20 @@ enum iSCSITargetConfigTypes iSCSIPLGetTargetConfigType(CFStringRef targetIQN)
     return configType;
 }
 
+/*! Gets the SendTargets discovery portal associated with the dynamic target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return address of the discovery portal that manages the target. */
+CFStringRef iSCSIPLGetDiscoveryPortalForTarget(CFStringRef targetIQN)
+{
+    CFStringRef discoveryPortal = NULL;
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+    
+    if(targetDict)
+        discoveryPortal = CFDictionaryGetValue(targetDict,kiSCSIPKSendTargetsPortal);
+    
+    return discoveryPortal;
+}
+
 /*! Sets the CHAP name associated with the target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param name the CHAP name associated with the target. */
