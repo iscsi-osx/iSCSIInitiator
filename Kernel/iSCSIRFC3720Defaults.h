@@ -118,12 +118,18 @@ static const unsigned int kRFC3720_ErrorRecoveryLevel_Max = 2;
  *  how often the initiator polls various discovery mechanisms for updates
  *  on target and portal information. A value of 0 indicates that discovery
  *  is done on-demand only. */
-static const unsigned int kiSCSIInitiator_DiscoveryInterval_Min = 0;
+static const unsigned int kiSCSIInitiator_DiscoveryInterval_Min = 30;
 
 /*! Maximum discovery interval (seconds). The discovery interval specifies
  *  how often the initiator polls various discovery mechanisms for updates
  *  on target and portal information. A value of 0 indicates that discovery
  *  is done on-demand only. */
 static const unsigned int kiSCSIInitiator_DiscoveryInterval_Max = 32767;
+
+/*! Default discovery interval (seconds). The discovery interval specifies
+ *  how often the initiator polls various discovery mechanisms for updates
+ *  on target and portal information. A value of 0 indicates that discovery
+ *  is done on-demand only. */
+static const unsigned int kiSCSIInitiator_DiscoveryInterval = 60;
 
 #endif

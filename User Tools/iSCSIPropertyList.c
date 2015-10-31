@@ -172,7 +172,7 @@ CFMutableDictionaryRef iSCSIPLCreateDiscoveryDict()
         &kCFTypeDictionaryValueCallBacks);
 
     // Default scan interval (0 indicates never)
-    CFIndex interval = 0;
+    CFIndex interval = kiSCSIInitiator_DiscoveryInterval;
     CFNumberRef value = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&interval);
 
     CFDictionaryAddValue(discoveryDict,kiSCSIPKSendTargetsEnabled,kCFBooleanFalse);
