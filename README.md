@@ -11,8 +11,11 @@ The load script copies the kernel extension `iSCSIInitiator.kext` to `/tmp/iSCSI
 Important:  
 
 1.  Run the `clean.sh` script before installing each time.  This ensures that the property list is removed should its format change during development.  
-2.  Disable kext signing before attempting to load the kext using `load.sh`.  This is achieved by running `sudo nvram boot-args=kext-dev-mode=1` (reboot required).
+2.  Disable kext signing before attempting to load the kext using `load.sh`.
+ * Prior to El Capitan (that is, OS X versions 10.10 and below), this is achieved by running `sudo nvram boot-args=kext-dev-mode=1`
+ * In El Capitan, this is achieved by running `csrutil enable` at the Recover OS terminal window (see the [System Integrity Protection Guide](https://developer.apple.com/library/mac/documentation/Security/Conceptual/System_Integrity_Protection_Guide/KernelExtensions/KernelExtensions.html#//apple_ref/doc/uid/TP40016462-CH4-SW1) for more details).
 
+ In both cases, a reboot is required.
 
 
 # Usage
