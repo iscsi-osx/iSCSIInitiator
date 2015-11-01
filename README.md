@@ -1,4 +1,4 @@
-The scripts `install.sh` and `uninstall.sh` are provided for manual installation.  Once installed, the command-line utility `iscsictl` can be used to add targets and login to them.
+The initiator may be built by running the `build.sh` script.  After the necessary components have been built, the script `install.sh` can be used for installation.  Once installed, the command-line utility `iscsictl` can be used to add targets and login to them. See the project Wiki for more information.
 
 Important:  
 
