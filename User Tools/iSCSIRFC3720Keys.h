@@ -51,7 +51,6 @@ static CFStringRef kRFC3720_Value_DataDigestNone = CFSTR("None");
 static CFStringRef kRFC3720_Value_DataDigestCRC32C = CFSTR("CRC32C");
 
 static CFStringRef kRFC3720_Key_MaxConnections = CFSTR("MaxConnections");
-static CFStringRef kRFC3720_Key_TargetGroupPortalTag = CFSTR("TargetGroupPortalTag");
 
 static CFStringRef kRFC3720_Key_InitialR2T = CFSTR("InitialR2T");
 
@@ -83,5 +82,9 @@ static CFStringRef kRFC3720_Value_SendTargetsAll = CFSTR("All");
 
 static CFStringRef kRFC3720_Value_Yes = CFSTR("Yes");
 static CFStringRef kRFC3720_Value_No = CFSTR("No");
+
+// Other keys associated with sessions
+
+static CFStringRef kRFC3720_Key_TargetSessionId = CFSTR("TSIH");
 
 #endif

@@ -36,7 +36,8 @@ errno_t iSCSICleanup();
  *  must call iSCSISessionClose to close this session and free resources.
  *  @param target specifies the target and connection parameters to use.
  *  @param portal specifies the portal to use for the new session.
- *  @param auth specifies the authentication parameters to use.
+ *  @param initiatorAuth specifies the initiator authentication parameters.
+ *  @param targetAuth specifies the target authentication parameters.
  *  @param sessCfg the session configuration parameters to use.
  *  @param connCfg the connection configuration parameters to use.
  *  @param sessionId the new session identifier.
@@ -45,7 +46,8 @@ errno_t iSCSICleanup();
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSILoginSession(iSCSITargetRef target,
                           iSCSIPortalRef portal,
-                          iSCSIAuthRef auth,
+                          iSCSIAuthRef initiatorAuth,
+                          iSCSIAuthRef targetAuth,
                           iSCSISessionConfigRef sessCfg,
                           iSCSIConnectionConfigRef connCfg,
                           SID * sessionId,
@@ -60,14 +62,16 @@ errno_t iSCSILogoutSession(SID sessionId,
 /*! Adds a new connection to an iSCSI session.
  *  @param sessionId the new session identifier.
  *  @param portal specifies the portal to use for the connection.
- *  @param auth specifies the authentication parameters to use.
+ *  @param initiatorAuth specifies the initiator authentication parameters.
+ *  @param targetAuth specifies the target authentication parameters.
  *  @param connCfg the connection configuration parameters to use.
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSILoginConnection(SID sessionId,
                              iSCSIPortalRef portal,
-                             iSCSIAuthRef auth,
+                             iSCSIAuthRef initiatorAuth,
+                             iSCSIAuthRef targetAuth,
                              iSCSIConnectionConfigRef connCfg,
                              CID * connectionId,
                              enum iSCSILoginStatusCode * statusCode);
@@ -101,13 +105,13 @@ errno_t iSCSIRestoreForSystemWake();
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
-                                   iSCSIAuthRef auth,
+                                   iSCSIAuthRef initiatorAuth,
                                    iSCSIMutableDiscoveryRecRef * discoveryRec,
                                    enum iSCSILoginStatusCode * statuscode);
 
 /*! Retrieves a list of targets available from a give portal.
  *  @param portal the iSCSI portal to look for targets.
- *  @param authMethod the preferred authentication method.
+ *  @param initiatorAuth specifies the initiator authentication parameters.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
@@ -150,7 +154,22 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId);
 
 
 /*! Creates a dictionary of session parameters for the session associated with
- *  the specified target, if one exists.
+ *  the specified target, if one exists. The following keys are guaranteed
+ *  to be in the dictionary:
+ *
+ *  kRFC3720_Key_InitialR2T                 (CFBoolean)
+ *  kRFC3720_Key_ImmediateData              (CFBoolean)
+ *  kRFC3720_Key_DataPDUInOrder             (CFBoolean)
+ *  kRFC3720_Key_DataSequenceInOrder        (CFBoolean)
+ *  kRFC3720_Key_MaxConnections             (CFNumberRef)
+ *  kRFC3720_Key_MaxBurstLength             (CFNumberRef)
+ *  kRFC3720_Key_FirstBurstLength           (CFNumberRef)
+ *  kRFC3720_Key_MaxOutstandingR2T          (CFNumberRef)
+ *  kRFC3720_Key_DefaultTime2Retain         (CFNumberRef)
+ *  kRFC3720_Key_DefaultTime2Wait           (CFNumberRef)
+ *  kRFC3720_Key_TargetGroupPortalTag       (CFNumberRef)
+ *  kRFC3720_Key_TargetSessionId            (CFNumberRef)
+ *
  *  @param handle a handle to a daemon connection.
  *  @param target the target to check for associated sessions to generate
  *  a dictionary of session parameters.
@@ -161,8 +180,9 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target);
  *  with the specified target and portal, if one exists.  The following keys
  *  are guaranteed to be in the dictionary:
  *
- *  kiSCSIPropertyM (CFNumberRef)
- *  kIOPropertySCSIPeripheralDeviceType (CFNumberRef)
+ *  kRFC3720_Key_DataDigest                 (CFNumberRef)
+ *  kRFC3720_Key_HeaderDigest               (CFNumberRef)
+ *  kRFC3720_Key_MaxRecvDataSegmentLength   (CFNumberRef)
  *
  *  @param handle a handle to a daemon connection.
  *  @param target the target associated with the the specified portal.
@@ -176,7 +196,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
 /*! Sets the name of this initiator.  This is the IQN-format name that is
  *  exchanged with a target during negotiation.
  *  @param initiatorIQN the initiator name. */
-void iSCSISetInitiatiorName(CFStringRef initiatorIQN);
+void iSCSISetInitiatorName(CFStringRef initiatorIQN);
 
 /*! Sets the alias of this initiator.  This is the IQN-format alias that is
  *  exchanged with a target during negotiation.

@@ -8,58 +8,80 @@
 .Nd iSCSI initiator configuration and management tool.
 .Sh SYNOPSIS
 .Nm
-.Op Fl add Fl target Ar target Fl portal Ar portal Op Fl interface Ar interface
+add target
+.Ar target,portal
+.Op Fl interface Ar interface
+.Nm
+remove target
+.Ar target
+.Op , Ar portal
+
+.Nm
+login
+.Ar " target" Op , Ar portal
+.Nm
+logout
+.Ar target Op , Ar portal
+.Nm
+mount
+.Ar  "  target"
+.Nm
+unmount
+.Ar	target
+
+.Nm
+modify initiator-config
+.Nm
+modify target-config
+.Ar target Op , Ar portal
 .Op ...
 .Nm
-.Op Fl modify Fl target Op Fl portal Ar portal
-.Op ...
+modify discovery-config
+
 .Nm
-.Op Fl remove Fl target Ar target Op Fl portal Ar portal
+list initiator-config
 .Nm
-.Op Fl login Fl target Ar target Op Fl portal Ar portal
+list target-config
+.Ar target
 .Nm
-.Op Fl logout Fl target Ar target Op Fl portal Ar portal
+list discovery-config
+
 .Nm
-.Op Fl targets
+add discovery-portal
+.Ar portal
+.Op Fl interface Ar interface
 .Nm
-.Op Fl luns
+remove discovery-portal
+.Ar portal
+
 .Nm
-.Op Fl mount Ar target
+list targets
 .Nm
-.Op	Fl unmount Ar target
-.Nm
-.Op Fl probe Ar target  Fl portal Ar portal
-.Nm
-.Op Fl discovery Fl portal Ar portal
+list luns
+
 .Sh DESCRIPTION
 The
 .B iscsictl
-utility is used to configure the iSCSI initiator and manage sessions.  Users may login or logout of targets after they have been defined with appropriate portals and optional authentication method, session parameters and connection parameters.  Superuser access is required to modify the targets database.
+utility is used to configure the iSCSI initiator and manage sessions.  Users may login or logout of targets after they have been defined with appropriate portals and optional authentication method, session parameters and connection parameters.  Unprivileged users cannot perform add, remove and modify operations.
 .Pp
 The options are as follows:
 .Bl -tag -width "-discovery"
-.It Fl add
-Adds a target or portal to the database.
-.It Fl modify
-Modifies an existing target in the database.
-.It Fl remove
-Removes a target or portal from the database.
-.It Fl login
+.It add
+Adds an entity to the specified database.
+.It modify
+Modifies an existing entity in the specified database.
+.It remove
+Removes an existing entity from the specified database.
+.It list
+Lists entities in the specified database.
+.It login
 Logs into a target or connection.
-.It Fl logout
+.It logout
 Logs out of a target or connection.
-.It Fl targets
-Lists all of the targets in the database.
-.It Fl luns
-Lists any LUNs that may be active.
-.It Fl mount
+.It mount
 Mounts all volumes associated with the specified target.
-.It Fl unmount
+.It unmount
 Unmounts all volumes associated with the specified target.
-.It Fl probe
-Probes the specified target and portal for authentication parameters.
-.It Fl discovery
-Performs iSCSI discovery using the specified portal.
 .El
 .Pp
 The
@@ -84,24 +106,19 @@ is specified for a remove operation, only that portal is removed from the databa
 .Sh FILES
 .Bl -tag -width Ds -compact
 .It Pa /Library/Preferences/com.github.iscsi-osx.iSCSIInitiator.plist
-Initiator configuration and targets database file.  Stores the initiator name and alias, a list of defined targets, their associated portals, authentication parameters, session-wide and connection-wide options, and a list of discovered targets and portals.  Superuser access is required to edit this file.
+Initiator, targets and discovery configuration file.  Stores the initiator name and alias, a list of defined targets, their associated portals, authentication parameters, session-wide and connection-wide options, discovery portals and settings and a list of discovered targets.  Superuser access is required to edit this file.
 .Pp
 .Sh EXAMPLES
 .Bl -tag -width Ds -compact
-.It Add a target to the database with a single portal that uses interface en0:
-sudo iscsictl -add -target iqn.2015-01.com.example:target -portal 192.168.1.100:3260 -interface en0
+iscsictl add target iqn.2015-01.com.example:target,192.168.1.100:3260 -interface en0
 .Pp
-.It Add a second portal to the existing target that uses interface en1:
-sudo iscsictl -add -target iqn.2015-01.com.example:target -portal 192.168.1.101:3260 -interface en1
+iscsictl add target iqn.2015-01.com.example:target,192.168.1.101:3260 -interface en1
 .Pp
-.It Login to the target using a particular portal:
-iscsictl -login -target iqn.2015-01.com.example:target -portal 192.168.1.1.100
+iscsictl login iqn.2015-01.com.example:target,192.168.1.1.100
 .Pp
-.It Logout of the target:
-iscsictl -logout -target iqn.2015-01.com.example:target
+iscsictl logout target iqn.2015-01.com.example:target
 .Pp
-.It Modify the first portal to use the interface en2:
-sudo iscsictl -modify -target iqn.2015-01.com.example:target -portal 192.168.1.1.100:3260 -interface en2
+iscsictl modify target iqn.2015-01.com.example:target,192.168.1.1.100:3260 -interface en2
 .Sh SEE ALSO
 .Xr iscsid 8
 .Sh AUTHORS

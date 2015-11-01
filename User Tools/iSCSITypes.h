@@ -24,15 +24,28 @@ static CFStringRef kiSCSIDefaultPort = CFSTR("3260");
  *  been specified. */
 static CFStringRef kiSCSIUnspecifiedTargetIQN = CFSTR("");
 
-
 typedef CFMutableDictionaryRef iSCSIMutablePortalRef;
 typedef CFDictionaryRef iSCSIPortalRef;
 
 typedef CFDictionaryRef iSCSITargetRef;
 typedef CFMutableDictionaryRef iSCSIMutableTargetRef;
 
+/*! A composite data structure comprising intitiator and target authentication
+ *  objects. Used by the iSCSI layer to establish sessions. */
 typedef CFDictionaryRef iSCSIAuthRef;
-typedef CFMutableDictionaryRef iSCSIMutableAuthRef;
+
+/*! Target authentication object. */
+typedef CFDictionaryRef iSCSITargetAuthRef;
+typedef CFMutableDictionaryRef iSCSIMutableTargetAuthRef;
+
+/*! Initiator authenticaiton object. */
+typedef CFDictionaryRef iSCSIInitiatorAuthRef;
+typedef CFMutableDictionaryRef iSCSIMutableInitiatorAuthRef;
+
+/*! Basis for initiator and target authentication objects. */
+typedef CFDictionaryRef iSCSICommonAuthRef;
+typedef CFMutableDictionaryRef iSCSIMutableCommonAuthRef;
+
 
 typedef CFDictionaryRef iSCSIDiscoveryRecRef;
 typedef CFMutableDictionaryRef iSCSIMutableDiscoveryRecRef;
@@ -42,7 +55,6 @@ typedef CFMutableDictionaryRef iSCSIMutableSessionConfigRef;
 
 typedef CFDictionaryRef iSCSIConnectionConfigRef;
 typedef CFMutableDictionaryRef iSCSIMutableConnectionConfigRef;
-
 
 /*! Error recovery levels. */
 enum iSCSIErrorRecoveryLevels {
@@ -71,6 +83,19 @@ enum iSCSIAuthMethods {
     
     /*! Invalid authentication method. */
     kiSCSIAuthMethodInvalid
+};
+
+/*! Digest type supported by iSCSI. */
+enum iSCSIDigestTypes {
+
+    /*! No digest. */
+    kiSCSIDigestNone = 0,
+
+    /*! CRC32C digest. */
+    kiSCSIDigestCRC32C = 1,
+
+    /*! Invalid digest. */
+    kiSCSIDigestInvalid = 2
 };
 
 /*! Detailed login response from a target. */
@@ -153,6 +178,19 @@ enum iSCSILogoutStatusCode {
     kiSCSILogoutInvalidStatusCode
 };
 
+/*! Target configuration types. */
+enum iSCSITargetConfigTypes {
+
+    /*! Static target configuration. */
+    kiSCSITargetConfigStatic = 0,
+
+    /*! SendTargets dynamic target. */
+    kiSCSITargetConfigDynamicSendTargets = 1,
+
+    /*! Invalid target configuration type. */
+    kiSCSITargetConfigInvalid = 2
+};
+
 
 /*! Creates a new portal object from an external data representation.
  *  @param data data sued to construct a portal object.
@@ -197,16 +235,6 @@ CFStringRef iSCSIPortalGetHostInterface(iSCSIPortalRef portal);
  *  portal. */
 void iSCSIPortalSetHostInterface(iSCSIMutablePortalRef portal,
                                  CFStringRef hostInterface);
-
-/*! Gets whether startup is automatic for this portal.
- *  @param portal an iSCSI portal object.
- *  @return true if the portal is to be automatically started. */
-Boolean iSCSIPortalGetAutostart(iSCSIPortalRef portal);
-
-/*! Sets whether startup is automatic for this portal.
- *  @param portal an iSCSI portal object.
- *  @param autostart true to autostart this portal. */
-void iSCSIPortalSetAutostart(iSCSIMutablePortalRef portal,Boolean autostart);
 
 /*! Releases memory associated with an iSCSI portal object.
  *  @param portal an iSCSI portal object. */
@@ -254,17 +282,12 @@ CFStringRef iSCSITargetGetIQN(iSCSITargetRef target);
  *  effect if the specified target name is blank.
  *  @param target the target object.
  *  @param name the name to set. */
-void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name);
+void iSCSITargetSetIQN(iSCSIMutableTargetRef target,CFStringRef name);
 
 /*! Gets the nickname associated with the iSCSI target.
  *  @param target the target object.
  *  @return the nickname associated with the target. */
 CFStringRef iSCSITargetGetNickName(iSCSIMutableTargetRef target);
-
-/*! Sets the nickname associated with the iSCSI target.
- *  @param target the target object.
- *  @param nickname the nickname to assign to the target. */
-void iSCSITargetSetNickname(iSCSIMutableTargetRef target,CFStringRef nickname);
 
 /*! Releases memory associated with an iSCSI target object.
  * @param target the iSCSI target object. */
@@ -291,48 +314,33 @@ CFDictionaryRef iSCSITargetCreateDictionary(iSCSITargetRef target);
 CFDataRef iSCSITargetCreateData(iSCSITargetRef target);
 
 
-/*! Creates a new authentication object from an external data representation.
- * @param data data used to construct an iSCSI authentication object.
- * @return an iSCSI authentication object or NULL if object creation failed */
-iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIAuth object with empty authentication parameters
  *  (defaults to no authentication).
  *  @return a new iSCSI authentication object. */
 iSCSIAuthRef iSCSIAuthCreateNone();
 
-/*! Creates a new iSCSIAuth object for CHAP authentication.  The initiatorUser
- *  and initiatorSecret are both required parameters, while targetUser and 
- *  targetSecret are optional.  This function will fail to return an 
- *  authentication object if the first two parameters are not specified.
- *  @param targetUser the user name for CHAP.
- *  @param targetSecret the shared CHAP secret.
- *  @param initiatorUser the user name for mutual CHAP (may be NULL if mutual
- *  CHAP is not used).
- *  @param initiatorSecret the shared secret for mutual CHAP (may be NULL if
- *  mutual CHAP is not used). 
+/*! Creates a new authentication object from an external data representation.
+ * @param data data used to construct an iSCSI authentication object.
+ * @return an iSCSI authentication object or NULL if object creation failed */
+iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data);
+
+/*! Creates a new iSCSIAuth object for CHAP authentication. This function will 
+ *  fail to return an authentication object if both parameters are not specified.
+ *  @param name the name for CHAP.
+ *  @param sharedSecret the shared CHAP secret.
  *  @return an iSCSI authentication object, or NULL if the parameters were
  *  invalid. */
-iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef targetUser,
-                                 CFStringRef targetSecret,
-                                 CFStringRef initiatorUser,
-                                 CFStringRef initiatorSecret);
+iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef name,CFStringRef sharedSecret);
 
 /*! Returns the CHAP authentication parameter values if the authentication
  *  method is actually CHAP.
  *  @param auth an iSCSI authentication object.
- *  @param targetUser the user name for CHAP.
- *  @param targetSecret the shared CHAP secret.
- *  @param initiatorUser the user name for mutual CHAP (may be NULL if mutual
- *  CHAP is not used).
- *  @param initiatorSecret the shared secret for mutual CHAP (may be NULL if
- *  mutual CHAP is not used). */
+ *  @param name the name for CHAP.
+ *  @param sharedSecret the shared CHAP secret. */
 void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
-                            CFStringRef * targetUser,
-                            CFStringRef * targetSecret,
-                            CFStringRef * initiatorUser,
-                            CFStringRef * initiatorSecret);
-
+                            CFStringRef * name,
+                            CFStringRef * sharedSecret);
 
 /*! Gets the authentication method used.
  *  @param auth an iSCSI authentication object.
@@ -347,22 +355,14 @@ void iSCSIAuthRelease(iSCSIAuthRef auth);
  *  @param auth an iSCSI authentication object. */
 void iSCSIAuthRetain(iSCSIAuthRef auth);
 
-/*! Creates a new authentication object from a dictionary representation.
- * @return an iSCSI authentication object or NULL if object creation failed. */
+/*! Creates a new authentication object from a dictionary representation. */
 iSCSIAuthRef iSCSIAuthCreateWithDictionary(CFDictionaryRef dict);
 
-/*! Copies an authentication object to a dictionary representation.
- *  @param auth an iSCSI authentication object.
- *  @return a dictionary representation of the authentication object or
- *  NULL if authentication object is invalid. */
+/*! Copies an authentication object to a dictionary representation. */
 CFDictionaryRef iSCSIAuthCreateDictionary(iSCSIAuthRef auth);
 
-/*! Copies the authentication object to a byte array representation.
- *  @param auth an iSCSI authentication object.
- *  @return data representing the authentication object 
- *  or NULL if the authenticaiton object is invalid. */
+/*! Copies the authentication object to a byte array representation. */
 CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth);
-
 
 
 /*! Creates a discovery record object. */
@@ -409,7 +409,6 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfTargets(iSCSIDiscoveryRecRef discoveryR
 CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIDiscoveryRecRef discoveryRec,
                                                          CFStringRef targetIQN);
 
-
 /*! Gets all of the portals associated with a partiular target and portal
  *  group tag.  
  *  @param discoveryRec the discovery record.
@@ -420,7 +419,6 @@ CFArrayRef iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(iSCSIDiscoveryRecRef di
 CFArrayRef iSCSIDiscoveryRecGetPortals(iSCSIDiscoveryRecRef discoveryRec,
                                        CFStringRef targetIQN,
                                        CFStringRef portalGroupTag);
-
 
 /*! Releases memory associated with an iSCSI discovery record object.
  * @param target the iSCSI discovery record object. */
@@ -519,23 +517,25 @@ iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableWithExisting(i
 
 /*! Gets whether a header digest is enabled in the config object.
  *  @param config the iSCSI config object.
- *  @return true if header digest is enabled, false otherwise. */
-bool iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config);
+ *  @return the type of digest to use. */
+enum iSCSIDigestTypes iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config);
 
 /*! Sets whether a header digest is enabled in the config object.
  * @param config the iSCSI config object.
- * @param enable true to enable header digest. */
-void iSCSIConnectionConfigSetHeaderDigest(iSCSIMutablePortalRef config,bool enable);
+ * @param digestType the type of digest to use. */
+void iSCSIConnectionConfigSetHeaderDigest(iSCSIConnectionConfigRef config,
+                                          enum iSCSIDigestTypes digestType);
 
 /*! Gets whether a data digest is enabled in the config object.
  *  @param config the iSCSI config object.
- *  @return true if data digest is enabled, false otherwise. */
-bool iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config);
+ *  @return the type of digest to use. */
+enum iSCSIDigestTypes iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config);
 
 /*! Sets whether a data digest is enabled in the config object.
  *  @param config the iSCSI config object.
- *  @param enable true to enable data digest. */
-void iSCSIConnectionConfigSetDataDigest(iSCSIMutablePortalRef config,bool enable);
+ *  @param digestType the type of digest to use. */
+void iSCSIConnectionConfigSetDataDigest(iSCSIConnectionConfigRef config,
+                                        enum iSCSIDigestTypes digestType);
 
 /*! Releases memory associated with an iSCSI connection configuration object.
  *  @param config an iSCSI connection configuration object. */

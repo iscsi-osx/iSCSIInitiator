@@ -24,11 +24,14 @@
 #include "iSCSIPDUKernel.h"
 
 // BSD socket includes
+#include <sys/kernel_types.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/kern_control.h>
 #include <sys/signal.h>
 #include <sys/time.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 
 /*! This class implements the iSCSI virtual host bus adapter (HBA).  The HBA

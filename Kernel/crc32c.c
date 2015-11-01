@@ -33,6 +33,7 @@
  1.0  10 Feb 2013  First version
  1.1   1 Aug 2013  Correct comments on why three crc instructions in parallel
  1.2  20 Dec 2014  Modified by Nareg Sinenian to include hardware CRC32C only
+ 1.3   4 Oct 2015  Modified by Nareg Sinenian to cast 64-bit vars to 32 bits.
  */
 
 #include "crc32c.h"
@@ -194,8 +195,8 @@ uint32_t crc32c(uint32_t crc,const void * buf,size_t len)
                     : "r"(next), "0"(crc0), "1"(crc1), "2"(crc2));
             next += 8;
         } while (next < end);
-        crc0 = crc32c_shift(crc32c_long, crc0) ^ crc1;
-        crc0 = crc32c_shift(crc32c_long, crc0) ^ crc2;
+        crc0 = crc32c_shift(crc32c_long, (uint32_t)crc0) ^ crc1;
+        crc0 = crc32c_shift(crc32c_long, (uint32_t)crc0) ^ crc2;
         next += LONG*2;
         len -= LONG*3;
     }
@@ -214,8 +215,8 @@ uint32_t crc32c(uint32_t crc,const void * buf,size_t len)
                     : "r"(next), "0"(crc0), "1"(crc1), "2"(crc2));
             next += 8;
         } while (next < end);
-        crc0 = crc32c_shift(crc32c_short, crc0) ^ crc1;
-        crc0 = crc32c_shift(crc32c_short, crc0) ^ crc2;
+        crc0 = crc32c_shift(crc32c_short, (uint32_t)crc0) ^ crc1;
+        crc0 = crc32c_shift(crc32c_short, (uint32_t)crc0) ^ crc2;
         next += SHORT*2;
         len -= SHORT*3;
     }

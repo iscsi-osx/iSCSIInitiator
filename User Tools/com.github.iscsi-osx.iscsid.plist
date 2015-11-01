@@ -5,19 +5,17 @@
 	<key>KeepAlive</key>
 	<true/>
 	<key>StandardErrorPath</key>
-	<string>/var/log/iscsid.log</string>
-	<key>ServiceIPC</key>
-	<true/>
+	<string>/var/log/iscsid</string>
 	<key>Sockets</key>
 	<dict>
 		<key>iscsid</key>
 		<dict>
 			<key>SockPathName</key>
-			<string>/tmp/iscsid_local</string>
+			<string>/var/tmp/iscsid</string>
 		</dict>
 	</dict>
 	<key>Program</key>
-	<string>/tmp/iscsid</string>
+	<string>/usr/sbin/iscsid</string>
 	<key>Label</key>
 	<string>com.github.iscsi-osx.iscsid</string>
 </dict>

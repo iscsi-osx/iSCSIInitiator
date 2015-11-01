@@ -777,7 +777,7 @@ CFStringRef iSCSIKernelCreateTargetIQNForSessionId(SID sessionId)
     
     kern_return_t result = IOConnectCallMethod(connection,kiSCSICreateTargetIQNForSessionId,
                                                &input,inputCnt,0,0,0,0,
-                                               targetIQN,&targetIQNLength);
+                                               (void*)targetIQN,&targetIQNLength);
     if(result != kIOReturnSuccess)
         return NULL;
     

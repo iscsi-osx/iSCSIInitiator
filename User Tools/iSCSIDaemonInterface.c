@@ -11,117 +11,111 @@
 #include "iSCSIDaemonInterface.h"
 #include "iSCSIDaemonInterfaceShared.h"
 
-const struct iSCSIDCmdShutdown iSCSIDCmdShutdownInit = {
-    .funcCode = kiSCSIDShutdownDaemon
-};
+/*! Timeout used when connecting to daemon. */
+static const int kiSCSIDaemonConnectTimeoutMilliSec = 100;
 
-const struct iSCSIDCmdLogin iSCSIDCmdLoginInit  = {
+/*! Timeout to use for normal communication with daemon. This is the time
+ *  that the client will have to wait for the deamon to perform the desired
+ *  operation (potentially over the network). */
+static const int kiSCSIDaemonDefaultTimeoutSec = 20;
+
+
+const iSCSIDMsgLoginCmd iSCSIDMsgLoginCmdInit  = {
     .funcCode = kiSCSIDLogin,
     .portalLength = 0,
     .targetLength = 0
 };
 
-const struct iSCSIDCmdLogout iSCSIDCmdLogoutInit  = {
+const iSCSIDMsgLogoutCmd iSCSIDMsgLogoutCmdInit  = {
     .funcCode = kiSCSIDLogout,
     .targetLength = 0,
     .portalLength = 0
 };
 
-const struct iSCSIDCmdCreateArrayOfActiveTargets iSCSIDCmdCreateArrayOfActiveTargetsInit  = {
+const iSCSIDMsgCreateArrayOfActiveTargetsCmd iSCSIDMsgCreateArrayOfActiveTargetsCmdInit  = {
     .funcCode = kiSCSIDCreateArrayOfActiveTargets,
 };
 
-const struct iSCSIDCmdCreateArrayOfActivePortalsForTarget iSCSIDCmdCreateArrayOfActivePortalsForTargetInit  = {
+const iSCSIDMsgCreateArrayOfActivePortalsForTargetCmd iSCSIDMsgCreateArrayOfActivePortalsForTargetCmdInit  = {
     .funcCode = kiSCSIDCreateArrayOfActivePortalsForTarget,
 };
 
-const struct iSCSIDCmdIsTargetActive iSCSIDCmdIsTargetActiveInit  = {
+const iSCSIDMsgIsTargetActiveCmd iSCSIDMsgIsTargetActiveCmdInit  = {
     .funcCode = kiSCSIDIsTargetActive,
     .targetLength = 0
 };
 
-const struct iSCSIDCmdIsPortalActive iSCSIDCmdIsPortalActiveInit  = {
+const iSCSIDMsgIsPortalActiveCmd iSCSIDMsgIsPortalActiveCmdInit  = {
     .funcCode = kiSCSIDIsPortalActive,
     .portalLength = 0
 };
 
-const struct iSCSIDCmdQueryPortalForTargets iSCSIDCmdQueryPortalForTargetsInit  = {
-    .funcCode = kiSCSIDQueryPortalForTargets,
-};
-
-const struct iSCSIDCmdQueryTargetForAuthMethod iSCSIDCmdQueryTargetForAuthMethodInit  = {
+const iSCSIDMsgQueryTargetForAuthMethodCmd iSCSIDMsgQueryTargetForAuthMethodCmdInit  = {
     .funcCode = kiSCSIDQueryTargetForAuthMethod,
 };
 
-const struct iSCSIDCmdCreateCFPropertiesForSession iSCSIDCmdCreateCFPropertiesForSessionInit = {
+const iSCSIDMsgCreateCFPropertiesForSessionCmd iSCSIDMsgCreateCFPropertiesForSessionCmdInit = {
     .funcCode = kiSCSIDCreateCFPropertiesForSession,
     .targetLength = 0
 };
 
-const struct iSCSIDCmdCreateCFPropertiesForConnection iSCSIDCmdCreateCFPropertiesForConnectionInit = {
+const iSCSIDMsgCreateCFPropertiesForConnectionCmd iSCSIDMsgCreateCFPropertiesForConnectionCmdInit = {
     .funcCode = kiSCSIDCreateCFPropertiesForConnection,
     .targetLength = 0,
     .portalLength = 0
 };
 
+const iSCSIDMsgUpdateDiscoveryCmd iSCSIDMsgUpdateDiscoveryCmdInit = {
+    .funcCode = kiSCSIDUpdateDiscovery
+};
+
+
 iSCSIDaemonHandle iSCSIDaemonConnect()
 {
-    // Create a new socket and connect to the daemon
     iSCSIDaemonHandle handle = socket(PF_LOCAL,SOCK_STREAM,0);
     struct sockaddr_un address;
     address.sun_family = AF_LOCAL;
-    strcpy(address.sun_path,"/tmp/iscsid_local");
-    
-    // Set the timeout for this socket so that the client will quit if
-    // the daemon isn't running (otherwise it will hang on the non-blocking
-    // socket
+    strcpy(address.sun_path,"/var/tmp/iscsid");
 
-// TODO: set timeout...
+    // Do non-blocking connect
+    //    fcntl(handle,F_SETFL,O_NONBLOCK);
+    connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address));
 
-    // Connect to local socket and return handle
-    if(connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address))==0)
-        return handle;
-    
-    close(handle);
-    return -1;
+    // Set timeout for connect()
+    struct timeval tv;
+    memset(&tv,0,sizeof(tv));
+    tv.tv_usec = kiSCSIDaemonConnectTimeoutMilliSec*1000;
+
+    fd_set fdset;
+    FD_ZERO(&fdset);
+    FD_SET(handle,&fdset);
+
+    if(select(handle,NULL,&fdset,NULL,&tv)) {
+        errno_t error;
+        socklen_t errorSize = sizeof(errno_t);
+        getsockopt(handle,SOL_SOCKET,SO_ERROR,&error,&errorSize);
+
+        if(error) {
+            close(handle);
+            handle = -1;
+        }
+        else {
+            // Set send & receive timeouts
+            memset(&tv,0,sizeof(tv));
+            tv.tv_sec = kiSCSIDaemonDefaultTimeoutSec;
+
+            setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
+            setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
+        }
+    }
+    return handle;
 }
 
 void iSCSIDaemonDisconnect(iSCSIDaemonHandle handle)
 {
-    // Tell daemon to shut down
-    iSCSIDCmdShutdown cmd = iSCSIDCmdShutdownInit;
-    send(handle,&cmd,sizeof(iSCSIDCmd),0);
-    
     if(handle >= 0)
         close(handle);
 }
-
-/*! Helper function.  Sends an iSCSI daemon command followed by optional
- *  data in the form of CFDataRef objects. */
-errno_t iSCSIDaemonSendCmdWithData(iSCSIDaemonHandle handle,iSCSIDCmd * cmd,...)
-{
-    va_list argList;
-    va_start(argList,cmd);
-    
-    // Send command header
-    if(send(handle,cmd,sizeof(iSCSIDCmd),0) != sizeof(iSCSIDCmd))
-        return EIO;
-    
-    // Iterate over data and send each one...
-    CFDataRef data = NULL;
-    while((data = va_arg(argList,CFDataRef)))
-    {
-        CFIndex length = CFDataGetLength(data);
-        if(send(handle,CFDataGetBytePtr(data),length,0) != length)
-        {
-            va_end(argList);
-            return EIO;
-        }
-    }
-    va_end(argList);
-    return 0;
-}
-
 
 /*! Logs into a target using a specific portal or all portals in the database.
  *  If an argument is supplied for portal, login occurs over the specified
@@ -142,7 +136,7 @@ errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
     CFDataRef targetData = iSCSITargetCreateData(target);
     CFDataRef portalData = NULL;
 
-    iSCSIDCmdLogin cmd = iSCSIDCmdLoginInit;
+    iSCSIDMsgLoginCmd cmd = iSCSIDMsgLoginCmdInit;
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
     cmd.portalLength = 0;
 
@@ -151,9 +145,8 @@ errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
         cmd.portalLength = (UInt32)CFDataGetLength(portalData);
     }
 
-    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
-                                               targetData,portalData,NULL);
-
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
+                                       targetData,portalData,NULL);
     if(portal)
         CFRelease(portalData);
     CFRelease(targetData);
@@ -161,9 +154,9 @@ errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
     if(error)
         return error;
 
-    iSCSIDRspLogin rsp;
+    iSCSIDMsgLoginRsp rsp;
 
-    if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EIO;
 
     if(rsp.funcCode != kiSCSIDLogin)
@@ -174,6 +167,7 @@ errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
 
     return rsp.errorCode;
 }
+
 
 /*! Logs out of the target or a specific portal, if specified.
  *  @param handle a handle to a daemon connection.
@@ -191,7 +185,7 @@ errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
     CFDataRef targetData = iSCSITargetCreateData(target);
     CFDataRef portalData = NULL;
 
-    iSCSIDCmdLogout cmd = iSCSIDCmdLogoutInit;
+    iSCSIDMsgLogoutCmd cmd = iSCSIDMsgLogoutCmdInit;
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
     cmd.portalLength = 0;
 
@@ -200,9 +194,8 @@ errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
         cmd.portalLength = (UInt32)CFDataGetLength(portalData);
     }
 
-    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
-                                               targetData,portalData,NULL);
-
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
+                                       targetData,portalData,NULL);
     if(portal)
         CFRelease(portalData);
     CFRelease(targetData);
@@ -210,9 +203,9 @@ errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
     if(error)
         return error;
 
-    iSCSIDRspLogout rsp;
+    iSCSIDMsgLogoutRsp rsp;
 
-    if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EIO;
 
     if(rsp.funcCode != kiSCSIDLogout)
@@ -223,6 +216,7 @@ errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
     
     return rsp.errorCode;
 }
+
 
 /*! Gets whether a target has an active session.
  *  @param target the target to test for an active session.
@@ -235,19 +229,19 @@ Boolean iSCSIDaemonIsTargetActive(iSCSIDaemonHandle handle,
 
     CFDataRef targetData = iSCSITargetCreateData(target);
 
-    iSCSIDCmdIsTargetActive cmd = iSCSIDCmdIsTargetActiveInit;
+    iSCSIDMsgIsTargetActiveCmd cmd = iSCSIDMsgIsTargetActiveCmdInit;
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
 
-    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
-                                               targetData,NULL);
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
+                                       targetData,NULL);
     CFRelease(targetData);
 
     if(error)
         return false;
 
-    iSCSIDRspIsTargetActive rsp;
+    iSCSIDMsgIsTargetActiveRsp rsp;
 
-    if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return false;
 
     if(rsp.funcCode != kiSCSIDIsTargetActive)
@@ -255,6 +249,7 @@ Boolean iSCSIDaemonIsTargetActive(iSCSIDaemonHandle handle,
 
     return rsp.active;
 }
+
 
 /*! Gets whether a portal has an active session.
  *  @param target the target to test for an active session.
@@ -270,89 +265,27 @@ Boolean iSCSIDaemonIsPortalActive(iSCSIDaemonHandle handle,
     CFDataRef targetData = iSCSITargetCreateData(target);
     CFDataRef portalData = iSCSIPortalCreateData(portal);
 
-    iSCSIDCmdIsPortalActive cmd = iSCSIDCmdIsPortalActiveInit;
+    iSCSIDMsgIsPortalActiveCmd cmd = iSCSIDMsgIsPortalActiveCmdInit;
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
     cmd.portalLength = (UInt32)CFDataGetLength(portalData);
 
-    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
-                                               targetData,portalData,NULL);
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
+                                       targetData,portalData,NULL);
     CFRelease(targetData);
     CFRelease(portalData);
 
     if(error)
         return false;
 
-    iSCSIDRspIsPortalActive rsp;
+    iSCSIDMsgIsPortalActiveRsp rsp;
 
-    if(recv(handle,&(rsp),sizeof(rsp),0) != sizeof(rsp))
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return false;
 
     if(rsp.funcCode != kiSCSIDIsPortalActive)
         return false;
     
     return rsp.active;
-}
-
-
-/*! Queries a portal for available targets.
- *  @param handle a handle to a daemon connection.
- *  @param portal the iSCSI portal to query.
- *  @param auth specifies the authentication parameters to use.
- *  @param discoveryRec a discovery record, containing the query results.
- *  @param statusCode iSCSI response code indicating operation status.
- *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSIDaemonQueryPortalForTargets(iSCSIDaemonHandle handle,
-                                         iSCSIPortalRef portal,
-                                         iSCSIAuthRef auth,
-                                         iSCSIMutableDiscoveryRecRef * discoveryRec,
-                                         enum iSCSILoginStatusCode * statusCode)
-{
-    // Validate inputs
-    if(handle < 0 || !portal || !auth || !discoveryRec || !statusCode)
-        return EINVAL;
-    
-    // Generate data to transmit (no longer need target object after this)
-    CFDataRef portalData = iSCSIPortalCreateData(portal);
-    CFDataRef authData = iSCSIAuthCreateData(auth);
-    
-    // Create command header to transmit
-    iSCSIDCmdQueryPortalForTargets cmd = iSCSIDCmdQueryPortalForTargetsInit;
-    cmd.portalLength = (UInt32)CFDataGetLength(portalData);
-    cmd.authLength = (UInt32)CFDataGetLength(authData);
-    
-    if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,portalData,authData,NULL))
-    {
-        CFRelease(portalData);
-        CFRelease(authData);
-        return EIO;
-    }
-
-    CFRelease(portalData);
-    CFRelease(authData);
-    iSCSIDRspQueryPortalForTargets rsp;
-    
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
-    
-    // Retrieve the discovery record...
-    UInt8 * bytes = malloc(rsp.discoveryLength);
-    
-    if(bytes && (recv(handle,bytes,rsp.discoveryLength,0) != rsp.discoveryLength))
-    {
-        free(bytes);
-        return EIO;
-    }
-    
-    CFDataRef discData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,bytes,
-                                                     rsp.discoveryLength,
-                                                     kCFAllocatorMalloc);
-    *discoveryRec = iSCSIDiscoveryRecCreateMutableWithData(discData);
-    CFRelease(discData);
-    if(!discoveryRec)
-        return EIO;
-    
-    *statusCode = rsp.statusCode;
-    return rsp.errorCode;
 }
 
 
@@ -374,7 +307,7 @@ errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
     
     // Setup a target object with the target name
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,targetIQN);
+    iSCSITargetSetIQN(target,targetIQN);
     
     // Generate data to transmit (no longer need target object after this)
     CFDataRef targetData = iSCSITargetCreateData(target);
@@ -383,11 +316,11 @@ errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
     CFDataRef portalData = iSCSIPortalCreateData(portal);
     
     // Create command header to transmit
-    iSCSIDCmdQueryTargetForAuthMethod cmd = iSCSIDCmdQueryTargetForAuthMethodInit;
+    iSCSIDMsgQueryTargetForAuthMethodCmd cmd = iSCSIDMsgQueryTargetForAuthMethodCmdInit;
     cmd.portalLength = (UInt32)CFDataGetLength(portalData);
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
     
-    if(iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,targetData,portalData,NULL))
+    if(iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,targetData,portalData,NULL))
     {
         CFRelease(portalData);
         CFRelease(targetData);
@@ -396,7 +329,7 @@ errno_t iSCSIDaemonQueryTargetForAuthMethod(iSCSIDaemonHandle handle,
 
     CFRelease(portalData);
     CFRelease(targetData);
-    iSCSIDRspQueryTargetForAuthMethod rsp;
+    iSCSIDMsgQueryTargetForAuthMethodRsp rsp;
     
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EIO;
@@ -417,40 +350,39 @@ CFArrayRef iSCSIDaemonCreateArrayOfActiveTargets(iSCSIDaemonHandle handle)
     if(handle < 0)
         return NULL;
 
+    CFArrayRef activeTargets = NULL;
+    errno_t error = 0;
+
     // Send command to daemon
-    iSCSIDCmdCreateArrayOfActiveTargets cmd = iSCSIDCmdCreateArrayOfActiveTargetsInit;
+    iSCSIDMsgCreateArrayOfActiveTargetsCmd cmd = iSCSIDMsgCreateArrayOfActiveTargetsCmdInit;
 
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return NULL;
+        error = EIO;
 
-    iSCSIDRspCreateArrayOfActiveTargets rsp;
+    iSCSIDMsgCreateArrayOfActiveTargetsRsp rsp;
 
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return NULL;
-
-    if(rsp.dataLength == 0)
-        return NULL;
-
-    CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault,rsp.dataLength);
-    CFDataSetLength(data,rsp.dataLength);
-    UInt8 * bytes = CFDataGetMutableBytePtr(data);
-
-    if(recv(handle,bytes,rsp.dataLength,0) != rsp.dataLength)
-    {
-        CFRelease(data);
-        return NULL;
+    if(!error)
+        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,NULL);
+    
+    if(!error) {
+        CFDataRef data = NULL;
+        error = iSCSIDaemonRecvMsg(handle,0,&data,rsp.dataLength,NULL);
+        
+        if(!error && data) {
+            CFPropertyListFormat format;
+            activeTargets = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+            CFRelease(data);
+            
+            if(format != kCFPropertyListBinaryFormat_v1_0) {
+                if(activeTargets) {
+                    CFRelease(activeTargets);
+                    activeTargets = NULL;
+                }
+            }
+        }
     }
 
-    CFPropertyListFormat format;
-    CFArrayRef activeTargets = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
-    CFRelease(data);
-
-    if(format == kCFPropertyListBinaryFormat_v1_0)
-        return activeTargets;
-    else {
-        CFRelease(activeTargets);
-        return NULL;
-    }
+    return activeTargets;
 }
 
 
@@ -465,40 +397,38 @@ CFArrayRef iSCSIDaemonCreateArrayOfActivePortalsForTarget(iSCSIDaemonHandle hand
     if(handle < 0)
         return NULL;
 
+    CFArrayRef activePortals = NULL;
+    errno_t error = 0;
+
     // Send command to daemon
-    iSCSIDCmdCreateArrayOfActivePortalsForTarget cmd = iSCSIDCmdCreateArrayOfActivePortalsForTargetInit;
+    iSCSIDMsgCreateArrayOfActivePortalsForTargetCmd cmd = iSCSIDMsgCreateArrayOfActivePortalsForTargetCmdInit;
 
     if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
-        return NULL;
+        error = EIO;
+    
+    iSCSIDMsgCreateArrayOfActivePortalsForTargetRsp rsp;
+    
+    if(!error)
+        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,NULL);
 
-    iSCSIDRspCreateArrayOfActivePortalsForTarget rsp;
+    if(!error) {
+        CFDataRef data = NULL;
+        error = iSCSIDaemonRecvMsg(handle,0,&data,rsp.dataLength,NULL);
 
-    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return NULL;
+        if(!error && data) {
+            CFPropertyListFormat format;
+            activePortals = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+            CFRelease(data);
 
-    if(rsp.dataLength == 0)
-        return NULL;
-
-    CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault,rsp.dataLength);
-    CFDataSetLength(data,rsp.dataLength);
-    UInt8 * bytes = CFDataGetMutableBytePtr(data);
-
-    if(recv(handle,bytes,rsp.dataLength,0) != rsp.dataLength)
-    {
-        CFRelease(data);
-        return NULL;
+            if(format != kCFPropertyListBinaryFormat_v1_0) {
+                if(activePortals) {
+                    CFRelease(activePortals);
+                    activePortals = NULL;
+                }
+            }
+        }
     }
-
-    CFPropertyListFormat format;
-    CFArrayRef activePortals = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
-    CFRelease(data);
-
-    if(format == kCFPropertyListBinaryFormat_v1_0)
-        return activePortals;
-    else {
-        CFRelease(activePortals);
-        return NULL;
-    }
+    return activePortals;
 }
 
 
@@ -519,34 +449,33 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForSession(iSCSIDaemonHandle handle
     CFDataRef targetData = iSCSITargetCreateData(target);
 
     // Send command to daemon
-    iSCSIDCmdCreateCFPropertiesForSession cmd = iSCSIDCmdCreateCFPropertiesForSessionInit;
+    iSCSIDMsgCreateCFPropertiesForSessionCmd cmd = iSCSIDMsgCreateCFPropertiesForSessionCmdInit;
 
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
 
-    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
-                                               targetData,NULL);
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
+                                       targetData,NULL);
     CFRelease(targetData);
 
+    iSCSIDMsgCreateCFPropertiesForSessionRsp rsp;
+
+    if(!error)
+        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,NULL);
+    
     if(!error) {
-
-        iSCSIDRspCreateCFPropertiesForSession rsp;
-
-        if(recv(handle,&rsp,sizeof(rsp),0) == sizeof(rsp) && rsp.dataLength != 0)
-        {
-            CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault,rsp.dataLength);
-            CFDataSetLength(data,rsp.dataLength);
-            UInt8 * bytes = CFDataGetMutableBytePtr(data);
-
-            if(recv(handle,bytes,rsp.dataLength,0) == rsp.dataLength)
-            {
-                CFPropertyListFormat format;
-                properties = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
-            }
+        CFDataRef data = NULL;
+        error = iSCSIDaemonRecvMsg(handle,0,&data,rsp.dataLength,NULL);
+        
+        if(!error && data) {
+            CFPropertyListFormat format;
+            properties = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
             CFRelease(data);
         }
     }
+
     return properties;
 }
+
 
 /*! Creates a dictionary of connection parameters for the connection associated
  *  with the specified target and portal, if one exists.
@@ -568,35 +497,54 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForConnection(iSCSIDaemonHandle han
     CFDataRef portalData = iSCSIPortalCreateData(portal);
 
     // Send command to daemon
-    iSCSIDCmdCreateCFPropertiesForConnection cmd = iSCSIDCmdCreateCFPropertiesForConnectionInit;
+    iSCSIDMsgCreateCFPropertiesForConnectionCmd cmd = iSCSIDMsgCreateCFPropertiesForConnectionCmdInit;
 
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
     cmd.portalLength = (UInt32)CFDataGetLength(portalData);
 
-    errno_t error = iSCSIDaemonSendCmdWithData(handle,(iSCSIDCmd *)&cmd,
-                                               targetData,portalData,NULL);
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
+                                       targetData,portalData,NULL);
     CFRelease(targetData);
     CFRelease(portalData);
 
+    iSCSIDMsgCreateCFPropertiesForConnectionRsp rsp;
+    
+    if(!error)
+        error = iSCSIDaemonRecvMsg(handle,(iSCSIDMsgGeneric*)&rsp,NULL);
+    
     if(!error) {
-
-        iSCSIDRspCreateCFPropertiesForConnection rsp;
-
-        if(recv(handle,&rsp,sizeof(rsp),0) == sizeof(rsp) && rsp.dataLength != 0)
-        {
-            CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault,rsp.dataLength);
-            CFDataSetLength(data,rsp.dataLength);
-            UInt8 * bytes = CFDataGetMutableBytePtr(data);
-
-            if(recv(handle,bytes,rsp.dataLength,0) == rsp.dataLength)
-            {
-                CFPropertyListFormat format;
-                properties = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
-            }
+        CFDataRef data = NULL;
+        error = iSCSIDaemonRecvMsg(handle,0,&data,rsp.dataLength,NULL);
+        
+        if(!error && data) {
+            CFPropertyListFormat format;
+            properties = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
             CFRelease(data);
         }
     }
     return properties;
 }
 
+/*! Forces daemon to update discovery parameters from property list.
+ *  @param handle a handle to a daemon connection.
+ *  @return an error code indicating whether the operationg was successful. */
+errno_t iSCSIDaemonUpdateDiscovery(iSCSIDaemonHandle handle)
+{
+    // Validate inputs
+    if(handle < 0)
+        return EINVAL;
+
+    // Send command to daemon
+    iSCSIDMsgUpdateDiscoveryCmd cmd = iSCSIDMsgUpdateDiscoveryCmdInit;
+
+    if(send(handle,&cmd,sizeof(cmd),0) != sizeof(cmd))
+        return EIO;
+
+    iSCSIDMsgUpdateDiscoveryRsp rsp;
+
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EIO;
+
+    return 0;
+}
 

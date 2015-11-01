@@ -15,7 +15,6 @@
 CFStringRef kiSCSIPortalAddresssKey = CFSTR("Address");
 CFStringRef kiSCSIPortalPortKey = CFSTR("Port");
 CFStringRef kiSCSIPortalHostInterfaceKey = CFSTR("Host Interface");
-CFStringRef kiSCSIPortalAutostartKey = CFSTR("Autostart");
 
 
 
@@ -82,22 +81,6 @@ void iSCSIPortalSetHostInterface(iSCSIMutablePortalRef portal,CFStringRef hostIn
     CFDictionarySetValue(portal,kiSCSIPortalHostInterfaceKey,hostInterface);
 }
 
-/*! Gets whether startup is automatic for this portal. */
-Boolean iSCSIPortalGetAutostart(iSCSIPortalRef portal)
-{
-    CFBooleanRef autostart = CFDictionaryGetValue(portal,kiSCSIPortalAutostartKey);
-
-    if(autostart)
-        return CFBooleanGetValue(autostart);
-    return false;
-}
-
-/*! Sets whether startup is automatic for this portal. */
-void iSCSIPortalSetAutostart(iSCSIMutablePortalRef portal,Boolean autostart)
-{
-    CFDictionarySetValue(portal,kiSCSIPortalAutostartKey,kCFBooleanFalse);
-}
-
 /*! Releases memory associated with iSCSI portals. */
 void iSCSIPortalRelease(iSCSIPortalRef portal)
 {
@@ -146,7 +129,6 @@ iSCSISessionConfigRef iSCSITargetCreateWithData(CFDataRef data)
 /*! iSCSI target records are dictionaries with keys with string values
  *  that specify the target name and other parameters. */
 CFStringRef kiSCSITargetIQNKey = CFSTR("Target Name");
-CFStringRef kiSCSITargetNickname = CFSTR("Target Nickname");
 
 /*! Convenience function.  Creates a new iSCSITargetRef with the above keys. */
 iSCSIMutableTargetRef iSCSITargetCreateMutable()
@@ -164,25 +146,13 @@ CFStringRef iSCSITargetGetIQN(iSCSITargetRef target)
 }
 
 /*! Sets the name associated with the iSCSI target. */
-void iSCSITargetSetName(iSCSIMutableTargetRef target,CFStringRef name)
+void iSCSITargetSetIQN(iSCSIMutableTargetRef target,CFStringRef name)
 {
     // Ignore blanks
     if(CFStringCompare(name,CFSTR(""),0) == kCFCompareEqualTo)
         return;
     
     CFDictionarySetValue(target,kiSCSITargetIQNKey,name);
-}
-
-/*! Gets the nickname associated with the iSCSI target. */
-CFStringRef iSCSITargetGetNickName(iSCSIMutableTargetRef target)
-{
-    return CFDictionaryGetValue(target,kiSCSITargetNickname);
-}
-
-/*! Sets the nickname associated with the iSCSI target. */
-void iSCSITargetSetNickname(iSCSIMutableTargetRef target,CFStringRef nickname)
-{
-    CFDictionarySetValue(target,kiSCSITargetNickname,nickname);
 }
 
 /*! Releases memory associated with iSCSI targets. */
@@ -215,9 +185,6 @@ CFDataRef iSCSITargetCreateData(iSCSITargetRef target)
     return CFPropertyListCreateData(kCFAllocatorDefault,target,kCFPropertyListBinaryFormat_v1_0,0,NULL);
 }
 
-
-
-
 /*! Creates a new authentication object from byte representation. */
 iSCSIAuthRef iSCSIAuthCreateWithData(CFDataRef data)
 {
@@ -242,58 +209,50 @@ iSCSIAuthRef iSCSIAuthCreateNone()
     return CFDictionaryCreate(kCFAllocatorDefault,keys,values,1,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
 }
 
-/*! Creates a new iSCSIAuth object with empty authentication parameters
- *  (defaults to no authentication). */
-iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef targetUser,
-                                 CFStringRef targetSecret,
-                                 CFStringRef initiatorUser,
-                                 CFStringRef initiatorSecret)
+/*! Creates a new iSCSIAuth object for CHAP authentication. This function will
+ *  fail to return an authentication object if both parameters are not specified.
+ *  @param name the name for CHAP.
+ *  @param sharedSecret the shared CHAP secret.
+ *  @return an iSCSI authentication object, or NULL if the parameters were
+ *  invalid. */
+iSCSIAuthRef iSCSIAuthCreateCHAP(CFStringRef name,
+                                 CFStringRef sharedSecret)
 {
     // Required parameters
-    if(!targetUser || !targetSecret)
+    if(!name || !sharedSecret)
         return NULL;
     
     const void * keys[] = {
         CFSTR("Authentication Method"),
-        CFSTR("Target User"),
-        CFSTR("Target Secret"),
-        CFSTR("Initiator User"),
-        CFSTR("Initiator Secret")
+        CFSTR("User"),
+        CFSTR("Shared Secret"),
     };
     
     const void * values[] = {
         CFSTR("CHAP"),
-        targetUser,
-        targetSecret,
-        initiatorUser,
-        initiatorSecret
+        name,
+        sharedSecret
     };
 
-    // Check for mutual CHAP before including the initiatorUser and initiatorSecret
-    // (include the first there terms of the arrays above when mutual CHAP
-    // is not used).
-    if(!initiatorUser || !initiatorSecret)
-        return CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
-    
-    // Else we include all parameters
-    return CFDictionaryCreate(kCFAllocatorDefault,keys,values,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
+    return CFDictionaryCreate(kCFAllocatorDefault,keys,values,3,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
 }
 
 /*! Returns the CHAP authentication parameter values if the authentication
- *  method is actually CHAP. */
+ *  method is actually CHAP.
+ *  @param auth an iSCSI authentication object.
+ *  @param name the user name for CHAP.
+ *  @param sharedSecret the shared CHAP secret. */
 void iSCSIAuthGetCHAPValues(iSCSIAuthRef auth,
-                            CFStringRef * targetUser,
-                            CFStringRef * targetSecret,
-                            CFStringRef * initiatorUser,
-                            CFStringRef * initiatorSecret)
+                            CFStringRef * name,
+                            CFStringRef * sharedSecret)
 {
-    if(!auth || !targetUser || !targetSecret || !initiatorUser || !initiatorUser || (iSCSIAuthGetMethod(auth) != kiSCSIAuthMethodCHAP))
+    if(!auth || !name || !sharedSecret)
         return;
 
-    *initiatorUser = CFDictionaryGetValue(auth,CFSTR("Initiator User"));
-    *initiatorUser = CFDictionaryGetValue(auth,CFSTR("Initiator Secret"));
-    *targetUser = CFDictionaryGetValue(auth,CFSTR("Target User"));
-    *targetSecret = CFDictionaryGetValue(auth,CFSTR("Target Secret"));
+    if(iSCSIAuthGetMethod(auth) == kiSCSIAuthMethodCHAP) {
+        *name = CFDictionaryGetValue(auth,CFSTR("User"));
+        *sharedSecret = CFDictionaryGetValue(auth,CFSTR("Shared Secret"));
+    }
 }
 
 /*! Gets the authentication method used. */
@@ -720,38 +679,48 @@ iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableWithExisting(i
         kCFAllocatorDefault,config,kCFPropertyListMutableContainersAndLeaves);
 }
 
-/*! Gets whether a header digest is enabled in the portal object. */
-bool iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config)
+/*! Gets whether a header digest is enabled in the config object.
+ *  @param config the iSCSI config object.
+ *  @return the type of digest to use. */
+enum iSCSIDigestTypes iSCSIConnectionConfigGetHeaderDigest(iSCSIConnectionConfigRef config)
 {
-    CFBooleanRef headerDigest = CFDictionaryGetValue(config,kiSCSIConnectionConfigHeaderDigestKey);
-    return CFBooleanGetValue(headerDigest);
+    enum iSCSIDigestTypes digest = kiSCSIDigestNone;
+    CFNumberRef digestIdx = CFDictionaryGetValue(config,kiSCSIConnectionConfigHeaderDigestKey);
+    CFNumberGetValue(digestIdx,kCFNumberCFIndexType,&digest);
+    return digest;
 }
 
-/*! Sets whether a header digest is enabled in the portal object. */
-void iSCSIConnectionConfigSetHeaderDigest(iSCSIMutableConnectionConfigRef config,bool enable)
+/*! Sets whether a header digest is enabled in the config object.
+ * @param config the iSCSI config object.
+ * @param digestType the type of digest to use. */
+void iSCSIConnectionConfigSetHeaderDigest(iSCSIConnectionConfigRef config,
+                                          enum iSCSIDigestTypes digestType)
 {
-    CFBooleanRef headerDigest = kCFBooleanFalse;
-    if(enable)
-        headerDigest = kCFBooleanTrue;
-    
-    CFDictionarySetValue(config,kiSCSIConnectionConfigHeaderDigestKey,headerDigest);
+    CFNumberRef digestIdx = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&digestType);
+    CFDictionarySetValue((CFMutableDictionaryRef)config,kiSCSIConnectionConfigHeaderDigestKey,digestIdx);
+    CFRelease(digestIdx);
 }
 
-/*! Gets whether a data digest is enabled in the portal object. */
-bool iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config)
+/*! Gets whether a data digest is enabled in the config object.
+ *  @param config the iSCSI config object.
+ *  @return the type of digest to use. */
+enum iSCSIDigestTypes iSCSIConnectionConfigGetDataDigest(iSCSIConnectionConfigRef config)
 {
-    CFBooleanRef dataDigest = (CFBooleanRef)CFDictionaryGetValue(config,kiSCSIConnectionConfigDataDigestKey);
-    return CFBooleanGetValue(dataDigest);
+    enum iSCSIDigestTypes digest = kiSCSIDigestNone;
+    CFNumberRef digestIdx = CFDictionaryGetValue(config,kiSCSIConnectionConfigDataDigestKey);
+    CFNumberGetValue(digestIdx,kCFNumberCFIndexType,&digest);
+    return digest;
 }
 
-/*! Sets whether a data digest is enabled in the portal object. */
-void iSCSIConnectionConfigSetDataDigest(iSCSIMutableConnectionConfigRef config,bool enable)
+/*! Sets whether a data digest is enabled in the config object.
+ * @param config the iSCSI config object.
+ * @param digestType the type of digest to use. */
+void iSCSIConnectionConfigSetDataDigest(iSCSIConnectionConfigRef config,
+                                        enum iSCSIDigestTypes digestType)
 {
-    CFBooleanRef dataDigest = kCFBooleanFalse;
-    if(enable)
-        dataDigest = kCFBooleanTrue;
-    
-    CFDictionarySetValue(config,kiSCSIConnectionConfigDataDigestKey,dataDigest);
+    CFNumberRef digestIdx = CFNumberCreate(kCFAllocatorDefault,kCFNumberCFIndexType,&digestType);
+    CFDictionarySetValue((CFMutableDictionaryRef)config,kiSCSIConnectionConfigDataDigestKey,digestIdx);
+    CFRelease(digestIdx);
 }
 
 /*! Releases memory associated with an iSCSI connection configuration object.

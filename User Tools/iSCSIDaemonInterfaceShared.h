@@ -39,8 +39,24 @@
 #include "iSCSITypes.h"
 #include "iSCSITypesShared.h"
 
+typedef UInt32 CFLength;
+
+/*! Generic iSCSI daemon-client message (basis for commands and responses. */
+typedef struct __iSCSIDMsgGeneric {
+
+    UInt16 funcCode;
+    UInt16 reserved;
+    UInt32 reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    UInt32 reserved6;
+
+} __attribute__((packed)) iSCSIDMsgGeneric;
+
+
 /*! Generic iSCSI daemon command header. */
-typedef struct iSCSIDCmd {
+typedef struct __iSCSIDMsgCmd {
 
     UInt16 funcCode;
     UInt16 reserved;
@@ -50,10 +66,10 @@ typedef struct iSCSIDCmd {
     UInt32 reserved5;
     UInt32 reserved6;
     
-} __attribute__((packed)) iSCSIDCmd;
+} __attribute__((packed)) iSCSIDMsgCmd;
 
 /*! Generic iSCSI daemon response header. */
-typedef struct iSCSIDRsp {
+typedef struct __iSCSIDMsgRsp {
 
     UInt16 funcCode;
     UInt16 reserved;
@@ -63,10 +79,10 @@ typedef struct iSCSIDRsp {
     UInt32 reserved5;
     UInt32 reserved6;
     
-} __attribute__((packed)) iSCSIDRsp;
+} __attribute__((packed)) iSCSIDMsgRsp;
 
 /*! Command to shutdown the daemon. */
-typedef struct iSCSIDCmdShutdown {
+typedef struct __iSCSIDMsgShutdownCmd {
 
     UInt16 funcCode;
     UInt16 reserved;
@@ -76,29 +92,29 @@ typedef struct iSCSIDCmdShutdown {
     UInt32 reserved5;
     UInt32 reserved6;
     
-} __attribute__((packed)) iSCSIDCmdShutdown;
+} __attribute__((packed)) iSCSIDMsgShutdownCmd;
 
 /*! Default initialization for a shutdown command. */
-extern const iSCSIDCmdShutdown iSCSIDCmdShutdownInit;
+extern const iSCSIDMsgShutdownCmd iSCSIDMsgShutdownCmdInit;
 
 /*! Command to login. */
-typedef struct iSCSIDCmdLogin {
+typedef struct __iSCSIDMsgLoginCmd {
 
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  portalLength;
-    UInt32  targetLength;
+    CFLength  portalLength;
+    CFLength  targetLength;
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
 
-} __attribute__((packed)) iSCSIDCmdLogin;
+} __attribute__((packed)) iSCSIDMsgLoginCmd;
 
 /*! Default initialization for a login command. */
-extern const iSCSIDCmdLogin iSCSIDCmdLoginInit;
+extern const iSCSIDMsgLoginCmd iSCSIDMsgLoginCmdInit;
 
 /*! Response to a login  command. */
-typedef struct iSCSIDRspLogin {
+typedef struct __iSCSIDMsgLoginRsp {
 
     const UInt8 funcCode;
     UInt8 reserved;
@@ -107,28 +123,28 @@ typedef struct iSCSIDRspLogin {
     UInt32 reserved2;
     UInt32 reserved3;
     UInt32 reserved4;
-    UInt32 reserved5;
+    CFLength dataLength;
 
-} __attribute__((packed)) iSCSIDRspLogin;
+} __attribute__((packed)) iSCSIDMsgLoginRsp;
 
 /*! Command to logout. */
-typedef struct iSCSIDCmdLogout {
+typedef struct __iSCSIDMsgLogoutCmd {
 
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  portalLength;
-    UInt32  targetLength;
+    CFLength  portalLength;
+    CFLength  targetLength;
     UInt32  reserved3;
     UInt32  reserved4;
     UInt32  reserved5;
 
-} __attribute__((packed)) iSCSIDCmdLogout;
+} __attribute__((packed)) iSCSIDMsgLogoutCmd;
 
 /*! Default initialization for a logout command. */
-extern const iSCSIDCmdLogout iSCSIDCmdLogoutInit;
+extern const iSCSIDMsgLogoutCmd iSCSIDMsgLogoutCmdInit;
 
 /*! Response to a login command. */
-typedef struct iSCSIDRspLogout {
+typedef struct __iSCSIDMsgLogoutRsp {
 
     const UInt8 funcCode;
     UInt8 reserved;
@@ -137,12 +153,12 @@ typedef struct iSCSIDRspLogout {
     UInt32 reserved2;
     UInt32 reserved3;
     UInt32 reserved4;
-    UInt32 reserved5;
+    CFLength dataLength;
 
-} __attribute__((packed)) iSCSIDRspLogout;
+} __attribute__((packed)) iSCSIDMsgLogoutRsp;
 
 /*! Command to get active targets. */
-typedef struct iSCSIDCmdCreateArrayOfActiveTargets {
+typedef struct __iSCSIDMsgCreateArrayOfActiveTargetsCmd {
 
     const UInt16 funcCode;
     UInt16  reserved;
@@ -151,13 +167,13 @@ typedef struct iSCSIDCmdCreateArrayOfActiveTargets {
     UInt32  reserved4;
     UInt32  reserved5;
     UInt32  reserved6;
-} __attribute__((packed)) iSCSIDCmdCreateArrayOfActiveTargets;
+} __attribute__((packed)) iSCSIDMsgCreateArrayOfActiveTargetsCmd;
 
 /*! Default initialization for command to get active targets. */
-extern const iSCSIDCmdCreateArrayOfActiveTargets iSCSIDCmdCreateArrayOfActiveTargetsInit;
+extern const iSCSIDMsgCreateArrayOfActiveTargetsCmd iSCSIDMsgCreateArrayOfActiveTargetsCmdInit;
 
 /*! Response to command to get active targets. */
-typedef struct iSCSIDRspCreateArrayOfActiveTargets {
+typedef struct __iSCSIDMsgCreateArrayOfActiveTargetsRsp {
 
     const UInt8 funcCode;
     UInt8 reserved;
@@ -166,12 +182,12 @@ typedef struct iSCSIDRspCreateArrayOfActiveTargets {
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
-    UInt32 dataLength;
+    CFLength dataLength;
 
-} __attribute__((packed)) iSCSIDRspCreateArrayOfActiveTargets;
+} __attribute__((packed)) iSCSIDMsgCreateArrayOfActiveTargetsRsp;
 
 /*! Command to get active portals. */
-typedef struct iSCSIDCmdCreateArrayOfActivePortalsForTarget {
+typedef struct __iSCSIDMsgCreateArrayOfActivePortalsForTargetCmd {
 
     const UInt16 funcCode;
     UInt16  reserved;
@@ -180,13 +196,13 @@ typedef struct iSCSIDCmdCreateArrayOfActivePortalsForTarget {
     UInt32  reserved4;
     UInt32  reserved5;
     UInt32  reserved6;
-} __attribute__((packed)) iSCSIDCmdCreateArrayOfActivePortalsForTarget;
+} __attribute__((packed)) iSCSIDMsgCreateArrayOfActivePortalsForTargetCmd;
 
 /*! Default initialization for command to get active portals. */
-extern const iSCSIDCmdCreateArrayOfActivePortalsForTarget iSCSIDCmdCreateArrayOfActivePortalsForTargetInit;
+extern const iSCSIDMsgCreateArrayOfActivePortalsForTargetCmd iSCSIDMsgCreateArrayOfActivePortalsForTargetCmdInit;
 
 /*! Response to command to get active portals. */
-typedef struct iSCSIDRspCreateArrayOfActivePortalsForTarget {
+typedef struct __iSCSIDMsgCreateArrayOfActivePortalsForTargetRsp {
 
     const UInt8 funcCode;
     UInt8 reserved;
@@ -195,27 +211,27 @@ typedef struct iSCSIDRspCreateArrayOfActivePortalsForTarget {
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
-    UInt32 dataLength;
+    CFLength dataLength;
 
-} __attribute__((packed)) iSCSIDRspCreateArrayOfActivePortalsForTarget;
+} __attribute__((packed)) iSCSIDMsgCreateArrayOfActivePortalsForTargetRsp;
 
 /*! Command to test whether target is active. */
-typedef struct iSCSIDCmdIsTargetActive {
+typedef struct __iSCSIDMsgIsTargetActiveCmd {
 
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  targetLength;
+    CFLength  targetLength;
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
     UInt32  reserved5;
-} __attribute__((packed)) iSCSIDCmdIsTargetActive;
+} __attribute__((packed)) iSCSIDMsgIsTargetActiveCmd;
 
 /*! Default initialization for command to test whether target is active. */
-extern const iSCSIDCmdIsTargetActive iSCSIDCmdIsTargetActiveInit;
+extern const iSCSIDMsgIsTargetActiveCmd iSCSIDMsgIsTargetActiveCmdInit;
 
 /*! Response to command to test whether target is active. */
-typedef struct iSCSIDRspIsTargetActive {
+typedef struct __iSCSIDMsgIsTargetActiveRsp {
 
     const UInt8 funcCode;
     UInt8 reserved;
@@ -224,27 +240,27 @@ typedef struct iSCSIDRspIsTargetActive {
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
-    UInt32 reserved6;
+    CFLength dataLength;
 
-} __attribute__((packed)) iSCSIDRspIsTargetActive;
+} __attribute__((packed)) iSCSIDMsgIsTargetActiveRsp;
 
 /*! Command to test whether portal is active. */
-typedef struct iSCSIDCmdIsPortalActive {
+typedef struct __iSCSIDMsgIsPortalActiveCmd {
 
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  portalLength;
-    UInt32  targetLength;
+    CFLength  portalLength;
+    CFLength  targetLength;
     UInt32  reserved3;
     UInt32  reserved4;
     UInt32  reserved5;
-} __attribute__((packed)) iSCSIDCmdIsPortalActive;
+} __attribute__((packed)) iSCSIDMsgIsPortalActiveCmd;
 
 /*! Default initialization for command to test whether portal is active. */
-extern const iSCSIDCmdIsPortalActive iSCSIDCmdIsPortalActiveInit;
+extern const iSCSIDMsgIsPortalActiveCmd iSCSIDMsgIsPortalActiveCmdInit;
 
 /*! Response to command to test whether portal is active. */
-typedef struct iSCSIDRspIsPortalActive {
+typedef struct __iSCSIDMsgIsPortalActiveRsp {
 
     const UInt8 funcCode;
     UInt8 reserved;
@@ -253,58 +269,28 @@ typedef struct iSCSIDRspIsPortalActive {
     UInt32 reserved3;
     UInt32 reserved4;
     UInt32 reserved5;
-    UInt32 reserved6;
+    CFLength dataLength;
 
-} __attribute__((packed)) iSCSIDRspIsPortalActive;
+} __attribute__((packed)) iSCSIDMsgIsPortalActiveRsp;
 
-/*! Command to query a portal for targets. */
-typedef struct iSCSIDCmdQueryPortalForTargets {
-    
-    const UInt16 funcCode;
-    UInt16  reserved;
-    UInt32  reserved2;
-    UInt32  reserved3;
-    UInt32  portalLength;
-    UInt32  authLength;
-    UInt32  reserved5;
-
-} __attribute__((packed)) iSCSIDCmdQueryPortalForTargets;
-
-/*! Default initialization for a portal query command. */
-extern const iSCSIDCmdQueryPortalForTargets iSCSIDCmdQueryPortalForTargetsInit;
-
-/*! Response to query a portal for targets.  This response typedef struct is followed
- *  by a discovery record (an iSCSIDiscoveryRec object).  */
-typedef struct iSCSIDRspQueryPortalForTargets {
-    
-    const UInt8 funcCode;
-    UInt8 reserved;
-    UInt32 errorCode;
-    UInt16  statusCode;
-    UInt32 reserved2;
-    UInt32 reserved3;
-    UInt32 discoveryLength;
-    UInt32 reserved4;
-    
-} __attribute__((packed)) iSCSIDRspQueryPortalForTargets;
 
 /*! Command to query target for authentication method. */
-typedef struct iSCSIDCmdQueryTargetForAuthMethod {
+typedef struct __iSCSIDMsgQueryTargetForAuthMethodCmd {
     
     const UInt16 funcCode;
     UInt16  reserved;
     UInt32  reserved2;
     UInt32  reserved3;
-    UInt32  portalLength;
-    UInt32  targetLength;
+    CFLength  portalLength;
+    CFLength  targetLength;
     UInt32  reserved4;
-} __attribute__((packed)) iSCSIDCmdQueryTargetForAuthMethod;
+} __attribute__((packed)) iSCSIDMsgQueryTargetForAuthMethodCmd;
 
 /*! Default initialization for a portal query command. */
-extern const iSCSIDCmdQueryTargetForAuthMethod iSCSIDCmdQueryTargetForAuthMethodInit;
+extern const iSCSIDMsgQueryTargetForAuthMethodCmd iSCSIDMsgQueryTargetForAuthMethodCmdInit;
 
 /*! Response to query a portal for authentication method. */
-typedef struct iSCSIDRspQueryTargetForAuthMethod {
+typedef struct __iSCSIDMsgQueryTargetForAuthMethodRsp {
     
     const UInt8 funcCode;
     UInt8 reserved;
@@ -312,29 +298,29 @@ typedef struct iSCSIDRspQueryTargetForAuthMethod {
     UInt16  statusCode;
     UInt32 reserved2;
     UInt32 reserved3;
-    UInt32 reserved4;
     UInt32 authMethod;
+    CFLength dataLength;
     
-} __attribute__((packed)) iSCSIDRspQueryTargetForAuthMethod;
+} __attribute__((packed)) iSCSIDMsgQueryTargetForAuthMethodRsp;
 
 /*! Command to get information about a session. */
-typedef struct iSCSIDCmdCreateCFPropertiesForSession {
+typedef struct __iSCSIDMsgCreateCFPropertiesForSessionCmd {
     
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  targetLength;
+    CFLength  targetLength;
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
     UInt32  reserved5;
     
-} __attribute__((packed)) iSCSIDCmdCreateCFPropertiesForSession;
+} __attribute__((packed)) iSCSIDMsgCreateCFPropertiesForSessionCmd;
 
 /*! Default initialization for a get session information command. */
-extern const iSCSIDCmdCreateCFPropertiesForSession iSCSIDCmdCreateCFPropertiesForSessionInit;
+extern const iSCSIDMsgCreateCFPropertiesForSessionCmd iSCSIDMsgCreateCFPropertiesForSessionCmdInit;
 
 /*! Response to command to get information about a session. */
-typedef struct iSCSIDRspCreateCFPropertiesForSession {
+typedef struct __iSCSIDMsgCreateCFPropertiesForSessionRsp {
     
     const UInt8 funcCode;
     UInt16 reserved;
@@ -342,29 +328,29 @@ typedef struct iSCSIDRspCreateCFPropertiesForSession {
     UInt8  reserved2;
     UInt32 reserved3;
     UInt32 reserved4;
-    UInt32 dataLength;
     UInt32 reserved5;
+    CFLength dataLength;
     
-} __attribute__((packed)) iSCSIDRspCreateCFPropertiesForSession;
+} __attribute__((packed)) iSCSIDMsgCreateCFPropertiesForSessionRsp;
 
 /*! Command to get information about a connection. */
-typedef struct iSCSIDCmdCreateCFPropertiesForConnection {
+typedef struct __iSCSIDMsgCreateCFPropertiesForConnectionCmd {
     
     const UInt16 funcCode;
     UInt16  reserved;
-    UInt32  targetLength;
-    UInt32  portalLength;
+    CFLength  targetLength;
+    CFLength  portalLength;
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
     
-} __attribute__((packed)) iSCSIDCmdCreateCFPropertiesForConnection;
+} __attribute__((packed)) iSCSIDMsgCreateCFPropertiesForConnectionCmd;
 
 /*! Default initialization for a get connection information command. */
-extern const iSCSIDCmdCreateCFPropertiesForConnection iSCSIDCmdCreateCFPropertiesForConnectionInit;
+extern const iSCSIDMsgCreateCFPropertiesForConnectionCmd iSCSIDMsgCreateCFPropertiesForConnectionCmdInit;
 
 /*! Response to command to get information about a connection. */
-typedef struct iSCSIDRspCreateCFPropertiesForConnection {
+typedef struct __iSCSIDMsgCreateCFPropertiesForConnectionRsp {
     
     const UInt8 funcCode;
     UInt16 reserved;
@@ -372,10 +358,41 @@ typedef struct iSCSIDRspCreateCFPropertiesForConnection {
     UInt8  reserved2;
     UInt32 reserved3;
     UInt32 reserved4;
-    UInt32 dataLength;
     UInt32 reserved5;
+    CFLength dataLength;
 
-} __attribute__((packed)) iSCSIDRspCreateCFPropertiesForConnection;
+} __attribute__((packed)) iSCSIDMsgCreateCFPropertiesForConnectionRsp;
+
+
+/*! Command update discovery. */
+typedef struct __iSCSIDMsgUpdateDiscoveryCmd {
+
+    const UInt16 funcCode;
+    UInt16  reserved;
+    UInt32  reserved2;
+    UInt32  reserved3;
+    UInt32  reserved4;
+    UInt32  reserved5;
+    UInt32  reserved6;
+
+} __attribute__((packed)) iSCSIDMsgUpdateDiscoveryCmd;
+
+/*! Default initialization update discovery command. */
+extern const iSCSIDMsgUpdateDiscoveryCmd iSCSIDMsgUpdateDiscoveryCmdInit;
+
+/*! Response to command update discovery. */
+typedef struct __iSCSIDMsgUpdateDiscoveryRsp {
+
+    const UInt8 funcCode;
+    UInt16 reserved;
+    UInt32 errorCode;
+    UInt8  reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    CFLength dataLength;
+
+} __attribute__((packed)) iSCSIDMsgUpdateDiscoveryRsp;
 
 
 ////////////////////////////// DAEMON FUNCTIONS ////////////////////////////////
@@ -409,53 +426,106 @@ enum iSCSIDFunctionCodes {
     /* Query a portal for targets. */
     kiSCSIDQueryPortalForTargets = 8,
 
-    /* Query a target for supported authentication methods. */
+    /*! Query a target for supported authentication methods. */
     kiSCSIDQueryTargetForAuthMethod = 9,
 
-    /* Set the initiator IQN. */
-    kiSCSIDSetInitiatorIQN = 10,
+    /*! Update discovery parameters. */
+    kiSCSIDUpdateDiscovery = 10,
 
-    /* Set the intiator alias. */
-    kiSCSIDSetInitiatorAlias = 11,
+    /*! Set the initiator IQN. */
+    kiSCSIDSetInitiatorIQN = 11,
 
-    /* Shut down the daemon. */
-    kiSCSIDShutdownDaemon = 12,
+    /*! Set the intiator alias. */
+    kiSCSIDSetInitiatorAlias = 12,
 
-    /* Invalid daemon command. */
+    /*! Shut down the daemon. */
+    kiSCSIDShutdownDaemon = 13,
+
+    /*! Invalid daemon command. */
     kiSCSIDInvalidFunctionCode
 };
 
-
-/*! Helper function. Reads data from a socket of the specified length and
- *  calls a constructor function on the data to return an object of the
- *  appropriate type. */
-void * iSCSIDCreateObjectFromSocket(int fd,UInt32 length,void *(* objectCreator)(CFDataRef))
+/*! Helper function.  Sends an iSCSI daemon command followed by optional
+ *  data in the form of CFDataRef objects. */
+errno_t iSCSIDaemonSendMsg(int fd,iSCSIDMsgGeneric * msg,...)
 {
-    if(length == 0)
-        return NULL;
-    
-    // Receive iSCSI object data from stream socket
-    UInt8 * bytes = (UInt8 *) malloc(length);
-    if(!bytes || (recv(fd,bytes,length,0) != length))
-    {
-        free(bytes);
-        return NULL;
-    }
-    
-    // Build a CFData wrapper around the data
+    va_list argList;
+    va_start(argList,msg);
+
+    struct iovec iov[IOV_MAX];
+    int iovIdx = 0;
+
+    iov[iovIdx].iov_base = msg;
+    iov[iovIdx].iov_len = sizeof(iSCSIDMsgGeneric);
+    iovIdx++;
+
+    // Iterate over data and add each one to the message
     CFDataRef data = NULL;
-    
-    if(!(data = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,bytes,length,kCFAllocatorMalloc)))
+    UInt32 totalLength = sizeof(iSCSIDMsgGeneric);
+    while((data = va_arg(argList,CFDataRef)))
     {
-        free(bytes);
-        return NULL;
+        CFIndex length = CFDataGetLength(data);
+        iov[iovIdx].iov_base = (void*)CFDataGetBytePtr(data);
+        iov[iovIdx].iov_len = length;
+        totalLength += length;
+        iovIdx++;
     }
-    
-    // Create an iSCSI object from the data
-    void * object = objectCreator(data);
-    
-    CFRelease(data);
-    return object;
+    va_end(argList);
+
+    struct msghdr message;
+    bzero(&message,sizeof(struct msghdr));
+    message.msg_iov = iov;
+    message.msg_iovlen = iovIdx;
+
+    if(sendmsg(fd,&message,0) != totalLength)
+       return EIO;
+
+    return 0;
+}
+
+errno_t iSCSIDaemonRecvMsg(int fd,iSCSIDMsgGeneric * msg,...)
+{
+    va_list argList;
+    va_start(argList,msg);
+
+    struct iovec iov[IOV_MAX];
+    int iovIdx = 0;
+
+    // If the message (header) has already been retrieve, and this function
+    // is being called only to retrieve data then ignore the message
+    if(msg) {
+        iov[iovIdx].iov_base = msg;
+        iov[iovIdx].iov_len = sizeof(iSCSIDMsgGeneric);
+        iovIdx++;
+    }
+
+    // Iterate over data and add each one to the message
+    CFMutableDataRef * data = NULL;
+    while((data = va_arg(argList,CFMutableDataRef *)))
+    {
+        UInt32 length = va_arg(argList,UInt32);
+
+        if(length == 0)
+            continue;
+
+        *data = CFDataCreateMutable(kCFAllocatorDefault,length);
+        CFDataSetLength(*data,length);
+
+        iov[iovIdx].iov_base = (void*)CFDataGetMutableBytePtr(*data);
+        iov[iovIdx].iov_len = length;
+        iovIdx++;
+    }
+    va_end(argList);
+
+    struct msghdr message;
+    bzero(&message,sizeof(struct msghdr));
+    message.msg_iov = iov;
+    message.msg_iovlen = iovIdx;
+
+    if(recvmsg(fd,&message,0) < sizeof(msg))
+        return EIO;
+
+    return 0;
 }
 
 

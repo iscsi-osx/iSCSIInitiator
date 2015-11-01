@@ -21,7 +21,8 @@
 /*! Authentication function defined in the authentication module
  *  (in the file iSCSIAuth.h). */
 errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
-                           iSCSIAuthRef auth,
+                           iSCSIAuthRef initiatorAuth,
+                           iSCSIAuthRef targetAuth,
                            SID sessionId,
                            CID connectionId,
                            enum iSCSILoginStatusCode * statusCode);
