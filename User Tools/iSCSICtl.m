@@ -364,26 +364,28 @@ void iSCSICtlDisplayPermissionsError()
 
 void iSCSICtlDisplayUsage()
 {
-    iSCSICtlDisplayString(CFSTR("Usage: iscsictl <command> <subcommand> <arguments>\n\n"
-                                "Commands:\n"
-                                "\tadd\tAdds an entity to the specified database.\n"
-                                "\tmodify\tModifies an existing entity in the specified database.\n"
-                                "\tremove\tRemoves an existing entity from the specified database.\n"));
+    iSCSICtlDisplayString(CFSTR("Usage: iscsictl add     target target,portal [-interface interface]\n"
+                                "       iscsictl remove  target target[,portal]\n\n"));
     
-    iSCSICtlDisplayString(CFSTR("\tlist\tLists entities in the specified database.\n"
-                                "\tlogin\tLogs into a target or connection.\n"
-                                "\tlogout\tLogs out of a target or connection.\n"));
     
-    iSCSICtlDisplayString(CFSTR("\tmount\tMounts all volumes associated with the specified target.\n"
-                                "\tunmount\tUnmounts all volumes associated with the specified target.\n"
-                                ));
+    iSCSICtlDisplayString(CFSTR("       iscsictl login   target[,portal]\n"
+                                "       iscsictl logout  target[,portal]\n"
+                                "       iscsictl mount   target\n"
+                                "       iscsictl unmount target\n\n"));
 
-    iSCSICtlDisplayString(CFSTR("Subcommands:\n"
-                                "\\tMounts all volumes associated with the specified target.\n"
-                                "\tunmount\tUnmounts all volumes associated with the specified target.\n"
-                                ));
-
-
+    iSCSICtlDisplayString(CFSTR("       iscsictl modify initiator-config [...]\n"
+                                "       iscsictl modify target-config target[,portal] [...]\n"
+                                "       iscsictl modify discovery-config [...]\n\n"));
+                                        
+    iSCSICtlDisplayString(CFSTR("       iscsictl list initiator-config\n"
+                                "       iscsictl list target-config target\n"
+                                "       iscsictl list discovery-config\n\n"));
+                                        
+    iSCSICtlDisplayString(CFSTR("       iscsictl add discovery-portal portal [-interface interface]\n"
+                                "       iscsictl remove discovery-portal portal\n\n"));
+                                        
+    iSCSICtlDisplayString(CFSTR("       iscsictl list targets\n"
+                                "       iscsictl list lun\n"));
 }
 
 CFStringRef iSCSICtlCreateSecretFromInput(CFIndex retries)
@@ -1015,7 +1017,7 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 if(!iSCSIPLSynchronize())
                     iSCSICtlDisplayPermissionsError();
                 else
-                    iSCSICtlDisplayString(CFSTR("The specified portal was removed\n"));
+                    iSCSICtlDisplayString(CFSTR("The specified portal has been removed\n"));
             }
         else
             if(iSCSIDaemonIsTargetActive(handle,target))
@@ -1025,7 +1027,7 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
                 if(!iSCSIPLSynchronize())
                     iSCSICtlDisplayPermissionsError();
                 else
-                    iSCSICtlDisplayString(CFSTR("The specified target was removed\n"));
+                    iSCSICtlDisplayString(CFSTR("The specified target has been removed\n"));
             }
     }
 
@@ -2162,7 +2164,7 @@ int main(int argc, char * argv[])
             else if(subCmd == kiSCSICtlSubCmdDiscoveryPortal)
                 error = iSCSICtlAddDiscoveryPortal(handle,optDictionary);
             else
-                iSCSICtlDisplayError(CFSTR("invalid subcommand for add"));
+                iSCSICtlDisplayError(CFSTR("Invalid subcommand for add"));
             break;
 
         case kiSCSICtlCmdModify:
@@ -2173,7 +2175,7 @@ int main(int argc, char * argv[])
             else if(subCmd == kiSCSICtlSubCmdDiscoveryConfig)
                 error = iSCSICtlModifyDiscovery(handle,optDictionary);
             else
-                iSCSICtlDisplayError(CFSTR("invalid subcommand for modify"));
+                iSCSICtlDisplayError(CFSTR("Invalid subcommand for modify"));
             break;
 
         case kiSCSICtlCmdRemove:
@@ -2182,7 +2184,7 @@ int main(int argc, char * argv[])
             else if(subCmd == kiSCSICtlSubCmdDiscoveryPortal)
                 error = iSCSICtlRemoveDiscoveryPortal(handle,optDictionary);
             else
-                iSCSICtlDisplayError(CFSTR("invalid subcommand for remove"));
+                iSCSICtlDisplayError(CFSTR("Invalid subcommand for remove"));
             break;
 
         case kiSCSICtlCmdList:
@@ -2197,7 +2199,7 @@ int main(int argc, char * argv[])
             else if(subCmd == kiSCSICtlSubCmdInitiatorConfig)
                 error = iSCSICtlListInitiatorConfig(handle,optDictionary);
             else
-                iSCSICtlDisplayError(CFSTR("invalid subcommand for list"));
+                iSCSICtlDisplayError(CFSTR("Invalid subcommand for list"));
             break;
 
         case kiSCSICtlCmdLogin:
