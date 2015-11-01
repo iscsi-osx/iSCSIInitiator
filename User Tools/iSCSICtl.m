@@ -364,25 +364,25 @@ void iSCSICtlDisplayPermissionsError()
 
 void iSCSICtlDisplayUsage()
 {
-    iSCSICtlDisplayString(CFSTR("Usage: iscsictl add     target target,portal [-interface interface]\n"
-                                "       iscsictl remove  target target[,portal]\n\n"));
+    iSCSICtlDisplayString(CFSTR("Usage: iscsictl add     target <target>,<portal> [-interface <interface>]\n"
+                                "       iscsictl remove  target <target>[,<portal>]\n\n"));
     
     
-    iSCSICtlDisplayString(CFSTR("       iscsictl login   target[,portal]\n"
-                                "       iscsictl logout  target[,portal]\n"
-                                "       iscsictl mount   target\n"
-                                "       iscsictl unmount target\n\n"));
+    iSCSICtlDisplayString(CFSTR("       iscsictl login   <target>[,<portal>]\n"
+                                "       iscsictl logout  <target>[,<portal>]\n"
+                                "       iscsictl mount   <target>\n"
+                                "       iscsictl unmount <target>\n\n"));
 
     iSCSICtlDisplayString(CFSTR("       iscsictl modify initiator-config [...]\n"
-                                "       iscsictl modify target-config target[,portal] [...]\n"
+                                "       iscsictl modify target-config <target>[,<portal>] [...]\n"
                                 "       iscsictl modify discovery-config [...]\n\n"));
                                         
     iSCSICtlDisplayString(CFSTR("       iscsictl list initiator-config\n"
-                                "       iscsictl list target-config target\n"
+                                "       iscsictl list target-config <target>\n"
                                 "       iscsictl list discovery-config\n\n"));
                                         
-    iSCSICtlDisplayString(CFSTR("       iscsictl add discovery-portal portal [-interface interface]\n"
-                                "       iscsictl remove discovery-portal portal\n\n"));
+    iSCSICtlDisplayString(CFSTR("       iscsictl add discovery-portal <portal> [-interface <interface>]\n"
+                                "       iscsictl remove discovery-portal <portal>\n\n"));
                                         
     iSCSICtlDisplayString(CFSTR("       iscsictl list targets\n"
                                 "       iscsictl list lun\n"));
