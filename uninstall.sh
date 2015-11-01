@@ -17,7 +17,8 @@ sudo rm /usr/bin/$TOOL
 
 # Remove daemon
 sudo rm /System/Library/LaunchDaemons/com.github.iscsi-osx.iscsid.plist
-sudo rm /System/Library/LaunchDaemons/iscsid
+sudo rm /usr/sbin/$DAEMON
+
 
 # Remove kext
 sudo rm -R /Library/Extensions/$KEXT
