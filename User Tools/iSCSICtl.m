@@ -385,7 +385,7 @@ void iSCSICtlDisplayUsage()
                                 "       iscsictl remove discovery-portal <portal>\n\n"));
                                         
     iSCSICtlDisplayString(CFSTR("       iscsictl list targets\n"
-                                "       iscsictl list lun\n"));
+                                "       iscsictl list luns\n"));
 }
 
 CFStringRef iSCSICtlCreateSecretFromInput(CFIndex retries)
