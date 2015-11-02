@@ -1,9 +1,9 @@
 
-OVERVIEW
+#OVERVIEW
 
 iSCSI initiator is a software initiator for OS X. It allows machines running OS X to connect to iSCSI targets. It automatically detects and mounts logical units on which users can then create and mount volumes. For more information about the iSCSI standard, see IETF RFC3720.
 
-INSTALLATION
+#INSTALLATION
 
 The initiator may be built by running the `build.sh` script.  After the necessary components have been built, the script `install.sh` can be used for installation.  Once installed, the command-line utility `iscsictl` can be used to add targets and login to them. See the project Wiki for more information.
 
