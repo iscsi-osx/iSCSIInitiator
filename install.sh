@@ -5,8 +5,22 @@ DAEMON=iscsid
 TOOL=iscsictl
 KEXT=iSCSIInitiator.kext
 
-# Define paths
-SOURCE_PATH=./DerivedData/Build/Products/Debug
+# Look for build products in places Xcode might place them.
+for BUILD_PATH in \
+            ./DerivedData/Build/Products/Debug \
+            ./DerivedData/iSCSIInitiator/Build/Products/Debug \
+            ~/Library/Developer/Xcode/DerivedData/iSCSIInitiator*/Build/Products/Debug \
+            ; do
+    if [ -d "${BUILD_PATH}" ]; then
+        SOURCE_PATH="${BUILD_PATH}"
+        break;
+    fi
+done
+
+if [ X"" == X"${SOURCE_PATH}" ]; then
+    echo "Unable to locate iSCSIInitiator binaries; did you run build.sh without errors?"
+    exit 1
+fi
 
 # Copy kernel extension & load it
 sudo cp -R $SOURCE_PATH/$KEXT /Library/Extensions/$KEXT
