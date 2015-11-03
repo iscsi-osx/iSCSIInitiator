@@ -870,11 +870,13 @@ void iSCSIDAutoLogin()
     for(CFIndex idx = 0; idx < targetsCount; idx++)
     {
         CFStringRef targetIQN = CFArrayGetValueAtIndex(targets,idx);
-        iSCSITargetRef target = iSCSIPLCopyTarget(targetIQN);
-    
-        enum iSCSILoginStatusCode statusCode;
-        iSCSIDLoginAllPortals(target,&statusCode);
-        iSCSITargetRelease(target);
+        
+        if(iSCSIPLGetAutoLoginForTarget(targetIQN)) {
+            iSCSITargetRef target = iSCSIPLCopyTarget(targetIQN);
+            enum iSCSILoginStatusCode statusCode;
+            iSCSIDLoginAllPortals(target,&statusCode);
+            iSCSITargetRelease(target);
+        }
     }
     CFRelease(targets);
 }
