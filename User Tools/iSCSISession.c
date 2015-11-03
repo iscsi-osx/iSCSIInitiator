@@ -1348,6 +1348,10 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
         CFNumberRef errorRecoveryLevel = CFNumberCreate(
             kCFAllocatorDefault,kCFNumberIntType,&config.errorRecoveryLevel);
 
+        CFNumberRef sessionIdentifier = CFNumberCreate(
+                    kCFAllocatorDefault,kCFNumberIntType,&sessionId);
+        
+
         CFStringRef initialR2T = kRFC3720_Value_No;
         CFStringRef immediateData = kRFC3720_Value_No;
         CFStringRef dataPDUInOrder = kRFC3720_Value_No;
@@ -1378,7 +1382,8 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             kRFC3720_Key_DefaultTime2Wait,
             kRFC3720_Key_TargetPortalGroupTag,
             kRFC3720_Key_TargetSessionId,
-            kRFC3720_Key_ErrorRecoveryLevel
+            kRFC3720_Key_ErrorRecoveryLevel,
+            kRFC3720_Key_SessionId
         };
 
         const void * values[] = {
@@ -1394,7 +1399,8 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             defaultTime2Wait,
             targetPortalGroupTag,
             targetSessionId,
-            errorRecoveryLevel
+            errorRecoveryLevel,
+            sessionIdentifier
         };
 
         dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
@@ -1433,7 +1439,11 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
             iSCSIKernelGetConnectionConfig(sessionId,connectionId,&config);
 
             CFNumberRef maxRecvDataSegmentLength = CFNumberCreate(
-                kCFAllocatorDefault,kCFNumberSInt32Type,&config.maxRecvDataSegmentLength);
+                kCFAllocatorDefault,kCFNumberIntType,&config.maxRecvDataSegmentLength);
+            
+            CFNumberRef connectionIdentifier = CFNumberCreate(
+                kCFAllocatorDefault,kCFNumberIntType,&connectionId);
+
 
 
             enum iSCSIDigestTypes dataDigestType = kiSCSIDigestNone;
@@ -1455,13 +1465,15 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
             const void * keys[] = {
                 kRFC3720_Key_DataDigest,
                 kRFC3720_Key_HeaderDigest,
-                kRFC3720_Key_MaxRecvDataSegmentLength
+                kRFC3720_Key_MaxRecvDataSegmentLength,
+                kRFC3720_Key_ConnectionId
             };
 
             const void * values[] = {
                 dataDigest,
                 headerDigest,
-                maxRecvDataSegmentLength
+                maxRecvDataSegmentLength,
+                connectionIdentifier
             };
 
             dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,

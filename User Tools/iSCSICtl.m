@@ -1363,12 +1363,14 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
     else {
         CFNumberRef targetPortalGroupTag = CFDictionaryGetValue(properties,kRFC3720_Key_TargetPortalGroupTag);
         CFNumberRef targetSessionId = CFDictionaryGetValue(properties,kRFC3720_Key_TargetSessionId);
+        CFNumberRef sessionId = CFDictionaryGetValue(properties,kRFC3720_Key_SessionId);
 
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                          CFSTR("%s <%@, %@, id 0, portalGroupTag %@, targetSessionId %@>\n"),
+                                          CFSTR("%s <%@, %@, sid %@, tpgt %@, tsid %@>\n"),
                                           CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
                                           targetState,
                                           targetConfig,
+                                          sessionId,
                                           targetPortalGroupTag,
                                           targetSessionId);
     }
@@ -1398,10 +1400,14 @@ void displayPortalInfo(iSCSIDaemonHandle handle,
             iSCSIPortalGetHostInterface(portal));
     }
     else {
+        
+        CFNumberRef connectionId = CFDictionaryGetValue(properties,kRFC3720_Key_ConnectionId);
+        
         portalStatus = CFStringCreateWithFormat(
             kCFAllocatorDefault,NULL,
-            CFSTR("\t%s <active, port %s, interface %@>\n"),
+            CFSTR("\t%s <active, cid %@, port %s, interface %@>\n"),
             CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
+            connectionId,
             CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
             iSCSIPortalGetHostInterface(portal));
     }

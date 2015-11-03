@@ -84,7 +84,12 @@ static CFStringRef kRFC3720_Value_Yes = CFSTR("Yes");
 static CFStringRef kRFC3720_Value_No = CFSTR("No");
 
 // Other keys associated with sessions
-
 static CFStringRef kRFC3720_Key_TargetSessionId = CFSTR("TSIH");
+
+// Not technically a RFC3720 key but used to get the initiator's session identifier
+static CFStringRef kRFC3720_Key_SessionId = CFSTR("SessionId");
+
+// Not technically a RFC3720 key but used to get the connection identifier
+static CFStringRef kRFC3720_Key_ConnectionId = CFSTR("ConnectionId");
 
 #endif

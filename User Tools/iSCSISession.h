@@ -169,6 +169,7 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId);
  *  kRFC3720_Key_DefaultTime2Wait           (CFNumberRef)
  *  kRFC3720_Key_TargetGroupPortalTag       (CFNumberRef)
  *  kRFC3720_Key_TargetSessionId            (CFNumberRef)
+ *  kRFC3720_Key_SessionId                  (CFNumberRef)
  *
  *  @param handle a handle to a daemon connection.
  *  @param target the target to check for associated sessions to generate
@@ -183,6 +184,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target);
  *  kRFC3720_Key_DataDigest                 (CFNumberRef)
  *  kRFC3720_Key_HeaderDigest               (CFNumberRef)
  *  kRFC3720_Key_MaxRecvDataSegmentLength   (CFNumberRef)
+ *  kRFC3720_Key_ConnectionId               (CFNumberRef)
  *
  *  @param handle a handle to a daemon connection.
  *  @param target the target associated with the the specified portal.
