@@ -1364,15 +1364,18 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
         CFNumberRef targetPortalGroupTag = CFDictionaryGetValue(properties,kRFC3720_Key_TargetPortalGroupTag);
         CFNumberRef targetSessionId = CFDictionaryGetValue(properties,kRFC3720_Key_TargetSessionId);
         CFNumberRef sessionId = CFDictionaryGetValue(properties,kRFC3720_Key_SessionId);
+        
+        TSIH tsih = 0;
+        CFNumberGetValue(targetSessionId,kCFNumberIntType,&tsih);
 
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                          CFSTR("%s <%@, %@, sid %@, tpgt %@, tsid %@>\n"),
+                                          CFSTR("%s <%@, %@, sid %@, tpgt %@, tsid %#X>\n"),
                                           CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
                                           targetState,
                                           targetConfig,
                                           sessionId,
                                           targetPortalGroupTag,
-                                          targetSessionId);
+                                          tsih);
     }
 
     iSCSICtlDisplayString(status);

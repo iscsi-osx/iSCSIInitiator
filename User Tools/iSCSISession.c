@@ -476,6 +476,10 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
     
     // Parse dictionaries and store session parameters if no I/O error occured
     if(*statusCode == kiSCSILoginSuccess) {
+        
+        // The TSIH was recorded by iSCSISessionLoginQuery since we're
+        // entering the full-feature phase (see iSCSISessionLoginQuery documentation)
+        sessCfgKernel.targetSessionId = context.targetSessionId;
 
         if(!error)
             error = iSCSINegotiateParseSWDictCommon(sessCmd,sessRsp,&sessCfgKernel);

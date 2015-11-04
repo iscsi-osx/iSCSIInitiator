@@ -35,7 +35,8 @@ enum iSCSIRejectCode {
  *  return the C error code.  If communications are successful but the iSCSI
  *  layer experiences errors, it will return an iSCSI error code, either in the
  *  form of a login status code or a PDU rejection code in addition to
- *  a standard C error code.
+ *  a standard C error code. If the nextStage field of the context struct
+ *  specifies the full feature phase, this function will return a valid TSIH.
  *  @param context the context to query (session identifier, etc)
  *  @param statusCode the iSCSI status code returned by the target
  *  @param rejectCode the iSCSI reject code, if the command was rejected
