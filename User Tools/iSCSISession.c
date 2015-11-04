@@ -1324,6 +1324,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
     {
         struct iSCSIKernelSessionCfg config;
         iSCSIKernelGetSessionConfig(sessionId,&config);
+        
 
         CFNumberRef maxConnections = CFNumberCreate(
             kCFAllocatorDefault,kCFNumberIntType,&config.maxConnections);
@@ -1338,10 +1339,10 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             kCFAllocatorDefault,kCFNumberIntType,&config.maxOutStandingR2T);
 
         CFNumberRef targetPortalGroupTag = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.targetPortalGroupTag);
+            kCFAllocatorDefault,kCFNumberSInt16Type,&config.targetPortalGroupTag);
 
         CFNumberRef targetSessionId = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.targetSessionId);
+            kCFAllocatorDefault,kCFNumberSInt16Type,&config.targetSessionId);
 
         CFNumberRef defaultTime2Retain = CFNumberCreate(
             kCFAllocatorDefault,kCFNumberIntType,&config.defaultTime2Retain);
@@ -1517,7 +1518,7 @@ void iSCSISessionHandleNotifications(enum iSCSIKernelNotificationTypes type,
                                      iSCSIKernelNotificationMessage * msg)
 {
 // TODO: implement this function to handle async PDUs (these are handled
-// in user-space).  They might invovled dropped connections, etc., which may
+// in user-space).  They might involve dropped connections, etc., which may
 // need to be handled differently depending on error recovery levels
 // (Note: kernel should handle async SCSI event, this is for iSCSI events only
 //  see RFC3720 for more inforation).

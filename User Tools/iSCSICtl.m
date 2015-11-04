@@ -1366,10 +1366,10 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
         CFNumberRef sessionId = CFDictionaryGetValue(properties,kRFC3720_Key_SessionId);
         
         TSIH tsih = 0;
-        CFNumberGetValue(targetSessionId,kCFNumberIntType,&tsih);
+        CFNumberGetValue(targetSessionId,kCFNumberSInt16Type,&tsih);
 
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                          CFSTR("%s <%@, %@, sid %@, tpgt %@, tsid %#X>\n"),
+                                          CFSTR("%s <%@, %@, sid %@, tpgt %@, tsid %#x>\n"),
                                           CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
                                           targetState,
                                           targetConfig,
