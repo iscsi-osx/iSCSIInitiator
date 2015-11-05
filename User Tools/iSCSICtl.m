@@ -2179,7 +2179,7 @@ int main(int argc, char * argv[])
         case kiSCSICtlCmdModify:
             if(subCmd == kiSCSICtlSubCmdTargetConfig)
                 error = iSCSICtlModifyTarget(handle,optDictionary);
-            if(subCmd == kiSCSICtlSubCmdInitiatorConfig)
+            else if(subCmd == kiSCSICtlSubCmdInitiatorConfig)
                 error = iSCSICtlModifyInitiator(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscoveryConfig)
                 error = iSCSICtlModifyDiscovery(handle,optDictionary);
