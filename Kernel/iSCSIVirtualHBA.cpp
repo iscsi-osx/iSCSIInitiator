@@ -1828,7 +1828,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     iovec[iovecCnt].iov_len   = kiSCSIPDUBasicHeaderSegmentSize;
     iovecCnt++;
     
-    DBLog("iscsi: Sent PDU type %d\n",bhs->opCodeAndDeliveryMarker);
+    DBLog("iscsi: Sent PDU type %#x\n",bhs->opCodeAndDeliveryMarker);
     
     // Leave room for a header digest
     if(connection->opts.useHeaderDigest)    {
@@ -1861,7 +1861,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
             iovecCnt++;
         }
 
-        DBLog("iscsi: Sending data length: %zu\n",length);
+        DBLog("iscsi: Sending data length: %z\n",length);
 
         // Leave room for a data digest
         if(connection->opts.useDataDigest) {
@@ -1951,7 +1951,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     // Verify length; incoming PDUS from a target should have no AHS, verify.
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
     {
-        DBLog("iscsi: Received incomplete PDU header: %zu bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->CID);
+        DBLog("iscsi: Received incomplete PDU header: %z bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->CID);
         
 // TODO: handle error
         
