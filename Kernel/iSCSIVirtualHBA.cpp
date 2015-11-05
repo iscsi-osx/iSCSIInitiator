@@ -644,7 +644,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
                     return;
                 }
                 
-                DBLog("iscsi: dataoffset: %d (sid: %d, cid: %d)\n",
+                DBLog("iscsi: Dataoffset: %d (sid: %d, cid: %d)\n",
                       dataOffset,session->sessionId,connection->CID);
                 
                 remainingDataLength -= maxTransferLength;
@@ -1139,9 +1139,9 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     
     data += dataOffset;
     
-    DBLog("iscsi: dataoffset: %d (sid: %d, cid: %d)\n",
+    DBLog("iscsi: Dataoffset: %d (sid: %d, cid: %d)\n",
           dataOffset,session->sessionId,connection->CID);
-    DBLog("iscsi: desired data length: %d (sid: %d, cid: %d)\n",
+    DBLog("iscsi: Desired data length: %d (sid: %d, cid: %d)\n",
           remainingDataLength,session->sessionId,connection->CID);
     
     UInt32 dataSN = 0;
@@ -1174,9 +1174,9 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
                 return;
             }
             
-            DBLog("iscsi: dataoffset: %d (sid: %d, cid: %d)\n",
+            DBLog("iscsi: Dataoffset: %d (sid: %d, cid: %d)\n",
                   dataOffset,session->sessionId,connection->CID);
-            DBLog("iscsi: desired data length: %d (sid: %d, cid: %d)\n",
+            DBLog("iscsi: Desired data length: %d (sid: %d, cid: %d)\n",
                   remainingDataLength,session->sessionId,connection->CID);
             
             remainingDataLength -= maxTransferLength;
@@ -1399,7 +1399,7 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
     if(!theSession)
         return;
     
-    DBLog("iscsi: Releasing session...\n");
+    DBLog("iscsi: Releasing session (sid %d)\n",sessionId);
     
     // Disconnect all connections
     for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
@@ -1828,7 +1828,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     iovec[iovecCnt].iov_len   = kiSCSIPDUBasicHeaderSegmentSize;
     iovecCnt++;
     
-    DBLog("iscsi: Sent PDU type %d\n",bhs->opCodeAndDeliveryMarker);
+    DBLog("iscsi: Sent PDU type %#x\n",bhs->opCodeAndDeliveryMarker);
     
     // Leave room for a header digest
     if(connection->opts.useHeaderDigest)    {
@@ -1836,7 +1836,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
         
         // Compute digest
         headerDigest = crc32c(0,bhs,kiSCSIPDUBasicHeaderSegmentSize);
-        DBLog("iscsi: header digest: %d\n",headerDigest);
+        DBLog("iscsi: Header digest: %#x\n",headerDigest);
         
         iovec[iovecCnt].iov_base = &headerDigest;
         iovec[iovecCnt].iov_len  = sizeof(headerDigest);
@@ -1861,7 +1861,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
             iovecCnt++;
         }
 
-        DBLog("iscsi: sending data length: %zu\n",length);
+        DBLog("iscsi: Sending data length: %z\n",length);
 
         // Leave room for a data digest
         if(connection->opts.useDataDigest) {
@@ -1870,13 +1870,8 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
             // Compute digest
             dataDigest = crc32c(0,data,length);
             
-            DBLog("iscsi: data digest: %d\n",dataDigest);
+            DBLog("iscsi: Data digest: %#x\n",dataDigest);
             
-            
-//            // Add padding to digest calculation
-      //      if(paddingLen != 0 && paddingLen != 4)
-    //            dataDigest = crc32c(dataDigest,&padding,paddingLen);
-
             iovec[iovecCnt].iov_base = &dataDigest;
             iovec[iovecCnt].iov_len  = sizeof(dataDigest);
             iovecCnt++;
@@ -1956,7 +1951,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     // Verify length; incoming PDUS from a target should have no AHS, verify.
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
     {
-        DBLog("iscsi: Received incomplete PDU header: %zu bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->CID);
+        DBLog("iscsi: Received incomplete PDU header: %z bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->CID);
         
 // TODO: handle error
         

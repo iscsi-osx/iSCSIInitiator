@@ -1312,7 +1312,6 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
                     iSCSICtlDisplayPermissionsError();
                 else
                     iSCSICtlDisplayString(CFSTR("Target settings have been updated\n"));
-
             }
         }
     }
@@ -1363,14 +1362,19 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
     else {
         CFNumberRef targetPortalGroupTag = CFDictionaryGetValue(properties,kRFC3720_Key_TargetPortalGroupTag);
         CFNumberRef targetSessionId = CFDictionaryGetValue(properties,kRFC3720_Key_TargetSessionId);
+        CFNumberRef sessionId = CFDictionaryGetValue(properties,kRFC3720_Key_SessionId);
+        
+        TSIH tsih = 0;
+        CFNumberGetValue(targetSessionId,kCFNumberSInt16Type,&tsih);
 
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                          CFSTR("%s <%@, %@, id 0, portalGroupTag %@, targetSessionId %@>\n"),
+                                          CFSTR("%s <%@, %@, sid %@, tpgt %@, tsid %#x>\n"),
                                           CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
                                           targetState,
                                           targetConfig,
+                                          sessionId,
                                           targetPortalGroupTag,
-                                          targetSessionId);
+                                          tsih);
     }
 
     iSCSICtlDisplayString(status);
@@ -1398,10 +1402,14 @@ void displayPortalInfo(iSCSIDaemonHandle handle,
             iSCSIPortalGetHostInterface(portal));
     }
     else {
+        
+        CFNumberRef connectionId = CFDictionaryGetValue(properties,kRFC3720_Key_ConnectionId);
+        
         portalStatus = CFStringCreateWithFormat(
             kCFAllocatorDefault,NULL,
-            CFSTR("\t%s <active, port %s, interface %@>\n"),
+            CFSTR("\t%s <active, cid %@, port %s, interface %@>\n"),
             CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
+            connectionId,
             CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
             iSCSIPortalGetHostInterface(portal));
     }
@@ -1554,7 +1562,6 @@ errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
                         kOptKeyDataDigest,dataDigestStr);
     }
 
-
     // Get authentication information
     CFStringRef CHAPName = iSCSIPLCopyTargetCHAPName(targetIQN);
 
@@ -1592,9 +1599,6 @@ errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
         CFStringRef portalConfig = NULL;
         CFStringRef portalAddress = CFArrayGetValueAtIndex(portals,idx);
         iSCSIPortalRef portal = iSCSIPLCopyPortalForTarget(targetIQN,portalAddress);
-
-        // Get configured portal parameters
-
 
         // Get negotiated portal parameters
         CFDictionaryRef properties = iSCSIDaemonCreateCFPropertiesForConnection(handle,target,portal);
@@ -1777,12 +1781,21 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
         if(CFStringCompare(value,kOptValueDiscoveryEnable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         {
             iSCSIPLSetSendTargetsDiscoveryEnable(true);
-            iSCSICtlDisplayString(CFSTR("SendTargets discovery has been enabled\n"));
+
+            if(!iSCSIPLSynchronize())
+                iSCSICtlDisplayPermissionsError();
+            else
+                iSCSICtlDisplayString(CFSTR("SendTargets discovery has been enabled\n"));
         }
         else if(CFStringCompare(value,kOptValueDiscoveryDisable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         {
             iSCSIPLSetSendTargetsDiscoveryEnable(false);
-            iSCSICtlDisplayString(CFSTR("SendTargets discovery has been disabled\n"));
+
+            if(!iSCSIPLSynchronize())
+                iSCSICtlDisplayPermissionsError();
+            else
+                iSCSICtlDisplayString(CFSTR("SendTargets discovery has been disabled\n"));
+
         }
         else {
             CFStringRef errorString = CFStringCreateWithFormat(
@@ -1791,10 +1804,6 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
             CFRelease(errorString);
             error = EINVAL;
         }
-        
-        if(!error)
-            iSCSIPLSynchronize();
-
     }
 
     // Check if user modified the discovery interval
@@ -1811,10 +1820,11 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
             CFRelease(errorString);
         }
         else {
-            iSCSIPLSynchronize();
             iSCSIPLSetSendTargetsDiscoveryInterval(interval);
-            iSCSIPLSynchronize();
-            iSCSICtlDisplayString(CFSTR("The discovery interval has been updated\n"));
+            if(!iSCSIPLSynchronize())
+                iSCSICtlDisplayPermissionsError();
+            else
+                iSCSICtlDisplayString(CFSTR("The discovery interval has been updated\n"));
         }
     }
 
@@ -2170,7 +2180,7 @@ int main(int argc, char * argv[])
         case kiSCSICtlCmdModify:
             if(subCmd == kiSCSICtlSubCmdTargetConfig)
                 error = iSCSICtlModifyTarget(handle,optDictionary);
-            if(subCmd == kiSCSICtlSubCmdInitiatorConfig)
+            else if(subCmd == kiSCSICtlSubCmdInitiatorConfig)
                 error = iSCSICtlModifyInitiator(handle,optDictionary);
             else if(subCmd == kiSCSICtlSubCmdDiscoveryConfig)
                 error = iSCSICtlModifyDiscovery(handle,optDictionary);

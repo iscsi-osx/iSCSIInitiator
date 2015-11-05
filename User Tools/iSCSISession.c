@@ -476,6 +476,10 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
     
     // Parse dictionaries and store session parameters if no I/O error occured
     if(*statusCode == kiSCSILoginSuccess) {
+        
+        // The TSIH was recorded by iSCSISessionLoginQuery since we're
+        // entering the full-feature phase (see iSCSISessionLoginQuery documentation)
+        sessCfgKernel.targetSessionId = context.targetSessionId;
 
         if(!error)
             error = iSCSINegotiateParseSWDictCommon(sessCmd,sessRsp,&sessCfgKernel);
@@ -1320,6 +1324,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
     {
         struct iSCSIKernelSessionCfg config;
         iSCSIKernelGetSessionConfig(sessionId,&config);
+        
 
         CFNumberRef maxConnections = CFNumberCreate(
             kCFAllocatorDefault,kCFNumberIntType,&config.maxConnections);
@@ -1334,10 +1339,10 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             kCFAllocatorDefault,kCFNumberIntType,&config.maxOutStandingR2T);
 
         CFNumberRef targetPortalGroupTag = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.targetPortalGroupTag);
+            kCFAllocatorDefault,kCFNumberSInt16Type,&config.targetPortalGroupTag);
 
         CFNumberRef targetSessionId = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.targetSessionId);
+            kCFAllocatorDefault,kCFNumberSInt16Type,&config.targetSessionId);
 
         CFNumberRef defaultTime2Retain = CFNumberCreate(
             kCFAllocatorDefault,kCFNumberIntType,&config.defaultTime2Retain);
@@ -1347,6 +1352,10 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
 
         CFNumberRef errorRecoveryLevel = CFNumberCreate(
             kCFAllocatorDefault,kCFNumberIntType,&config.errorRecoveryLevel);
+
+        CFNumberRef sessionIdentifier = CFNumberCreate(
+                    kCFAllocatorDefault,kCFNumberIntType,&sessionId);
+        
 
         CFStringRef initialR2T = kRFC3720_Value_No;
         CFStringRef immediateData = kRFC3720_Value_No;
@@ -1378,7 +1387,8 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             kRFC3720_Key_DefaultTime2Wait,
             kRFC3720_Key_TargetPortalGroupTag,
             kRFC3720_Key_TargetSessionId,
-            kRFC3720_Key_ErrorRecoveryLevel
+            kRFC3720_Key_ErrorRecoveryLevel,
+            kRFC3720_Key_SessionId
         };
 
         const void * values[] = {
@@ -1394,7 +1404,8 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             defaultTime2Wait,
             targetPortalGroupTag,
             targetSessionId,
-            errorRecoveryLevel
+            errorRecoveryLevel,
+            sessionIdentifier
         };
 
         dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
@@ -1433,7 +1444,11 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
             iSCSIKernelGetConnectionConfig(sessionId,connectionId,&config);
 
             CFNumberRef maxRecvDataSegmentLength = CFNumberCreate(
-                kCFAllocatorDefault,kCFNumberSInt32Type,&config.maxRecvDataSegmentLength);
+                kCFAllocatorDefault,kCFNumberIntType,&config.maxRecvDataSegmentLength);
+            
+            CFNumberRef connectionIdentifier = CFNumberCreate(
+                kCFAllocatorDefault,kCFNumberIntType,&connectionId);
+
 
 
             enum iSCSIDigestTypes dataDigestType = kiSCSIDigestNone;
@@ -1455,13 +1470,15 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
             const void * keys[] = {
                 kRFC3720_Key_DataDigest,
                 kRFC3720_Key_HeaderDigest,
-                kRFC3720_Key_MaxRecvDataSegmentLength
+                kRFC3720_Key_MaxRecvDataSegmentLength,
+                kRFC3720_Key_ConnectionId
             };
 
             const void * values[] = {
                 dataDigest,
                 headerDigest,
-                maxRecvDataSegmentLength
+                maxRecvDataSegmentLength,
+                connectionIdentifier
             };
 
             dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
@@ -1501,7 +1518,7 @@ void iSCSISessionHandleNotifications(enum iSCSIKernelNotificationTypes type,
                                      iSCSIKernelNotificationMessage * msg)
 {
 // TODO: implement this function to handle async PDUs (these are handled
-// in user-space).  They might invovled dropped connections, etc., which may
+// in user-space).  They might involve dropped connections, etc., which may
 // need to be handled differently depending on error recovery levels
 // (Note: kernel should handle async SCSI event, this is for iSCSI events only
 //  see RFC3720 for more inforation).

@@ -20,7 +20,7 @@ typedef UInt32 CID;
 typedef UInt16 TPGT;
 
 /*! Target session identifier. */
-typedef UInt32 TSIH;
+typedef UInt16 TSIH;
 
 /*! Session qualifier value for an invalid session. */
 static const UInt16 kiSCSIInvalidSessionId = 0xFFFF;
