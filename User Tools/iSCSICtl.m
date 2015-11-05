@@ -1312,7 +1312,6 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
                     iSCSICtlDisplayPermissionsError();
                 else
                     iSCSICtlDisplayString(CFSTR("Target settings have been updated\n"));
-
             }
         }
     }
@@ -1563,7 +1562,6 @@ errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
                         kOptKeyDataDigest,dataDigestStr);
     }
 
-
     // Get authentication information
     CFStringRef CHAPName = iSCSIPLCopyTargetCHAPName(targetIQN);
 
@@ -1601,9 +1599,6 @@ errno_t iSCSICtlListTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
         CFStringRef portalConfig = NULL;
         CFStringRef portalAddress = CFArrayGetValueAtIndex(portals,idx);
         iSCSIPortalRef portal = iSCSIPLCopyPortalForTarget(targetIQN,portalAddress);
-
-        // Get configured portal parameters
-
 
         // Get negotiated portal parameters
         CFDictionaryRef properties = iSCSIDaemonCreateCFPropertiesForConnection(handle,target,portal);
@@ -1786,12 +1781,21 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
         if(CFStringCompare(value,kOptValueDiscoveryEnable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         {
             iSCSIPLSetSendTargetsDiscoveryEnable(true);
-            iSCSICtlDisplayString(CFSTR("SendTargets discovery has been enabled\n"));
+
+            if(!iSCSIPLSynchronize())
+                iSCSICtlDisplayPermissionsError();
+            else
+                iSCSICtlDisplayString(CFSTR("SendTargets discovery has been enabled\n"));
         }
         else if(CFStringCompare(value,kOptValueDiscoveryDisable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
         {
             iSCSIPLSetSendTargetsDiscoveryEnable(false);
-            iSCSICtlDisplayString(CFSTR("SendTargets discovery has been disabled\n"));
+
+            if(!iSCSIPLSynchronize())
+                iSCSICtlDisplayPermissionsError();
+            else
+                iSCSICtlDisplayString(CFSTR("SendTargets discovery has been disabled\n"));
+
         }
         else {
             CFStringRef errorString = CFStringCreateWithFormat(
@@ -1800,10 +1804,6 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
             CFRelease(errorString);
             error = EINVAL;
         }
-        
-        if(!error)
-            iSCSIPLSynchronize();
-
     }
 
     // Check if user modified the discovery interval
@@ -1820,10 +1820,11 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,CFDictionaryRef optDict
             CFRelease(errorString);
         }
         else {
-            iSCSIPLSynchronize();
             iSCSIPLSetSendTargetsDiscoveryInterval(interval);
-            iSCSIPLSynchronize();
-            iSCSICtlDisplayString(CFSTR("The discovery interval has been updated\n"));
+            if(!iSCSIPLSynchronize())
+                iSCSICtlDisplayPermissionsError();
+            else
+                iSCSICtlDisplayString(CFSTR("The discovery interval has been updated\n"));
         }
     }
 
