@@ -118,7 +118,7 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
     return 0;
 }
 
-void iSCSIDiscoveryRunSendTargets(CFRunLoopTimerRef timer,void * context)
+void iSCSIDiscoveryRunSendTargets()
 {
     // Obtain a list of SendTargets portals from the property list
     iSCSIPLSynchronize();

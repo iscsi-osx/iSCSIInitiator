@@ -21,6 +21,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <asl.h>
+#include <assert.h>
+#include <pthread.h>
 
 // Foundation includes
 #include <launch.h>
@@ -47,7 +49,12 @@ io_connect_t powerPlaneRoot;
 io_object_t powerNotifier;
 IONotificationPortRef powerNotifyPortRef;
 
+// Used to fire discovery timer at specified intervals
 CFRunLoopTimerRef discoveryTimer = NULL;
+
+// Mutex lock when discovery is running
+pthread_mutex_t discoveryMutex = PTHREAD_MUTEX_INITIALIZER;
+
 
 const iSCSIDMsgLoginRsp iSCSIDMsgLoginRspInit = {
     .funcCode = kiSCSIDLogin,
@@ -805,6 +812,43 @@ errno_t iSCSIDCreateCFPropertiesForConnection(int fd,
     return error;
 }
 
+void * iSCSIDRunDiscovery(void * context)
+{
+    iSCSIDiscoveryRunSendTargets();
+    pthread_mutex_unlock(&discoveryMutex);
+    
+    return NULL;
+}
+
+
+/*! Called on a timer (timer setup by iSCSIDUpdateDiscovery()) to run
+ *  discovery operations on a dedicated POSIX thread. */
+void iSCSIDLaunchDiscoveryThread(CFRunLoopTimerRef timer,void * context)
+{
+    pthread_attr_t  attribute;
+    pthread_t thread;
+    errno_t error = 0;
+    
+    if(pthread_mutex_trylock(&discoveryMutex))
+    {
+        error = pthread_attr_init(&attribute);
+        assert(!error);
+        error = pthread_attr_setdetachstate(&attribute,PTHREAD_CREATE_DETACHED);
+        assert(!error);
+        
+        error = pthread_create(&thread,&attribute,&iSCSIDRunDiscovery,NULL);
+        pthread_attr_destroy(&attribute);
+    }
+    else {
+        asl_log(NULL,NULL,ASL_LEVEL_CRIT,"discovery is taking longer than the specified"
+                "discovery interval. Consider increasing discovery interval");
+    }
+
+    // Log error if thread could not start
+    if(error)
+        asl_log(NULL,NULL,ASL_LEVEL_ALERT,"failed to start target discovery");
+}
+
 /*! Synchronizes the daemon with the property list. This function may be called
  *  anytime changes are made to the property list (e.g., by an external
  *  application) that require immediate action on the daemon's part. This
@@ -822,7 +866,7 @@ errno_t iSCSIDUpdateDiscovery(int fd,
     // Check whether SendTargets discovery is enabled, and get interval (sec)
     Boolean discoveryEnabled = iSCSIPLGetSendTargetsDiscoveryEnable();
     CFTimeInterval interval = iSCSIPLGetSendTargetsDiscoveryInterval();
-    CFRunLoopTimerCallBack callout = &iSCSIDiscoveryRunSendTargets;
+    CFRunLoopTimerCallBack callout = &iSCSIDLaunchDiscoveryThread;
 
     // Remove existing timer if one exists
     if(discoveryTimer) {
@@ -837,6 +881,8 @@ errno_t iSCSIDUpdateDiscovery(int fd,
         discoveryTimer = CFRunLoopTimerCreate(kCFAllocatorDefault,
                                               CFAbsoluteTimeGetCurrent() + 2.0,
                                               interval,0,0,callout,NULL);
+        
+
 
         CFRunLoopAddTimer(CFRunLoopGetCurrent(),discoveryTimer,kCFRunLoopDefaultMode);
     }
