@@ -1351,7 +1351,8 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
             kCFAllocatorDefault,kCFNumberIntType,&config.defaultTime2Wait);
 
         CFNumberRef errorRecoveryLevel = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.errorRecoveryLevel);
+            kCFAllocatorDefault,kCFNumberSInt8Type,&config.errorRecoveryLevel);
+
 
         CFNumberRef sessionIdentifier = CFNumberCreate(
                     kCFAllocatorDefault,kCFNumberIntType,&sessionId);
