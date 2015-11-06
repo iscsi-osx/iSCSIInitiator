@@ -23,7 +23,7 @@ Boolean iSCSIUtilsValidateIQN(CFStringRef IQN)
 {
     // IEEE regular expression for matching IQN name
     const char pattern[] =  "^iqn\.[0-9]\{4\}-[0-9]\{2\}\.[[:alnum:]]\{3\}\."
-                            "[A-Za-z0-9.]\{1,255\}:[A-Za-z0-9.]\{1,255\}"
+                            "[-A-Za-z0-9.]\{1,255\}:[-A-Za-z0-9.]\{1,255\}"
                             "|^eui\.[[:xdigit:]]\{16\}$";
     
     Boolean validName = false;
