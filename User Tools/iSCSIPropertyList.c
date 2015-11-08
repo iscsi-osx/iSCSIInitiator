@@ -620,9 +620,14 @@ void iSCSIPLRemovePortalForTarget(CFStringRef targetIQN,
 {
     CFMutableDictionaryRef portalsList = iSCSIPLGetPortalsList(targetIQN,false);
     
+    // Remove target if only one portal is left...
     if(portalsList) {
-        CFDictionaryRemoveValue(portalsList,portalAddress);
-        targetNodesCacheModified = true;
+        if(CFDictionaryGetCount(portalsList) == 1)
+            iSCSIPLRemoveTarget(targetIQN);
+        else {
+            CFDictionaryRemoveValue(portalsList,portalAddress);
+            targetNodesCacheModified = true;
+        }
     }
 }
 

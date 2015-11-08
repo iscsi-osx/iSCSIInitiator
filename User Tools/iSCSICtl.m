@@ -989,7 +989,7 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     // Verify that the target is not a dynamic target managed by iSCSI
     // discovery
     if(iSCSIPLGetTargetConfigType(targetIQN) == kiSCSITargetConfigDynamicSendTargets) {
-        iSCSICtlDisplayString(CFSTR("The target is configured using iSCSI discovery (.. "
+        iSCSICtlDisplayString(CFSTR("The target is configured using iSCSI discovery. "
                                     "Remove the discovery portal to remove the target\n"));
         error = EINVAL;
     }
