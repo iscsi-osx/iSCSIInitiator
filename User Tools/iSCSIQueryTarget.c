@@ -81,6 +81,7 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
             
             iSCSIPDUDataParseToDict(data,length,textRsp);
             
+            // Save & return the TSIH if this is the leading login
             if(context->targetSessionId == 0 &&
                context->nextStage == kiSCSIPDUFullFeaturePhase) {
                 context->targetSessionId = CFSwapInt16BigToHost(rsp.TSIH);
