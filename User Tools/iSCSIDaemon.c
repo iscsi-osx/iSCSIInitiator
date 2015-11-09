@@ -841,7 +841,7 @@ void iSCSIDLaunchDiscoveryThread(CFRunLoopTimerRef timer,void * context)
     }
     else {
         asl_log(NULL,NULL,ASL_LEVEL_CRIT,"discovery is taking longer than the specified"
-                "discovery interval. Consider increasing discovery interval");
+                " discovery interval. Consider increasing discovery interval");
     }
 
     // Log error if thread could not start
