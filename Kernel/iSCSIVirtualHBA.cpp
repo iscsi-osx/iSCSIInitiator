@@ -51,7 +51,7 @@ const SCSIDeviceIdentifier iSCSIVirtualHBA::kHighestSupportedDeviceId = kMaxSess
  *  increase the wired memory consumed by this kernel extension. */
 const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
 
-/*! Number of PDUs that are transmitted before we calculate an average speed
+/*! Number of bytes that are transmitted before we calculate an average speed
  *  for the connection (1024^2 = 1048576). */
 const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 
@@ -368,7 +368,7 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
     if(!connection)
         return;
 
-    DBLog("iscsi: Task timeout for task %llu (sid: %d, cid: %d)\n",GetTaggedTaskIdentifier(task),sessionId,connectionId);
+    DBLog("iscsi: Task timeout for task %#x (sid: %d, cid: %d)\n",GetControllerTaskIdentifier(task),sessionId,connectionId);
 
     
     // If the task timeout is due to a broken connection, handle it.
@@ -479,8 +479,8 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     // done processing the task)
     connection->taskQueue->queueTask(initiatorTaskTag);
     
-    DBLog("iscsi: Queued task %llx (sid: %d, cid: %d)\n",
-          taskId,session->sessionId,connection->CID);
+    DBLog("iscsi: Queued task %#x (sid: %d, cid: %d)\n",
+          initiatorTaskTag,session->sessionId,connection->CID);
 
     return kSCSIServiceResponse_Request_In_Process;
 }
@@ -514,6 +514,9 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     UInt8   transferDirection       = owner->GetDataTransferDirection(parallelTask);
     UInt32  transferSize            = (UInt32)owner->GetRequestedDataTransferCount(parallelTask);
     UInt8   cdbSize                 = owner->GetCommandDescriptorBlockSize(parallelTask);
+    
+    DBLog("iscsi: Starting task %#x (sid: %d, cid: %d)\n",
+          initiatorTaskTag,session->sessionId,connection->CID);
     
     // Now that we know task is valid, timestamp the connection indicating
     // when we started processing the task
@@ -573,7 +576,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     
     // At this point we have have a write command, determine whether we need
     // to send data at this point or later in response to an R2T
-    if(session->opts.initialR2T && !session->opts.immediateData)
+    if(session->initialR2T && !session->immediateData)
     {
         bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
         owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
@@ -589,7 +592,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     UInt32 dataOffset = 0;
     
     // First use immediate data to send as data with command PDU...
-    if(session->opts.immediateData) {
+    if(session->immediateData) {
         
         // Either we send the max allowed data (immediate data length) or
         // all of the data if it is lesser than the max allowed limit
@@ -597,7 +600,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         
         // If we need to wait for an R2T or we've transferred all data
         // as immediate data then no additional data will follow this PDU...
-        if(session->opts.initialR2T || dataLen == transferSize)
+        if(session->initialR2T || dataLen == transferSize)
             bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
 
         owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,data,dataLen);
@@ -608,8 +611,8 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     }
 
     // Follow up with data out PDUs up to the firstBurstLength bytes if R2T=No
-    if(!session->opts.initialR2T &&                     // Initial R2T = No
-       dataOffset < session->opts.firstBurstLength &&   // Haven't hit burst limit
+    if(!session->initialR2T &&                     // Initial R2T = No
+       dataOffset < session->firstBurstLength &&   // Haven't hit burst limit
        dataOffset < transferSize)                       // Data left to send
     {
         iSCSIPDUDataOutBHS bhsDataOut = iSCSIPDUDataOutBHSInit;
@@ -618,8 +621,8 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         bhsDataOut.targetTransferTag = kiSCSIPDUTargetTransferTagReserved;
         
         UInt32 dataSN = 0;
-        UInt32 maxTransferLength = connection->opts.maxSendDataSegmentLength;
-        UInt32 remainingDataLength = min(session->opts.firstBurstLength-dataOffset,
+        UInt32 maxTransferLength = connection->maxSendDataSegmentLength;
+        UInt32 remainingDataLength = min(session->firstBurstLength-dataOffset,
                                          transferSize-dataOffset);
         
         while(remainingDataLength != 0)
@@ -700,7 +703,7 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         return true;
     }
     else
-        DBLog("iscsi: Received PDU type %d (sid: %d, cid: %d)\n",
+        DBLog("iscsi: Received PDU type %#x (sid: %d, cid: %d)\n",
               bhs.opCode,session->sessionId,connection->CID);
 
     // Determine the kind of PDU that was received and process accordingly
@@ -1053,6 +1056,10 @@ void iSCSIVirtualHBA::ProcessAsyncMsg(iSCSISession * session,
                                       iSCSIPDU::iSCSIPDUAsyncMsgBHS * bhs)
 {
     iSCSIPDUAsyncMsgEvent asyncEvent = (iSCSIPDUAsyncMsgEvent)(bhs->asyncEvent);
+    
+    DBLog("iscsi: Async Message (%#x) received (sid: %d, cid: %d)\n",
+        asyncEvent,session->sessionId,connection->CID);
+    
     switch(asyncEvent)
     {
         // The target will drop all connections for this session
@@ -1135,7 +1142,7 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     }
     
     // Amount of data to transfer in each iteration (per PDU)
-    UInt32 maxTransferLength = connection->opts.maxSendDataSegmentLength;
+    UInt32 maxTransferLength = connection->maxSendDataSegmentLength;
     
     data += dataOffset;
     
@@ -1322,20 +1329,20 @@ errno_t iSCSIVirtualHBA::CreateSession(OSString * targetIQN,
     newSession->expCmdSN = 0;
     newSession->maxCmdSN = 0;
     
-    newSession->opts.targetPortalGroupTag = 0;
-    newSession->opts.targetSessionId = 0;
+    newSession->targetPortalGroupTag = 0;
+    newSession->targetSessionId = 0;
     
-    newSession->opts.dataPDUInOrder = kRFC3720_DataPDUInOrder;
-    newSession->opts.dataSequenceInOrder = kRFC3720_DataSequenceInOrder;
-    newSession->opts.defaultTime2Retain = kRFC3720_DefaultTime2Retain;
-    newSession->opts.defaultTime2Wait = kRFC3720_DefaultTime2Wait;
-    newSession->opts.errorRecoveryLevel = kRFC3720_ErrorRecoveryLevel;
-    newSession->opts.firstBurstLength = kRFC3720_FirstBurstLength;
-    newSession->opts.immediateData = kRFC3720_ImmediateData;
-    newSession->opts.initialR2T = kRFC3720_InitialR2T;
-    newSession->opts.maxBurstLength = kRFC3720_MaxBurstLength;
-    newSession->opts.maxConnections = kRFC3720_MaxConnections;
-    newSession->opts.maxOutStandingR2T = kRFC3720_MaxOutstandingR2T;
+    newSession->dataPDUInOrder = kRFC3720_DataPDUInOrder;
+    newSession->dataSequenceInOrder = kRFC3720_DataSequenceInOrder;
+    newSession->defaultTime2Retain = kRFC3720_DefaultTime2Retain;
+    newSession->defaultTime2Wait = kRFC3720_DefaultTime2Wait;
+    newSession->errorRecoveryLevel = kRFC3720_ErrorRecoveryLevel;
+    newSession->firstBurstLength = kRFC3720_FirstBurstLength;
+    newSession->immediateData = kRFC3720_ImmediateData;
+    newSession->initialR2T = kRFC3720_InitialR2T;
+    newSession->maxBurstLength = kRFC3720_MaxBurstLength;
+    newSession->maxConnections = kRFC3720_MaxConnections;
+    newSession->maxOutStandingR2T = kRFC3720_MaxOutstandingR2T;
     
     // Retain new session
     sessionList[sessionIdx] = newSession;
@@ -1474,14 +1481,14 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     newConn->bytesPerSecond = 0;
     newConn->CID = index;
     
-    newConn->opts.maxRecvDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
-    newConn->opts.maxSendDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
-    newConn->opts.useDataDigest = kRFC3720_DataDigest;
-    newConn->opts.useHeaderDigest = kRFC3720_HeaderDigest;
-    newConn->opts.useOFMarker = kRFC3720_OFMarker;
-    newConn->opts.useIFMarker = kRFC3720_IFMarker;
-    newConn->opts.OFMarkInt = kRFC3720_OFMarkInt;
-    newConn->opts.IFMarkInt = kRFC3720_IFMarkInt;
+    newConn->maxRecvDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
+    newConn->maxSendDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
+    newConn->useDataDigest = kRFC3720_DataDigest;
+    newConn->useHeaderDigest = kRFC3720_HeaderDigest;
+    newConn->useOFMarker = kRFC3720_OFMarker;
+    newConn->useIFMarker = kRFC3720_IFMarker;
+    newConn->OFMarkInt = kRFC3720_OFMarkInt;
+    newConn->IFMarkInt = kRFC3720_IFMarkInt;
     
     session->connections[index] = newConn;
     *connectionId = index;
@@ -1648,6 +1655,14 @@ errno_t iSCSIVirtualHBA::ActivateConnection(SID sessionId,CID connectionId)
     
     if(!connection)
         return EINVAL;
+    
+    // Recalculate the immedate data length if options
+    // were changed while this connection was not active
+    
+    
+    // Set the maximum amount of immediate data we can send on this connection
+    connection->immediateDataLength = min(connection->maxSendDataSegmentLength,
+                                          session->firstBurstLength);
     
     connection->taskQueue->enable();
     connection->dataRecvEventSource->enable();
@@ -1827,11 +1842,12 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     iovec[iovecCnt].iov_base  = bhs;
     iovec[iovecCnt].iov_len   = kiSCSIPDUBasicHeaderSegmentSize;
     iovecCnt++;
-    
-    DBLog("iscsi: Sent PDU type %#x\n",bhs->opCodeAndDeliveryMarker);
+
+    DBLog("iscsi: Sent PDU type %#x (sid: %d, cid: %d)\n",
+          bhs->opCodeAndDeliveryMarker,session->sessionId,connection->CID);
     
     // Leave room for a header digest
-    if(connection->opts.useHeaderDigest)    {
+    if(connection->useHeaderDigest)    {
         UInt32 headerDigest;
         
         // Compute digest
@@ -1864,7 +1880,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
         DBLog("iscsi: Sending data length: %z\n",length);
 
         // Leave room for a data digest
-        if(connection->opts.useDataDigest) {
+        if(connection->useDataDigest) {
             UInt32 dataDigest;
             
             // Compute digest
@@ -1932,7 +1948,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     UInt32 headerDigest = 0;
     
     // Retrieve header digest, if one exists
-    if(connection->opts.useHeaderDigest)
+    if(connection->useHeaderDigest)
     {
         iovec[iovecCnt].iov_base = &headerDigest;
         iovec[iovecCnt].iov_len  = sizeof(headerDigest);
@@ -1990,9 +2006,9 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     if(bhs->expCmdSN > session->expCmdSN)
         OSWriteLittleInt32(&session->expCmdSN,0,bhs->expCmdSN);
     
-    if(bhs->opCode != kiSCSIPDUOpCodeDataIn || bhs->statSN != 0)
+    if(bhs->opCode != kiSCSIPDUOpCodeDataIn && bhs->statSN != 0)
         OSIncrementAtomic(&connection->expStatSN);
-
+    
     return result;
 }
 
@@ -2040,7 +2056,7 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     UInt32 dataDigest = 0;
     
     // Retrieve data digest, if one exists
-    if(connection->opts.useDataDigest)
+    if(connection->useDataDigest)
     {
         iovec[iovecCnt].iov_base = &dataDigest;
         iovec[iovecCnt].iov_len  = sizeof(dataDigest);
@@ -2053,7 +2069,7 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
     
     // Verify digest if present
-    if(connection->opts.useDataDigest)
+    if(connection->useDataDigest)
     {
         // Compute digest including padding...
         UInt32 calcDigest = crc32c(0,data,length);

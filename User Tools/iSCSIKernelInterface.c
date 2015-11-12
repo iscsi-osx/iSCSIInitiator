@@ -242,40 +242,58 @@ errno_t iSCSIKernelReleaseSession(SID sessionId)
     return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSIReleaseSession,&input,inputCnt,0,0));
 }
 
-/*! Sets configuration associated with a particular connection.
+/*! Sets option associated with a particular session.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param config the configuration to set.
+ *  @param option the option to set.
+ *  @param optVal the value for the specified option.
+ *  @param optSize the size, in bytes of optVal.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetSessionConfig(SID sessionId,iSCSIKernelSessionCfg * config)
+errno_t iSCSIKernelSetSessionOpt(SID sessionId,
+                                 enum iSCSIKernelSessionOptTypes option,
+                                 void * optVal,
+                                 size_t optSize)
 {
     // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId || !config)
+    if(sessionId == kiSCSIInvalidSessionId || !optVal || optSize == 0)
         return EINVAL;
     
-    const UInt32 inputCnt = 1;
-    const UInt64 input = sessionId;
+    UInt64 optValCopy = 0;
+    memcpy(&optValCopy,optVal,optSize);
     
-    return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSISetSessionOptions,&input,inputCnt,
-                                               config,sizeof(struct iSCSIKernelSessionCfg),0,0,0,0));
+    const UInt32 inputCnt = 3;
+    const UInt64 input[] = {sessionId,option,optValCopy};
+    
+    return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSISetSessionOption,input,inputCnt,0,0));
 }
 
-/*! Gets configuration associated with a particular connection.
+/*! Gets option associated with a particular session.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param config the configuration to get.  The user of this function is
- *  responsible for allocating and freeing the configuration struct.
+ *  @param option the option to get.
+ *  @param optVal the returned value for the specified option.
+ *  @param optSize the size, in bytes of optVal.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionConfig(SID sessionId,iSCSIKernelSessionCfg * config)
+errno_t iSCSIKernelGetSessionOpt(SID sessionId,
+                                 enum iSCSIKernelSessionOptTypes option,
+                                 void * optVal,
+                                 size_t optSize)
 {
     // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId || !config)
+    if(sessionId == kiSCSIInvalidSessionId || !optVal || optSize == 0)
         return EINVAL;
     
-    const UInt32 inputCnt = 1;
-    const UInt64 input = sessionId;
-    size_t configSize = sizeof(struct iSCSIKernelSessionCfg);
+    const UInt32 inputCnt = 2;
+    const UInt64 input[] = {sessionId,option};
+    
+    UInt32 outputCnt = 1;
+    UInt64 output;
 
-    return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSIGetSessionOptions,&input,inputCnt,
-                                               0,0,0,0,config,&configSize));
+    kern_return_t error = IOConnectCallScalarMethod(connection,kiSCSIGetSessionOption,
+                                                    input,inputCnt,&output,&outputCnt);
+    
+    if(error == kIOReturnSuccess)
+        memcpy(optVal,&output,optSize);
+    
+    return IOReturnToErrno(error);
 }
 
 /*! Allocates an additional iSCSI connection for a particular session.
@@ -297,11 +315,8 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
                                     CID * connectionId)
 {
     // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId || !portalAddress || !portalPort ||
-       !hostInterface || !portalSockAddr || !connectionId)
-    {
+    if(sessionId == kiSCSIInvalidSessionId || !portalAddress || !portalPort || !hostInterface || !portalSockAddr || !connectionId)
         return EINVAL;
-    }
     
     // Pack the input parameters into a single buffer to send to the kernel
     const int kNumParams = 5;
@@ -400,8 +415,7 @@ errno_t iSCSIKernelSend(SID sessionId,
                         size_t length)
 {
     // Check parameters
-    if(sessionId    == kiSCSIInvalidSessionId || !bhs || (!data && length > 0) ||
-       connectionId == kiSCSIInvalidConnectionId)
+    if(sessionId    == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !bhs || (!data && length > 0))
         return EINVAL;
     
     // Setup input scalar array
@@ -476,49 +490,62 @@ errno_t iSCSIKernelRecv(SID sessionId,
     return IOReturnToErrno(result);
 }
 
-
-/*! Sets configuration associated with a particular connection.
+/*! Sets option associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
- *  @param config the configuration to set.
+ *  @param option the option to set.
+ *  @param optVal the value for the specified option.
+ *  @param optSize the size, in bytes of optVal.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetConnectionConfig(SID sessionId,
-                                       CID connectionId,
-                                       iSCSIKernelConnectionCfg * config)
+errno_t iSCSIKernelSetConnectionOpt(SID sessionId,
+                                    CID connectionId,
+                                    enum iSCSIKernelConnectionOptTypes option,
+                                    void * optVal,
+                                    size_t optSize)
 {
     // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !config)
+    if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId || !optVal || optSize == 0)
         return EINVAL;
     
-    const UInt32 inputCnt = 2;
-    const UInt64 inputs[] = {sessionId,connectionId};
+    UInt64 optValCopy = 0;
+    memcpy(&optValCopy,optVal,optSize);
     
-    return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSISetConnectionOptions,inputs,inputCnt,
-                                               config,sizeof(struct iSCSIKernelConnectionCfg),0,0,0,0));
+    const UInt32 inputCnt = 4;
+    const UInt64 inputs[] = {sessionId,connectionId,option,optValCopy};
+    
+    return IOReturnToErrno(IOConnectCallScalarMethod(connection,kiSCSISetConnectionOption,inputs,inputCnt,0,0));
 }
 
-/*! Gets configuration associated with a particular connection.
+/*! Gets option associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
- *  @param config the configurations to get.  The user of this function is
- *  responsible for allocating and freeing the configuration struct.
+ *  @param option the option to get.
+ *  @param optVal the returned value for the specified option.
+ *  @param optSize the size, in bytes of optVal.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionConfig(SID sessionId,
-                                       CID connectionId,
-                                       iSCSIKernelConnectionCfg * config)
+errno_t iSCSIKernelGetConnectionOpt(SID sessionId,
+                                    CID connectionId,
+                                    enum iSCSIKernelConnectionOptTypes option,
+                                    void * optVal,
+                                    size_t optSize)
 {
     // Check parameters
-    if(sessionId == kiSCSIInvalidSessionId ||
-       connectionId     == kiSCSIInvalidConnectionId || !config)
+    if(sessionId == kiSCSIInvalidSessionId || connectionId  == kiSCSIInvalidConnectionId || !optVal || optSize == 0)
         return EINVAL;
     
-    const UInt32 inputCnt = 2;
-    const UInt64 inputs[] = {sessionId,connectionId};
-
-    size_t optionsSize = sizeof(struct iSCSIKernelConnectionCfg);
+    const UInt32 inputCnt = 3;
+    const UInt64 input[] = {sessionId,connectionId,option};
     
-    return IOReturnToErrno(IOConnectCallMethod(connection,kiSCSIGetConnectionOptions,inputs,inputCnt,
-                                               0,0,0,0,config,&optionsSize));
+    UInt32 outputCnt = 1;
+    UInt64 output;
+    
+    kern_return_t error = IOConnectCallScalarMethod(connection,kiSCSIGetConnectionOption,
+                                                    input,inputCnt,&output,&outputCnt);
+    
+    if(error == kIOReturnSuccess)
+        memcpy(optVal,&output,optSize);
+        
+    return IOReturnToErrno(error);
 }
 
 /*! Activates an iSCSI connection associated with a session.

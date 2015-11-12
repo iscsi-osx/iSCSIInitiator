@@ -34,78 +34,82 @@ static const UInt16 kiSCSIMaxSessions = 16;
 /*! Max number of connections per session. */
 static const UInt32 kiSCSIMaxConnectionsPerSession = 2;
 
-/*! Struct used to set session-wide options in the kernel. */
-typedef struct iSCSIKernelSessionCfg
-{
-    /*! Time to retain. */
-    UInt16 defaultTime2Retain;
+/*! An enumeration of configurable session parameters. */
+enum iSCSIKernelSessionOptTypes {
     
-    /*! Time to wait. */
-    UInt16 defaultTime2Wait;
+    /*! Time to retain (UInt16). */
+    kiSCSIKernelSODefaultTime2Retain,
     
-    /*! Error recovery level. */
-    UInt8 errorRecoveryLevel;
+    /*! Time to wait (UInt16). */
+    kiSCSIKernelSODefaultTime2Wait,
     
-    /*! Max connections supported by target. */
-    UInt32 maxConnections;
+    /*! Error recovery level (UInt8). */
+    kiSCSIKernelSOErrorRecoveryLevel,
     
-    /*! Send data immediately. */
-    bool immediateData;
+    /*! Max connections supported by target (UInt32). */
+    kiSCSIKernelSOMaxConnections,
     
-    /*!  Expect an initial R2T from target. */
-    bool initialR2T;
+    /*! Send data immediately (bool). */
+    kiSCSIKernelSOImmediateData,
     
-    /*! Data PDUs in order. */
-    bool dataPDUInOrder;
+    /*!  Expect an initial R2T from target (bool). */
+    kiSCSIKernelSOInitialR2T,
     
-    /*! Data sequence in order. */
-    bool dataSequenceInOrder;
+    /*! Data PDUs in order (bool). */
+    kiSCSIKernelSODataPDUInOrder,
     
-    /*! Number of outstanding R2Ts allowed. */
-    UInt16 maxOutStandingR2T;
+    /*! Data sequence in order (bool). */
+    kiSCSIKernelSODataSequenceInOrder,
     
-    /*! Maximum data burst length (in bytes). */
-    UInt32 maxBurstLength;
+    /*! Number of outstanding R2Ts allowed (UInt16). */
+    kiSCSIKernelSOMaxOutstandingR2T,
     
-    /*! First data burst length (in bytes). */
-    UInt32 firstBurstLength;
+    /*! Maximum data burst length in bytes (UInt32). */
+    kiSCSIKernelSOMaxBurstLength,
     
-    /*! Target session identifying handle. */
-    TSIH targetSessionId;
+    /*! First data burst length in bytes (UInt32). */
+    kiSCSIKernelSOFirstBurstLength,
     
-    /*! Target portal group tag. */
-    TPGT targetPortalGroupTag;
+    /*! Target session identifying handle (TSIH). */
+    kiSCSIKernelSOTargetSessionId,
     
-} iSCSIKernelSessionCfg;
+    /*! Target portal group tag (TPGT). */
+    kiSCSIKernelSOTargetPortalGroupTag,
+    
+};
 
-/*! Struct used to set connection-wide options in the kernel. */
-typedef struct iSCSIKernelConnectionCfg
-{
-    /*! Flag that indicates if this connection uses header digests. */
-    bool useHeaderDigest;
+
+/*! An enumeration of configurable connection parameters. */
+enum iSCSIKernelConnectionOptTypes {
     
-    /*! Flag that indicates if this connection uses data digests. */
-    bool useDataDigest;
+    /*! Flag that indicates if this connection uses header digests (bool). */
+    kiSCSIKernelCOUseHeaderDigest,
     
-    /*! Flag that indicates if this connection uses IF markers. */
-    bool useIFMarker;
+    /*! Flag that indicates if this connection uses data digests (bool). */
+    kiSCSIKernelCOUseDataDigest,
     
-    /*! Flag that indicates if this connection uses OF markers. */
-    bool useOFMarker;
+    /*! Flag that indicates if this connection uses IF markers (bool). */
+    kiSCSIKernelCOUseIFMarker,
     
-    /*! Interval for OF marker. */
-    UInt16 OFMarkInt;
+    /*! Flag that indicates if this connection uses OF markers (bool). */
+    kiSCSIKernelCOUseOFMarker,
     
-    /*! Interval for IF marker. */
-    UInt16 IFMarkInt;
+    /*! Interval for OF marker (UInt16). */
+    kiSCSIKernelCOOFMarkInt,
     
-    /*! Maximum data segment length allowed by the target. */
-    UInt32 maxSendDataSegmentLength;
+    /*! Interval for IF marker (UInt16). */
+    kiSCSIKernelCOIFMarkInt,
     
-    /*! Maximum data segment length initiator can receive. */
-    UInt32 maxRecvDataSegmentLength;
+    /*! Maximum data segment length allowed by the target (UInt32). */
+    kiSCSIKernelCOMaxSendDataSegmentLength,
     
-} iSCSIKernelConnectionCfg;
+    /*! Maximum data segment length initiator can receive (UInt32). */
+    kiSCSIKernelCOMaxRecvDataSegmentLength,
+    
+    /*! Initial expStatSN. */
+    kiSCSIKernelCOInitialExpStatSN
+    
+};
 
 
 #endif

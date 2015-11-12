@@ -383,9 +383,9 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     context.nextStage    = kiSCSIPDUSecurityNegotiation;
     
     // Retrieve the TSIH from the kernel
-    iSCSIKernelSessionCfg sessCfgKernel;
-    iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel);
-    context.targetSessionId = sessCfgKernel.targetSessionId;
+    TSIH targetSessionId = 0;
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,&targetSessionId,sizeof(TSIH));
+    context.targetSessionId = targetSessionId;
     
     enum iSCSIRejectCode rejectCode;
     
@@ -402,6 +402,12 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     // Quit if the query failed for whatever reason, release dictionaries
     if(error || *statusCode != kiSCSILoginSuccess)
         goto ERROR_GENERIC;
+    
+    // This was the first query of the connection; record the status
+    // sequence number provided by the target
+    UInt32 expStatSN = context.statSN + 1;
+    iSCSIKernelSetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOInitialExpStatSN,
+                                &expStatSN,sizeof(expStatSN));
     
     // Determine if target supports desired authentication method
     CFRange result = CFStringFind(CFDictionaryGetValue(authCmd,kRFC3720_Key_AuthMethod),
@@ -436,18 +442,24 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
         }
 
         // Extract target portal group tag
-        CFStringRef TPGT = (CFStringRef)CFDictionaryGetValue(authRsp,kRFC3720_Key_TargetPortalGroupTag);
+        CFStringRef targetPortalGroupRsp = (CFStringRef)CFDictionaryGetValue(authRsp,kRFC3720_Key_TargetPortalGroupTag);
         
-        // If this is leading login (TSIH = 0 for leading login), store TPGT
-        if(sessCfgKernel.targetSessionId == 0) {
-            sessCfgKernel.targetPortalGroupTag = CFStringGetIntValue(TPGT);
+        // If this is leading login (TSIH = 0 for leading login), store TPGT,
+        // else compare it to the TPGT that we have stored for this session...
+        if(targetSessionId == 0) {
+            TPGT targetPortalGroupTag = CFStringGetIntValue(targetPortalGroupRsp);
             
-            // Save the configuration since we've updated the TSIH
-            iSCSIKernelSetSessionConfig(sessionId,&sessCfgKernel);
+            iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOTargetPortalGroupTag,
+                                     &targetPortalGroupTag,sizeof(TPGT));
         }
-        // Otherwise compare TPGT...
         else {
-            if(sessCfgKernel.targetPortalGroupTag != CFStringGetIntValue(TPGT))
+            // Retrieve from kernel
+            TPGT targetPortalGroupTag = 0;
+            iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetPortalGroupTag,
+                                     &targetPortalGroupTag,sizeof(TPGT));
+
+            // Validate existing group against TPGT for this connection
+            if(targetPortalGroupTag != CFStringGetIntValue(targetPortalGroupRsp))
                 goto ERROR_AUTHENTICATION;
         }
     }
@@ -458,7 +470,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                                        targetAuth,
                                        sessionId,
                                        connectionId,
-                                       sessCfgKernel.targetSessionId,
+                                       targetSessionId,
                                        statusCode);
         if(error || *statusCode != kiSCSILoginSuccess)
             goto ERROR_AUTHENTICATE_CHAP;

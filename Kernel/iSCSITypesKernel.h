@@ -54,9 +54,6 @@ typedef struct iSCSIConnection {
      *  received and needs to be processed. */
     iSCSIIOEventSource * dataRecvEventSource;
     
-    /*! Options associated with this connection. */
-    iSCSIKernelConnectionCfg opts;
-    
     /*! Amount of data, in bytes, that this connection has been requested
      *  to transfer.  This is used for bitrate-based load balancing. */
     UInt64 dataToTransfer;
@@ -89,6 +86,33 @@ typedef struct iSCSIConnection {
     /*! Keeps track of the index in the above array should be populated next. */
     UInt8 bytesPerSecHistoryIdx;
     
+    //////////////////// Configured Connection Parameters /////////////////////
+    
+    /*! Flag that indicates if this connection uses header digests. */
+    bool useHeaderDigest;
+    
+    /*! Flag that indicates if this connection uses data digests. */
+    bool useDataDigest;
+    
+    /*! Flag that indicates if this connection uses IF markers. */
+    bool useIFMarker;
+    
+    /*! Flag that indicates if this connection uses OF markers. */
+    bool useOFMarker;
+    
+    /*! Interval for OF marker. */
+    UInt16 OFMarkInt;
+    
+    /*! Interval for IF marker. */
+    UInt16 IFMarkInt;
+    
+    /*! Maximum data segment length allowed by the target. */
+    UInt32 maxSendDataSegmentLength;
+    
+    /*! Maximum data segment length initiator can receive. */
+    UInt32 maxRecvDataSegmentLength;
+
+    
 } iSCSIConnection;
 
 
@@ -114,15 +138,53 @@ typedef struct iSCSISession {
     /*! Connections associated with this session. */
     iSCSIConnection * * connections;
     
-    /*! Options associated with this session. */
-    iSCSIKernelSessionCfg opts;
-    
     /*! Number of active connections. */
     UInt32 numActiveConnections;
         
     /*! Indicates whether session is active, which means that a SCSI target
      *  exists and is backing the the iSCSI session. */
     bool active;
+    
+    //////////////////// Configured Session Parameters /////////////////////
+    
+    /*! Time to retain. */
+    UInt16 defaultTime2Retain;
+    
+    /*! Time to wait. */
+    UInt16 defaultTime2Wait;
+    
+    /*! Error recovery level. */
+    UInt8 errorRecoveryLevel;
+    
+    /*! Max connections supported by target. */
+    UInt32 maxConnections;
+    
+    /*! Send data immediately. */
+    bool immediateData;
+    
+    /*!  Expect an initial R2T from target. */
+    bool initialR2T;
+    
+    /*! Data PDUs in order. */
+    bool dataPDUInOrder;
+    
+    /*! Data sequence in order. */
+    bool dataSequenceInOrder;
+    
+    /*! Number of outstanding R2Ts allowed. */
+    UInt16 maxOutStandingR2T;
+    
+    /*! Maximum data burst length (in bytes). */
+    UInt32 maxBurstLength;
+    
+    /*! First data burst length (in bytes). */
+    UInt32 firstBurstLength;
+    
+    /*! Target session identifying handle. */
+    TSIH targetSessionId;
+    
+    /*! Target portal group tag. */
+    TPGT targetPortalGroupTag;
     
 } iSCSISession;
 

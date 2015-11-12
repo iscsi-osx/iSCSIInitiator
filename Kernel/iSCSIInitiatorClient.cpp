@@ -48,18 +48,18 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
         0
 	},
     {
-		(IOExternalMethodAction) &iSCSIInitiatorClient::SetSessionOptions,
-		1,                                  // Session ID
-        sizeof(iSCSIKernelSessionCfg),      // Options to set
+		(IOExternalMethodAction) &iSCSIInitiatorClient::SetSessionOption,
+		3,                                  // Session ID, option ID, option value
+        0,
 		0,
 		0
 	},
     {
-		(IOExternalMethodAction) &iSCSIInitiatorClient::GetSessionOptions,
-		1,                                  // Session ID
+		(IOExternalMethodAction) &iSCSIInitiatorClient::GetSessionOption,
+		2,                                  // Session ID, option ID
 		0,
-		0,
-		sizeof(iSCSIKernelSessionCfg)         // Options to get
+		1,                                  // Option to get
+        0
 	},
 	{
 		(IOExternalMethodAction) &iSCSIInitiatorClient::CreateConnection,
@@ -132,18 +132,18 @@ const IOExternalMethodDispatch iSCSIInitiatorClient::methods[kiSCSIInitiatorNumM
 		kIOUCVariableStructureSize,         // Receive buffer
 	},
     {
-		(IOExternalMethodAction) &iSCSIInitiatorClient::SetConnectionOptions,
-		2,                                  // Session ID, connection ID
-        sizeof(iSCSIKernelConnectionCfg),     // Options to set
-		0,
-		0
+		(IOExternalMethodAction) &iSCSIInitiatorClient::SetConnectionOption,
+        4,                                  // Session ID, connection ID, option ID, option value
+        0,
+        0,
+        0
 	},
     {
-		(IOExternalMethodAction) &iSCSIInitiatorClient::GetConnectionOptions,
-		2,                                  // Session ID, connection ID
-		0,
-		0,
-		sizeof(iSCSIKernelConnectionCfg)      // Options to get
+		(IOExternalMethodAction) &iSCSIInitiatorClient::GetConnectionOption,
+        3,                                  // Session ID, connection ID, option ID
+        0,
+        1,                                  // Option to get
+        0
 	},
     {
 		(IOExternalMethodAction) &iSCSIInitiatorClient::GetConnection,
@@ -475,13 +475,18 @@ IOReturn iSCSIInitiatorClient::ReleaseSession(iSCSIInitiatorClient * target,
 }
 
 // TODO: Set session options only once, when session is still inactive...
-IOReturn iSCSIInitiatorClient::SetSessionOptions(iSCSIInitiatorClient * target,
-                                                 void * reference,
-                                                 IOExternalMethodArguments * args)
+IOReturn iSCSIInitiatorClient::SetSessionOption(iSCSIInitiatorClient * target,
+                                                void * reference,
+                                                IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
+    if(args->scalarInputCount != 3)
+        return kIOReturnBadArgument;
+    
     SID sessionId = (SID)args->scalarInput[0];
+    enum iSCSIKernelSessionOptTypes optType = (enum iSCSIKernelSessionOptTypes)args->scalarInput[1];
+    UInt64 optVal = args->scalarInput[2];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions)
@@ -493,32 +498,124 @@ IOReturn iSCSIInitiatorClient::SetSessionOptions(iSCSIInitiatorClient * target,
     if(!session)
         return kIOReturnNotFound;
     
-    iSCSIKernelSessionCfg * options = (iSCSIKernelSessionCfg*)args->structureInput;
-    session->opts = *options;
+    switch(optType)
+    {
+        case kiSCSIKernelSODataPDUInOrder:
+            session->dataPDUInOrder = optVal;
+            break;
+        case kiSCSIKernelSODataSequenceInOrder:
+            session->dataSequenceInOrder = optVal;
+            break;
+        case kiSCSIKernelSODefaultTime2Retain:
+            session->defaultTime2Retain = optVal;
+            break;
+        case kiSCSIKernelSODefaultTime2Wait:
+            session->defaultTime2Wait = optVal;
+            break;
+        case kiSCSIKernelSOErrorRecoveryLevel:
+            session->errorRecoveryLevel = optVal;
+            break;
+        case kiSCSIKernelSOFirstBurstLength:
+            session->firstBurstLength = (UInt32)optVal;
+            break;
+        case kiSCSIKernelSOImmediateData:
+            session->immediateData = optVal;
+            break;
+        case kiSCSIKernelSOMaxConnections:
+            session->maxConnections = (CID)optVal;
+            break;
+        case kiSCSIKernelSOMaxOutstandingR2T:
+            session->maxOutStandingR2T = optVal;
+            break;
+        case kiSCSIKernelSOMaxBurstLength:
+            session->maxBurstLength = (UInt32)optVal;
+            break;
+        case kiSCSIKernelSOInitialR2T:
+            session->initialR2T = optVal;
+            break;
+        case kiSCSIKernelSOTargetPortalGroupTag:
+            session->targetPortalGroupTag = optVal;
+            break;
+        case kiSCSIKernelSOTargetSessionId:
+            session->targetSessionId = optVal;
+            break;
+
+        default:
+            return kIOReturnBadArgument;
+    };
     
     return kIOReturnSuccess;
 }
 
-IOReturn iSCSIInitiatorClient::GetSessionOptions(iSCSIInitiatorClient * target,
-                                                 void * reference,
-                                                 IOExternalMethodArguments * args)
+IOReturn iSCSIInitiatorClient::GetSessionOption(iSCSIInitiatorClient * target,
+                                                void * reference,
+                                                IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
+    
+    if(args->scalarInputCount != 2)
+        return kIOReturnBadArgument;
+    
     SID sessionId = (SID)args->scalarInput[0];
+    enum iSCSIKernelSessionOptTypes optType = (enum iSCSIKernelSessionOptTypes)args->scalarInput[1];
     
     // Range-check input
-    if(sessionId == kiSCSIInvalidSessionId)
+    if(sessionId >= kiSCSIMaxSessions)
         return kIOReturnBadArgument;
     
     // Do nothing if session doesn't exist
     iSCSISession * session = hba->sessionList[sessionId];
     
+    UInt64 * optVal = args->scalarOutput;
+    
     if(!session)
         return kIOReturnNotFound;
     
-    iSCSIKernelSessionCfg * options = (iSCSIKernelSessionCfg*)args->structureOutput;
-    *options = session->opts;
+    switch(optType)
+    {
+        case kiSCSIKernelSODataPDUInOrder:
+            *optVal = session->dataPDUInOrder;
+            break;
+        case kiSCSIKernelSODataSequenceInOrder:
+            *optVal = session->dataSequenceInOrder;
+            break;
+        case kiSCSIKernelSODefaultTime2Retain:
+            *optVal = session->defaultTime2Retain;
+            break;
+        case kiSCSIKernelSODefaultTime2Wait:
+            *optVal = session->defaultTime2Wait;
+            break;
+        case kiSCSIKernelSOErrorRecoveryLevel:
+            *optVal = session->errorRecoveryLevel;
+            break;
+        case kiSCSIKernelSOFirstBurstLength:
+            *optVal = session->firstBurstLength;
+            break;
+        case kiSCSIKernelSOImmediateData:
+            *optVal = session->immediateData;
+            break;
+        case kiSCSIKernelSOMaxConnections:
+            *optVal = session->maxConnections;
+            break;
+        case kiSCSIKernelSOMaxOutstandingR2T:
+            *optVal = session->maxOutStandingR2T;
+            break;
+        case kiSCSIKernelSOMaxBurstLength:
+            *optVal = session->maxBurstLength;
+            break;
+        case kiSCSIKernelSOInitialR2T:
+            *optVal = session->initialR2T;
+            break;
+        case kiSCSIKernelSOTargetPortalGroupTag:
+            *optVal = session->targetPortalGroupTag;
+            break;
+        case kiSCSIKernelSOTargetSessionId:
+            *optVal = session->targetSessionId;
+            break;
+        default:
+            return kIOReturnBadArgument;
+    };
     
     return kIOReturnSuccess;
 }
@@ -749,14 +846,19 @@ IOReturn iSCSIInitiatorClient::RecvData(iSCSIInitiatorClient * target,
 
 // TODO: Only allow user to set options when connection is inactive
 // TODO: optimize socket parameters based on connection options
-IOReturn iSCSIInitiatorClient::SetConnectionOptions(iSCSIInitiatorClient * target,
-                                                    void * reference,
-                                                    IOExternalMethodArguments * args)
+IOReturn iSCSIInitiatorClient::SetConnectionOption(iSCSIInitiatorClient * target,
+                                                   void * reference,
+                                                   IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
+    if(args->scalarInputCount != 4)
+        return kIOReturnBadArgument;
+    
     SID sessionId = (SID)args->scalarInput[0];
     CID connectionId = (CID)args->scalarInput[1];
+    enum iSCSIKernelConnectionOptTypes optType = (enum iSCSIKernelConnectionOptTypes)args->scalarInput[2];
+    UInt64 optVal = args->scalarInput[3];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
@@ -773,28 +875,56 @@ IOReturn iSCSIInitiatorClient::SetConnectionOptions(iSCSIInitiatorClient * targe
     if(!connection)
         return kIOReturnNotFound;
     
-    iSCSIKernelConnectionCfg * options = (iSCSIKernelConnectionCfg*)args->structureInput;
-    connection->opts = *options;
-    
-    // Set the maximum amount of immediate data we can send on this connection
-    connection->immediateDataLength = min(options->maxSendDataSegmentLength,
-                                          session->opts.firstBurstLength);
+    switch(optType)
+    {
+        case kiSCSIKernelCOIFMarkInt:
+            connection->IFMarkInt = optVal;
+            break;
+        case kiSCSIKernelCOOFMarkInt:
+            connection->OFMarkInt = optVal;
+            break;
+        case kiSCSIKernelCOUseIFMarker:
+            connection->useIFMarker = optVal;
+            break;
+        case kiSCSIKernelCOUseOFMarker:
+            connection->useOFMarker = optVal;
+            break;
+        case kiSCSIKernelCOUseDataDigest:
+            connection->useDataDigest = optVal;
+            break;
+        case kiSCSIKernelCOUseHeaderDigest:
+            connection->useHeaderDigest = optVal;
+            break;
+        case kiSCSIKernelCOMaxRecvDataSegmentLength:
+            connection->maxRecvDataSegmentLength = (UInt32)optVal;
+            break;
+        case kiSCSIKernelCOMaxSendDataSegmentLength:
+            connection->maxSendDataSegmentLength = (UInt32)optVal;
+            break;
+        case kiSCSIKernelCOInitialExpStatSN:
+            connection->expStatSN = (UInt32)optVal;
+            break;
+            
+        default:
+            return kIOReturnBadArgument;
+    };
     
     return kIOReturnSuccess;
 }
 
-IOReturn iSCSIInitiatorClient::GetConnectionOptions(iSCSIInitiatorClient * target,
-                                                    void * reference,
-                                                    IOExternalMethodArguments * args)
+IOReturn iSCSIInitiatorClient::GetConnectionOption(iSCSIInitiatorClient * target,
+                                                   void * reference,
+                                                   IOExternalMethodArguments * args)
 {
-    // Validate buffer is large enough to hold options
-    if(args->structureOutputSize < sizeof(iSCSIKernelConnectionCfg))
-        return kIOReturnMessageTooLarge;
-    
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
+    
+    if(args->scalarInputCount != 3)
+        return kIOReturnBadArgument;
     
     SID sessionId = (SID)args->scalarInput[0];
     CID connectionId = (CID)args->scalarInput[1];
+    enum iSCSIKernelConnectionOptTypes optType = (enum iSCSIKernelConnectionOptTypes)args->scalarInput[2];
+    UInt64 * optVal = args->scalarOutput;
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
@@ -810,9 +940,40 @@ IOReturn iSCSIInitiatorClient::GetConnectionOptions(iSCSIInitiatorClient * targe
     
     if(!connection)
         return kIOReturnNotFound;
-
-    iSCSIKernelConnectionCfg * options = (iSCSIKernelConnectionCfg*)args->structureOutput;
-    *options = connection->opts;
+    
+    switch(optType)
+    {
+        case kiSCSIKernelCOIFMarkInt:
+            *optVal = connection->IFMarkInt;
+            break;
+        case kiSCSIKernelCOOFMarkInt:
+            *optVal = connection->OFMarkInt;
+            break;
+        case kiSCSIKernelCOUseIFMarker:
+            *optVal = connection->useIFMarker;
+            break;
+        case kiSCSIKernelCOUseOFMarker:
+            *optVal = connection->useOFMarker;
+            break;
+        case kiSCSIKernelCOUseDataDigest:
+            *optVal = connection->useDataDigest;
+            break;
+        case kiSCSIKernelCOUseHeaderDigest:
+            *optVal = connection->useHeaderDigest;
+            break;
+        case kiSCSIKernelCOMaxRecvDataSegmentLength:
+            *optVal = connection->maxRecvDataSegmentLength;
+            break;
+        case kiSCSIKernelCOMaxSendDataSegmentLength:
+            *optVal = connection->maxSendDataSegmentLength;
+            break;
+        case kiSCSIKernelCOInitialExpStatSN:
+            *optVal = connection->expStatSN;
+            break;
+            
+        default:
+            return kIOReturnBadArgument;
+    };
     
     return kIOReturnSuccess;
 }

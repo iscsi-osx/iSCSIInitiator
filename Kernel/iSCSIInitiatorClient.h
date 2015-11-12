@@ -58,13 +58,13 @@ public:
                                    void * reference,
                                    IOExternalMethodArguments * args);
         
-    static IOReturn SetSessionOptions(iSCSIInitiatorClient * target,
-                                      void * reference,
-                                      IOExternalMethodArguments * args);
+    static IOReturn SetSessionOption(iSCSIInitiatorClient * target,
+                                     void * reference,
+                                     IOExternalMethodArguments * args);
     
-    static IOReturn GetSessionOptions(iSCSIInitiatorClient * target,
-                                      void * reference,
-                                      IOExternalMethodArguments * args);
+    static IOReturn GetSessionOption(iSCSIInitiatorClient * target,
+                                     void * reference,
+                                     IOExternalMethodArguments * args);
 
     /*! Dispatched function invoked from user-space to create new connection. */
     static IOReturn CreateConnection(iSCSIInitiatorClient * target,
@@ -160,13 +160,13 @@ public:
                              void * reference,
                              IOExternalMethodArguments * args);
     
-    static IOReturn SetConnectionOptions(iSCSIInitiatorClient * target,
-                                         void * reference,
-                                         IOExternalMethodArguments * args);
+    static IOReturn SetConnectionOption(iSCSIInitiatorClient * target,
+                                        void * reference,
+                                        IOExternalMethodArguments * args);
     
-    static IOReturn GetConnectionOptions(iSCSIInitiatorClient * target,
-                                         void * reference,
-                                         IOExternalMethodArguments * args);
+    static IOReturn GetConnectionOption(iSCSIInitiatorClient * target,
+                                        void * reference,
+                                        IOExternalMethodArguments * args);
     
     static IOReturn GetActiveConnection(iSCSIInitiatorClient * target,
                                         void * reference,

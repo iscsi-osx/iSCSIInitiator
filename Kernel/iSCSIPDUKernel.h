@@ -286,8 +286,9 @@ namespace iSCSIPDU {
     /*! Basic header segment for a NOP out PDU. */
     typedef struct __iSCSIPDUNOPOutBHS {
         const UInt8 opCode;
-        UInt8 flags;
-        UInt16 reserved;
+        UInt8 reserved;
+        UInt8 reserved2;
+        UInt8 reserved3;
         UInt8 totalAHSLength;
         UInt8 dataSegmentLength[kiSCSIPDUDataSegmentLengthSize];
         UInt64 LUN;
@@ -295,8 +296,8 @@ namespace iSCSIPDU {
         UInt32 targetTransferTag;
         UInt32 cmdSN;
         UInt32 expStatSN;
-        UInt64 reserved2;
-        UInt64 reserved3;
+        UInt64 reserved4;
+        UInt64 reserved5;
     } __attribute__((packed)) iSCSIPDUNOPOutBHS;
     
     /*! Basic header segment for an NOP in PDU. */

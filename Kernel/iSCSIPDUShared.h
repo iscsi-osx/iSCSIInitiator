@@ -33,6 +33,7 @@
 /*! Byte size of the data segment length field in all iSCSI PDUs. */
 static const unsigned short kiSCSIPDUDataSegmentLengthSize = 3;
 
+/*! Basic header segment size for a PDU. */
 static const unsigned short kiSCSIPDUBasicHeaderSegmentSize = 48;
 
 /*! Each PDU must be a multiple of this many bytes.  If the data contained

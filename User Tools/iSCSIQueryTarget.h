@@ -15,11 +15,32 @@
 
 /*! Used to perform a login query during the login phase of a connection. */
 struct iSCSILoginQueryContext {
+    
+    // These inputs are required when calling iSCSISessionLoginQuery()
+    
+    /*! The session identifier. */
     SID sessionId;
+    
+    /*! The connection identifier. */
     CID connectionId;
-    TSIH targetSessionId;
+
+    /*! The current stage of negotiation process. */
     enum iSCSIPDULoginStages currentStage;
+    
+    /*! The next stage of the negotiation process. */
     enum iSCSIPDULoginStages nextStage;
+
+    
+    // These are returned by iSCSISessionLoginQuery()
+    
+    /*! The status sequence number. */
+    UInt32 statSN;
+    
+    /*! The expected command sequence number. */
+    UInt32 expCmdSN;
+    
+    /*! The target session identifier. */
+    TSIH targetSessionId;
 };
 
 /*! Possible reject codes that may be issued throughout the login process. */

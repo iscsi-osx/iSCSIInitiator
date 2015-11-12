@@ -53,14 +53,15 @@ namespace iSCSIPDU {
 
     const iSCSIPDUNOPOutBHS iSCSIPDUNOPOutBHSInit = {
         .opCode             = kiSCSIPDUOpCodeNOPOut,
-        .flags              = 0,
         .reserved           = 0,
+        .reserved2          = 0,
+        .reserved3          = 0,
         .totalAHSLength     = 0,
         .LUN                = 0,
         .initiatorTaskTag   = 0,
         .targetTransferTag  = 0,
-        .reserved2          = 0,
-        .reserved3          = 0 };
+        .reserved4          = 0,
+        .reserved5          = 0 };
     
     const iSCSIPDUExtCDBAHS iSCSIPDUExtCDBAHSInit = {
         .ahsLength = 0,

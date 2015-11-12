@@ -86,6 +86,11 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
                context->nextStage == kiSCSIPDUFullFeaturePhase) {
                 context->targetSessionId = CFSwapInt16BigToHost(rsp.TSIH);
             }
+            
+            // Save the status sequence number and expected
+            // command sequence number
+            context->statSN = rsp.statSN;
+            context->expCmdSN = rsp.expCmdSN;
         }
         // For this case some other kind of PDU or invalid data was received
         else if(rsp.opCode == kiSCSIPDUOpCodeReject)

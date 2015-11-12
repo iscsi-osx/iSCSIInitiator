@@ -184,9 +184,9 @@ void iSCSINegotiateBuildSWDictCommon(iSCSISessionConfigRef sessCfg,
     CFDictionaryAddValue(sessCmd,kRFC3720_Key_ErrorRecoveryLevel,value);
 }
 
-errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
-                                        CFDictionaryRef sessRsp,
-                                        iSCSIKernelSessionCfg * sessCfgKernel)
+errno_t iSCSINegotiateParseSWDictCommon(SID sessionId,
+                                        CFDictionaryRef sessCmd,
+                                        CFDictionaryRef sessRsp)
 
 {
     // Holds target value & comparison result for keys that we'll process
@@ -202,7 +202,9 @@ errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
         if(iSCSILVRangeInvalid(defaultTime2Retain,kRFC3720_DefaultTime2Retain_Min,kRFC3720_DefaultTime2Retain_Max))
             return ENOTSUP;
         
-        sessCfgKernel->defaultTime2Retain = iSCSILVGetMin(initCmd,targetRsp);;
+        defaultTime2Retain = iSCSILVGetMin(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSODefaultTime2Retain,
+                                 &defaultTime2Retain,sizeof(defaultTime2Retain));
     }
     else
         return ENOTSUP;
@@ -218,7 +220,9 @@ errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
         if(iSCSILVRangeInvalid(defaultTime2Wait,kRFC3720_DefaultTime2Wait_Min,kRFC3720_DefaultTime2Wait_Max))
             return ENOTSUP;
         
-        sessCfgKernel->defaultTime2Wait = iSCSILVGetMin(initCmd,targetRsp);;
+        defaultTime2Wait = iSCSILVGetMin(initCmd,targetRsp);;
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSODefaultTime2Wait,
+                                 &defaultTime2Wait,sizeof(defaultTime2Wait));
     }
     else
         return ENOTSUP;
@@ -227,13 +231,15 @@ errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_ErrorRecoveryLevel,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_ErrorRecoveryLevel);
-        UInt32 errorRecoveryLevel = CFStringGetIntValue(targetRsp);
+        UInt8 errorRecoveryLevel = CFStringGetIntValue(targetRsp);
         
         // Range-check value...
         if(iSCSILVRangeInvalid(errorRecoveryLevel,kRFC3720_ErrorRecoveryLevel_Min,kRFC3720_ErrorRecoveryLevel_Max))
             return ENOTSUP;
         
-        sessCfgKernel->errorRecoveryLevel = iSCSILVGetMin(initCmd,targetRsp);
+        errorRecoveryLevel = iSCSILVGetMin(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOErrorRecoveryLevel,
+                                 &errorRecoveryLevel,sizeof(errorRecoveryLevel));
     }
     else
         return ENOTSUP;
@@ -242,9 +248,9 @@ errno_t iSCSINegotiateParseSWDictCommon(CFDictionaryRef sessCmd,
     return 0;
 }
 
-errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
-                                        CFDictionaryRef sessRsp,
-                                        iSCSIKernelSessionCfg * sessCfgKernel)
+errno_t iSCSINegotiateParseSWDictNormal(SID sessionId,
+                                        CFDictionaryRef sessCmd,
+                                        CFDictionaryRef sessRsp)
 
 {
     // Holds target value & comparison result for keys that we'll process
@@ -260,44 +266,55 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         if(iSCSILVRangeInvalid(maxConnections,kRFC3720_MaxConnections_Min,kRFC3720_MaxConnections_Max))
             return ENOTSUP;
         
-        sessCfgKernel->maxConnections = iSCSILVGetMin(initCmd,targetRsp);
+        maxConnections = iSCSILVGetMin(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOMaxConnections,
+                                 &maxConnections,sizeof(maxConnections));
+
     }
 
     // Grab the OR for initialR2T command and response
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_InitialR2T,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_InitialR2T);
-        sessCfgKernel->initialR2T = iSCSILVGetOr(initCmd,targetRsp);
+        Boolean initialR2T = iSCSILVGetOr(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOInitialR2T,
+                                 &initialR2T,sizeof(initialR2T));
     }
-
     
     // Grab the AND for immediate data command and response
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_ImmediateData,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_ImmediateData);
-        sessCfgKernel->immediateData = iSCSILVGetAnd(initCmd,targetRsp);
+        Boolean immediateData = iSCSILVGetAnd(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOImmediateData,
+                                 &immediateData,sizeof(immediateData));
     }
-
 
     // Get the OR of data PDU in order
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_DataPDUInOrder,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_DataPDUInOrder);
-        sessCfgKernel->dataPDUInOrder = iSCSILVGetAnd(initCmd,targetRsp);
+        Boolean dataPDUInOrder = iSCSILVGetAnd(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSODataPDUInOrder,
+                                 &dataPDUInOrder,sizeof(dataPDUInOrder));
     }
     
     // Get the OR of data PDU in order
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_DataSequenceInOrder,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_DataSequenceInOrder);
-        sessCfgKernel->dataSequenceInOrder = iSCSILVGetAnd(initCmd,targetRsp);
+        Boolean dataSequenceInOrder = iSCSILVGetAnd(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSODataSequenceInOrder,
+                                 &dataSequenceInOrder,sizeof(dataSequenceInOrder));
     }
 
     // Grab minimum of max burst length
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_MaxBurstLength,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_MaxBurstLength);
-        sessCfgKernel->maxBurstLength = iSCSILVGetMin(initCmd,targetRsp);
+        UInt32 maxBurstLength = iSCSILVGetMin(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOMaxBurstLength,
+                                 &maxBurstLength,sizeof(maxBurstLength));
     }
 
     // Grab minimum of first burst length
@@ -310,7 +327,9 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         if(iSCSILVRangeInvalid(firstBurstLength,kRFC3720_FirstBurstLength_Min,kRFC3720_FirstBurstLength_Max))
             return ENOTSUP;
         
-        sessCfgKernel->firstBurstLength = iSCSILVGetMin(initCmd,targetRsp);
+        firstBurstLength = iSCSILVGetMin(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOFirstBurstLength,
+                                 &firstBurstLength,sizeof(firstBurstLength));
     }
 
     // Grab minimum of max outstanding R2T
@@ -323,7 +342,9 @@ errno_t iSCSINegotiateParseSWDictNormal(CFDictionaryRef sessCmd,
         if(iSCSILVRangeInvalid(maxOutStandingR2T,kRFC3720_MaxOutstandingR2T_Min,kRFC3720_MaxOutstandingR2T_Max))
             return ENOTSUP;
         
-        sessCfgKernel->maxOutStandingR2T = iSCSILVGetMin(initCmd,targetRsp);
+        maxOutStandingR2T = iSCSILVGetMin(initCmd,targetRsp);
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOMaxOutstandingR2T,
+                                 &maxOutStandingR2T,sizeof(maxOutStandingR2T));
     }
     
     // Success
@@ -369,9 +390,10 @@ void iSCSINegotiateBuildCWDict(iSCSIConnectionConfigRef connCfg,
  *  @param connCfgKernel a connection options object used to store options with
  *  the iSCSI kernel extension
  *  there were received from the target. */
-errno_t iSCSINegotiateParseCWDict(CFDictionaryRef connCmd,
-                                  CFDictionaryRef connRsp,
-                                  iSCSIKernelConnectionCfg * connCfgKernel)
+errno_t iSCSINegotiateParseCWDict(SID sessionId,
+                                  CID connectionId,
+                                  CFDictionaryRef connCmd,
+                                  CFDictionaryRef connRsp)
 
 {
     // Holds target value & comparison result for keys that we'll process
@@ -385,7 +407,11 @@ errno_t iSCSINegotiateParseCWDict(CFDictionaryRef connCmd,
         agree = iSCSILVGetEqual(CFDictionaryGetValue(connCmd,kRFC3720_Key_DataDigest),targetRsp);
     
     // If we wanted to use data digest and target didn't set connInfo
-    connCfgKernel->useDataDigest = agree && iSCSILVGetEqual(targetRsp,kRFC3720_Value_DataDigestCRC32C);
+    Boolean useDataDigest = agree && iSCSILVGetEqual(targetRsp,kRFC3720_Value_DataDigestCRC32C);
+    
+    // Store value
+    iSCSIKernelSetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOUseDataDigest,
+                                &useDataDigest,sizeof(useDataDigest));
     
     // Reset agreement flag
     agree = false;
@@ -395,29 +421,40 @@ errno_t iSCSINegotiateParseCWDict(CFDictionaryRef connCmd,
         agree = iSCSILVGetEqual(CFDictionaryGetValue(connCmd,kRFC3720_Key_HeaderDigest),targetRsp);
     
     // If we wanted to use header digest and target didn't set connInfo
-    connCfgKernel->useHeaderDigest = agree && iSCSILVGetEqual(targetRsp,kRFC3720_Value_HeaderDigestCRC32C);
+    Boolean useHeaderDigest = agree && iSCSILVGetEqual(targetRsp,kRFC3720_Value_HeaderDigestCRC32C);
+    
+    // Store value
+    iSCSIKernelSetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOUseHeaderDigest,
+                                &useHeaderDigest,sizeof(useHeaderDigest));
+
     
     // This option is declarative; we sent the default length, and the target
     // must accept our choice as it is within a valid range
-    connCfgKernel->maxRecvDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
+    UInt32 maxRecvDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
+    
+    iSCSIKernelSetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOMaxRecvDataSegmentLength,
+                                &maxRecvDataSegmentLength,sizeof(maxRecvDataSegmentLength));
+
     
     // This is the declaration made by the target as to the length it can
     // receive.  Accept the value if it is within the RFC3720 allowed range
     // otherwise, terminate the connection...
+    UInt32 maxSendDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
+    
     if(CFDictionaryGetValueIfPresent(connRsp,kRFC3720_Key_MaxRecvDataSegmentLength,(void*)&targetRsp))
     {
-        UInt32 maxSendDataSegmentLength = CFStringGetIntValue(targetRsp);
+        UInt32 maxSendDataSegmentLengthRsp = CFStringGetIntValue(targetRsp);
         
         // Range-check value...
-        if(iSCSILVRangeInvalid(maxSendDataSegmentLength,kRFC3720_MaxRecvDataSegmentLength_Min,kRFC3720_MaxRecvDataSegmentLength_Max))
+        if(iSCSILVRangeInvalid(maxSendDataSegmentLengthRsp,kRFC3720_MaxRecvDataSegmentLength_Min,kRFC3720_MaxRecvDataSegmentLength_Max))
             return ENOTSUP;
         
-        connCfgKernel->maxSendDataSegmentLength = maxSendDataSegmentLength;
+        maxSendDataSegmentLength = maxSendDataSegmentLengthRsp;
     }
-    else // If the target doesn't explicitly declare this, use the default
-        connCfgKernel->maxSendDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
     
-    // Success
+    // Store value
+    iSCSIKernelSetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOMaxSendDataSegmentLength,
+                                &maxSendDataSegmentLength,sizeof(maxSendDataSegmentLength));
     return 0;
 }
 
@@ -452,20 +489,13 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
                                             &kCFTypeDictionaryKeyCallBacks,
                                             &kCFTypeDictionaryValueCallBacks);
     
-    // Get the kernel session & connection configuration so that negotiation
-    // can update the values
-    iSCSIKernelSessionCfg sessCfgKernel;
-    iSCSIKernelConnectionCfg connCfgKernel;
-    iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel);
-    iSCSIKernelGetConnectionConfig(sessionId,connectionId,&connCfgKernel);
-    
     struct iSCSILoginQueryContext context;
     context.sessionId    = sessionId;
     context.connectionId = connectionId;
     context.currentStage = kiSCSIPDULoginOperationalNegotiation;
     context.nextStage    = kiSCSIPDUFullFeaturePhase;
-    context.targetSessionId = sessCfgKernel.targetSessionId;
-    
+    context.targetSessionId = 0;
+
     enum iSCSIRejectCode rejectCode;
     
     // Send session-wide options to target and retreive a response dictionary
@@ -479,21 +509,17 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
         
         // The TSIH was recorded by iSCSISessionLoginQuery since we're
         // entering the full-feature phase (see iSCSISessionLoginQuery documentation)
-        sessCfgKernel.targetSessionId = context.targetSessionId;
-
+        iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,
+                                 &context.targetSessionId,sizeof(context.targetSessionId));
         if(!error)
-            error = iSCSINegotiateParseSWDictCommon(sessCmd,sessRsp,&sessCfgKernel);
+            error = iSCSINegotiateParseSWDictCommon(sessionId,sessCmd,sessRsp);
     
         if(!error && iSCSITargetGetIQN(target) != NULL)
-            error = iSCSINegotiateParseSWDictNormal(sessCmd,sessRsp,&sessCfgKernel);
+            error = iSCSINegotiateParseSWDictNormal(sessionId,sessCmd,sessRsp);
     
         if(!error)
-            error = iSCSINegotiateParseCWDict(sessCmd,sessRsp,&connCfgKernel);
+            error = iSCSINegotiateParseCWDict(sessionId,connectionId,sessCmd,sessRsp);
     }
-    
-    // Update the kernel session & connection configuration
-    iSCSIKernelSetSessionConfig(sessionId,&sessCfgKernel);
-    iSCSIKernelSetConnectionConfig(sessionId,connectionId,&connCfgKernel);
     
     CFRelease(sessCmd);
     CFRelease(sessRsp);
@@ -523,24 +549,23 @@ errno_t iSCSINegotiateConnection(iSCSITargetRef target,
                                             kiSCSISessionMaxTextKeyValuePairs,
                                             &kCFTypeDictionaryKeyCallBacks,
                                             &kCFTypeDictionaryValueCallBacks);
-    
-    // Get the kernel session & connection configuration so that negotiation
-    // can update the values
-    iSCSIKernelSessionCfg sessCfgKernel;
-    iSCSIKernelConnectionCfg connCfgKernel;
-    iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel);
-    iSCSIKernelGetConnectionConfig(sessionId,connectionId,&connCfgKernel);
 
     struct iSCSILoginQueryContext context;
     context.sessionId    = sessionId;
     context.connectionId = connectionId;
     context.currentStage = kiSCSIPDULoginOperationalNegotiation;
     context.nextStage    = kiSCSIPDULoginOperationalNegotiation;
-    context.targetSessionId = sessCfgKernel.targetSessionId;
 
+    // Addd in targetSessionId from kernel (there may already be an
+    // active session if we are simply adding a connection, so we
+    // can't assume that this is the leading login and therefore
+    // cannot set TSIH to 0.
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,
+                             &context.targetSessionId,sizeof(context.targetSessionId));
+    
     // If the target session ID is non-zero, we're simply adding a new
     // connection and we can enter the full feature after this negotiation.
-    if(sessCfgKernel.targetSessionId != 0)
+    if(context.targetSessionId != 0)
         context.nextStage = kiSCSIPDUFullFeaturePhase;
 
     enum iSCSIRejectCode rejectCode;
@@ -554,11 +579,8 @@ errno_t iSCSINegotiateConnection(iSCSITargetRef target,
 
     // If no error, parse received dictionary and store connection options
     if(!error && *statusCode == kiSCSILoginSuccess)
-        error = iSCSINegotiateParseCWDict(connCmd,connRsp,&connCfgKernel);
-
-    // Update the kernel connection configuration
-    iSCSIKernelSetConnectionConfig(sessionId,connectionId,&connCfgKernel);
-
+        error = iSCSINegotiateParseCWDict(sessionId,connectionId,connCmd,connRsp);
+    
     CFRelease(connCmd);
     CFRelease(connRsp);
     return error;
@@ -573,12 +595,7 @@ errno_t iSCSISessionLogoutCommon(SID sessionId,
     if(sessionId >= kiSCSIInvalidSessionId || connectionId >= kiSCSIInvalidConnectionId)
         return EINVAL;
     
-    // Grab options related to this connection
-    iSCSIKernelConnectionCfg connOpts;
-    errno_t error;
-    
-    if((error = iSCSIKernelGetConnectionConfig(sessionId,connectionId,&connOpts)))
-        return error;
+    errno_t error = 0;
     
     // Create a logout PDU and log out of the session
     iSCSIPDULogoutReqBHS cmd = iSCSIPDULogoutReqBHSInit;
@@ -1165,8 +1182,6 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
     iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
     iSCSITargetSetIQN(target,targetIQN);
     
-    iSCSIKernelSessionCfg sessCfgKernel;
-    
     // Create session (incl. qualifier) and a new connection (incl. Id)
     // Reset qualifier and connection ID by default
     SID sessionId;
@@ -1179,9 +1194,6 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSIPortalRef portal,
                                      &ssHost,
                                      &sessionId,
                                      &connectionId);
-
-    if(!error)
-        error = iSCSIKernelGetSessionConfig(sessionId,&sessCfgKernel);
     
     // If no error, authenticate (negotiate security parameters)
     if(!error)
@@ -1319,101 +1331,108 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
 
     CFDictionaryRef dictionary = NULL;
     SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
+    
+    if(sessionId == kiSCSIInvalidSessionId)
+        return NULL;
+    
+    // Get session options from kernel
 
-    if(sessionId != kiSCSIInvalidSessionId)
-    {
-        struct iSCSIKernelSessionCfg config;
-        iSCSIKernelGetSessionConfig(sessionId,&config);
-        
+    UInt32 optVal32 = 0;
+    
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOMaxConnections,&optVal32,sizeof(optVal32));
+    CFNumberRef maxConnections = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&optVal32);
 
-        CFNumberRef maxConnections = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.maxConnections);
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOMaxBurstLength,&optVal32,sizeof(optVal32));
+    CFNumberRef maxBurstLength = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&optVal32);
 
-        CFNumberRef maxBurstLength = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.maxBurstLength);
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOFirstBurstLength,&optVal32,sizeof(optVal32));
+    CFNumberRef firstBurstLength = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&optVal32);
 
-        CFNumberRef firstBurstLength = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.firstBurstLength);
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOMaxOutstandingR2T,&optVal32,sizeof(optVal32));
+    CFNumberRef maxOutStandingR2T = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&optVal32);
 
-        CFNumberRef maxOutStandingR2T = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.maxOutStandingR2T);
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSODefaultTime2Retain,&optVal32,sizeof(optVal32));
+    CFNumberRef defaultTime2Retain = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&optVal32);
+    
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSODefaultTime2Wait,&optVal32,sizeof(optVal32));
+    CFNumberRef defaultTime2Wait = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&optVal32);
+    
 
-        CFNumberRef targetPortalGroupTag = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberSInt16Type,&config.targetPortalGroupTag);
+    TPGT tpgt = 0;
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetPortalGroupTag,&tpgt,sizeof(TPGT));
+    CFNumberRef targetPortalGroupTag = CFNumberCreate(kCFAllocatorDefault,kCFNumberSInt16Type,&tpgt);
 
-        CFNumberRef targetSessionId = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberSInt16Type,&config.targetSessionId);
+    TSIH tsih = 0;
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,&tpgt,sizeof(TSIH));
+    CFNumberRef targetSessionId = CFNumberCreate(kCFAllocatorDefault,kCFNumberSInt16Type,&tsih);
 
-        CFNumberRef defaultTime2Retain = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.defaultTime2Retain);
+    UInt8 optVal8 = 0;
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOErrorRecoveryLevel,&optVal8,sizeof(optVal8));
+    CFNumberRef errorRecoveryLevel = CFNumberCreate(kCFAllocatorDefault,kCFNumberSInt8Type,&optVal8);
 
-        CFNumberRef defaultTime2Wait = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberIntType,&config.defaultTime2Wait);
+    CFNumberRef sessionIdentifier = CFNumberCreate(kCFAllocatorDefault,kCFNumberSInt16Type,&sessionId);
+    
+    CFStringRef initialR2T = kRFC3720_Value_No;
+    CFStringRef immediateData = kRFC3720_Value_No;
+    CFStringRef dataPDUInOrder = kRFC3720_Value_No;
+    CFStringRef dataSequenceInOrder = kRFC3720_Value_No;
 
-        CFNumberRef errorRecoveryLevel = CFNumberCreate(
-            kCFAllocatorDefault,kCFNumberSInt8Type,&config.errorRecoveryLevel);
+    Boolean optValBool = false;
+    
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOImmediateData,&optValBool,sizeof(Boolean));
+    if(optValBool)
+        immediateData = kRFC3720_Value_Yes;
 
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOInitialR2T,&optValBool,sizeof(Boolean));
+    if(optValBool)
+        initialR2T = kRFC3720_Value_Yes;
 
-        CFNumberRef sessionIdentifier = CFNumberCreate(
-                    kCFAllocatorDefault,kCFNumberIntType,&sessionId);
-        
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSODataPDUInOrder,&optValBool,sizeof(Boolean));
+    if(optValBool)
+        dataPDUInOrder = kRFC3720_Value_Yes;
 
-        CFStringRef initialR2T = kRFC3720_Value_No;
-        CFStringRef immediateData = kRFC3720_Value_No;
-        CFStringRef dataPDUInOrder = kRFC3720_Value_No;
-        CFStringRef dataSequenceInOrder = kRFC3720_Value_No;
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSODataSequenceInOrder,&optValBool,sizeof(Boolean));
+    if(optValBool)
+        dataSequenceInOrder = kRFC3720_Value_Yes;
 
-        if(config.initialR2T)
-            initialR2T = kRFC3720_Value_Yes;
+    const void * keys[] = {
+        kRFC3720_Key_InitialR2T,
+        kRFC3720_Key_ImmediateData,
+        kRFC3720_Key_DataPDUInOrder,
+        kRFC3720_Key_DataSequenceInOrder,
+        kRFC3720_Key_MaxConnections,
+        kRFC3720_Key_MaxBurstLength,
+        kRFC3720_Key_FirstBurstLength,
+        kRFC3720_Key_MaxOutstandingR2T,
+        kRFC3720_Key_DefaultTime2Retain,
+        kRFC3720_Key_DefaultTime2Wait,
+        kRFC3720_Key_TargetPortalGroupTag,
+        kRFC3720_Key_TargetSessionId,
+        kRFC3720_Key_ErrorRecoveryLevel,
+        kRFC3720_Key_SessionId
+    };
 
-        if(config.immediateData)
-            immediateData = kRFC3720_Value_Yes;
+    const void * values[] = {
+        initialR2T,
+        immediateData,
+        dataPDUInOrder,
+        dataSequenceInOrder,
+        maxConnections,
+        maxBurstLength,
+        firstBurstLength,
+        maxOutStandingR2T,
+        defaultTime2Retain,
+        defaultTime2Wait,
+        targetPortalGroupTag,
+        targetSessionId,
+        errorRecoveryLevel,
+        sessionIdentifier
+    };
 
-        if(config.dataPDUInOrder)
-            dataPDUInOrder = kRFC3720_Value_Yes;
-
-        if(config.dataSequenceInOrder)
-            dataSequenceInOrder = kRFC3720_Value_Yes;
-
-        const void * keys[] = {
-            kRFC3720_Key_InitialR2T,
-            kRFC3720_Key_ImmediateData,
-            kRFC3720_Key_DataPDUInOrder,
-            kRFC3720_Key_DataSequenceInOrder,
-            kRFC3720_Key_MaxConnections,
-            kRFC3720_Key_MaxBurstLength,
-            kRFC3720_Key_FirstBurstLength,
-            kRFC3720_Key_MaxOutstandingR2T,
-            kRFC3720_Key_DefaultTime2Retain,
-            kRFC3720_Key_DefaultTime2Wait,
-            kRFC3720_Key_TargetPortalGroupTag,
-            kRFC3720_Key_TargetSessionId,
-            kRFC3720_Key_ErrorRecoveryLevel,
-            kRFC3720_Key_SessionId
-        };
-
-        const void * values[] = {
-            initialR2T,
-            immediateData,
-            dataPDUInOrder,
-            dataSequenceInOrder,
-            maxConnections,
-            maxBurstLength,
-            firstBurstLength,
-            maxOutStandingR2T,
-            defaultTime2Retain,
-            defaultTime2Wait,
-            targetPortalGroupTag,
-            targetSessionId,
-            errorRecoveryLevel,
-            sessionIdentifier
-        };
-
-        dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
-                                        sizeof(keys)/sizeof(void*),
-                                        &kCFTypeDictionaryKeyCallBacks,
-                                        &kCFTypeDictionaryValueCallBacks);
-    }
+    dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
+                                    sizeof(keys)/sizeof(void*),
+                                    &kCFTypeDictionaryKeyCallBacks,
+                                    &kCFTypeDictionaryValueCallBacks);
 
     return dictionary;
 }
@@ -1436,58 +1455,62 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
     SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
     CID connectionId = kiSCSIInvalidConnectionId;
 
-    if(sessionId != kiSCSIInvalidSessionId)
-    {
-        connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
-        if(connectionId != kiSCSIInvalidConnectionId)
-        {
-            struct iSCSIKernelConnectionCfg config;
-            iSCSIKernelGetConnectionConfig(sessionId,connectionId,&config);
+    if(sessionId == kiSCSIInvalidSessionId)
+        return NULL;
 
-            CFNumberRef maxRecvDataSegmentLength = CFNumberCreate(
-                kCFAllocatorDefault,kCFNumberIntType,&config.maxRecvDataSegmentLength);
-            
-            CFNumberRef connectionIdentifier = CFNumberCreate(
-                kCFAllocatorDefault,kCFNumberIntType,&connectionId);
+    // Validate connection identifier
+    connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
+    if(connectionId == kiSCSIInvalidConnectionId)
+        return NULL;
+    
+    // Get connection options from kernel
+
+    UInt32 optVal32 = 0;
+    iSCSIKernelGetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOMaxRecvDataSegmentLength,&optVal32,sizeof(optVal32));
+    CFNumberRef maxRecvDataSegmentLength = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&optVal32);
+    
+    CFNumberRef connectionIdentifier = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&connectionId);
 
 
+    enum iSCSIDigestTypes dataDigestType = kiSCSIDigestNone;
+    enum iSCSIDigestTypes headerDigestType = kiSCSIDigestNone;
 
-            enum iSCSIDigestTypes dataDigestType = kiSCSIDigestNone;
-            enum iSCSIDigestTypes headerDigestType = kiSCSIDigestNone;
+    Boolean optValBool = false;
+    
+    iSCSIKernelGetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOUseDataDigest,&optValBool,sizeof(Boolean));
+    if(optValBool)
+        dataDigestType = kiSCSIDigestCRC32C;
 
-            if(config.useDataDigest)
-                dataDigestType = kiSCSIDigestCRC32C;
+    iSCSIKernelGetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOUseHeaderDigest,&optValBool,sizeof(Boolean));
+    if(optValBool)
+        dataDigestType = kiSCSIDigestCRC32C;
 
-            if(config.useHeaderDigest)
-                headerDigestType = kiSCSIDigestCRC32C;
+    CFNumberRef dataDigest = CFNumberCreate(kCFAllocatorDefault,
+                                            kCFNumberCFIndexType
+                                            ,&dataDigestType);
 
-            CFNumberRef dataDigest = CFNumberCreate(kCFAllocatorDefault,
-                                                    kCFNumberCFIndexType
-                                                    ,&dataDigestType);
+    CFNumberRef headerDigest = CFNumberCreate(kCFAllocatorDefault,
+                                              kCFNumberCFIndexType,
+                                              &headerDigestType);
+    const void * keys[] = {
+        kRFC3720_Key_DataDigest,
+        kRFC3720_Key_HeaderDigest,
+        kRFC3720_Key_MaxRecvDataSegmentLength,
+        kRFC3720_Key_ConnectionId
+    };
 
-            CFNumberRef headerDigest = CFNumberCreate(kCFAllocatorDefault,
-                                                      kCFNumberCFIndexType,
-                                                      &headerDigestType);
-            const void * keys[] = {
-                kRFC3720_Key_DataDigest,
-                kRFC3720_Key_HeaderDigest,
-                kRFC3720_Key_MaxRecvDataSegmentLength,
-                kRFC3720_Key_ConnectionId
-            };
+    const void * values[] = {
+        dataDigest,
+        headerDigest,
+        maxRecvDataSegmentLength,
+        connectionIdentifier
+    };
 
-            const void * values[] = {
-                dataDigest,
-                headerDigest,
-                maxRecvDataSegmentLength,
-                connectionIdentifier
-            };
-
-            dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
-                                            sizeof(keys)/sizeof(void*),
-                                            &kCFTypeDictionaryKeyCallBacks,
-                                            &kCFTypeDictionaryValueCallBacks);
-        }
-    }
+    dictionary = CFDictionaryCreate(kCFAllocatorDefault,keys,values,
+                                    sizeof(keys)/sizeof(void*),
+                                    &kCFTypeDictionaryKeyCallBacks,
+                                    &kCFTypeDictionaryValueCallBacks);
+    
     return dictionary;
 }
 

@@ -24,6 +24,7 @@
 #include <IOKit/IOKitLib.h>
 #include <stdint.h>
 
+
 /*! Callback function used to relay notifications from the kernel. */
 typedef void (*iSCSIKernelNotificationCallback)(enum iSCSIKernelNotificationTypes type,
                                                 iSCSIKernelNotificationMessage * msg);
@@ -72,18 +73,27 @@ errno_t iSCSIKernelCreateSession(CFStringRef targetIQN,
  *  @return error code indicating result of operation. */
 errno_t iSCSIKernelReleaseSession(SID sessionId);
 
-/*! Sets configuration associated with a particular connection.
+/*! Sets option associated with a particular session.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param config the configuration to set.
+ *  @param option the option to set.
+ *  @param optVal the value for the specified option.
+ *  @param optSize the size, in bytes of optVal.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetSessionConfig(SID sessionId,iSCSIKernelSessionCfg * config);
+errno_t iSCSIKernelSetSessionOpt(SID sessionId,
+                                 enum iSCSIKernelSessionOptTypes option,
+                                 void * optVal,
+                                 size_t optSize);
 
-/*! Gets configuration associated with a particular connection.
+/*! Gets option associated with a particular session.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
- *  @param config the configuration to get.  The user of this function is
- *  responsible for allocating and freeing the configuration struct.
+ *  @param option the option to get.
+ *  @param optVal the returned value for the specified option.
+ *  @param optSize the size, in bytes of optVal.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetSessionConfig(SID sessionId,iSCSIKernelSessionCfg * config);
+errno_t iSCSIKernelGetSessionOpt(SID sessionId,
+                                 enum iSCSIKernelSessionOptTypes option,
+                                 void * optVal,
+                                 size_t optSize);
 
 /*! Allocates an additional iSCSI connection for a particular session.
  *  @param sessionId the session to create a new connection for.
@@ -139,24 +149,31 @@ errno_t iSCSIKernelRecv(SID sessionId,
                         void * * data,
                         size_t * length);
 
-/*! Sets configuration associated with a particular connection.
+/*! Sets option associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
- *  @param config the configuration to set.
+ *  @param option the option to set.
+ *  @param optVal the value for the specified option.
+ *  @param optSize the size, in bytes of optVal.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelSetConnectionConfig(SID sessionId,
-                                       CID connectionId,
-                                       iSCSIKernelConnectionCfg * config);
+errno_t iSCSIKernelSetConnectionOpt(SID sessionId,
+                                    CID connectionId,
+                                    enum iSCSIKernelConnectionOptTypes option,
+                                    void * optVal,
+                                    size_t optSize);
 
-/*! Gets configuration associated with a particular connection.
+/*! Gets option associated with a particular connection.
  *  @param sessionId the qualifier part of the ISID (see RFC3720).
  *  @param connectionId the connection associated with the session.
- *  @param config the configurations to get.  The user of this function is
- *  responsible for allocating and freeing the configuration struct.
+ *  @param option the option to get.
+ *  @param optVal the returned value for the specified option.
+ *  @param optSize the size, in bytes of optVal.
  *  @return error code indicating result of operation. */
-errno_t iSCSIKernelGetConnectionConfig(SID sessionId,
-                                       CID connectionId,
-                                       iSCSIKernelConnectionCfg * config);
+errno_t iSCSIKernelGetConnectionOpt(SID sessionId,
+                                    CID connectionId,
+                                    enum iSCSIKernelConnectionOptTypes option,
+                                    void * optVal,
+                                    size_t optSize);
 
 /*! Activates an iSCSI connection associated with a session.
  *  @param sessionId session associated with connection to activate.
