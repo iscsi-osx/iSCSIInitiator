@@ -613,7 +613,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     // Follow up with data out PDUs up to the firstBurstLength bytes if R2T=No
     if(!session->initialR2T &&                     // Initial R2T = No
        dataOffset < session->firstBurstLength &&   // Haven't hit burst limit
-       dataOffset < transferSize)                       // Data left to send
+       dataOffset < transferSize)                  // Data left to send
     {
         iSCSIPDUDataOutBHS bhsDataOut = iSCSIPDUDataOutBHSInit;
         bhsDataOut.LUN              = bhs.LUN;
@@ -2008,7 +2008,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     if(bhs->expCmdSN > session->expCmdSN)
         OSWriteLittleInt32(&session->expCmdSN,0,bhs->expCmdSN);
     
-    if(bhs->opCode != kiSCSIPDUOpCodeDataIn && bhs->statSN != 0)
+    if(bhs->opCode != kiSCSIPDUOpCodeR2T && bhs->statSN != 0xffffffff && bhs->initiatorTaskTag != 0xffffffff)
         OSIncrementAtomic(&connection->expStatSN);
     
     return result;
