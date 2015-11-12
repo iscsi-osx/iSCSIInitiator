@@ -1125,28 +1125,13 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     // Create a mapping to the task's data buffer.  This is the data that
     // we will read and pack into a sequence of PDUs to send to the target.
     IOMemoryDescriptor  * dataDesc   = GetDataBuffer(parallelTask);
-    IOMemoryMap         * dataMap    = dataDesc->map();
-    UInt8               * data       = (UInt8 *)dataMap->getAddress();
-
+    
     // Obtain requested data offset and requested lengths
     UInt32 dataOffset           = OSSwapBigToHostInt32(bhs->bufferOffset);
     UInt32 remainingDataLength  = OSSwapBigToHostInt32(bhs->desiredDataLength);
 
-    // Ensure that our data buffer contains all of the requested data
-    if(dataOffset + remainingDataLength > (UInt32)dataMap->getLength())
-    {
-        DBLog("iscsi: Host data buffer doesn't contain requested data (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
-
-        dataMap->unmap();
-        dataMap->release();
-        return;
-    }
-    
     // Amount of data to transfer in each iteration (per PDU)
     UInt32 maxTransferLength = connection->maxSendDataSegmentLength;
-    
-    data += dataOffset;
     
     DBLog("iscsi: Dataoffset: %d (sid: %d, cid: %d)\n",
           dataOffset,session->sessionId,connection->CID);
@@ -1163,65 +1148,56 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     // Let target know that this data out sequence is in response to the
     // transfer tag the target gave us with the R2TSN (both in high-byte order)
     bhsDataOut.targetTransferTag = bhs->targetTransferTag;
+    
+    UInt8 * data = (UInt8*)IOMalloc(maxTransferLength);
+    
+    // The amount of data that needs to be transferred...
+    UInt32 totalTransferLength = OSSwapBigToHostInt32(bhs->desiredDataLength);
 
     while(remainingDataLength != 0)
     {
         bhsDataOut.bufferOffset = OSSwapHostToBigInt32(dataOffset);
         bhsDataOut.dataSN = OSSwapHostToBigInt32(dataSN);
-
-        if(maxTransferLength < remainingDataLength) {
-            DBLog("iscsi: Max transfer length: %d (sid: %d, cid: %d)\n",
-                  maxTransferLength,session->sessionId,connection->CID);
-            int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,
-                              NULL,data,maxTransferLength);
+        
+        UInt32 transferLength = maxTransferLength;
+        
+        // Special case for the final PDU
+        if(remainingDataLength <= maxTransferLength)
+        {
+            transferLength = remainingDataLength;
+            bhsDataOut.flags = kiSCSIPDUDataOutFinalFlag;
             
-            if(err != 0) {
-                DBLog("iscsi: Send error: %d (sid: %d, cid: %d)\n",
-                      err,session->sessionId,connection->CID);
-                dataMap->unmap();
-                dataMap->release();
-                return;
-            }
-            
-            DBLog("iscsi: Dataoffset: %d (sid: %d, cid: %d)\n",
-                  dataOffset,session->sessionId,connection->CID);
-            DBLog("iscsi: Desired data length: %d (sid: %d, cid: %d)\n",
-                  remainingDataLength,session->sessionId,connection->CID);
-            
-            remainingDataLength -= maxTransferLength;
-            data                += maxTransferLength;
-            dataOffset          += maxTransferLength;
-        }
-        // This is the final PDU of the sequence
-        else {
             DBLog("iscsi: Sending final data out (sid: %d, cid: %d)\n",
                   session->sessionId,connection->CID);
-            bhsDataOut.flags = kiSCSIPDUDataOutFinalFlag;
-            int err = SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsDataOut,
-                              NULL,data,remainingDataLength);
-            
-            if(err != 0) {
-                DBLog("iscsi: Send error: %d (sid: %d, cid: %d)\n",
-                      err,session->sessionId,connection->CID);
-                dataMap->unmap();
-                dataMap->release();
-                return;
-            }
+        }
+        
+        // Read from buffer and send
+        dataDesc->readBytes(dataOffset,data,transferLength);
+        errno_t error = SendPDU(session,connection,
+                                (iSCSIPDUInitiatorBHS*)&bhsDataOut,
+                                NULL,data,transferLength);
+        
+        if(error) {
+            DBLog("iscsi: Send error: %d (sid: %d, cid: %d)\n",
+                  error,session->sessionId,connection->CID);
             break;
         }
+        
+        remainingDataLength -= transferLength;
+        dataOffset          += transferLength;
+        
+        // Let the driver stack know how much we've transferred
+        SetRealizedDataTransferCount(parallelTask,totalTransferLength-remainingDataLength);
+
         // Increment the data sequence number
         dataSN++;
     }
-
-    // Let the driver stack know how much we've transferred (everything)
-    UInt32 transferLen = OSSwapBigToHostInt32(bhs->desiredDataLength);
-    SetRealizedDataTransferCount(parallelTask,transferLen+dataOffset);
-                                              
-    connection->dataToTransfer -= transferLen;
     
-    // Release the mapping object (this leaves the descriptor and buffer intact)
-    dataMap->unmap();
-    dataMap->release();
+    // Remove the total transfer length assigned to this connection
+    connection->dataToTransfer -= totalTransferLength;
+    
+    // Cleanup buffer
+    IOFree(data,maxTransferLength);
 }
 
 /*! Process an incoming reject PDU.
