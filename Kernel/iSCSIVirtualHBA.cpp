@@ -893,8 +893,10 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
     else {
 
         iSCSIPDUNOPOutBHS bhsRsp = iSCSIPDUNOPOutBHSInit;
+        bhsRsp.opCode |= kiSCSIPDUImmediateDeliveryFlag;
         bhsRsp.LUN = bhs->LUN;
         bhsRsp.targetTransferTag = bhs->targetTransferTag;
+        bhsRsp.initiatorTaskTag = kiSCSIPDUInitiatorTaskTagReserved;
         
         if(SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsRsp,NULL,data,length))
             DBLog("iscsi: Failed to send NOP response (sid: %d, cid: %d)\n",

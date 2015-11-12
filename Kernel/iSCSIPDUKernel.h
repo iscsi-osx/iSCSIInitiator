@@ -18,6 +18,8 @@
 
 
 namespace iSCSIPDU {
+
+    ///////////////////// For use with several types of PDUS ///////////////////
     
     /*! Size of a normal SCSI command descriptor block (CDB). */
     static const UInt8 kiSCSIPDUCDBSize = 16;
@@ -27,6 +29,13 @@ namespace iSCSIPDU {
     
     /*! Reserved target transfer tag value. */
     static const UInt32 kiSCSIPDUTargetTransferTagReserved = 0xFFFFFFFF;
+    
+    /*! Reserved initiator task tag value. */
+    static const UInt32 kiSCSIPDUInitiatorTaskTagReserved = 0xFFFFFFFF;
+    
+    /*! Flag used in some incoming and outgoing PDUs in the first reserved
+     *  following the opCode and delivery marker byte (e.g., NOPOut, R2T, ...) */
+    static const UInt8 kiSCSIPDUReservedFlag = 0x80;
 
     
     ///////////////////// For use with SCSI command PDUs ///////////////////////
@@ -285,7 +294,7 @@ namespace iSCSIPDU {
     
     /*! Basic header segment for a NOP out PDU. */
     typedef struct __iSCSIPDUNOPOutBHS {
-        const UInt8 opCode;
+        UInt8 opCode;
         UInt8 reserved;
         UInt8 reserved2;
         UInt8 reserved3;

@@ -53,7 +53,7 @@ namespace iSCSIPDU {
 
     const iSCSIPDUNOPOutBHS iSCSIPDUNOPOutBHSInit = {
         .opCode             = kiSCSIPDUOpCodeNOPOut,
-        .reserved           = 0,
+        .reserved           = kiSCSIPDUReservedFlag,
         .reserved2          = 0,
         .reserved3          = 0,
         .totalAHSLength     = 0,
