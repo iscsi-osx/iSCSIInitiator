@@ -71,7 +71,27 @@ SCSILogicalUnitNumber iSCSIVirtualHBA::ReportHBAHighestLogicalUnitNumber()
 
 bool iSCSIVirtualHBA::DoesHBASupportSCSIParallelFeature(SCSIParallelFeature theFeature)
 {
-	return true;
+    bool supported = false; // return false for any unimplemented or unknown features
+    
+    switch (theFeature) {
+        case kSCSIParallelFeature_WideDataTransfer:
+            supported = true;
+            break;
+        case kSCSIParallelFeature_SynchronousDataTransfer:
+            supported = true;
+            break;
+        case kSCSIParallelFeature_QuickArbitrationAndSelection:
+            supported = true;
+            break;
+        case kSCSIParallelFeature_DoubleTransitionDataTransfers:
+            supported = true;
+            break;
+        case kSCSIParallelFeature_InformationUnitTransfers:
+            supported = true;
+            break;
+    }
+    
+    return supported;
 }
 
 bool iSCSIVirtualHBA::InitializeTargetForID(SCSITargetIdentifier targetId)
@@ -130,6 +150,8 @@ SCSIServiceResponse iSCSIVirtualHBA::AbortTaskRequest(SCSITargetIdentifier targe
     iSCSISession * session = sessionList[targetId];
     if(session == NULL)
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
+    
+    DBLog("iscsi: Abort task request (TID: %llu, LUN: %llu)\n",targetId,LUN);
 
     // Create a SCSI target management PDU and send
     iSCSIPDUTaskMgmtReqBHS bhs = iSCSIPDUTaskMgmtReqBHSInit;
@@ -140,8 +162,6 @@ SCSIServiceResponse iSCSIVirtualHBA::AbortTaskRequest(SCSITargetIdentifier targe
 
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
-
-    DBLog("iscsi: Abort task request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -153,6 +173,8 @@ SCSIServiceResponse iSCSIVirtualHBA::AbortTaskSetRequest(SCSITargetIdentifier ta
     iSCSISession * session = sessionList[targetId];
     if(session == NULL)
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
+    
+    DBLog("iscsi: Abort task set request (TID: %llu, LUN: %llu)\n",targetId,LUN);
 
     // Create a SCSI target management PDU and send
     iSCSIPDUTaskMgmtReqBHS bhs = iSCSIPDUTaskMgmtReqBHSInit;
@@ -162,8 +184,6 @@ SCSIServiceResponse iSCSIVirtualHBA::AbortTaskSetRequest(SCSITargetIdentifier ta
     
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
-    
-    DBLog("iscsi: Abort task set request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -175,6 +195,8 @@ SCSIServiceResponse iSCSIVirtualHBA::ClearACARequest(SCSITargetIdentifier target
     iSCSISession * session = sessionList[targetId];
     if(session == NULL)
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
+    
+    DBLog("iscsi: Clear ACA request (TID: %llu, LUN: %llu)\n",targetId,LUN);
 
     // Create a SCSI target management PDU and send
     iSCSIPDUTaskMgmtReqBHS bhs = iSCSIPDUTaskMgmtReqBHSInit;
@@ -184,8 +206,6 @@ SCSIServiceResponse iSCSIVirtualHBA::ClearACARequest(SCSITargetIdentifier target
     
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
-    
-    DBLog("iscsi: Clear ACA request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -197,6 +217,8 @@ SCSIServiceResponse iSCSIVirtualHBA::ClearTaskSetRequest(SCSITargetIdentifier ta
     iSCSISession * session = sessionList[targetId];
     if(session == NULL)
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
+    
+    DBLog("iscsi: Clear task set request (TID: %llu, LUN: %llu)\n",targetId,LUN);
 
     // Create a SCSI target management PDU and send
     iSCSIPDUTaskMgmtReqBHS bhs = iSCSIPDUTaskMgmtReqBHSInit;
@@ -206,8 +228,6 @@ SCSIServiceResponse iSCSIVirtualHBA::ClearTaskSetRequest(SCSITargetIdentifier ta
     
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
-    
-    DBLog("iscsi: Clear task set request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -219,6 +239,8 @@ SCSIServiceResponse iSCSIVirtualHBA::LogicalUnitResetRequest(SCSITargetIdentifie
     iSCSISession * session = sessionList[targetId];
     if(session == NULL)
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
+    
+    DBLog("iscsi: LUN reset request (TID: %llu, LUN: %llu)\n",targetId,LUN);
 
     // Create a SCSI target management PDU and send
     iSCSIPDUTaskMgmtReqBHS bhs = iSCSIPDUTaskMgmtReqBHSInit;
@@ -228,8 +250,6 @@ SCSIServiceResponse iSCSIVirtualHBA::LogicalUnitResetRequest(SCSITargetIdentifie
     
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
-
-    DBLog("iscsi: LUN reset request (TID: %llu, LUN: %llu)\n",targetId,LUN);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -240,6 +260,8 @@ SCSIServiceResponse iSCSIVirtualHBA::TargetResetRequest(SCSITargetIdentifier tar
     iSCSISession * session = sessionList[targetId];
     if(session == NULL)
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
+    
+    DBLog("iscsi: Target reset request (TID: %llu)\n",targetId);
 
     // Create a SCSI target management PDU and send
     iSCSIPDUTaskMgmtReqBHS bhs = iSCSIPDUTaskMgmtReqBHSInit;
@@ -248,8 +270,6 @@ SCSIServiceResponse iSCSIVirtualHBA::TargetResetRequest(SCSITargetIdentifier tar
     
     if(SendPDU(session,session->connections[0],(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0))
         return kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
-    
-    DBLog("iscsi: Target reset request (TID: %llu)\n",targetId);
     
 	return kSCSIServiceResponse_Request_In_Process;
 }
@@ -1144,11 +1164,8 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     iSCSIPDUDataOutBHS bhsDataOut = iSCSIPDUDataOutBHSInit;
     bhsDataOut.LUN              = bhs->LUN;
     bhsDataOut.initiatorTaskTag = bhs->initiatorTaskTag;
-    
-    // Let target know that this data out sequence is in response to the
-    // transfer tag the target gave us with the R2TSN (both in high-byte order)
     bhsDataOut.targetTransferTag = bhs->targetTransferTag;
-    
+
     UInt8 * data = (UInt8*)IOMalloc(maxTransferLength);
     
     // The amount of data that needs to be transferred...
@@ -1634,10 +1651,6 @@ errno_t iSCSIVirtualHBA::ActivateConnection(SID sessionId,CID connectionId)
     if(!connection)
         return EINVAL;
     
-    // Recalculate the immedate data length if options
-    // were changed while this connection was not active
-    
-    
     // Set the maximum amount of immediate data we can send on this connection
     connection->immediateDataLength = min(connection->maxSendDataSegmentLength,
                                           session->firstBurstLength);
@@ -1836,18 +1849,19 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
         iovec[iovecCnt].iov_len  = sizeof(headerDigest);
         iovecCnt++;
     }
- 
+    
     // If theres data to send...
+    UInt32 padding = 0;
+    
     if(data && length)
     {
         // Add data segment
         iovec[iovecCnt].iov_base = (void*)data;
         iovec[iovecCnt].iov_len  = length;
         iovecCnt++;
-        
+  
         // Add padding bytes if required
         UInt32 paddingLen = 4-(length % 4);
-        UInt32 padding = 0;
         if(paddingLen != 4)
         {
             iovec[iovecCnt].iov_base  = &padding;
