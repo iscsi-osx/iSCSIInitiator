@@ -41,6 +41,14 @@
 		</dict>
 		<key>iSCSIVirtualHBA</key>
 		<dict>
+			<key>IOMaximumSegmentCountRead</key>
+			<integer>512</integer>
+			<key>IOMaximumSegmentCountWrite</key>
+			<integer>512</integer>
+			<key>IOMaximumSegmentByteCountRead</key>
+			<integer>8192</integer>
+			<key>IOMaximumSegmentByteCountWrite</key>
+			<integer>8192</integer>
 			<key>CFBundleIdentifier</key>
 			<string>${NAME_PREFIX_D}.${PRODUCT_NAME}</string>
 			<key>IOClass</key>
