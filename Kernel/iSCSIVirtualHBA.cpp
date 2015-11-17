@@ -1225,7 +1225,35 @@ void iSCSIVirtualHBA::ProcessReject(iSCSISession * session,
                                     iSCSIConnection * connection,
                                     iSCSIPDU::iSCSIPDURejectBHS * bhs)
 {
-
+    const UInt32 length = GetDataSegmentLength((iSCSIPDUTargetBHS*)bhs);
+    
+    if(length == 0)
+    {
+        DBLog("iscsi: Missing data segment in data-in PDU (sid: %d, cid: %d)\n",
+              session->sessionId,connection->CID);
+        return;
+    }
+    
+    UInt8 buffer[length];
+    RecvPDUData(session,connection,buffer,length,MSG_WAITALL);
+    
+    enum iSCSIPDURejectCode rejectCode = (enum iSCSIPDURejectCode)bhs->reason;
+    
+    switch(rejectCode) {
+        case kiSCSIPDURejectReserved: break;
+        case kiSCSIPDURejectCmdNotSupported: break;
+        case kiSCSIPDURejectDataDigestError: break;
+        case kiSCSIPDURejectInvalidDataACK: break;
+        case kiSCSIPDURejectInvalidPDUField: break;
+        case kiSCSIPDURejectLongOperationReject: break;
+        case kiSCSIPDURejectNegotiationReset: break;
+        case kiSCSIPDURejectProtoError: break;
+        case kiSCSIPDURejectSNACKReject: break;
+        case kiSCSIPDURejectTaskInProgress: break;
+        case kiSCSIPDURejectTooManyImmediateCmds: break;
+        case kiSCSIPDURejectWaitingForLogout: break;
+        default: break;
+    };
 }
 
 /*! Measures the latency of a connection (the iSCSI latency).  This is achieved

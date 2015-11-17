@@ -496,7 +496,7 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
     context.nextStage    = kiSCSIPDUFullFeaturePhase;
     context.targetSessionId = 0;
 
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
     
     // Send session-wide options to target and retreive a response dictionary
     errno_t error = iSCSISessionLoginQuery(&context,
@@ -568,7 +568,7 @@ errno_t iSCSINegotiateConnection(iSCSITargetRef target,
     if(context.targetSessionId != 0)
         context.nextStage = kiSCSIPDUFullFeaturePhase;
 
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
 
     // Send connection-wide options to target and retreive a response dictionary
     errno_t error = iSCSISessionLoginQuery(&context,

@@ -209,7 +209,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     context.nextStage       = kiSCSIPDUSecurityNegotiation;
     context.currentStage    = kiSCSIPDUSecurityNegotiation;
     
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
 
     errno_t error = iSCSISessionLoginQuery(&context,
                                            statusCode,
@@ -387,7 +387,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,&targetSessionId,sizeof(TSIH));
     context.targetSessionId = targetSessionId;
     
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
     
     // If no authentication is required, move to next stage
     if(iSCSIAuthGetMethod(initiatorAuth) == kiSCSIAuthMethodNone)
@@ -533,7 +533,7 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
     context.nextStage    = kiSCSIPDUSecurityNegotiation;
     context.targetSessionId = 0;
     
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
     
     // Query target with all possible authentication options
     errno_t error = iSCSISessionLoginQuery(&context,

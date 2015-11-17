@@ -43,11 +43,6 @@ struct iSCSILoginQueryContext {
     TSIH targetSessionId;
 };
 
-/*! Possible reject codes that may be issued throughout the login process. */
-enum iSCSIRejectCode {
-    kiSCSIRejectCodeTest
-};
-
 /*! Helper function used throughout the login process to query the target.
  *  This function will take a dictionary of key-value pairs and send the
  *  appropriate login PDU to the target.  It will then receive one or more
@@ -66,7 +61,7 @@ enum iSCSIRejectCode {
  *  @return an error code that indicates the result of the operation. */
 errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
                                enum iSCSILoginStatusCode * statusCode,
-                               enum iSCSIRejectCode * rejectCode,
+                               enum iSCSIPDURejectCode * rejectCode,
                                CFDictionaryRef   textCmd,
                                CFMutableDictionaryRef  textRsp);
 

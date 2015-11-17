@@ -42,6 +42,7 @@
 #include "iSCSIDiscovery.h"
 #include "iSCSIDaemonInterfaceShared.h"
 #include "iSCSIPropertyList.h"
+#include "iSCSIDA.h"
 
 
 // Used to notify daemon of power state changes
@@ -927,6 +928,28 @@ void iSCSIDAutoLogin()
     CFRelease(targets);
 }
 
+void iSCSIDPrepareForSystemSleep()
+{
+    // Unmount all volumes associated with active targets
+    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
+    
+    if(!sessionIds)
+        return;
+    
+    CFIndex sessionCount = CFArrayGetCount(sessionIds);
+    
+    for(CFIndex idx = 0; idx < sessionCount; idx++)
+    {
+        SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
+        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
+        
+        CFStringRef targetIQN = iSCSITargetGetIQN(target);
+        iSCSIDAUnmountIOMediaForTarget(targetIQN);
+        iSCSITargetRelease(target);
+    }
+}
+
+
 /*! Handles power event messages received from the kernel.  This callback
  *  is only active when iSCSIDRegisterForPowerEvents() has been called.
  *  @param refCon always NULL (not used).
@@ -940,7 +963,9 @@ void iSCSIDHandlePowerEvent(void * refCon,
 {
     switch(messageType)
     {
-            // TODO: handle sleep
+        // The system will go to sleep (we have no control)
+        case kIOMessageSystemWillSleep:
+            iSCSIDPrepareForSystemSleep();
             break;
     };
 

@@ -29,7 +29,7 @@
  *  @return an error code that indicates the result of the operation. */
 errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
                                enum iSCSILoginStatusCode * statusCode,
-                               enum iSCSIRejectCode * rejectCode,
+                               enum iSCSIPDURejectCode * rejectCode,
                                CFDictionaryRef   textCmd,
                                CFMutableDictionaryRef  textRsp)
 {
