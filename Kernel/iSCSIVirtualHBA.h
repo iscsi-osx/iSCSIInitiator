@@ -366,6 +366,16 @@ private:
                        iSCSIConnection * connection,
                        iSCSIPDU::iSCSIPDURejectBHS * bhs);
     
+    /*! Process data out PDUs for a SCSI task. */
+    void ProcessDataOutForTask(iSCSISession * session,
+                               iSCSIConnection * connection,
+                               SCSIParallelTaskIdentifier parallelTask,
+                               UInt32 dataOffset,
+                               UInt32 dataLength,
+                               UInt64 LUN,
+                               UInt32 initiatorTaskTag,
+                               UInt32 targetTransferTag);
+    
     /*! Adjusts the timeouts associated with a particular connection.  This
      *  function uses a NOP out PDU to measure the latency of particular
      *  iSCSI connection. This is achieved by generating and sending 
@@ -375,6 +385,8 @@ private:
      *  @param connection the connection to tune. */
     void MeasureConnectionLatency(iSCSISession * session,
                                   iSCSIConnection * connection);
+    
+    
 	
     /*! Maximum allowable sessions. */
     static const UInt16 kMaxSessions;
