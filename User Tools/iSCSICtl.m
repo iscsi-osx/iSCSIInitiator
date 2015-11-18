@@ -1909,25 +1909,14 @@ void displayLUNProperties(CFDictionaryRef propertiesDict)
     
     CFNumberRef SCSILUNIdentifier = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSILogicalUnitNumberKey));
     CFNumberRef peripheralType = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIPeripheralDeviceType));
-    CFStringRef vendor = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIVendorIdentification));
-    CFStringRef product = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIProductIdentification));
     
     // Get a description of the peripheral device type
     int peripheralTypeCode;
     CFNumberGetValue(peripheralType,kCFNumberIntType,&peripheralTypeCode);
 
-    CFStringRef properties = NULL;
-    if(vendor && product) {
-        properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                              CFSTR("\tLUN %@  <type 0x%02x, %@ (%@)>\n"),
-                                              SCSILUNIdentifier,peripheralTypeCode,vendor,product);
-    }
-    else {
-        properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                              CFSTR("\tLUN %@  <type 0x%02x>\n"),
-                                              SCSILUNIdentifier,peripheralTypeCode);
-    }
-
+    CFStringRef properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
+                                              CFSTR("\tlun %@: type 0x%02x (%@)\n"),
+                                              SCSILUNIdentifier,peripheralTypeCode,iSCSIUtilsGetSCSIPeripheralDeviceDescription(peripheralTypeCode));
     iSCSICtlDisplayString(properties);
     CFRelease(properties);
 }
@@ -1938,20 +1927,23 @@ void displayIOMediaProperties(CFDictionaryRef propertiesDict,Boolean lastLUN)
         return;
     
     CFStringRef BSDName = CFDictionaryGetValue(propertiesDict,CFSTR(kIOBSDNameKey));
-    CFNumberRef size = CFDictionaryGetValue(propertiesDict,CFSTR(kIOMediaSizeKey));
+    CFNumberRef sizeNum = CFDictionaryGetValue(propertiesDict,CFSTR(kIOMediaSizeKey));
+    CFNumberRef blockSizeNum = CFDictionaryGetValue(propertiesDict,CFSTR(kIOMediaPreferredBlockSizeKey));
     
-    long long capacity;
-    CFNumberGetValue(size,kCFNumberLongLongType,&capacity);
-    CFStringRef capacityString = (__bridge CFStringRef)
-        ([NSByteCountFormatter stringFromByteCount:capacity countStyle:NSByteCountFormatterCountStyleFile]);
-
-    CFStringRef templateString = NULL;
-
-    templateString = CFSTR("\t\t%@  <capacity %@>\n");
+    long long size;
+    CFNumberGetValue(sizeNum,kCFNumberLongLongType,&size);
+    CFStringRef sizeString = (__bridge CFStringRef)
+        ([NSByteCountFormatter stringFromByteCount:size countStyle:NSByteCountFormatterCountStyleFile]);
+    
+    int blockSize;
+    CFNumberGetValue(blockSizeNum,kCFNumberIntType,&blockSize);
+    
+    long long blockCount = size/blockSize;
+    CFNumberRef blockCountNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberLongLongType,&blockCount);
     
     CFStringRef properties = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                      templateString,
-                                                      BSDName,capacityString);
+                                                      CFSTR("\t\t%@: %@ (%@ %@ byte blocks)\n"),
+                                                      BSDName,sizeString,blockCountNum,blockSizeNum);
     iSCSICtlDisplayString(properties);
     CFRelease(properties);
 }
@@ -1984,25 +1976,20 @@ errno_t iSCSICtlListLUNs(iSCSIDaemonHandle handle,CFDictionaryRef options)
         // At this point we know that the registry entry was
         detectedValidTarget = true;
         
-        CFStringRef targetIQN = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertyiSCSIQualifiedNameKey));
         CFStringRef targetVendor = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSIVendorIdentification));
         CFStringRef targetProduct = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSIProductIdentification));
-        CFNumberRef targetId = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSITargetIdentifierKey));
+        CFStringRef targetRevision = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSIProductRevisionLevel));
+        CFStringRef serialNumber = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertySCSIINQUIRYUnitSerialNumber));
 
-        CFStringRef targetStr = NULL;
-        if(targetVendor && targetProduct) {
-            targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                 CFSTR("%s  <id %@, %@ (%@)>\n"),
-                                                 CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
-                                                 targetId,targetVendor,targetProduct);
-        }
-        else {
-            targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                 CFSTR("%s  <id %@>\n"),
-                                                 CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
-                                                 targetId);
-        }
+        CFDictionaryRef protocolDict = CFDictionaryGetValue(targetDict,CFSTR(kIOPropertyProtocolCharacteristicsKey));
+        CFNumberRef domainId = CFDictionaryGetValue(protocolDict,CFSTR(kIOPropertySCSIDomainIdentifierKey));
+        CFNumberRef targetId = CFDictionaryGetValue(protocolDict,CFSTR(kIOPropertySCSITargetIdentifierKey));
+        CFStringRef targetIQN = CFDictionaryGetValue(protocolDict,CFSTR(kIOPropertyiSCSIQualifiedNameKey));
 
+        CFStringRef targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
+                                                 CFSTR("%s\n\t%@ %@ %@ <SCSI domain %@ target %@>\n\tSerial Number %@\n"),
+                                                 CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+                                                 targetVendor,targetProduct,targetRevision,domainId,targetId,serialNumber);
         iSCSICtlDisplayString(targetStr);
 
         // Get a dictionary of properties for each LUN and display those
