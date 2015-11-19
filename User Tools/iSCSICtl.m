@@ -372,8 +372,8 @@ CFStringRef iSCSICtlCreateSecretFromInput(CFIndex retries)
     CFStringRef secret = NULL;
 
     const int MAX_SECRET_LENGTH = 256;
-    char * buffer[MAX_SECRET_LENGTH];
-    char * verify[MAX_SECRET_LENGTH];
+    char buffer[MAX_SECRET_LENGTH];
+    char verify[MAX_SECRET_LENGTH];
 
     // Retry as required...
     for(CFIndex idx = 0; idx < retries; idx++)
