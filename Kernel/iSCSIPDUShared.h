@@ -40,6 +40,12 @@ static const unsigned short kiSCSIPDUBasicHeaderSegmentSize = 48;
  *  in a PDU is less than this value it is padded with zeros. */
 static const unsigned short kiSCSIPDUByteAlignment = 4;
 
+/*! Reserved target transfer tag value. */
+static const UInt32 kiSCSIPDUTargetTransferTagReserved = 0xFFFFFFFF;
+
+/*! Reserved initiator task tag value. */
+static const UInt32 kiSCSIPDUInitiatorTaskTagReserved = 0xFFFFFFFF;
+
 /*! Bit offset within opcode byte for request PDUs that should be set to
  *  '1' to indicate immediate delivery of the PDU. */
 static const UInt8 kiSCSIPDUImmediateDeliveryFlag = 0x40;

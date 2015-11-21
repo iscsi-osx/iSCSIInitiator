@@ -1073,7 +1073,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     
     iSCSIPDUTextReqBHS cmd = iSCSIPDUTextReqBHSInit;
     cmd.textReqStageFlags |= kiSCSIPDUTextReqFinalFlag;
-    cmd.targetTransferTag = 0xFFFFFFFF;
+    cmd.targetTransferTag = kiSCSIPDUTargetTransferTagReserved;
      
     error = iSCSIKernelSend(sessionId,connectionId,(iSCSIPDUInitiatorBHS *)&cmd,data,length);
     
@@ -1317,7 +1317,6 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId)
     return portal;
 }
 
-
 /*! Creates a dictionary of session parameters for the session associated with
  *  the specified target, if one exists.
  *  @param handle a handle to a daemon connection.
@@ -1510,7 +1509,6 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
                                     sizeof(keys)/sizeof(void*),
                                     &kCFTypeDictionaryKeyCallBacks,
                                     &kCFTypeDictionaryValueCallBacks);
-    
     return dictionary;
 }
 

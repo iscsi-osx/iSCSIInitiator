@@ -27,12 +27,6 @@ namespace iSCSIPDU {
     /*! Digests are 4 bytes. */
     static const UInt8 kiSCSIPDUDigestSize = 4;
     
-    /*! Reserved target transfer tag value. */
-    static const UInt32 kiSCSIPDUTargetTransferTagReserved = 0xFFFFFFFF;
-    
-    /*! Reserved initiator task tag value. */
-    static const UInt32 kiSCSIPDUInitiatorTaskTagReserved = 0xFFFFFFFF;
-    
     /*! Flag used in some incoming and outgoing PDUs in the first reserved
      *  following the opCode and delivery marker byte (e.g., NOPOut, R2T, ...) */
     static const UInt8 kiSCSIPDUReservedFlag = 0x80;
