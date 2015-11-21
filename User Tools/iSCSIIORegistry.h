@@ -55,7 +55,7 @@ void iSCSIIORegistryIOMediaApplyFunction(io_object_t root,
 io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t LUN);
 
 /*! Creates a dictionary of properties associated with the target.  These
- *  include the following keys (not exhausitve, see OS X documentation):
+ *  include the following keys (not exhaustive, see OS X documentation):
  *
  *  kIOPropertySCSIVendorIdentification (CFStringRef)
  *  kIOPropertySCSIProductIdentification (CFStringRef)
@@ -77,7 +77,7 @@ io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t LUN);
 CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target);
 
 /*! Creates a dictionary of properties associated with the LUN.  These
- *  include the following keys (not exhausitve, see OS X documentation):
+ *  include the following keys (not exhaustive, see OS X documentation):
  *
  *  kIOPropertySCSIVendorIdentification (CFStringRef)
  *  kIOPropertySCSIProductIdentification (CFStringRef)
