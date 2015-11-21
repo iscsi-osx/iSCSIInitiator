@@ -89,6 +89,7 @@ bool iSCSIVirtualHBA::DoesHBASupportSCSIParallelFeature(SCSIParallelFeature theF
         case kSCSIParallelFeature_InformationUnitTransfers:
             supported = true;
             break;
+        default: break;
     }
     
     return supported;
@@ -388,7 +389,8 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
     if(!connection)
         return;
 
-    DBLog("iscsi: Task timeout for task %#x (sid: %d, cid: %d)\n",GetControllerTaskIdentifier(task),sessionId,connectionId);
+    // Note: task tag is always 32-bits, even though the SCSI stack allows for 64-bit storage of the tag
+    DBLog("iscsi: Task timeout for task %#x (sid: %d, cid: %d)\n",(UInt32)GetControllerTaskIdentifier(task),sessionId,connectionId);
 
     
     // If the task timeout is due to a broken connection, handle it.
@@ -1826,7 +1828,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
             iovecCnt++;
         }
 
-        DBLog("iscsi: Sending data length: %z\n",length);
+        DBLog("iscsi: Sending data length: %zu\n",length);
 
         // Leave room for a data digest
         if(connection->useDataDigest) {
@@ -1916,7 +1918,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     // Verify length; incoming PDUS from a target should have no AHS, verify.
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
     {
-        DBLog("iscsi: Received incomplete PDU header: %z bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->CID);
+        DBLog("iscsi: Received incomplete PDU header: %zu bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->CID);
         
 // TODO: handle error
         
