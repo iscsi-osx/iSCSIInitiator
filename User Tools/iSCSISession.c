@@ -1536,27 +1536,57 @@ void iSCSISetInitiatorAlias(CFStringRef initiatorAlias)
     kiSCSIInitiatorAlias = CFStringCreateCopy(kCFAllocatorDefault,initiatorAlias);
 }
 
-void iSCSISessionHandleNotifications(enum iSCSIKernelNotificationTypes type,
-                                     iSCSIKernelNotificationMessage * msg)
+/*! The kernel calls this function only for asynchronous events that
+ *  involve dropped sessions, connections, logout requests and parameter
+ *  negotiation. This function is not called for asynchronous SCSI messages
+ *  or vendor-specific messages. */
+void iSCSISessionHandleKernelNotificationAsyncMessage(iSCSIKernelNotificationAsyncMessage * msg)
 {
-// TODO: implement this function to handle async PDUs (these are handled
-// in user-space).  They might involve dropped connections, etc., which may
-// need to be handled differently depending on error recovery levels
-// (Note: kernel should handle async SCSI event, this is for iSCSI events only
-//  see RFC3720 for more inforation).
+    enum iSCSIPDUAsyncMsgEvent asyncEvent = (enum iSCSIPDUAsyncMsgEvent)msg->asyncEvent;
+    enum iSCSILogoutStatusCode statusCode;
+    
+    CFStringRef statusString = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+        CFSTR("iSCSI asynchronous message (code %d) received (sid: %d, cid: %d)"),
+        asyncEvent,msg->sessionId,msg->connectionId);
+    
+    asl_log(NULL,NULL,ASL_LEVEL_WARNING,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+    
+    CFRelease(statusString);
+    
+    switch (asyncEvent) {
+    
+        // We are required to issue a logout request
+        case kiSCSIPDUAsyncMsgLogout:
+            iSCSILogoutConnection(msg->sessionId,msg->connectionId,&statusCode);
+            break;
+            
+        // We have been asked to re-negotiate parameters for this connection
+        // (this is currently unsupported and we logout)
+        case kiSCSIPDUAsyncMsgNegotiateParams:
+            iSCSILogoutConnection(msg->sessionId,msg->connectionId,&statusCode);
+            break;
 
-    // Process an asynchronous message
-    if(type == kiSCSIKernelNotificationAsyncMessage)
-    {
-        iSCSIKernelNotificationAsyncMessage * asyncMsg = (iSCSIKernelNotificationAsyncMessage *)msg;
-     
-        // If the asynchronous message is invalid ignore it
-        enum iSCSIPDUAsyncMsgEvent asyncEvent = (enum iSCSIPDUAsyncMsgEvent)asyncMsg->asyncEvent;
-        
-        fprintf(stderr,"Async event occured");
+        default:
+            break;
     }
 }
 
+/*! This function is called by the kernel extension to notify the daemon
+ *  of an event that has occured within the kernel extension. */
+void iSCSISessionHandleKernelNotifications(enum iSCSIKernelNotificationTypes type,
+                                     iSCSIKernelNotificationMessage * msg)
+{
+    // Process an asynchronous message
+    switch(type)
+    {
+        // The kernel received an iSCSI asynchronous event message
+        case kiSCSIKernelNotificationAsyncMessage:
+            iSCSISessionHandleKernelNotificationAsyncMessage((iSCSIKernelNotificationAsyncMessage *)msg);
+            break;
+        case kISCSIKernelNotificationTerminate: break;
+        default: break;
+    };
+}
 
 /*! Call to initialize iSCSI session management functions.  This function will
  *  initialize the kernel layer after which other session-related functions
@@ -1565,10 +1595,10 @@ void iSCSISessionHandleNotifications(enum iSCSIKernelNotificationTypes type,
  *  @return an error code indicating the result of the operation. */
 errno_t iSCSIInitialize(CFRunLoopRef rl)
 {
-    errno_t error = iSCSIKernelInitialize(&iSCSISessionHandleNotifications);
+    errno_t error = iSCSIKernelInitialize(&iSCSISessionHandleKernelNotifications);
 
     CFRunLoopSourceRef source = iSCSIKernelCreateRunLoopSource();
-//    CFRunLoopAddSource(rl,source,kCFRunLoopDefaultMode);
+    CFRunLoopAddSource(rl,source,kCFRunLoopDefaultMode);
     
     return error;
 }

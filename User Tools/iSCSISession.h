@@ -15,6 +15,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <netdb.h>
 #include <ifaddrs.h>
+#include <asl.h>
 
 #include "iSCSITypes.h"
 #include "iSCSIRFC3720Keys.h"
@@ -194,7 +195,6 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target);
  *  @return a dictionary of connection properties. */
 CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
                                                      iSCSIPortalRef portal);
-
 
 /*! Sets the name of this initiator.  This is the IQN-format name that is
  *  exchanged with a target during negotiation.
