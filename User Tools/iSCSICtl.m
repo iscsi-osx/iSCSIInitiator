@@ -493,7 +493,6 @@ void iSCSICtlDisplayiSCSILoginError(enum iSCSILoginStatusCode statusCode)
     
     iSCSICtlDisplayString(error);
     CFRelease(error);
-
 }
 
 /*! Helper function used to display login status.
@@ -545,21 +544,12 @@ void iSCSICtlDisplayProbeTargetLoginStatus(enum iSCSILoginStatusCode statusCode,
 
     switch(authMethod)
     {
-        case kiSCSIAuthMethodCHAP: probeStatus = CFSTR("CHAP required"); break;
-        case kiSCSIAuthMethodNone: probeStatus = CFSTR("No authentication required"); break;
+        case kiSCSIAuthMethodCHAP: probeStatus = CFSTR("Target requires CHAP authentication\n"); break;
+        case kiSCSIAuthMethodNone: probeStatus = CFSTR("Target does not require authentication\n"); break;
         case kiSCSIAuthMethodInvalid:
         default:
-            probeStatus = CFSTR("Target requires an invalid authentication method"); break;
+            probeStatus = CFSTR("Target requires an unsupported authentication method\n"); break;
     };
-
-    CFStringRef targetIQN = iSCSITargetGetIQN(target);
-    CFStringRef portalAddress = iSCSIPortalGetAddress(portal);
-    CFStringRef portalPort = iSCSIPortalGetPort(portal);
-    CFStringRef portalInterface = iSCSIPortalGetHostInterface(portal);
-    
-    probeStatus = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-        CFSTR("Probing <target: %@ portal: %@:%@ if: %@>: %@\n"),
-        targetIQN,portalAddress,portalPort,portalInterface,probeStatus);
     
     iSCSICtlDisplayString(probeStatus);
     CFRelease(probeStatus);
@@ -1662,7 +1652,7 @@ errno_t iSCSICtlListDiscoveryConfig(iSCSIDaemonHandle handle,CFDictionaryRef opt
 
         CFStringRef entry =
         CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                 CFSTR("\t\t%s  <port %s, interface %@>\n"),
+                                 CFSTR("\t\t%-15s <port %s, interface %@>\n"),
                                  CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
                                  CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
                                  iSCSIPortalGetHostInterface(portal));
@@ -2086,7 +2076,7 @@ errno_t iSCSICtlMountForTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
     
     if(!(target = iSCSICtlCreateTargetFromOptions(options)))
         return EINVAL;
-
+    
     iSCSIDAMountIOMediaForTarget(iSCSITargetGetIQN(target));
     CFRelease(target);
     return 0;
