@@ -11,7 +11,7 @@
 
 void iSCSIDAUnmountCallback(DADiskRef disk,DADissenterRef dissenter,void *context)
 {
-    CFRunLoopStop(CFRunLoopGetCurrent());
+
 }
 
 /*! Callback function used to unmount all IOMedia objects. */
@@ -33,10 +33,9 @@ void iSCSIDAUnmountIOMediaForTarget(CFStringRef targetIQN)
     // Find the target associated with the session
     io_object_t target = iSCSIIORegistryGetTargetEntry(targetIQN);
 
-    // Queue unmount all IOMedia objects & run CFRunLoop
+    // Queue unmount all IOMedia objects
     if(target != IO_OBJECT_NULL) {
         iSCSIIORegistryIOMediaApplyFunction(target,&iSCSIDAUnmountApplierFunc,diskArbSession);
-        CFRunLoopRun();
     }
     
     CFRelease(diskArbSession);
@@ -44,7 +43,6 @@ void iSCSIDAUnmountIOMediaForTarget(CFStringRef targetIQN)
 
 void iSCSIDAMountCallback(DADiskRef disk,DADissenterRef dissenter,void *context)
 {
-    CFRunLoopStop(CFRunLoopGetCurrent());
 }
 
 /*! Callback function used to unmount all IOMedia objects. */
@@ -61,15 +59,14 @@ void iSCSIDAMountIOMediaForTarget(CFStringRef targetIQN)
 {
     // Create a disk arbitration session and associate it with current runloop
     DASessionRef diskArbSession = DASessionCreate(kCFAllocatorDefault);
-    DASessionScheduleWithRunLoop(diskArbSession,CFRunLoopGetCurrent(),kCFRunLoopCommonModes);
+    DASessionScheduleWithRunLoop(diskArbSession,CFRunLoopGetCurrent(),kCFRunLoopDefaultMode);
     
     // Find the target associated with the session
     io_object_t target = iSCSIIORegistryGetTargetEntry(targetIQN);
     
-    // Queue mount all IOMedia objects & run CFRunLoop
+    // Queue mount all IOMedia objects
     if(target != IO_OBJECT_NULL) {
         iSCSIIORegistryIOMediaApplyFunction(target,&iSCSIDAMountApplierFunc,diskArbSession);
-        CFRunLoopRun();
     }
     
     CFRelease(diskArbSession);
