@@ -27,7 +27,7 @@ typedef struct iSCSIConnection {
     UInt32 expStatSN;
     
     /*! Connection ID. */
-    CID CID; // Might need this for ErrorRecovery (otherwise have to search through list for it)
+    CID cid; // Might need this for ErrorRecovery (otherwise have to search through list for it)
     
     /*! Portal address (IPv4/IPv6/DNS address). */
     OSString * portalAddress;

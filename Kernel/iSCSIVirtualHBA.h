@@ -33,7 +33,6 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-
 /*! This class implements the iSCSI virtual host bus adapter (HBA).  The HBA
  *	creates and removes targets and processes SCSI requested by the operating
  *	system. The class maintains state information, including targets and

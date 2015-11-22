@@ -10,6 +10,7 @@
 #include "iSCSITaskQueue.h"
 #include "iSCSITypesKernel.h"
 #include "iSCSIRFC3720Defaults.h"
+#include "iSCSIInitiatorClient.h"
 #include "crc32c.h"
 
 #include <sys/ioctl.h>
@@ -495,14 +496,14 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     SetControllerTaskIdentifier(parallelTask,initiatorTaskTag);
     
     DBLog("iscsi: Transfer size: %llu (sid: %d, cid: %d)\n",
-          connection->dataToTransfer,session->sessionId,connection->CID);
+          connection->dataToTransfer,session->sessionId,connection->cid);
     
     // Queue task in the event source (we'll remove it from the queue when were
     // done processing the task)
     connection->taskQueue->queueTask(initiatorTaskTag);
     
     DBLog("iscsi: Queued task %#x (sid: %d, cid: %d)\n",
-          initiatorTaskTag,session->sessionId,connection->CID);
+          initiatorTaskTag,session->sessionId,connection->cid);
 
     return kSCSIServiceResponse_Request_In_Process;
 }
@@ -524,7 +525,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     
     if(!parallelTask)  {
         DBLog("iscsi: Task not found, flushing stream (BeginTaskOnWorkloopThread) (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
         return;
     }
     
@@ -535,7 +536,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     UInt8   cdbSize                 = owner->GetCommandDescriptorBlockSize(parallelTask);
     
     DBLog("iscsi: Starting task %#x (sid: %d, cid: %d)\n",
-          initiatorTaskTag,session->sessionId,connection->CID);
+          initiatorTaskTag,session->sessionId,connection->cid);
     
     // Timestamp the connection indicating when we started processing the task
     clock_get_system_microtime(&(connection->taskStartTimeSec),
@@ -651,12 +652,12 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     if(owner->RecvPDUHeader(session,connection,&bhs,0))
     {
         DBLog("iscsi: Failed to get PDU header (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
         return true;
     }
     else
         DBLog("iscsi: Received PDU type %#x (sid: %d, cid: %d)\n",
-              bhs.opCode,session->sessionId,connection->CID);
+              bhs.opCode,session->sessionId,connection->cid);
 
     // Determine the kind of PDU that was received and process accordingly
     enum iSCSIPDUTargetOpCodes opCode = (iSCSIPDUTargetOpCodes)bhs.opCode;
@@ -746,7 +747,7 @@ void iSCSIVirtualHBA::CompleteParallelTask(iSCSISession * session,
             connection->bytesPerSecond = connection->bytesPerSecondHistory[i];
     
     DBLog("iscsi: Bytes per second: %d (sid: %d, cid: %d)\n",
-          connection->bytesPerSecond,session->sessionId,connection->CID);
+          connection->bytesPerSecond,session->sessionId,connection->cid);
 
     super::CompleteParallelTask(parallelRequest,completionStatus,serviceResponse);
 }
@@ -811,7 +812,7 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
 
     if(length > 0 && RecvPDUData(session,connection,data,length,MSG_WAITALL) != 0) {
         DBLog("iscsi: Failed to retreive NOP in data (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
         return;
     }
     
@@ -836,7 +837,7 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
         UInt32 latency_ms = (secs - secs_stamp)*1e3 + (usecs - usecs_stamp)/1e3;
         
         DBLog("iscsi: Connection latency: %d ms (sid: %d, cid: %d)\n",
-              latency_ms,session->sessionId,connection->CID);
+              latency_ms,session->sessionId,connection->cid);
         
         // Remove latency measurement task from queue
         connection->taskQueue->completeCurrentTask();
@@ -852,7 +853,7 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
         
         if(SendPDU(session,connection,(iSCSIPDUInitiatorBHS*)&bhsRsp,NULL,data,length))
             DBLog("iscsi: Failed to send NOP response (sid: %d, cid: %d)\n",
-                  session->sessionId,connection->CID);
+                  session->sessionId,connection->cid);
     }
 }
 
@@ -869,10 +870,10 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     if(length > 0) {
         if(RecvPDUData(session,connection,data,length,MSG_WAITALL))
             DBLog("iscsi: Error retrieving data segment (sid: %d, cid: %d)\n",
-                  session->sessionId,connection->CID);
+                  session->sessionId,connection->cid);
         else
             DBLog("iscsi: Received sense data (sid: %d, cid: %d)\n",
-                  session->sessionId,connection->CID);
+                  session->sessionId,connection->cid);
     }
 
     // Grab parallel task associated with this PDU, indexed by task tag
@@ -882,7 +883,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     if(!parallelTask)
     {
         DBLog("iscsi: Task not found, flushing stream (ProcessSCSIResponse) (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
         
         // Flush stream
         UInt8 buffer[length];
@@ -902,7 +903,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
         
         if(length < senseDataLength + senseDataHeaderSize) {
             DBLog("iscsi: Received invalid sense data (sid: %d, cid: %d)\n",
-                  session->sessionId,connection->CID);
+                  session->sessionId,connection->cid);
         }
         else {
         
@@ -913,7 +914,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
             SetAutoSenseData(parallelTask,newSenseData,senseDataLength);
             
             DBLog("iscsi: Processed sense data (sid: %d, cid: %d)\n",
-                  session->sessionId,connection->CID);
+                  session->sessionId,connection->cid);
         }
     }
     
@@ -934,7 +935,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     connection->taskQueue->completeCurrentTask();
     
     DBLog("iscsi: Processed SCSI response (sid: %d, cid: %d)\n",
-          session->sessionId,connection->CID);
+          session->sessionId,connection->cid);
 }
 
 void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
@@ -950,7 +951,7 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     if(length == 0)
     {
         DBLog("iscsi: Missing data segment in data-in PDU (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
         return;
     }
     
@@ -960,7 +961,7 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     if(!parallelTask)
     {
         DBLog("iscsi: Task not found (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
         RecvPDUData(session,connection,buffer,length,MSG_WAITALL);
         return;
     }
@@ -970,7 +971,7 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
     
     if(RecvPDUData(session,connection,buffer,length,0))
         DBLog("iscsi: Error in retrieving data segment length (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
     else {
         IOMemoryDescriptor  * dataDesc = GetDataBuffer(parallelTask);
         dataDesc->writeBytes(dataOffset,buffer,length);
@@ -993,7 +994,7 @@ void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
         connection->taskQueue->completeCurrentTask();
         
         DBLog("iscsi: Processed data-in PDU (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
     }
     
     // Send acknowledgement to target if one is required
@@ -1011,50 +1012,66 @@ void iSCSIVirtualHBA::ProcessAsyncMsg(iSCSISession * session,
                                       iSCSIConnection * connection,
                                       iSCSIPDU::iSCSIPDUAsyncMsgBHS * bhs)
 {
-    iSCSIPDUAsyncMsgEvent asyncEvent = (iSCSIPDUAsyncMsgEvent)(bhs->asyncEvent);
-    
-    DBLog("iscsi: Async Message (%#x) received (sid: %d, cid: %d)\n",
-        asyncEvent,session->sessionId,connection->CID);
-    
-    switch(asyncEvent)
-    {
-        // The target will drop all connections for this session
-        case kiSCSIPDUAsyncMsgDropAllConnections: break;
-
-        // The target will drop the specified connection
-        case kiSCSIPDUAsynMsgDropConnection:
-            ReleaseConnection(session->sessionId,connection->CID);
-        case kiSCSIPDUAsyncMsgLogout:
-            
-            break;
-            
-        // Target requests parameter negotiation (no support; drop connection)
-        case kiSCSIPDUAsyncMsgNegotiateParams:
-            ReleaseConnection(session->sessionId,connection->CID);
-            break;
-            
-
-        case kiSCSIPDUAsyncMsgVendorCode: break;
-        
-
-
-        case kiSCSIPDUAsyncMsgSCSIAsyncMsg:
-            
-            
-            break;
-        default: break;
-    };
-    
     // Grab any data associated with the PDU (e.g., sense data for SCSI
     // asynchronous message)
     const UInt32 length = GetDataSegmentLength((iSCSIPDUTargetBHS *)bhs);
-    UInt8 * data;
+    UInt8 * data = NULL;
     
-    if(!(data = (UInt8*)IOMalloc(length)))
-       return;
+    if(length) {
+        if(!(data = (UInt8*)IOMalloc(length))) {
+            DBLog("iscsi: couldn't allocate memory for PDU data (ProcessAsyncMsg)\n");
+            return;
+        }
+        RecvPDUData(session,connection,data,length,MSG_WAITALL);
+    }
+
+    iSCSIPDUAsyncMsgEvent asyncEvent = (iSCSIPDUAsyncMsgEvent)(bhs->asyncEvent);
     
-    RecvPDUData(session,connection,data,length,0);
-    IOFree(data,length);
+    DBLog("iscsi: Async Message (code %#x) received (sid: %d, cid: %d)\n",
+        asyncEvent,session->sessionId,connection->cid);
+    
+    iSCSIInitiatorClient * client = (iSCSIInitiatorClient*)getClient();
+    if(!client) {
+        DBLog("iscsi: client is not available; async message may not be processed correctly\n");
+    }
+
+    switch(asyncEvent)
+    {
+        // The target will drop all connections for this session
+        case kiSCSIPDUAsyncMsgDropAllConnections:
+            ReleaseSession(session->sessionId);
+            break;
+
+        // The target will drop the specified connection
+        case kiSCSIPDUAsynMsgDropConnection:
+            ReleaseConnection(session->sessionId,connection->cid);
+            break;
+            
+        case kiSCSIPDUAsyncMsgLogout:
+            DeactivateConnection(session->sessionId,connection->cid);
+            break;
+            
+        // Target requests parameter negotiation
+        case kiSCSIPDUAsyncMsgNegotiateParams:
+            DeactivateConnection(session->sessionId,connection->cid);
+            break;
+            
+        // No support for asynchronous SCSI messages; do nothing
+        case kiSCSIPDUAsyncMsgSCSIAsyncMsg: break;
+            
+        // No support for proprietary vendor codes; do nothing
+        case kiSCSIPDUAsyncMsgVendorCode: break;
+            
+        default: break;
+    };
+    
+    // Only send out a notification to the daemon if the
+    // message is not vendor-specific or a SCSI message.
+    if(asyncEvent != kiSCSIPDUAsyncMsgSCSIAsyncMsg && asyncEvent != kiSCSIPDUAsyncMsgVendorCode)
+        client->sendAsyncMessageNotification(session->sessionId,connection->cid,asyncEvent);
+
+    if(data)
+        IOFree(data,length);
 }
 
 /*! Process an incoming R2T PDU.
@@ -1072,7 +1089,7 @@ void iSCSIVirtualHBA::ProcessR2T(iSCSISession * session,
     if(!parallelTask)
     {
         DBLog("iscsi: Couldn't find requested task to process (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
         return;
     }
     
@@ -1098,8 +1115,8 @@ void iSCSIVirtualHBA::ProcessDataOutForTask(iSCSISession * session,
     UInt32 dataSegmentLength = connection->maxSendDataSegmentLength;
     UInt32 dataSN = 0;
     
-    DBLog("iscsi: Dataoffset: %d (sid: %d, cid: %d)\n",dataOffset,session->sessionId,connection->CID);
-    DBLog("iscsi: Desired data length: %d (sid: %d, cid: %d)\n",dataLength,session->sessionId,connection->CID);
+    DBLog("iscsi: Dataoffset: %d (sid: %d, cid: %d)\n",dataOffset,session->sessionId,connection->cid);
+    DBLog("iscsi: Desired data length: %d (sid: %d, cid: %d)\n",dataLength,session->sessionId,connection->cid);
     
     // Create data PDUs and send them until all desired data has been sent
     iSCSIPDUDataOutBHS bhsDataOut = iSCSIPDUDataOutBHSInit;
@@ -1129,7 +1146,7 @@ void iSCSIVirtualHBA::ProcessDataOutForTask(iSCSISession * session,
                                 NULL,data,dataSegmentLength);
         
         if(error) {
-            DBLog("iscsi: Send error: %d (sid: %d, cid: %d)\n",error,session->sessionId,connection->CID);
+            DBLog("iscsi: Send error: %d (sid: %d, cid: %d)\n",error,session->sessionId,connection->cid);
             break;
         }
         
@@ -1161,7 +1178,7 @@ void iSCSIVirtualHBA::ProcessReject(iSCSISession * session,
     if(length == 0)
     {
         DBLog("iscsi: Missing data segment in data-in PDU (sid: %d, cid: %d)\n",
-              session->sessionId,connection->CID);
+              session->sessionId,connection->cid);
         return;
     }
     
@@ -1433,7 +1450,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
     newConn->expStatSN = 0;
     newConn->dataToTransfer = 0;
     newConn->bytesPerSecond = 0;
-    newConn->CID = index;
+    newConn->cid = index;
     
     newConn->maxRecvDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
     newConn->maxSendDataSegmentLength = kRFC3720_MaxRecvDataSegmentLength;
@@ -1794,7 +1811,7 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     iovecCnt++;
 
     DBLog("iscsi: Sent PDU type %#x (sid: %d, cid: %d)\n",
-          bhs->opCodeAndDeliveryMarker,session->sessionId,connection->CID);
+          bhs->opCodeAndDeliveryMarker,session->sessionId,connection->cid);
     
     // Leave room for a header digest
     if(connection->useHeaderDigest)    {
@@ -1913,12 +1930,12 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
     
     if(result != 0)
-        DBLog("iscsi: sock_receive error returned with code %d (sid: %d, cid: %d)\n",result,session->sessionId,connection->CID);
+        DBLog("iscsi: sock_receive error returned with code %d (sid: %d, cid: %d)\n",result,session->sessionId,connection->cid);
 
     // Verify length; incoming PDUS from a target should have no AHS, verify.
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
     {
-        DBLog("iscsi: Received incomplete PDU header: %zu bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->CID);
+        DBLog("iscsi: Received incomplete PDU header: %zu bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->cid);
         
 // TODO: handle error
         
@@ -1931,7 +1948,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
         // Compute digest (should be 0 since we start with the digest)
         if(headerDigest != crc32c(0,bhs,kiSCSIPDUBasicHeaderSegmentSize))
         {
-            DBLog("iscsi: Failed header digest (sid: %d, cid: %d)\n",session->sessionId,connection->CID);
+            DBLog("iscsi: Failed header digest (sid: %d, cid: %d)\n",session->sessionId,connection->cid);
             
 // TODO: handle error
             
@@ -2027,7 +2044,7 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
         
         if(dataDigest != calcDigest)
         {
-            DBLog("iscsi: Failed data digest (sid: %d, cid: %d)\n",session->sessionId,connection->CID);
+            DBLog("iscsi: Failed data digest (sid: %d, cid: %d)\n",session->sessionId,connection->cid);
             
 // TODO: handle error
             
