@@ -12,16 +12,26 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <DiskArbitration/DiskArbitration.h>
-#include "iSCSITypesShared.h"
-#include <IOKit/scsi/SCSITask.h>
+#include "iSCSITypes.h"
 
+/*! Mount and unmount operation callback function. */
+typedef void (*iSCSIDACallback)(iSCSITargetRef,void * );
 
-/*! Mounts all IOMedia associated with a particular iSCSI session.
- *  @param targetIQN the name of the iSCSI target. */
-void iSCSIDAMountIOMediaForTarget(CFStringRef targetIQN);
+/*! Mounts all IOMedia associated with a particular iSCSI session, and
+ *  calls the specified callback function with a context parameter when
+ *  all existing volumes have been mounted. */
+void iSCSIDAMountForTarget(DASessionRef session,
+                           iSCSITargetRef target,
+                           iSCSIDACallback callback,
+                           void * context);
 
-/*! Unmounts all media associated with a particular iSCSI session.
- *  @param targetIQN the name of the iSCSI target. */
-void iSCSIDAUnmountIOMediaForTarget(CFStringRef targetIQN);
+/*! Unmounts all media associated with a particular iSCSI session, and
+ *  calls the specified callback function with a context parameter when
+ *  all mounted volumes have been unmounted. */
+void iSCSIDAUnmountForTarget(DASessionRef session,
+                             iSCSITargetRef target,
+                             iSCSIDACallback callback,
+                             void * context);
+
 
 #endif /* defined(__ISCSI_DA_H__) */
