@@ -40,12 +40,6 @@ enum iSCSICtlCmds {
     /*! Logout (target). */
     kiSCSICtlCmdLogout,
 
-    /*! Mount (target LUNs). */
-    kiSCSICtlCmdMount,
-
-    /*! Unmount (target LUNs). */
-    kiSCSICtlCmdUnmount,
-
     /*! Probe (target). */
     kiSCSICtlCmdProbe,
 
@@ -187,8 +181,6 @@ enum iSCSICtlCmds iSCSICtlGetCmdFromArguments(CFArrayRef arguments)
     CFDictionarySetValue(modesDict,CFSTR("list") ,(const void *)kiSCSICtlCmdList);
     CFDictionarySetValue(modesDict,CFSTR("login"),(const void *)kiSCSICtlCmdLogin);
     CFDictionarySetValue(modesDict,CFSTR("logout"),(const void *)kiSCSICtlCmdLogout);
-    CFDictionarySetValue(modesDict,CFSTR("mount"),(const void *)kiSCSICtlCmdMount);
-    CFDictionarySetValue(modesDict,CFSTR("unmount"),(const void *)kiSCSICtlCmdUnmount);
     CFDictionarySetValue(modesDict,CFSTR("probe"),(const void *)kiSCSICtlCmdProbe);
     CFDictionarySetValue(modesDict,CFSTR("reset"),(const void *)kiSCSICtlCmdReset);
 
@@ -348,10 +340,8 @@ void iSCSICtlDisplayUsage()
     
     
     iSCSICtlDisplayString(CFSTR("       iscsictl login   <target>[,<portal>]\n"
-                                "       iscsictl logout  <target>[,<portal>]\n"
-                                "       iscsictl mount   <target>\n"
-                                "       iscsictl unmount <target>\n\n"));
-
+                                "       iscsictl logout  <target>[,<portal>]\n"));
+    
     iSCSICtlDisplayString(CFSTR("       iscsictl modify initiator-config [...]\n"
                                 "       iscsictl modify target-config <target>[,<portal>] [...]\n"
                                 "       iscsictl modify discovery-config [...]\n\n"));
@@ -2070,30 +2060,6 @@ errno_t iSCSICtlReset(iSCSIDaemonHandle handle,CFDictionaryRef options)
     return 0;
 }
 
-errno_t iSCSICtlMountForTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
-{
-    iSCSITargetRef target = NULL;
-    
-    if(!(target = iSCSICtlCreateTargetFromOptions(options)))
-        return EINVAL;
-    
-    iSCSIDAMountIOMediaForTarget(iSCSITargetGetIQN(target));
-    CFRelease(target);
-    return 0;
-}
-
-errno_t iSCSICtlUnmountForTarget(iSCSIDaemonHandle handle,CFDictionaryRef options)
-{
-    iSCSITargetRef target = NULL;
-    
-    if(!(target = iSCSICtlCreateTargetFromOptions(options)))
-        return EINVAL;
-
-    iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
-    CFRelease(target);
-    return 0;
-}
-
 
 /*! Entry point.  Parses command line arguments, establishes a connection to the
  *  iSCSI deamon and executes requested iSCSI tasks. */
@@ -2189,10 +2155,6 @@ int main(int argc, char * argv[])
             error = iSCSICtlLogin(handle,optDictionary); break;
         case kiSCSICtlCmdLogout:
             error = iSCSICtlLogout(handle,optDictionary); break;
-        case kiSCSICtlCmdMount:
-            error = iSCSICtlMountForTarget(handle,optDictionary); break;
-        case kiSCSICtlCmdUnmount:
-            error = iSCSICtlUnmountForTarget(handle,optDictionary); break;
         case kiSCSICtlCmdProbe:
             error = iSCSICtlProbeTargetForAuthMethod(handle,optDictionary); break;
         case kiSCSICtlCmdReset:
