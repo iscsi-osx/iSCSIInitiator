@@ -13,6 +13,8 @@
 #include <sys/socket.h>
 #include <sys/event.h>
 #include <sys/un.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -55,6 +57,16 @@ CFRunLoopTimerRef discoveryTimer = NULL;
 
 // Mutex lock when discovery is running
 pthread_mutex_t discoveryMutex = PTHREAD_MUTEX_INITIALIZER;
+
+/*! Server-side timeouts (in milliseconds) for send()/recv(). */
+static const int kiSCSIDaemonTimeoutMilliSec = 250;
+
+
+struct iSCSIDIncomingRequestInfo {
+    CFSocketRef socket;
+    CFRunLoopSourceRef socketSourceRead;
+    int fd;
+};
 
 
 const iSCSIDMsgLoginRsp iSCSIDMsgLoginRspInit = {
@@ -455,11 +467,72 @@ errno_t iSCSIDLogin(int fd,iSCSIDMsgLoginCmd * cmd)
     return 0;
 }
 
+typedef struct iSCSIDLogoutContext {
+    int fd;
+    DASessionRef diskSession;
+    iSCSIPortalRef portal;
+    errno_t errorCode;
+} iSCSIDLogoutContext;
+
+
+void iSCSIDLogoutComplete(iSCSITargetRef target,void * context)
+{
+    // At this point either the we logout the session or just the connection
+    // associated with the specified portal, if one was specified
+    iSCSIDLogoutContext * ctx = (iSCSIDLogoutContext*)context;
+
+    // Store local copies and free structure
+    int fd = ctx->fd;
+    errno_t errorCode = ctx->errorCode;
+    iSCSIPortalRef portal = ctx->portal;
+    CFRelease(ctx->diskSession);
+    free(ctx);
+
+    enum iSCSILogoutStatusCode statusCode;
+    
+    if(!errorCode)
+    {
+        SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
+
+        if(!portal)
+            errorCode = iSCSILogoutSession(sessionId,&statusCode);
+        else {
+            CID connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
+            errorCode = iSCSILogoutConnection(sessionId,connectionId,&statusCode);
+        }
+    }
+    
+    // Log error message
+    if(errorCode) {
+        CFStringRef errorString = CFStringCreateWithFormat(
+            kCFAllocatorDefault,0,
+            CFSTR("logout of %@,%@:%@ failed: %s\n"),
+            iSCSITargetGetIQN(target),
+            iSCSIPortalGetAddress(portal),
+            iSCSIPortalGetPort(portal),
+            strerror(errorCode));
+        
+        asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        CFRelease(errorString);
+    }
+
+    if(portal)
+        iSCSIPortalRelease(portal);
+    iSCSITargetRelease(target);
+    
+    // Compose a response to send back to the client
+    iSCSIDMsgLogoutRsp rsp = iSCSIDMsgLogoutRspInit;
+    rsp.errorCode = errorCode;
+    rsp.statusCode = statusCode;
+    
+    send(fd,&rsp,sizeof(rsp),0);
+}
 
 errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
 {
     CFDataRef targetData = NULL, portalData = NULL;
     iSCSIDaemonRecvMsg(fd,0,&targetData,cmd->targetLength,&portalData,cmd->portalLength,NULL);
+    errno_t errorCode = 0;
 
     iSCSITargetRef target = NULL;
 
@@ -475,71 +548,65 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
         CFRelease(portalData);
     }
 
-    SID sessionId = kiSCSIInvalidSessionId;
-    CID connectionId = kiSCSIInvalidConnectionId;
-    enum iSCSILogoutStatusCode statusCode = kiSCSILogoutInvalidStatusCode;
-
-    // Error code to return to daemon's client
-    errno_t errorCode = 0;
-
-    // Synchronize property list
-    iSCSIPLSynchronize();
-
     // See if there exists an active session for this target
-    if((sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target))) == kiSCSIInvalidSessionId)
+    SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
+
+    if(sessionId == kiSCSIInvalidSessionId)
     {
-        //iSCSICtlDisplayError("The specified target has no active session.");
-        errorCode = EINVAL;
-    }
-
-    // See if there exists an active connection for this portal
-    if(!errorCode && portal)
-        connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
-
-    // If the portal was specified and a connection doesn't exist for it...
-    if(!errorCode && portal && connectionId == kiSCSIInvalidConnectionId)
-    {
-        //iSCSICtlDisplayError("The specified portal has no active connections.");
-        errorCode = EINVAL;
-    }
-
-    // At this point either the we logout the session or just the connection
-    // associated with the specified portal, if one was specified
-    if(!errorCode)
-    {
-        if(!portal)
-            errorCode = iSCSILogoutSession(sessionId,&statusCode);
-        else
-            errorCode = iSCSILogoutConnection(sessionId,connectionId,&statusCode);
-    }
-
-    // Log error message
-    if(errorCode) {
         CFStringRef errorString = CFStringCreateWithFormat(
             kCFAllocatorDefault,0,
-            CFSTR("Logout of <%@,%@:%@ interface %@> failed: %s\n"),
-            iSCSITargetGetIQN(target),
-            iSCSIPortalGetAddress(portal),
-            iSCSIPortalGetPort(portal),
-            iSCSIPortalGetHostInterface(portal),
-            strerror(errorCode));
-
-        asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            CFSTR("logout of %@ failed: the target has no active sessions"),
+            iSCSITargetGetIQN(target));
+        
+        asl_log(0,0,ASL_LEVEL_CRIT,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
         CFRelease(errorString);
+        errorCode = EINVAL;
     }
-
-
-    if(portal)
-        iSCSIPortalRelease(portal);
-    iSCSITargetRelease(target);
-
-    // Compose a response to send back to the client
-    iSCSIDMsgLogoutRsp rsp = iSCSIDMsgLogoutRspInit;
-    rsp.errorCode = errorCode;
-    rsp.statusCode = statusCode;
-
-    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EAGAIN;
+    
+    // See if there exists an active connection for this portal
+    CID connectionId = kiSCSIInvalidConnectionId;
+    CFIndex connectionCount = 0;
+    
+    if(!errorCode && portal) {
+        connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
+        
+        if(connectionId == kiSCSIInvalidConnectionId) {
+        
+            CFStringRef errorString = CFStringCreateWithFormat(
+                kCFAllocatorDefault,0,
+                CFSTR("logout of %@,%@:%@ failed: the portal has no active connections"),
+                iSCSITargetGetIQN(target),iSCSIPortalGetAddress(portal),iSCSIPortalGetPort(portal));
+        
+            asl_log(0,0,ASL_LEVEL_CRIT,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            CFRelease(errorString);
+            errorCode = EINVAL;
+        }
+        else {
+            // Determine the number of connections
+            CFArrayRef connectionIds = iSCSICreateArrayOfConnectionsIds(sessionId);
+            connectionCount = CFArrayGetCount(connectionIds);
+            CFRelease(connectionIds);
+        }
+    }
+    
+    // Unmount volumes if portal not specified (session logout)
+    // or if portal is specified and is only connection...
+    
+    iSCSIDLogoutContext * context = (iSCSIDLogoutContext*)malloc(sizeof(iSCSIDLogoutContext));
+    context->fd = fd;
+    context->diskSession = DASessionCreate(kCFAllocatorDefault);
+    context->portal = portal;
+    context->errorCode = errorCode;
+    
+    if(!errorCode) {
+        if(!portal || connectionCount == 1) {
+            DASessionScheduleWithRunLoop(context->diskSession,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
+            iSCSIDAUnmountForTarget(context->diskSession,target,&iSCSIDLogoutComplete,context);
+        }
+        else {
+            iSCSIDLogoutComplete(target,context);
+        }
+    }
 
     return 0;
 }
@@ -944,7 +1011,7 @@ void iSCSIDPrepareForSystemSleep()
         iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
         
         CFStringRef targetIQN = iSCSITargetGetIQN(target);
-        iSCSIDAUnmountIOMediaForTarget(targetIQN);
+//        iSCSIDAUnmountIOMediaForTarget(targetIQN);
         iSCSITargetRelease(target);
     }
 }
@@ -1002,29 +1069,15 @@ void iSCSIDDeregisterForPowerEvents()
     IONotificationPortDestroy(powerNotifyPortRef);
 }
 
-/*! Handle an incoming connection from iscsictl. Once a connection is
- *  established, main runloop calls this function. This function processes
- *  all incoming commands until a shutdown request is received, at which point
- *  this function terminates and returns control to the run loop. For this
- *  reason, no other commands (e.g., timers) can be executed until the 
- *  incoming request is processed. */
-void iSCSIDProcessIncomingRequest(CFSocketRef socket,
-                                  CFSocketCallBackType callbackType,
-                                  CFDataRef address,
-                                  const void * data,
-                                  void * info)
+void iSCSIDProcessIncomingRequest(void * info)
 {
-    // Wait for an incoming connection; upon timeout quit
-    struct sockaddr_storage peerAddress;
-    socklen_t length = sizeof(peerAddress);
-
-    // Get file descriptor associated with the connection
-    int fd = accept(CFSocketGetNative(socket),(struct sockaddr *)&peerAddress,&length);
-
+    struct iSCSIDIncomingRequestInfo * reqInfo = (struct iSCSIDIncomingRequestInfo*)info;
     iSCSIDMsgCmd cmd;
-
-    while(fd != 0 && recv(fd,&cmd,sizeof(cmd),0) == sizeof(cmd)) {
-
+    
+    int fd = reqInfo->fd;
+    
+    if(fd != 0 && recv(fd,&cmd,sizeof(cmd),MSG_WAITALL) == sizeof(cmd)) {
+        
         errno_t error = 0;
         switch(cmd.funcCode)
         {
@@ -1049,11 +1102,51 @@ void iSCSIDProcessIncomingRequest(CFSocketRef socket,
             case kiSCSIDUpdateDiscovery:
                 error = iSCSIDUpdateDiscovery(fd,(iSCSIDMsgUpdateDiscoveryCmd*)&cmd); break;
             default:
-                close(fd);
-                fd = 0;
+                CFSocketInvalidate(reqInfo->socket);
+                reqInfo->fd = 0;
         };
     }
+    
+    // If a request came in while we were processing, queue it up...
+    if(reqInfo->fd && recv(fd,&cmd,sizeof(cmd),MSG_PEEK) > 0) {
+            CFRunLoopSourceSignal(reqInfo->socketSourceRead);
+    }
 }
+
+/*! Handle an incoming connection from iscsictl. Once a connection is
+ *  established, main runloop calls this function. This function processes
+ *  all incoming commands until a shutdown request is received, at which point
+ *  this function terminates and returns control to the run loop. For this
+ *  reason, no other commands (e.g., timers) can be executed until the 
+ *  incoming request is processed. */
+void iSCSIDAcceptConnection(CFSocketRef socket,
+                            CFSocketCallBackType callbackType,
+                            CFDataRef address,
+                            const void * data,
+                            void * info)
+{
+    struct iSCSIDIncomingRequestInfo * reqInfo = (struct iSCSIDIncomingRequestInfo*)info;
+
+    // Get file descriptor associated with the connection
+    if(callbackType == kCFSocketAcceptCallBack) {
+        if(reqInfo->fd != 0) {
+            close(reqInfo->fd);
+        }
+        
+        reqInfo->fd = *(CFSocketNativeHandle*)data;
+        
+        // Set timeouts for send() and recv()
+        struct timeval tv;
+        memset(&tv,0,sizeof(tv));
+        tv.tv_usec = kiSCSIDaemonTimeoutMilliSec*1000;
+        
+        setsockopt(reqInfo->fd,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
+        setsockopt(reqInfo->fd,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
+    }
+    
+    iSCSIDProcessIncomingRequest(info);
+}
+
 
 /*! iSCSI daemon entry point. */
 int main(void)
@@ -1123,23 +1216,44 @@ int main(void)
         asl_log(NULL,NULL,ASL_LEVEL_ALERT,"could not register to receive system power events");
         goto ERROR_PWR_MGMT_FAIL;
     }
+    
+    // Context for processing incoming requests. Holds references to CFSocket and
+    // associated structures (e.g., runloop sources)
+    struct iSCSIDIncomingRequestInfo * reqInfo = malloc(sizeof(struct iSCSIDIncomingRequestInfo));
+    
+    // Create a socket with a callback to accept incoming connections
+    CFSocketContext sockContext;
+    bzero(&sockContext,sizeof(sockContext));
+    sockContext.info = (void*)reqInfo;
 
-    // Create a socket that will
     CFSocketRef socket = CFSocketCreateWithNative(kCFAllocatorDefault,
                                                   launch_data_get_fd(listen_socket),
-                                                  kCFSocketReadCallBack,
-                                                  iSCSIDProcessIncomingRequest,0);
-
-
-    // Runloop sources associated with socket events of connected clients
-    CFRunLoopSourceRef clientSockSource = CFSocketCreateRunLoopSource(kCFAllocatorDefault,socket,0);
-    CFRunLoopAddSource(CFRunLoopGetMain(),clientSockSource,kCFRunLoopDefaultMode);
-
-    // Ignore SIGPIPE (generated when the client closes the connection)
-    signal(SIGPIPE, SIG_IGN);
+                                                  kCFSocketAcceptCallBack,
+                                                  iSCSIDAcceptConnection,&sockContext);
+    
+    // Runloop source for CFSocket callback (iSCSIDAcceptConnection)
+    CFRunLoopSourceRef sockSourceAccept = CFSocketCreateRunLoopSource(kCFAllocatorDefault,socket,0);
+    CFRunLoopAddSource(CFRunLoopGetMain(),sockSourceAccept,kCFRunLoopDefaultMode);
+    
+    // Runloop source signaled by daemon to queue processing of incoming data
+    CFRunLoopSourceRef sockSourceRead;
+    CFRunLoopSourceContext readContext;
+    bzero(&readContext,sizeof(readContext));
+    readContext.info = (void*)reqInfo;
+    readContext.perform = iSCSIDProcessIncomingRequest;
+    sockSourceRead = CFRunLoopSourceCreate(kCFAllocatorDefault,1,&readContext);
+    CFRunLoopAddSource(CFRunLoopGetMain(),sockSourceRead,kCFRunLoopDefaultMode);
+    
+    // Setup context
+    reqInfo->socket = socket;
+    reqInfo->socketSourceRead = sockSourceRead;
+    reqInfo->fd = 0;
 
     asl_log(NULL,NULL,ASL_LEVEL_INFO,"daemon started");
 
+    // Ignore SIGPIPE (generated when the client closes the connection)
+//    signal(SIGPIPE, SIG_IGN);
+    
     // Initialize iSCSI connection to kernel (ability to call iSCSI kernel
     // functions and receive notifications from the kernel).
     iSCSIInitialize(CFRunLoopGetMain());
@@ -1155,6 +1269,8 @@ int main(void)
     
     // Deregister for power
     iSCSIDDeregisterForPowerEvents();
+    
+    // Free all CF objects and reqInfo structure...
     
     launch_data_free(reg_response);
     asl_close(log);
