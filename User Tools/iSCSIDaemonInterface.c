@@ -78,8 +78,12 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     strcpy(address.sun_path,"/var/tmp/iscsid");
 
     // Do non-blocking connect
-    //    fcntl(handle,F_SETFL,O_NONBLOCK);
-    connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address));
+    int flags = 0;
+    fcntl(handle,F_GETFL,&flags);
+    fcntl(handle,F_SETFL,flags | O_NONBLOCK);
+
+    if(connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address)) == -1)
+        return -1;
 
     // Set timeout for connect()
     struct timeval tv;
@@ -90,7 +94,7 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     FD_ZERO(&fdset);
     FD_SET(handle,&fdset);
 
-    if(select(handle,NULL,&fdset,NULL,&tv)) {
+    if(select(handle,NULL,&fdset,NULL,&tv) != -1) {
         errno_t error;
         socklen_t errorSize = sizeof(errno_t);
         getsockopt(handle,SOL_SOCKET,SO_ERROR,&error,&errorSize);
@@ -103,6 +107,9 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
             // Set send & receive timeouts
             memset(&tv,0,sizeof(tv));
             tv.tv_sec = kiSCSIDaemonDefaultTimeoutSec;
+            
+            // Restore flags prior to adding blocking
+            fcntl(handle,F_SETFL,flags);
 
             setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
             setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
@@ -384,7 +391,6 @@ CFArrayRef iSCSIDaemonCreateArrayOfActiveTargets(iSCSIDaemonHandle handle)
 
     return activeTargets;
 }
-
 
 /*! Creates an array of active portal objects.
  *  @param target the target to retrieve active portals.
