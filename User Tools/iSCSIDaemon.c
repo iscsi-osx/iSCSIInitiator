@@ -127,6 +127,16 @@ const iSCSIDMsgUpdateDiscoveryRsp iSCSIDMsgUpdateDiscoveryRspInit = {
     .errorCode = 0,
 };
 
+/*! Used for the logout process. */
+typedef struct iSCSIDLogoutContext {
+    int fd;
+    DASessionRef diskSession;
+    iSCSIPortalRef portal;
+    errno_t errorCode;
+    
+} iSCSIDLogoutContext;
+
+
 iSCSISessionConfigRef iSCSIDCreateSessionConfig(CFStringRef targetIQN)
 {
     iSCSIMutableSessionConfigRef config = iSCSISessionConfigCreateMutable();
@@ -270,11 +280,10 @@ errno_t iSCSIDLoginCommon(SID sessionId,
     if(error) {
         CFStringRef errorString = CFStringCreateWithFormat(
             kCFAllocatorDefault,0,
-            CFSTR("Login to <%@,%@:%@ interface %@> failed: %s\n"),
+            CFSTR("login to %@,%@:%@ failed: %s\n"),
             targetIQN,
             iSCSIPortalGetAddress(portal),
             iSCSIPortalGetPort(portal),
-            iSCSIPortalGetHostInterface(portal),
             strerror(error));
 
         asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
@@ -467,15 +476,7 @@ errno_t iSCSIDLogin(int fd,iSCSIDMsgLoginCmd * cmd)
     return 0;
 }
 
-typedef struct iSCSIDLogoutContext {
-    int fd;
-    DASessionRef diskSession;
-    iSCSIPortalRef portal;
-    errno_t errorCode;
-} iSCSIDLogoutContext;
-
-
-void iSCSIDLogoutComplete(iSCSITargetRef target,void * context)
+void iSCSIDLogoutComplete(iSCSITargetRef target,enum iSCSIDAOperationResult result,void * context)
 {
     // At this point either the we logout the session or just the connection
     // associated with the specified portal, if one was specified
@@ -494,8 +495,14 @@ void iSCSIDLogoutComplete(iSCSITargetRef target,void * context)
     {
         SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
 
-        if(!portal)
-            errorCode = iSCSILogoutSession(sessionId,&statusCode);
+        // For session logout, ensure that disk unmount was successful...
+        if(!portal) {
+            
+            if(result == kiSCSIDAOperationSuccess)
+                errorCode = iSCSILogoutSession(sessionId,&statusCode);
+            else
+                errorCode = EBUSY;
+        }
         else {
             CID connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
             errorCode = iSCSILogoutConnection(sessionId,connectionId,&statusCode);
@@ -504,13 +511,24 @@ void iSCSIDLogoutComplete(iSCSITargetRef target,void * context)
     
     // Log error message
     if(errorCode) {
-        CFStringRef errorString = CFStringCreateWithFormat(
-            kCFAllocatorDefault,0,
-            CFSTR("logout of %@,%@:%@ failed: %s\n"),
-            iSCSITargetGetIQN(target),
-            iSCSIPortalGetAddress(portal),
-            iSCSIPortalGetPort(portal),
-            strerror(errorCode));
+        CFStringRef errorString;
+        
+        if(!portal) {
+            errorString = CFStringCreateWithFormat(
+               kCFAllocatorDefault,0,
+               CFSTR("logout of %@ failed: %s\n"),
+               iSCSITargetGetIQN(target),
+               strerror(errorCode));
+        }
+        else {
+            errorString = CFStringCreateWithFormat(
+                kCFAllocatorDefault,0,
+                CFSTR("logout of %@,%@:%@ failed: %s\n"),
+                iSCSITargetGetIQN(target),
+                iSCSIPortalGetAddress(portal),
+                iSCSIPortalGetPort(portal),
+                strerror(errorCode));
+        }
         
         asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
         CFRelease(errorString);
@@ -591,7 +609,6 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
     
     // Unmount volumes if portal not specified (session logout)
     // or if portal is specified and is only connection...
-    
     iSCSIDLogoutContext * context = (iSCSIDLogoutContext*)malloc(sizeof(iSCSIDLogoutContext));
     context->fd = fd;
     context->diskSession = DASessionCreate(kCFAllocatorDefault);
@@ -601,10 +618,10 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
     if(!errorCode) {
         if(!portal || connectionCount == 1) {
             DASessionScheduleWithRunLoop(context->diskSession,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
-            iSCSIDAUnmountForTarget(context->diskSession,target,&iSCSIDLogoutComplete,context);
+            iSCSIDAUnmountForTarget(context->diskSession,kDADiskUnmountOptionWhole,target,&iSCSIDLogoutComplete,context);
         }
         else {
-            iSCSIDLogoutComplete(target,context);
+            iSCSIDLogoutComplete(target,kiSCSIDAOperationSuccess,context);
         }
     }
 
@@ -1252,7 +1269,7 @@ int main(void)
     asl_log(NULL,NULL,ASL_LEVEL_INFO,"daemon started");
 
     // Ignore SIGPIPE (generated when the client closes the connection)
-//    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE,SIG_IGN);
     
     // Initialize iSCSI connection to kernel (ability to call iSCSI kernel
     // functions and receive notifications from the kernel).
