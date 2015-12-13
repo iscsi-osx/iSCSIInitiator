@@ -17,7 +17,7 @@ static const int kiSCSIDaemonConnectTimeoutMilliSec = 100;
 /*! Timeout to use for normal communication with daemon. This is the time
  *  that the client will have to wait for the deamon to perform the desired
  *  operation (potentially over the network). */
-static const int kiSCSIDaemonDefaultTimeoutSec = 20;
+static const int kiSCSIDaemonDefaultTimeoutSec = 30;
 
 
 const iSCSIDMsgLoginCmd iSCSIDMsgLoginCmdInit  = {
@@ -104,13 +104,13 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
             handle = -1;
         }
         else {
+            // Restore flags prior to adding blocking
+            fcntl(handle,F_SETFL,flags);
+
             // Set send & receive timeouts
             memset(&tv,0,sizeof(tv));
             tv.tv_sec = kiSCSIDaemonDefaultTimeoutSec;
             
-            // Restore flags prior to adding blocking
-            fcntl(handle,F_SETFL,flags);
-
             setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
             setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
         }
@@ -213,9 +213,6 @@ errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
     iSCSIDMsgLogoutRsp rsp;
 
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
-
-    if(rsp.funcCode != kiSCSIDLogout)
         return EIO;
 
     // At this point we have a valid response, process it
