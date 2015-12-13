@@ -14,13 +14,27 @@
 #include <DiskArbitration/DiskArbitration.h>
 #include "iSCSITypes.h"
 
+/*! Result of a mount or unmount disk operation. */
+enum iSCSIDAOperationResult {
+    
+    /*! All volumes were successfully mounted or unmounted. */
+    kiSCSIDAOperationSuccess,
+
+    /*! Some volumes were successfully mounted or unmounted. */
+    kISCSIDAOperationPartialSuccess,
+
+    /*! No volumes were successfully mounted or unmounted. */
+    kiSCSIDAOperationFail
+};
+
 /*! Mount and unmount operation callback function. */
-typedef void (*iSCSIDACallback)(iSCSITargetRef,void * );
+typedef void (*iSCSIDACallback)(iSCSITargetRef,enum iSCSIDAOperationResult,void *);
 
 /*! Mounts all IOMedia associated with a particular iSCSI session, and
  *  calls the specified callback function with a context parameter when
  *  all existing volumes have been mounted. */
 void iSCSIDAMountForTarget(DASessionRef session,
+                           DADiskUnmountOptions options,
                            iSCSITargetRef target,
                            iSCSIDACallback callback,
                            void * context);
@@ -29,6 +43,7 @@ void iSCSIDAMountForTarget(DASessionRef session,
  *  calls the specified callback function with a context parameter when
  *  all mounted volumes have been unmounted. */
 void iSCSIDAUnmountForTarget(DASessionRef session,
+                             DADiskUnmountOptions options,
                              iSCSITargetRef target,
                              iSCSIDACallback callback,
                              void * context);
