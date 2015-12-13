@@ -822,7 +822,6 @@ errno_t iSCSILogoutConnection(SID sessionId,
 errno_t iSCSIPrepareForSystemSleep()
 {
 // TODO: finish implementing this function, verify, test
-    
     CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
     
     if(!sessionIds)
@@ -830,14 +829,9 @@ errno_t iSCSIPrepareForSystemSleep()
     
     CFIndex sessionCount = CFArrayGetCount(sessionIds);
 
-    // Unmount all disk drives associated with each session
+    // Deactivate all connections associated with this session
     for(CFIndex idx = 0; idx < sessionCount; idx++) {
         SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
-        
-        // Unmount all media for this session
-        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
-        iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
-
         iSCSIKernelDeactivateAllConnections(sessionId);
     }
     
@@ -852,7 +846,7 @@ errno_t iSCSIPrepareForSystemSleep()
 errno_t iSCSIRestoreForSystemWake()
 {
 // TODO:
-
+    
 
     return 0;
 }
@@ -941,13 +935,6 @@ errno_t iSCSILogoutSession(SID sessionId,
     
     errno_t error = 0;
 
-    // Unmount all media for this session
-    iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
-
-    // No need to unmount media if this was a discovery session
-    if(target && CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
-        iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
-    
     // First deactivate all of the connections
     if((error = iSCSIKernelDeactivateAllConnections(sessionId)))
         return error;
