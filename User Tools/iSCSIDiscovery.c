@@ -45,6 +45,10 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
                                                 iSCSIDiscoveryRecRef discoveryRec)
 {
     CFArrayRef targets = iSCSIDiscoveryRecCreateArrayOfTargets(discoveryRec);
+    
+    if(!targets)
+        return EINVAL;
+    
     CFIndex targetCount = CFArrayGetCount(targets);
 
     CFMutableDictionaryRef discTargets = CFDictionaryCreateMutable(
@@ -124,6 +128,11 @@ void iSCSIDiscoveryRunSendTargets()
     iSCSIPLSynchronize();
 
     CFArrayRef portals = iSCSIPLCreateArrayOfPortalsForSendTargetsDiscovery();
+    
+    // Quit if no discovery portals are defined
+    if(!portals)
+        return;
+    
     CFIndex portalCount = CFArrayGetCount(portals);
 
     CFStringRef discoveryPortal = NULL;
@@ -132,7 +141,15 @@ void iSCSIDiscoveryRunSendTargets()
     for(CFIndex idx = 0; idx < portalCount; idx++)
     {
         discoveryPortal = CFArrayGetValueAtIndex(portals,idx);
+        
+        if(!discoveryPortal)
+            continue;
+        
         portal = iSCSIPLCopySendTargetsDiscoveryPortal(discoveryPortal);
+        
+        if(!portal)
+            continue;
+        
         enum iSCSILoginStatusCode statusCode;
         iSCSIMutableDiscoveryRecRef discoveryRec;
 
@@ -159,8 +176,10 @@ void iSCSIDiscoveryRunSendTargets()
         }
         else {
             // Now parse discovery results, add new targets and remove stale targets
-            iSCSIDiscoveryProcessSendTargetsResults(discoveryPortal,discoveryRec);
-            iSCSIDiscoveryRecRelease(discoveryRec);
+            if(discoveryRec) {
+                iSCSIDiscoveryProcessSendTargetsResults(discoveryPortal,discoveryRec);
+                iSCSIDiscoveryRecRelease(discoveryRec);
+            }
         }
     }
 
