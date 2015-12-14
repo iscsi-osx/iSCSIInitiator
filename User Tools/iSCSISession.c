@@ -814,44 +814,6 @@ errno_t iSCSILogoutConnection(SID sessionId,
     return error;
 }
 
-/*! Prepares the active sessions in the kernel for a sleep event.  After the
- *  system wakes up, the function iSCSIRestoreForSystemWake() should be
- *  called before using any other functions.  Failure to do so may lead to
- *  undefined behavior.
- *  @return an error code indicating the result of the operation. */
-errno_t iSCSIPrepareForSystemSleep()
-{
-// TODO: finish implementing this function, verify, test
-    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
-    
-    if(!sessionIds)
-        return 0;
-    
-    CFIndex sessionCount = CFArrayGetCount(sessionIds);
-
-    // Deactivate all connections associated with this session
-    for(CFIndex idx = 0; idx < sessionCount; idx++) {
-        SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
-        iSCSIKernelDeactivateAllConnections(sessionId);
-    }
-    
-    CFRelease(sessionIds);
-    return 0;
-}
-
-/*! Restores iSCSI sessions after a system has been woken up.  Before
- *  sleeping, the function iSCSIPrepareForSleep() must have been called.
- *  Otherwise, the behavior of this function is undefined.
- *  @return an error code indicating the result of the operation. */
-errno_t iSCSIRestoreForSystemWake()
-{
-// TODO:
-    
-
-    return 0;
-}
-
-
 /*! Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionClose to close this session and free resources.
  *  @param target specifies the target and connection parameters to use.
