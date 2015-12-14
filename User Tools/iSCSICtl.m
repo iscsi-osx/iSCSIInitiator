@@ -345,7 +345,7 @@ void iSCSICtlDisplayUsage()
                                 "       iscsictl modify target-config <target>[,<portal>] [...]\n"
                                 "       iscsictl modify discovery-config [...]\n\n"));
                                         
-    iSCSICtlDisplayString(CFSTR("       iscsictl list [ initiator-config | \n"
+    iSCSICtlDisplayString(CFSTR("       iscsictl list initiator-config\n"
                                 "       iscsictl list target-config <target>\n"
                                 "       iscsictl list discovery-config\n\n"));
                                         
