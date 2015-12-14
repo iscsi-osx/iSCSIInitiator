@@ -61,6 +61,10 @@ pthread_mutex_t discoveryMutex = PTHREAD_MUTEX_INITIALIZER;
 /*! Server-side timeouts (in milliseconds) for send()/recv(). */
 static const int kiSCSIDaemonTimeoutMilliSec = 250;
 
+/*! Dictionary used to keep track of portals and targets that
+ *  were active when the system goes to sleep. */
+CFMutableDictionaryRef activeTargets = NULL;
+
 
 struct iSCSIDIncomingRequestInfo {
     CFSocketRef socket;
@@ -1012,9 +1016,58 @@ void iSCSIDAutoLogin()
     CFRelease(targets);
 }
 
+void iSCSIDRestoreFromSystemSleep()
+{
+    // Do nothing if targets were not active before sleeping
+    if(!activeTargets)
+        return;
+    
+    asl_log(0,0,ASL_LEVEL_ALERT,"1");
+    
+    const CFIndex count = CFDictionaryGetCount(activeTargets);
+    
+    const CFStringRef targets[count];
+    const CFArrayRef portalArrays[count];
+    
+    CFDictionaryGetKeysAndValues(activeTargets,(const void**)targets,(const void**)portalArrays);
+    
+    for(CFIndex idx = 0; idx < count; idx++)
+    {
+        CFStringRef targetIQN = targets[idx];
+        CFArrayRef portalArray = portalArrays[idx];
+        CFIndex portalCount = CFArrayGetCount(portalArray);
+        
+        for(CFIndex portalIdx = 0; portalIdx < portalCount; portalIdx++)
+        {
+            enum iSCSILoginStatusCode statusCode;
+            iSCSIPortalRef portal = CFArrayGetValueAtIndex(portalArray,portalIdx);
+            
+            iSCSIMutableTargetRef target = iSCSITargetCreateMutable();
+            iSCSITargetSetIQN(target,targetIQN);
+            
+            iSCSIDLoginWithPortal(target,portal,&statusCode);
+            iSCSITargetRelease(target);
+        }
+    }
+    
+    CFRelease(activeTargets);
+    activeTargets = NULL;
+}
+
+/*! Called to logout of target after volumes for the target are unmounted. */
+void iSCSIDPrepareForSystemSleepComplete(iSCSITargetRef target,
+                                         enum iSCSIDAOperationResult result,
+                                         void * context)
+{
+    SID sessionId = (SID)context;
+    enum iSCSILogoutStatusCode statusCode;
+    iSCSILogoutSession(sessionId,&statusCode);
+}
+
+/*! Saves a dictionary of active targets and portals that
+ *  is used to restore active sessions upon wakeup. */
 void iSCSIDPrepareForSystemSleep()
 {
-    // Unmount all volumes associated with active targets
     CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
     
     if(!sessionIds)
@@ -1022,15 +1075,50 @@ void iSCSIDPrepareForSystemSleep()
     
     CFIndex sessionCount = CFArrayGetCount(sessionIds);
     
+    // Create disk arbitration session to force unmount of all volumes
+    DASessionRef diskSession = DASessionCreate(kCFAllocatorDefault);
+    
+    // Clear stale list if one is present
+    if(activeTargets) {
+        CFRelease(activeTargets);
+    }
+    
+    activeTargets = CFDictionaryCreateMutable(kCFAllocatorDefault,0,
+                                              &kCFTypeDictionaryKeyCallBacks,
+                                              &kCFTypeDictionaryValueCallBacks);
+    
+    
     for(CFIndex idx = 0; idx < sessionCount; idx++)
     {
         SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
         iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
         
+        if(!target)
+            continue;
+    
         CFStringRef targetIQN = iSCSITargetGetIQN(target);
-//        iSCSIDAUnmountIOMediaForTarget(targetIQN);
+        CFArrayRef connectionIds = iSCSICreateArrayOfConnectionsIds(sessionId);
+        CFIndex connectionCount = CFArrayGetCount(connectionIds);
+        
+        CFMutableArrayRef portals = CFArrayCreateMutable(kCFAllocatorDefault,0,&kCFTypeArrayCallBacks);
+        
+        for(CFIndex connIdx = 0; connIdx < connectionCount; connIdx++)
+        {
+            CID connectionId = (CID)CFArrayGetValueAtIndex(connectionIds,connIdx);
+            iSCSIPortalRef portal = iSCSICreatePortalForConnectionId(sessionId,connectionId);
+            CFArrayAppendValue(portal,portal);
+            CFRelease(portal);
+        }
+        
+        // Add array of active portals for target...
+        CFDictionarySetValue(activeTargets,targetIQN,portals);
+
+        DASessionScheduleWithRunLoop(diskSession,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
+        iSCSIDAUnmountForTarget(diskSession,kDADiskUnmountOptionWhole,target,&iSCSIDPrepareForSystemSleepComplete,(void*)sessionId);
         iSCSITargetRelease(target);
     }
+    
+    CFRetain(diskSession);
 }
 
 
@@ -1051,8 +1139,10 @@ void iSCSIDHandlePowerEvent(void * refCon,
         case kIOMessageSystemWillSleep:
             iSCSIDPrepareForSystemSleep();
             break;
+        case kIOMessageSystemWillPowerOn:
+            iSCSIDRestoreFromSystemSleep();
+            break;
     };
-
 }
 
 /*! Registers the daemon with the kernel to receive power events
