@@ -37,7 +37,10 @@ void iSCSIDADiskUnmountComplete(DADiskRef disk,DADissenterRef dissenter,void * c
         else if(opContext->successCount == 0)
             result = kiSCSIDAOperationFail;
         
-        (*opContext->callback)(opContext->target,result,opContext->context);
+        // If callback was specified...
+        if(opContext->callback)
+            (*opContext->callback)(opContext->target,result,opContext->context);
+        
         free(opContext);
     }
 }
@@ -58,7 +61,10 @@ void iSCSIDADiskMountComplete(DADiskRef disk,DADissenterRef dissenter,void * con
         else if(opContext->successCount == 0)
             result = kiSCSIDAOperationFail;
         
-        (*opContext->callback)(opContext->target,result,opContext->context);
+        // If callback was specified...
+        if(opContext->callback)
+            (*opContext->callback)(opContext->target,result,opContext->context);
+        
         free(opContext);
     }
 }
