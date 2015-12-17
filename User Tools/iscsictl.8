@@ -153,13 +153,10 @@ Initiator, targets and discovery configuration file.  Stores the initiator name 
 .Bl -tag -width Ds -compact
 iscsictl add target iqn.2015-01.com.example:target,192.168.1.100:3260 -interface en0
 .Pp
-iscsictl add target iqn.2015-01.com.example:target,192.168.1.101:3260 -interface en1
-.Pp
 iscsictl login iqn.2015-01.com.example:target,192.168.1.1.100
 .Pp
 iscsictl logout target iqn.2015-01.com.example:target
 .Pp
-iscsictl modify target iqn.2015-01.com.example:target,192.168.1.1.100:3260 -interface en2
 .Sh SEE ALSO
 .Xr iscsid 8
 .Sh AUTHORS
