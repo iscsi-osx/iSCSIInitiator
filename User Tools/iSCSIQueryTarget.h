@@ -41,6 +41,9 @@ struct iSCSILoginQueryContext {
     
     /*! The target session identifier. */
     TSIH targetSessionId;
+    
+    /*! Whether the target agrees to advance to next stage. */
+    bool transitNextStage;
 };
 
 /*! Helper function used throughout the login process to query the target.
