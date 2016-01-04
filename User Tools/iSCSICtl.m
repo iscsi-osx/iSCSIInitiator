@@ -1612,7 +1612,7 @@ errno_t iSCSICtlListDiscoveryConfig(iSCSIDaemonHandle handle,CFDictionaryRef opt
         enableString = CFSTR("enabled");
 
     CFStringRef format = CFSTR("\%@: %@"
-                               "\n\tinterval %ld");
+                               "\n\tinterval: %ld");
     CFStringRef discoveryConfig = CFStringCreateWithFormat(kCFAllocatorDefault,0,
                                                            format,
                                                            kOptKeySendTargetsEnable,
@@ -1872,7 +1872,9 @@ void displayTargetProperties(CFDictionaryRef propertiesDict)
     CFStringRef targetVendor = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIVendorIdentification));
     CFStringRef targetProduct = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIProductIdentification));
     CFStringRef targetRevision = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIProductRevisionLevel));
-    CFStringRef serialNumber = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertySCSIINQUIRYUnitSerialNumber));
+    
+    CFStringRef serialNumber = CFSTR("n/a");
+    CFDictionaryGetValueIfPresent(propertiesDict,CFSTR(kIOPropertySCSIINQUIRYUnitSerialNumber),(void*)&serialNumber);
     
     CFDictionaryRef protocolDict = CFDictionaryGetValue(propertiesDict,CFSTR(kIOPropertyProtocolCharacteristicsKey));
     CFNumberRef domainId = CFDictionaryGetValue(protocolDict,CFSTR(kIOPropertySCSIDomainIdentifierKey));
