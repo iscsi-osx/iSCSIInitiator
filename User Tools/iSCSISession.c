@@ -496,7 +496,7 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
     context.nextStage    = kiSCSIPDUFullFeaturePhase;
     context.targetSessionId = 0;
 
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
     
     // Send session-wide options to target and retreive a response dictionary
     errno_t error = iSCSISessionLoginQuery(&context,
@@ -568,7 +568,7 @@ errno_t iSCSINegotiateConnection(iSCSITargetRef target,
     if(context.targetSessionId != 0)
         context.nextStage = kiSCSIPDUFullFeaturePhase;
 
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
 
     // Send connection-wide options to target and retreive a response dictionary
     errno_t error = iSCSISessionLoginQuery(&context,
@@ -814,50 +814,6 @@ errno_t iSCSILogoutConnection(SID sessionId,
     return error;
 }
 
-/*! Prepares the active sessions in the kernel for a sleep event.  After the
- *  system wakes up, the function iSCSIRestoreForSystemWake() should be
- *  called before using any other functions.  Failure to do so may lead to
- *  undefined behavior.
- *  @return an error code indicating the result of the operation. */
-errno_t iSCSIPrepareForSystemSleep()
-{
-// TODO: finish implementing this function, verify, test
-    
-    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
-    
-    if(!sessionIds)
-        return 0;
-    
-    CFIndex sessionCount = CFArrayGetCount(sessionIds);
-
-    // Unmount all disk drives associated with each session
-    for(CFIndex idx = 0; idx < sessionCount; idx++) {
-        SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
-        
-        // Unmount all media for this session
-        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
-        iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
-
-        iSCSIKernelDeactivateAllConnections(sessionId);
-    }
-    
-    CFRelease(sessionIds);
-    return 0;
-}
-
-/*! Restores iSCSI sessions after a system has been woken up.  Before
- *  sleeping, the function iSCSIPrepareForSleep() must have been called.
- *  Otherwise, the behavior of this function is undefined.
- *  @return an error code indicating the result of the operation. */
-errno_t iSCSIRestoreForSystemWake()
-{
-// TODO:
-
-
-    return 0;
-}
-
-
 /*! Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionClose to close this session and free resources.
  *  @param target specifies the target and connection parameters to use.
@@ -941,13 +897,6 @@ errno_t iSCSILogoutSession(SID sessionId,
     
     errno_t error = 0;
 
-    // Unmount all media for this session
-    iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
-
-    // No need to unmount media if this was a discovery session
-    if(target && CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
-        iSCSIDAUnmountIOMediaForTarget(iSCSITargetGetIQN(target));
-    
     // First deactivate all of the connections
     if((error = iSCSIKernelDeactivateAllConnections(sessionId)))
         return error;
@@ -1073,7 +1022,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     
     iSCSIPDUTextReqBHS cmd = iSCSIPDUTextReqBHSInit;
     cmd.textReqStageFlags |= kiSCSIPDUTextReqFinalFlag;
-    cmd.targetTransferTag = 0xFFFFFFFF;
+    cmd.targetTransferTag = kiSCSIPDUTargetTransferTagReserved;
      
     error = iSCSIKernelSend(sessionId,connectionId,(iSCSIPDUInitiatorBHS *)&cmd,data,length);
     
@@ -1317,7 +1266,6 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(SID sessionId,CID connectionId)
     return portal;
 }
 
-
 /*! Creates a dictionary of session parameters for the session associated with
  *  the specified target, if one exists.
  *  @param handle a handle to a daemon connection.
@@ -1510,7 +1458,6 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSITargetRef target,
                                     sizeof(keys)/sizeof(void*),
                                     &kCFTypeDictionaryKeyCallBacks,
                                     &kCFTypeDictionaryValueCallBacks);
-    
     return dictionary;
 }
 
@@ -1538,27 +1485,57 @@ void iSCSISetInitiatorAlias(CFStringRef initiatorAlias)
     kiSCSIInitiatorAlias = CFStringCreateCopy(kCFAllocatorDefault,initiatorAlias);
 }
 
-void iSCSISessionHandleNotifications(enum iSCSIKernelNotificationTypes type,
-                                     iSCSIKernelNotificationMessage * msg)
+/*! The kernel calls this function only for asynchronous events that
+ *  involve dropped sessions, connections, logout requests and parameter
+ *  negotiation. This function is not called for asynchronous SCSI messages
+ *  or vendor-specific messages. */
+void iSCSISessionHandleKernelNotificationAsyncMessage(iSCSIKernelNotificationAsyncMessage * msg)
 {
-// TODO: implement this function to handle async PDUs (these are handled
-// in user-space).  They might involve dropped connections, etc., which may
-// need to be handled differently depending on error recovery levels
-// (Note: kernel should handle async SCSI event, this is for iSCSI events only
-//  see RFC3720 for more inforation).
+    enum iSCSIPDUAsyncMsgEvent asyncEvent = (enum iSCSIPDUAsyncMsgEvent)msg->asyncEvent;
+    enum iSCSILogoutStatusCode statusCode;
+    
+    CFStringRef statusString = CFStringCreateWithFormat(kCFAllocatorDefault,0,
+        CFSTR("iSCSI asynchronous message (code %d) received (sid: %d, cid: %d)"),
+        asyncEvent,msg->sessionId,msg->connectionId);
+    
+    asl_log(NULL,NULL,ASL_LEVEL_WARNING,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+    
+    CFRelease(statusString);
+    
+    switch (asyncEvent) {
+    
+        // We are required to issue a logout request
+        case kiSCSIPDUAsyncMsgLogout:
+            iSCSILogoutConnection(msg->sessionId,msg->connectionId,&statusCode);
+            break;
+            
+        // We have been asked to re-negotiate parameters for this connection
+        // (this is currently unsupported and we logout)
+        case kiSCSIPDUAsyncMsgNegotiateParams:
+            iSCSILogoutConnection(msg->sessionId,msg->connectionId,&statusCode);
+            break;
 
-    // Process an asynchronous message
-    if(type == kiSCSIKernelNotificationAsyncMessage)
-    {
-        iSCSIKernelNotificationAsyncMessage * asyncMsg = (iSCSIKernelNotificationAsyncMessage *)msg;
-     
-        // If the asynchronous message is invalid ignore it
-        enum iSCSIPDUAsyncMsgEvent asyncEvent = (enum iSCSIPDUAsyncMsgEvent)asyncMsg->asyncEvent;
-        
-        fprintf(stderr,"Async event occured");
+        default:
+            break;
     }
 }
 
+/*! This function is called by the kernel extension to notify the daemon
+ *  of an event that has occured within the kernel extension. */
+void iSCSISessionHandleKernelNotifications(enum iSCSIKernelNotificationTypes type,
+                                     iSCSIKernelNotificationMessage * msg)
+{
+    // Process an asynchronous message
+    switch(type)
+    {
+        // The kernel received an iSCSI asynchronous event message
+        case kiSCSIKernelNotificationAsyncMessage:
+            iSCSISessionHandleKernelNotificationAsyncMessage((iSCSIKernelNotificationAsyncMessage *)msg);
+            break;
+        case kISCSIKernelNotificationTerminate: break;
+        default: break;
+    };
+}
 
 /*! Call to initialize iSCSI session management functions.  This function will
  *  initialize the kernel layer after which other session-related functions
@@ -1567,10 +1544,10 @@ void iSCSISessionHandleNotifications(enum iSCSIKernelNotificationTypes type,
  *  @return an error code indicating the result of the operation. */
 errno_t iSCSIInitialize(CFRunLoopRef rl)
 {
-    errno_t error = iSCSIKernelInitialize(&iSCSISessionHandleNotifications);
+    errno_t error = iSCSIKernelInitialize(&iSCSISessionHandleKernelNotifications);
 
     CFRunLoopSourceRef source = iSCSIKernelCreateRunLoopSource();
-//    CFRunLoopAddSource(rl,source,kCFRunLoopDefaultMode);
+    CFRunLoopAddSource(rl,source,kCFRunLoopDefaultMode);
     
     return error;
 }

@@ -26,7 +26,6 @@
 		2B7817D91AC7852500EC605E /* iSCSIKernelInterface.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B451A70168B00A81C80 /* iSCSIKernelInterface.c */; };
 		2B7817DA1AC7853300EC605E /* iSCSIPDUUser.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B141A70157200A81C80 /* iSCSIPDUUser.c */; };
 		2B7817DB1AC7853C00EC605E /* iSCSIDA.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BC4CBAD1AA42921003611F7 /* iSCSIDA.c */; };
-		2B84883D1BEBCE0E0038DC53 /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = 2B84883C1BEBCE0E0038DC53 /* README.md */; settings = {ASSET_TAGS = (); }; };
 		2BA046951AA22DFF00E086DF /* iSCSITypesKernel.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BA046931AA22DFF00E086DF /* iSCSITypesKernel.h */; };
 		2BC0A4A21A80C6A60042105C /* crc32c.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B1F1A7015CF00A81C80 /* crc32c.c */; };
 		2BC310421AC7D66700D48102 /* iSCSIRFC3720Defaults.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BC310411AC7D66700D48102 /* iSCSIRFC3720Defaults.h */; };
@@ -41,7 +40,7 @@
 		2BC5F7601ACB9CD600829DD6 /* iSCSIUtils.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BC5F75C1ACB9CD600829DD6 /* iSCSIUtils.c */; };
 		2BCB2B331A7015CF00A81C80 /* crc32c.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B201A7015CF00A81C80 /* crc32c.h */; };
 		2BCB2B351A7015CF00A81C80 /* Prefix.pch in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B221A7015CF00A81C80 /* Prefix.pch */; };
-		2BCB2B361A7015CF00A81C80 /* iSCSIInitiator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B231A7015CF00A81C80 /* iSCSIInitiator.cpp */; };
+		2BCB2B361A7015CF00A81C80 /* iSCSIInitiator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B231A7015CF00A81C80 /* iSCSIInitiator.cpp */; settings = {COMPILER_FLAGS = "-Wno-inconsistent-missing-override "; }; };
 		2BCB2B371A7015CF00A81C80 /* iSCSIInitiator.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B241A7015CF00A81C80 /* iSCSIInitiator.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		2BCB2B381A7015CF00A81C80 /* iSCSIInitiatorClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BCB2B251A7015CF00A81C80 /* iSCSIInitiatorClient.cpp */; };
 		2BCB2B391A7015CF00A81C80 /* iSCSIInitiatorClient.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BCB2B261A7015CF00A81C80 /* iSCSIInitiatorClient.h */; settings = {ATTRIBUTES = (Private, ); }; };
@@ -515,7 +514,6 @@
 				2BC0A4A21A80C6A60042105C /* crc32c.c in Sources */,
 				2BCB2B3A1A7015CF00A81C80 /* iSCSIIOEventSource.cpp in Sources */,
 				2BCB2B381A7015CF00A81C80 /* iSCSIInitiatorClient.cpp in Sources */,
-				2B84883D1BEBCE0E0038DC53 /* README.md in Sources */,
 				2BCB2B361A7015CF00A81C80 /* iSCSIInitiator.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -17,7 +17,7 @@ static const int kiSCSIDaemonConnectTimeoutMilliSec = 100;
 /*! Timeout to use for normal communication with daemon. This is the time
  *  that the client will have to wait for the deamon to perform the desired
  *  operation (potentially over the network). */
-static const int kiSCSIDaemonDefaultTimeoutSec = 20;
+static const int kiSCSIDaemonDefaultTimeoutSec = 30;
 
 
 const iSCSIDMsgLoginCmd iSCSIDMsgLoginCmdInit  = {
@@ -78,8 +78,12 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     strcpy(address.sun_path,"/var/tmp/iscsid");
 
     // Do non-blocking connect
-    //    fcntl(handle,F_SETFL,O_NONBLOCK);
-    connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address));
+    int flags = 0;
+    fcntl(handle,F_GETFL,&flags);
+    fcntl(handle,F_SETFL,flags | O_NONBLOCK);
+
+    if(connect(handle,(const struct sockaddr *)&address,(socklen_t)SUN_LEN(&address)) == -1)
+        return -1;
 
     // Set timeout for connect()
     struct timeval tv;
@@ -90,7 +94,7 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     FD_ZERO(&fdset);
     FD_SET(handle,&fdset);
 
-    if(select(handle,NULL,&fdset,NULL,&tv)) {
+    if(select(handle,NULL,&fdset,NULL,&tv) != -1) {
         errno_t error;
         socklen_t errorSize = sizeof(errno_t);
         getsockopt(handle,SOL_SOCKET,SO_ERROR,&error,&errorSize);
@@ -100,10 +104,13 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
             handle = -1;
         }
         else {
+            // Restore flags prior to adding blocking
+            fcntl(handle,F_SETFL,flags);
+
             // Set send & receive timeouts
             memset(&tv,0,sizeof(tv));
             tv.tv_sec = kiSCSIDaemonDefaultTimeoutSec;
-
+            
             setsockopt(handle,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
             setsockopt(handle,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
         }
@@ -206,9 +213,6 @@ errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
     iSCSIDMsgLogoutRsp rsp;
 
     if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
-        return EIO;
-
-    if(rsp.funcCode != kiSCSIDLogout)
         return EIO;
 
     // At this point we have a valid response, process it
@@ -384,7 +388,6 @@ CFArrayRef iSCSIDaemonCreateArrayOfActiveTargets(iSCSIDaemonHandle handle)
 
     return activeTargets;
 }
-
 
 /*! Creates an array of active portal objects.
  *  @param target the target to retrieve active portals.

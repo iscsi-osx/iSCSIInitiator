@@ -22,12 +22,6 @@ login
 .Nm
 logout
 .Ar target Op , Ar portal
-.Nm
-mount
-.Ar  "  target"
-.Nm
-unmount
-.Ar	target
 
 .Nm
 modify initiator-config
@@ -66,8 +60,8 @@ The
 .B iscsictl
 utility is used to configure the iSCSI initiator and manage sessions.  Users may login or logout of targets after they have been defined with appropriate portals and optional authentication method, session parameters and connection parameters.  Unprivileged users cannot perform add, remove and modify operations.
 .Pp
-The options are as follows:
-.Bl -tag -width "-discovery"
+The subcommands are as follows:
+.Bl -tag -width Ds
 .It add
 Adds an entity to the specified database.
 .It modify
@@ -80,13 +74,8 @@ Lists entities in the specified database.
 Logs into a target or connection.
 .It logout
 Logs out of a target or connection.
-.It mount
-Mounts all volumes associated with the specified target.
-.It unmount
-Unmounts all volumes associated with the specified target.
 .El
 .Pp
-The
 .Ar target
 must be an iSCSI Qualified Name (IQN) as defined in RFC3720.  The
 .Ar portal
@@ -104,6 +93,56 @@ is omitted where optional, the command acts on all portals.  For example, when l
 .Ar portal
 is specified for a remove operation, only that portal is removed from the database.  If omitted, the target including all portals are removed.
 .Pp
+The following options can be used to modify initiator-config:
+.Bl -tag -width Ds
+.It Fl node-name Ar initiator_IQN
+The initiator's iSCSI qualified name (IQN) per RFC3720.
+.It Fl node-alias Ar alias
+An alias to used for the initiator (presented to the target during login).
+.It Fl authentication Ar method
+The authentication method to use. Possible values are either None or CHAP.
+.It Fl CHAP-name Ar name
+The CHAP user name to use for initiator authentication. This name is presented to the target for during the login phase if authentication is enabled.
+.It Fl CHAP-secret
+The CHAP secret to use for initiator authentication. The secret has a maximum length of 256 characters. The user will be prompted for the password when this option is used.
+.El
+.Pp
+The following options can be used to modify target-config:
+.Bl -tag -width Ds
+.It Fl auto-login Ar enable
+Specifies whether the iSCSI daemon should login to the target upon startup. Possible values for
+.Ar enable
+are enable or disable.
+.It Fl MaxConnections Ar max_connections
+The maximum number of simultaneous connections allowed for this target.
+.It Fl ErrorRecoveryLevel Ar error_level
+The error recovery level for the session associated with this target. Possible values for
+.Ar error_level
+are either 0, 1, or 2.
+.It Fl HeaderDigest Ar digest
+Specifies the type of header digest to use. Possible values for
+.Ar digest
+are None or CRC32C
+.It Fl DataDigest Ar digest
+Specifies the type of data digest to use. Possible values for
+.Ar digest
+are None or CRC32C.
+.It Fl CHAP-name Ar name
+The CHAP user name to use for target authentication. This name is presented to the initiator for during the login phase if authentication is enabled.
+.It Fl CHAP-secret
+The CHAP secret to use for target authentication. The secret has a maximum length of 256 characters. The user will be prompted for the password when this option is used.
+.El
+.Pp
+The following options can be used to modify discovery-config:
+.Bl -tag -width Ds
+.It Fl SendTargets Ar enable
+Specifies whether SendTargets discovery should be used. Possible values for
+.Ar enable
+are enable or disable.
+.It Fl interval Ar interval
+Specifies the discovery interval in seconds.
+.El
+.Pp
 .Pp
 .Sh FILES
 .Bl -tag -width Ds -compact
@@ -114,13 +153,10 @@ Initiator, targets and discovery configuration file.  Stores the initiator name 
 .Bl -tag -width Ds -compact
 iscsictl add target iqn.2015-01.com.example:target,192.168.1.100:3260 -interface en0
 .Pp
-iscsictl add target iqn.2015-01.com.example:target,192.168.1.101:3260 -interface en1
-.Pp
 iscsictl login iqn.2015-01.com.example:target,192.168.1.1.100
 .Pp
 iscsictl logout target iqn.2015-01.com.example:target
 .Pp
-iscsictl modify target iqn.2015-01.com.example:target,192.168.1.1.100:3260 -interface en2
 .Sh SEE ALSO
 .Xr iscsid 8
 .Sh AUTHORS

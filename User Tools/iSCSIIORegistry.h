@@ -55,12 +55,21 @@ void iSCSIIORegistryIOMediaApplyFunction(io_object_t root,
 io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t LUN);
 
 /*! Creates a dictionary of properties associated with the target.  These
- *  include the following keys:
+ *  include the following keys (not exhaustive, see OS X documentation):
  *
  *  kIOPropertySCSIVendorIdentification (CFStringRef)
  *  kIOPropertySCSIProductIdentification (CFStringRef)
- *  kIOPropertyiSCSIQualifiedNameKey (CFStringRef)
- *  kIOPropertySCSITargetIdentifierKey (CFNumberRef)
+ *  kIOPropertySCSIProductRevisionLevel (CFStringRef)
+ *  kIOPropertySCSIINQUIRYUnitSerialNumber (CFStringRef)
+ *
+ *  The following keys are defined in the protocol characteristics dictionary:
+ *
+ *      kIOPropertyiSCSIQualifiedNameKey (CFStringRef)
+ *      kIOPropertySCSITargetIdentifierKey (CFNumberRef)
+ *      kIOPropertySCSIDomainIdentifierKey (CFNumberRef)
+ *
+ *  The dictionary is embedded within the properties dictionary and
+ *  may be accessed using the kIOPropertyProtocolCharacteristicsKey.
  *
  *  @param target the target IO registry object.
  *  @return a dictionary of values for the properties, or NULL if the object
@@ -68,10 +77,11 @@ io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t LUN);
 CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target);
 
 /*! Creates a dictionary of properties associated with the LUN.  These
- *  include the following keys:
+ *  include the following keys (not exhaustive, see OS X documentation):
  *
  *  kIOPropertySCSIVendorIdentification (CFStringRef)
  *  kIOPropertySCSIProductIdentification (CFStringRef)
+ *  kIOPropertySCSIProductRevisionLevel (CFStringRef)
  *  kIOPropertySCSILogicalUnitNumberKey (CFNumberRef)
  *  kIOPropertySCSIPeripheralDeviceType (CFNumberRef)
  *
@@ -81,7 +91,7 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target);
 CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForLUN(io_object_t LUN);
 
 /*! Creates a dictionary of properties associated with the LUN.  These
- *  include the following keys:
+ *  include the following keys (not exhausitve, see OS X documentation):
  *
  *  kIOBSDNameKey (CFStringRef)
  *  kIOMediaSizeKey (CFNumberRef)

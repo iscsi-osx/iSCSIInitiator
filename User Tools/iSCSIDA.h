@@ -12,16 +12,41 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <DiskArbitration/DiskArbitration.h>
-#include "iSCSITypesShared.h"
-#include <IOKit/scsi/SCSITask.h>
+#include "iSCSITypes.h"
 
+/*! Result of a mount or unmount disk operation. */
+enum iSCSIDAOperationResult {
+    
+    /*! All volumes were successfully mounted or unmounted. */
+    kiSCSIDAOperationSuccess,
 
-/*! Mounts all IOMedia associated with a particular iSCSI session.
- *  @param targetIQN the name of the iSCSI target. */
-void iSCSIDAMountIOMediaForTarget(CFStringRef targetIQN);
+    /*! Some volumes were successfully mounted or unmounted. */
+    kISCSIDAOperationPartialSuccess,
 
-/*! Unmounts all media associated with a particular iSCSI session.
- *  @param targetIQN the name of the iSCSI target. */
-void iSCSIDAUnmountIOMediaForTarget(CFStringRef targetIQN);
+    /*! No volumes were successfully mounted or unmounted. */
+    kiSCSIDAOperationFail
+};
+
+/*! Mount and unmount operation callback function. */
+typedef void (*iSCSIDACallback)(iSCSITargetRef,enum iSCSIDAOperationResult,void *);
+
+/*! Mounts all IOMedia associated with a particular iSCSI session, and
+ *  calls the specified callback function with a context parameter when
+ *  all existing volumes have been mounted. */
+void iSCSIDAMountForTarget(DASessionRef session,
+                           DADiskUnmountOptions options,
+                           iSCSITargetRef target,
+                           iSCSIDACallback callback,
+                           void * context);
+
+/*! Unmounts all media associated with a particular iSCSI session, and
+ *  calls the specified callback function with a context parameter when
+ *  all mounted volumes have been unmounted. */
+void iSCSIDAUnmountForTarget(DASessionRef session,
+                             DADiskUnmountOptions options,
+                             iSCSITargetRef target,
+                             iSCSIDACallback callback,
+                             void * context);
+
 
 #endif /* defined(__ISCSI_DA_H__) */

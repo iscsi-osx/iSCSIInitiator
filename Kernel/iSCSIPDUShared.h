@@ -40,6 +40,12 @@ static const unsigned short kiSCSIPDUBasicHeaderSegmentSize = 48;
  *  in a PDU is less than this value it is padded with zeros. */
 static const unsigned short kiSCSIPDUByteAlignment = 4;
 
+/*! Reserved target transfer tag value. */
+static const UInt32 kiSCSIPDUTargetTransferTagReserved = 0xFFFFFFFF;
+
+/*! Reserved initiator task tag value. */
+static const UInt32 kiSCSIPDUInitiatorTaskTagReserved = 0xFFFFFFFF;
+
 /*! Bit offset within opcode byte for request PDUs that should be set to
  *  '1' to indicate immediate delivery of the PDU. */
 static const UInt8 kiSCSIPDUImmediateDeliveryFlag = 0x40;
@@ -96,6 +102,46 @@ typedef struct __iSCSIPDUTargetBHS {
     UInt32 reserved3;
 } __attribute__((packed)) iSCSIPDUTargetBHS;
 
+/*! Possible reject codes that may be issued throughout the login process. */
+enum iSCSIPDURejectCode {
+    
+    /*! Reserved reject code (not used). */
+    kiSCSIPDURejectReserved = 0x01,
+    
+    /*! Data digest error (may resend original PDU). */
+    kiSCSIPDURejectDataDigestError = 0x02,
+    
+    /*! Sequence ack was rejected (may resend original PDU). */
+    kiSCSIPDURejectSNACKReject = 0x03,
+    
+    /*! iSCSI protocol error has occured (e.g., SNACK was issued
+     *  for something that was already acknowledged). */
+    kiSCSIPDURejectProtoError = 0x04,
+    
+    /*! The command is not supported. */
+    kiSCSIPDURejectCmdNotSupported = 0x05,
+    
+    /*! Too many commands. */
+    kiSCSIPDURejectTooManyImmediateCmds = 0x06,
+    
+    /*! There is a task in progress. */
+    kiSCSIPDURejectTaskInProgress = 0x07,
+    
+    /*! Invalid data acknowledgement. */
+    kiSCSIPDURejectInvalidDataACK = 0x08,
+    
+    /*! A PDU field was invalid. */
+    kiSCSIPDURejectInvalidPDUField = 0x09,
+    
+    /*! Can't generate target transfer tag; out of resources. */
+    kiSCSIPDURejectLongOperationReject = 0x0a,
+    
+    /*! Negotiation was reset. */
+    kiSCSIPDURejectNegotiationReset = 0x0b,
+    
+    /*! Waiting to logout. */
+    kiSCSIPDURejectWaitingForLogout = 0x0c
+};
 
 /*! Asynchronous iSCSI events to be handled by the session layer. */
 enum iSCSIPDUAsyncMsgEvent {

@@ -62,18 +62,21 @@ CFDataRef CFDataCreateWithHexString(CFStringRef hexStr)
     CFMutableDataRef data  = CFDataCreateMutable(kCFAllocatorDefault,byteLength);
     CFDataSetLength(data,byteLength);
     UInt8 * bytes = CFDataGetMutableBytePtr(data);
+    int buffer = 0;
 
     // If an odd number of hex characters, process first one differently...
     if(hexStrLen % 2 != 0) {
         // Pick off the first character and convert differently
-        sscanf(&hexStrPtr[startIndex],"%01x",&bytes[byteIdx]);
+        sscanf(&hexStrPtr[startIndex],"%01x",&buffer);
+        bytes[byteIdx] = buffer;
         startIndex++;
         byteIdx++;
     }
 
     // Process remaining characters in pairs (2 hex characters = 1 byte)
     for(unsigned int idx = startIndex; idx < hexStrLen; idx+=2) {
-        sscanf(&hexStrPtr[idx],"%02x",&bytes[byteIdx]);
+        sscanf(&hexStrPtr[idx],"%02x",&buffer);
+        bytes[byteIdx] = buffer;
         byteIdx++;
     }
 
@@ -209,7 +212,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     context.nextStage       = kiSCSIPDUSecurityNegotiation;
     context.currentStage    = kiSCSIPDUSecurityNegotiation;
     
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
 
     errno_t error = iSCSISessionLoginQuery(&context,
                                            statusCode,
@@ -387,7 +390,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,&targetSessionId,sizeof(TSIH));
     context.targetSessionId = targetSessionId;
     
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
     
     // If no authentication is required, move to next stage
     if(iSCSIAuthGetMethod(initiatorAuth) == kiSCSIAuthMethodNone)
@@ -533,7 +536,7 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
     context.nextStage    = kiSCSIPDUSecurityNegotiation;
     context.targetSessionId = 0;
     
-    enum iSCSIRejectCode rejectCode;
+    enum iSCSIPDURejectCode rejectCode;
     
     // Query target with all possible authentication options
     errno_t error = iSCSISessionLoginQuery(&context,

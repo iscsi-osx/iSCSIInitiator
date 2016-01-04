@@ -130,6 +130,6 @@ static const unsigned int kiSCSIInitiator_DiscoveryInterval_Max = 32767;
  *  how often the initiator polls various discovery mechanisms for updates
  *  on target and portal information. A value of 0 indicates that discovery
  *  is done on-demand only. */
-static const unsigned int kiSCSIInitiator_DiscoveryInterval = 60;
+static const unsigned int kiSCSIInitiator_DiscoveryInterval = 300;
 
 #endif

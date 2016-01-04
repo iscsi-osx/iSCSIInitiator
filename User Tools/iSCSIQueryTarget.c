@@ -11,27 +11,11 @@
 #include "iSCSIQueryTarget.h"
 #include "iSCSIKernelInterface.h"
 
-/*! Helper function used throughout the login process to query the target.
- *  This function will take a dictionary of key-value pairs and send the
- *  appropriate login PDU to the target.  It will then receive one or more
- *  login response PDUs from the target, parse them and return the key-value
- *  pairs received as a dictionary.  If an error occurs, this function will
- *  return the C error code.  If communications are successful but the iSCSI
- *  layer experiences errors, it will return an iSCSI error code, either in the
- *  form of a login status code or a PDU rejection code in addition to
- *  a standard C error code. If the nextStage field of the context struct
- *  specifies the full feature phase, this function will return a valid TSIH.
- *  @param context the context to query (session identifier, etc)
- *  @param statusCode the iSCSI status code returned by the target
- *  @param rejectCode the iSCSI reject code, if the command was rejected
- *  @param textCmd a dictionary of key-value pairs to send.
- *  @param textRsp a dictionary of key-value pairs to receive.
- *  @return an error code that indicates the result of the operation. */
-errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
-                               enum iSCSILoginStatusCode * statusCode,
-                               enum iSCSIRejectCode * rejectCode,
-                               CFDictionaryRef   textCmd,
-                               CFMutableDictionaryRef  textRsp)
+errno_t iSCSISessionLoginSingleQuery(struct iSCSILoginQueryContext * context,
+                                     enum iSCSILoginStatusCode * statusCode,
+                                     enum iSCSIPDURejectCode * rejectCode,
+                                     CFDictionaryRef   textCmd,
+                                     CFMutableDictionaryRef  textRsp)
 {
     // Create a new login request basic header segment
     iSCSIPDULoginReqBHS cmd = iSCSIPDULoginReqBHSInit;
@@ -91,6 +75,8 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
             // command sequence number
             context->statSN = rsp.statSN;
             context->expCmdSN = rsp.expCmdSN;
+            context->transitNextStage = (rsp.loginStage & kiSCSIPDULoginTransitFlag);
+            
         }
         // For this case some other kind of PDU or invalid data was received
         else if(rsp.opCode == kiSCSIPDUOpCodeReject)
@@ -103,6 +89,55 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
     
     iSCSIPDUDataRelease(&data);
     return error;
+}
+
+
+/*! Helper function used throughout the login process to query the target.
+ *  This function will take a dictionary of key-value pairs and send the
+ *  appropriate login PDU to the target.  It will then receive one or more
+ *  login response PDUs from the target, parse them and return the key-value
+ *  pairs received as a dictionary.  If an error occurs, this function will
+ *  return the C error code.  If communications are successful but the iSCSI
+ *  layer experiences errors, it will return an iSCSI error code, either in the
+ *  form of a login status code or a PDU rejection code in addition to
+ *  a standard C error code. If the nextStage field of the context struct
+ *  specifies the full feature phase, this function will return a valid TSIH.
+ *  @param context the context to query (session identifier, etc)
+ *  @param statusCode the iSCSI status code returned by the target
+ *  @param rejectCode the iSCSI reject code, if the command was rejected
+ *  @param textCmd a dictionary of key-value pairs to send.
+ *  @param textRsp a dictionary of key-value pairs to receive.
+ *  @return an error code that indicates the result of the operation. */
+errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
+                               enum iSCSILoginStatusCode * statusCode,
+                               enum iSCSIPDURejectCode * rejectCode,
+                               CFDictionaryRef   textCmd,
+                               CFMutableDictionaryRef  textRsp)
+{
+    // Perform the query if we're staying in the same login stage...
+    if(context->currentStage == context->nextStage)
+        return iSCSISessionLoginSingleQuery(context,statusCode,rejectCode,textCmd,textRsp);
+
+    // If we were expecting the target to advance to the next stage; make sure
+    // it agrees.  If it does not, we need to send login queries until it does
+    // (with a maximum count specified below).  See RFC3720 at Section 5.4.
+    CFIndex maxRetryCount = 5;
+    CFIndex retryCount = 0;
+    
+    for(retryCount = 0; retryCount < maxRetryCount; retryCount++)
+    {
+        iSCSISessionLoginSingleQuery(context,statusCode,rejectCode,textCmd,textRsp);
+        
+        if(context->transitNextStage)
+            break;
+    }
+    
+    // If the target refuses to advance after max. retry count,
+    // set an iSCSI error and quit
+    if(retryCount == maxRetryCount)
+        *statusCode = kiSCSILoginInvalidReqDuringLogin;
+    
+    return 0;
 }
 
 /*! Helper function used during the full feature phase of a connection to

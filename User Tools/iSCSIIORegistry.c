@@ -202,12 +202,21 @@ io_object_t iSCSIIORegistryFindIOMediaForLUN(io_object_t LUN)
 }
 
 /*! Creates a dictionary of properties associated with the target.  These
- *  include the following keys:
+ *  include the following keys (not exhausitve, see OS X documentation):
  *
  *  kIOPropertySCSIVendorIdentification (CFStringRef)
  *  kIOPropertySCSIProductIdentification (CFStringRef)
- *  kIOPropertyiSCSIQualifiedNameKey (CFStringRef)
- *  kIOPropertySCSITargetIdentifierKey (CFNumberRef)
+ *  kIOPropertySCSIProductRevisionLevel (CFStringRef)
+ *  kIOPropertySCSIINQUIRYUnitSerialNumber (CFStringRef)
+ *
+ *  The following keys are defined in the protocol characteristics dictionary:
+ *
+ *      kIOPropertyiSCSIQualifiedNameKey (CFStringRef)
+ *      kIOPropertySCSITargetIdentifierKey (CFNumberRef)
+ *      kIOPropertySCSIDomainIdentifierKey (CFNumberRef)
+ *
+ *  The dictionary is embedded within the properties dictionary and
+ *  may be accessed using the kIOPropertyProtocolCharacteristicsKey.
  *
  *  @param target the target IO registry object.
  *  @return a dictionary of values for the properties, or NULL if the object
@@ -220,55 +229,19 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForTarget(io_object_t target)
     
     if(child == IO_OBJECT_NULL)
         return NULL;
-
-    CFStringRef vendor = IORegistryEntryCreateCFProperty(
-        child,CFSTR(kIOPropertySCSIVendorIdentification),kCFAllocatorDefault,0);
-
-    if(!vendor)
-        vendor = CFSTR("");
-
-    CFStringRef product = IORegistryEntryCreateCFProperty(
-        child,CFSTR(kIOPropertySCSIProductIdentification),kCFAllocatorDefault,0);
-
-    if(!product)
-        product = CFSTR("");
-
-    CFDictionaryRef protocolDict = IORegistryEntryCreateCFProperty(
-        child,CFSTR(kIOPropertyProtocolCharacteristicsKey),kCFAllocatorDefault,0);
-
-    CFStringRef targetIQN = CFDictionaryGetValue(protocolDict,CFSTR(kIOPropertyiSCSIQualifiedNameKey));
-    CFNumberRef targetId = CFDictionaryGetValue(protocolDict,CFSTR(kIOPropertySCSITargetIdentifierKey));
     
-    const void * keys[] = {
-        CFSTR(kIOPropertySCSIVendorIdentification),
-        CFSTR(kIOPropertySCSIProductIdentification),
-        CFSTR(kIOPropertySCSITargetIdentifierKey),
-        CFSTR(kIOPropertyiSCSIQualifiedNameKey)};
-    
-    const void * values[] = {
-        vendor,
-        product,
-        targetId,
-        targetIQN
-    };
-    
-    CFDictionaryRef propertiesDict = CFDictionaryCreate(kCFAllocatorDefault,
-                                                        keys,values,
-                                                        sizeof(values)/sizeof(void*),
-                                                        &kCFTypeDictionaryKeyCallBacks,
-                                                        &kCFTypeDictionaryValueCallBacks);
-    CFRelease(vendor);
-    CFRelease(product);
-    CFRelease(protocolDict);
+    CFMutableDictionaryRef propertiesDict;
+    IORegistryEntryCreateCFProperties(child,&propertiesDict,kCFAllocatorDefault,0);
 
     return propertiesDict;
 }
 
 /*! Creates a dictionary of properties associated with the LUN.  These
- *  include the following keys:
+ *  include the following keys (not exhaustive, see OS X documentation):
  *
  *  kIOPropertySCSIVendorIdentification (CFStringRef)
  *  kIOPropertySCSIProductIdentification (CFStringRef)
+ *  kIOPropertySCSIProductRevisionLevel (CFStringRef)
  *  kIOPropertySCSILogicalUnitNumberKey (CFNumberRef)
  *  kIOPropertySCSIPeripheralDeviceType (CFNumberRef)
  *
@@ -287,7 +260,7 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForLUN(io_object_t LUN)
 }
 
 /*! Creates a dictionary of properties associated with the LUN.  These
- *  include the following keys:
+ *  include the following keys (not exhaustive, see OS X documentation):
  *
  *  kIOBSDNameKey (CFStringRef)
  *  kIOMediaSizeKey (CFNumberRef)
@@ -303,7 +276,6 @@ CFDictionaryRef iSCSIIORegistryCreateCFPropertiesForIOMedia(io_object_t IOMedia)
     
     CFMutableDictionaryRef propertiesDict;
     IORegistryEntryCreateCFProperties(IOMedia,&propertiesDict,kCFAllocatorDefault,0);
-    IOObjectRelease(IOMedia);
     
     return propertiesDict;
 }
