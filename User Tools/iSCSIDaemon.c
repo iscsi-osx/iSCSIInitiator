@@ -493,7 +493,7 @@ void iSCSIDLogoutComplete(iSCSITargetRef target,enum iSCSIDAOperationResult resu
     CFRelease(ctx->diskSession);
     free(ctx);
 
-    enum iSCSILogoutStatusCode statusCode;
+    enum iSCSILogoutStatusCode statusCode = kiSCSILogoutInvalidStatusCode;
     
     if(!errorCode)
     {
@@ -1106,7 +1106,7 @@ void iSCSIDPrepareForSystemSleep()
         {
             CID connectionId = (CID)CFArrayGetValueAtIndex(connectionIds,connIdx);
             iSCSIPortalRef portal = iSCSICreatePortalForConnectionId(sessionId,connectionId);
-            CFArrayAppendValue(portal,portal);
+            CFArrayAppendValue(portals,portal);
             CFRelease(portal);
         }
         
