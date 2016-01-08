@@ -1022,8 +1022,6 @@ void iSCSIDRestoreFromSystemSleep()
     if(!activeTargets)
         return;
     
-    asl_log(0,0,ASL_LEVEL_ALERT,"1");
-    
     const CFIndex count = CFDictionaryGetCount(activeTargets);
     
     const CFStringRef targets[count];
