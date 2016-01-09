@@ -174,6 +174,8 @@ errno_t displayTargetDeviceTree(io_object_t);
 
 enum iSCSICtlCmds iSCSICtlGetCmdFromArguments(CFArrayRef arguments)
 {
+    enum iSCSICtlCmds cmd = kiSCSICtlCmdInvalid;
+    
     CFMutableDictionaryRef modesDict = CFDictionaryCreateMutable(kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,0);
     CFDictionarySetValue(modesDict,CFSTR("add"),(const void *)kiSCSICtlCmdAdd);
     CFDictionarySetValue(modesDict,CFSTR("modify"),(const void *)kiSCSICtlCmdModify);
@@ -187,14 +189,16 @@ enum iSCSICtlCmds iSCSICtlGetCmdFromArguments(CFArrayRef arguments)
     // If a mode was supplied (first argument after executable name)
     if(CFArrayGetCount(arguments) > 1) {
         CFStringRef arg = CFArrayGetValueAtIndex(arguments,1);
-        return (enum iSCSICtlCmds) CFDictionaryGetValue(modesDict,arg);
+        CFDictionaryGetValueIfPresent(modesDict,arg,(const void**)&cmd);
     }
  
-    return kiSCSICtlCmdInvalid;
+    return cmd;
 }
 
 enum iSCSICtlSubCmds iSCSICtlGetSubCmdFromArguments(CFArrayRef arguments)
 {
+    enum iSCSICtlSubCmds subCmd = kiSCSICtlSubCmdInvalid;
+    
     CFMutableDictionaryRef subModesDict = CFDictionaryCreateMutable(kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,0);
     CFDictionaryAddValue(subModesDict,CFSTR("initiator-config"),(const void *)kiSCSICtlSubCmdInitiatorConfig);
     CFDictionaryAddValue(subModesDict,CFSTR("target"),(const void *)kiSCSICtlSubCmdTarget);
@@ -205,8 +209,6 @@ enum iSCSICtlSubCmds iSCSICtlGetSubCmdFromArguments(CFArrayRef arguments)
     CFDictionaryAddValue(subModesDict,CFSTR("luns"),(const void *)kiSCSICtlSubCmdLUNs);
 
     // If a mode was supplied (first argument after executable name)
-    enum iSCSICtlSubCmds subCmd = kiSCSICtlSubCmdInvalid;
-
     if(CFArrayGetCount(arguments) > 2) {
         CFDictionaryGetValueIfPresent(subModesDict,
                                       CFArrayGetValueAtIndex(arguments,2),
