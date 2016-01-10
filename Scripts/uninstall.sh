@@ -18,7 +18,7 @@ sudo rm -f -R /Library/Extensions/$KEXT
 
 # Remove user tools
 sudo rm -f /usr/bin/$TOOL # Old location
-sudo rm -f /usr/local/$TOOL
+sudo rm -f /usr/local/bin/$TOOL
 
 # Remove man pages
 sudo rm -f /usr/share/man/man8/iscsictl.8

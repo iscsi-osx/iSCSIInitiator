@@ -37,8 +37,8 @@ sudo chmod 644 /System/Library/LaunchDaemons/com.github.iscsi-osx.iscsid.plist
 sudo chown root:wheel /System/Library/LaunchDaemons/com.github.iscsi-osx.iscsid.plist
 
 # Copy user tool
-sudo cp $SOURCE_PATH/$TOOL /usr/bin/$TOOL
-sudo chmod +x /usr/bin/$TOOL
+sudo cp $SOURCE_PATH/$TOOL /usr/local/bin/$TOOL
+sudo chmod +x /usr/local/bin/$TOOL
 
 # Copy man page
 sudo cp ../User\ Tools/iscsictl.8 /usr/share/man/man8
