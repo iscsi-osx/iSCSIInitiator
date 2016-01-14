@@ -21,6 +21,7 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN)
 
     // Get the system keychain and unlock it (prompts user if required)
     SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
+    SecKeychainUnlock(NULL,0,NULL,false);
 
     UInt32 sharedSecretLength = 0;
     void * sharedSecretData = NULL;
@@ -53,41 +54,68 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN)
 OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
                                            CFStringRef sharedSecret)
 {
-    SecKeychainRef sysKeychain = NULL;
-    OSStatus status;
-    SecKeychainItemRef item = NULL;
-
-    // Get the system keychain and unlock it (prompts user if required)
     SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
+    SecKeychainUnlock(NULL,0,NULL,false);
+
+    OSStatus status;
+    SecKeychainItemRef itemRef = NULL;
 
     SecKeychainFindGenericPassword(NULL,
             (UInt32)CFStringGetLength(nodeIQN),
             CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
             (UInt32)CFStringGetLength(nodeIQN),
             CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
-            0,0,&item);
+            0,0,&itemRef);
 
     // Update the secret if it exists; else create a new entry
-    if(item) {
-        status = SecKeychainItemModifyContent(item,0,
+    if(itemRef) {
+        status = SecKeychainItemModifyContent(itemRef,0,
             (UInt32)CFStringGetLength(sharedSecret),
             CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII));
 
-        CFRelease(item);
+        CFRelease(itemRef);
     }
+    // Create a new item
     else {
-        SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
-
-        status = SecKeychainAddGenericPassword(NULL,
-            (UInt32)CFStringGetLength(nodeIQN),
-            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
-            (UInt32)CFStringGetLength(nodeIQN),
-            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
-            (UInt32)CFStringGetLength(sharedSecret)+1,  // Include NULL character
-            CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),NULL);
-
-        if(sysKeychain)
-            CFRelease(sysKeychain);
+        SecAccessRef accessRef;
+        CFArrayRef trustedList;
+        SecTrustedApplicationRef trustedApps[2];
+        SecTrustedApplicationCreateFromPath("/usr/local/bin/iscsictl",&trustedApps[0]);
+        SecTrustedApplicationCreateFromPath("/Library/PrivilegedHelperTools/iscsid",&trustedApps[1]);
+        
+        trustedList = CFArrayCreate(kCFAllocatorDefault,(const void **)trustedApps,2,&kCFTypeArrayCallBacks);
+        
+        
+        status = SecAccessCreate(CFSTR("Description"),trustedList,&accessRef);
+        
+        // Get the system keychain and unlock it (prompts user if required)
+        SecKeychainRef keychain;
+        status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&keychain);
+        
+        CFStringRef secItemLabel = nodeIQN;
+        CFStringRef secItemDesc = CFSTR("iSCSI CHAP Shared Secret");
+        CFStringRef secItemAcct = nodeIQN;
+        CFStringRef secItemService = nodeIQN;
+        
+        
+        SecKeychainAttribute attrs[] = {
+            { kSecLabelItemAttr, (UInt32)CFStringGetLength(secItemLabel),(char *)CFStringGetCStringPtr(secItemLabel,kCFStringEncodingUTF8) },
+            { kSecDescriptionItemAttr, (UInt32)CFStringGetLength(secItemDesc),(char *)CFStringGetCStringPtr(secItemDesc,kCFStringEncodingUTF8) },
+            { kSecAccountItemAttr, (UInt32)CFStringGetLength(secItemAcct),(char *)CFStringGetCStringPtr(secItemAcct,kCFStringEncodingUTF8)     },
+            { kSecServiceItemAttr, (UInt32)CFStringGetLength(secItemService),(char *)CFStringGetCStringPtr(secItemService,kCFStringEncodingUTF8) }
+        };
+        
+        SecKeychainAttributeList attrList = { sizeof(attrs)/sizeof(attrs[0]), attrs };
+        
+        SecKeychainItemRef itemRef;
+        status = SecKeychainItemCreateFromContent(kSecGenericPasswordItemClass,
+                                                  &attrList,
+                                                  (UInt32)CFStringGetLength(sharedSecret),
+                                                  CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),
+                                                  keychain,accessRef,&itemRef);
+        
+        if(keychain)
+            CFRelease(keychain);
     }
 
     return status;
