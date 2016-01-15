@@ -59,10 +59,9 @@
 		2BF4D68E1C3FE51F0096E0C1 /* com.github.iscsi-osx.iscsid.plist in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2BCB2B0D1A70157200A81C80 /* com.github.iscsi-osx.iscsid.plist */; };
 		2BF4D68F1C3FE5280096E0C1 /* iscsid.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2B7B6A971B03122A0098FAF6 /* iscsid.8 */; };
 		2BF4D6901C3FE54D0096E0C1 /* iscsictl.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2B7B6A701AFAFA580098FAF6 /* iscsictl.8 */; };
-		2BF4D6931C400A7F0096E0C1 /* package.sh in Resources */ = {isa = PBXBuildFile; fileRef = 2BF4D6921C400A7E0096E0C1 /* package.sh */; settings = {ASSET_TAGS = (); }; };
-		2BF4D6981C401AAC0096E0C1 /* postinstall in Resources */ = {isa = PBXBuildFile; fileRef = 2BF4D6961C401AAC0096E0C1 /* postinstall */; settings = {ASSET_TAGS = (); }; };
-		2BF4D6991C401AAC0096E0C1 /* preinstall in Resources */ = {isa = PBXBuildFile; fileRef = 2BF4D6971C401AAC0096E0C1 /* preinstall */; settings = {ASSET_TAGS = (); }; };
-		2BF4D69D1C401B630096E0C1 /* iSCSIInitiator.pkg in Resources */ = {isa = PBXBuildFile; fileRef = 2BF4D69C1C401B630096E0C1 /* iSCSIInitiator.pkg */; settings = {ASSET_TAGS = (); }; };
+		2BF4D6AD1C42C4780096E0C1 /* postinstall in Resources */ = {isa = PBXBuildFile; fileRef = 2BF4D6AC1C42C4780096E0C1 /* postinstall */; settings = {ASSET_TAGS = (); }; };
+		2BF4D6AF1C42C4850096E0C1 /* preinstall in Resources */ = {isa = PBXBuildFile; fileRef = 2BF4D6AE1C42C4850096E0C1 /* preinstall */; settings = {ASSET_TAGS = (); }; };
+		2BF4D6B11C42C48F0096E0C1 /* postinstall in Resources */ = {isa = PBXBuildFile; fileRef = 2BF4D6B01C42C48F0096E0C1 /* postinstall */; settings = {ASSET_TAGS = (); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -100,7 +99,6 @@
 
 /* Begin PBXFileReference section */
 		2B20904F18C6E43C00C43190 /* libsystem_kernel.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsystem_kernel.dylib; path = usr/lib/system/libsystem_kernel.dylib; sourceTree = SDKROOT; };
-		2B421EFC1B66A40E000278A4 /* clean.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = clean.sh; sourceTree = "<group>"; };
 		2B42DC141B9A1894006A090E /* iSCSIDiscovery.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = iSCSIDiscovery.c; path = "User Tools/iSCSIDiscovery.c"; sourceTree = "<group>"; };
 		2B42DC151B9A1894006A090E /* iSCSIDiscovery.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iSCSIDiscovery.h; path = "User Tools/iSCSIDiscovery.h"; sourceTree = "<group>"; };
 		2B430DE61B8377C1005A9F8A /* iSCSIKeychain.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = iSCSIKeychain.c; path = "User Tools/iSCSIKeychain.c"; sourceTree = "<group>"; };
@@ -113,9 +111,6 @@
 		2B59357F1810D3C800FFC3D3 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
 		2B5935801810D3C800FFC3D3 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		2B5935C21810DF7100FFC3D3 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
-		2B70F6E11BE65FF9002D01ED /* install.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = install.sh; sourceTree = "<group>"; };
-		2B70F6E21BE65FF9002D01ED /* uninstall.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = uninstall.sh; sourceTree = "<group>"; };
-		2B70F6E31BE66012002D01ED /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
 		2B7B6A701AFAFA580098FAF6 /* iscsictl.8 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; name = iscsictl.8; path = "User Tools/iscsictl.8"; sourceTree = "<group>"; usesTabs = 1; };
 		2B7B6A971B03122A0098FAF6 /* iscsid.8 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = iscsid.8; path = "User Tools/iscsid.8"; sourceTree = "<group>"; };
 		2B7E3CED1B5584E800DFF59D /* iSCSIRFC3720Keys.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = iSCSIRFC3720Keys.h; path = "User Tools/iSCSIRFC3720Keys.h"; sourceTree = "<group>"; };
@@ -175,10 +170,14 @@
 		2BDEA9411A715C7B00D5B48B /* iscsid */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iscsid; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BDEA9421A715C7B00D5B48B /* iscsictl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iscsictl; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BDEA9431A715C7B00D5B48B /* iscsitest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iscsitest; sourceTree = BUILT_PRODUCTS_DIR; };
-		2BF4D6921C400A7E0096E0C1 /* package.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = package.sh; sourceTree = "<group>"; };
-		2BF4D6961C401AAC0096E0C1 /* postinstall */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = postinstall; path = Package/scripts/postinstall; sourceTree = "<group>"; };
-		2BF4D6971C401AAC0096E0C1 /* preinstall */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = preinstall; path = Package/scripts/preinstall; sourceTree = "<group>"; };
-		2BF4D69C1C401B630096E0C1 /* iSCSIInitiator.pkg */ = {isa = PBXFileReference; lastKnownFileType = file; name = iSCSIInitiator.pkg; path = Package/iSCSIInitiator.pkg; sourceTree = "<group>"; };
+		2BF4D69F1C41200E0096E0C1 /* build.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = build.sh; path = Scripts/build.sh; sourceTree = "<group>"; };
+		2BF4D6A01C41200E0096E0C1 /* clean.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = clean.sh; path = Scripts/clean.sh; sourceTree = "<group>"; };
+		2BF4D6A11C41200E0096E0C1 /* install.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = install.sh; path = Scripts/install.sh; sourceTree = "<group>"; };
+		2BF4D6A21C41200E0096E0C1 /* package.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = package.sh; path = Scripts/package.sh; sourceTree = "<group>"; };
+		2BF4D6A31C41200E0096E0C1 /* uninstall.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = uninstall.sh; path = Scripts/uninstall.sh; sourceTree = "<group>"; };
+		2BF4D6AC1C42C4780096E0C1 /* postinstall */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = postinstall; path = Package/Scripts/Installer/postinstall; sourceTree = "<group>"; };
+		2BF4D6AE1C42C4850096E0C1 /* preinstall */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = preinstall; path = Package/Scripts/Installer/preinstall; sourceTree = "<group>"; };
+		2BF4D6B01C42C48F0096E0C1 /* postinstall */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = postinstall; path = Package/Scripts/Uninstaller/postinstall; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -220,8 +219,8 @@
 		2B5935541810CE6800FFC3D3 = {
 			isa = PBXGroup;
 			children = (
+				2BF4D69E1C411FEC0096E0C1 /* Scripts */,
 				2BF4D69B1C401B470096E0C1 /* Package */,
-				2BF4D69A1C401ABA0096E0C1 /* Scripts */,
 				2B84883C1BEBCE0E0038DC53 /* README.md */,
 				2B97E4431A5B84E000A8EE9C /* User Tools */,
 				2B97E4421A5B84C500A8EE9C /* Kernel */,
@@ -337,26 +336,42 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
-		2BF4D69A1C401ABA0096E0C1 /* Scripts */ = {
+		2BF4D69B1C401B470096E0C1 /* Package */ = {
 			isa = PBXGroup;
 			children = (
-				2BF4D6921C400A7E0096E0C1 /* package.sh */,
-				2B70F6E31BE66012002D01ED /* build.sh */,
-				2B70F6E11BE65FF9002D01ED /* install.sh */,
-				2B70F6E21BE65FF9002D01ED /* uninstall.sh */,
-				2B421EFC1B66A40E000278A4 /* clean.sh */,
+				2BF4D6AA1C42C4620096E0C1 /* Installer */,
+				2BF4D6AB1C42C4670096E0C1 /* Uninstaller */,
+			);
+			name = Package;
+			sourceTree = "<group>";
+		};
+		2BF4D69E1C411FEC0096E0C1 /* Scripts */ = {
+			isa = PBXGroup;
+			children = (
+				2BF4D69F1C41200E0096E0C1 /* build.sh */,
+				2BF4D6A01C41200E0096E0C1 /* clean.sh */,
+				2BF4D6A11C41200E0096E0C1 /* install.sh */,
+				2BF4D6A21C41200E0096E0C1 /* package.sh */,
+				2BF4D6A31C41200E0096E0C1 /* uninstall.sh */,
 			);
 			name = Scripts;
 			sourceTree = "<group>";
 		};
-		2BF4D69B1C401B470096E0C1 /* Package */ = {
+		2BF4D6AA1C42C4620096E0C1 /* Installer */ = {
 			isa = PBXGroup;
 			children = (
-				2BF4D69C1C401B630096E0C1 /* iSCSIInitiator.pkg */,
-				2BF4D6961C401AAC0096E0C1 /* postinstall */,
-				2BF4D6971C401AAC0096E0C1 /* preinstall */,
+				2BF4D6AE1C42C4850096E0C1 /* preinstall */,
+				2BF4D6AC1C42C4780096E0C1 /* postinstall */,
 			);
-			name = Package;
+			name = Installer;
+			sourceTree = "<group>";
+		};
+		2BF4D6AB1C42C4670096E0C1 /* Uninstaller */ = {
+			isa = PBXGroup;
+			children = (
+				2BF4D6B01C42C48F0096E0C1 /* postinstall */,
+			);
+			name = Uninstaller;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -485,10 +500,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2BF4D69D1C401B630096E0C1 /* iSCSIInitiator.pkg in Resources */,
-				2BF4D6981C401AAC0096E0C1 /* postinstall in Resources */,
-				2BF4D6991C401AAC0096E0C1 /* preinstall in Resources */,
-				2BF4D6931C400A7F0096E0C1 /* package.sh in Resources */,
+				2BF4D6AF1C42C4850096E0C1 /* preinstall in Resources */,
+				2BF4D6AD1C42C4780096E0C1 /* postinstall in Resources */,
+				2BF4D6B11C42C48F0096E0C1 /* postinstall in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -657,6 +671,7 @@
 			buildSettings = {
 				CF_PREFERENCES_APP_ID = "$(NAME_PREFIX_D).iSCSIInitiator";
 				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1.00.0;
 				ENABLE_TESTABILITY = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"CF_PREFERENCES_APP_ID=\\\"$(NAME_PREFIX_D).iSCSIInitiator\\\"",
@@ -667,6 +682,8 @@
 				NAME_PREFIX_D = "com.github.iscsi-osx";
 				NAME_PREFIX_U = com_github_iscsi_osx;
 				ONLY_ACTIVE_ARCH = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_EXPORT_DECL = "";
 			};
 			name = Debug;
 		};
@@ -675,6 +692,7 @@
 			buildSettings = {
 				CF_PREFERENCES_APP_ID = "$(NAME_PREFIX_D).iSCSIInitiator";
 				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1.00.0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"CF_PREFERENCES_APP_ID=\\\"$(NAME_PREFIX_D).iSCSIInitiator\\\"",
 					"NAME_PREFIX_U=$(NAME_PREFIX_U)",
@@ -684,6 +702,8 @@
 				NAME_PREFIX_D = "com.github.iscsi-osx";
 				NAME_PREFIX_U = com_github_iscsi_osx;
 				ONLY_ACTIVE_ARCH = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_EXPORT_DECL = "";
 			};
 			name = Release;
 		};
@@ -705,7 +725,6 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.0.0d1;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
@@ -757,7 +776,6 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 1.0.0d1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
