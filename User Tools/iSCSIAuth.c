@@ -237,17 +237,20 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
     // Get identifier and challenge & calculate the response
     CFStringRef identifier = NULL, challenge = NULL;
     
-    if(CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_AuthCHAPId,(void*)&identifier) &&
-       CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_AuthCHAPChallenge,(void*)&challenge))
+    if(initiatorUser && initiatorSecret)
     {
-        CFStringRef response = iSCSIAuthNegotiateCHAPCreateResponse(identifier,initiatorSecret,challenge);
+        if(CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_AuthCHAPId,(void*)&identifier) &&
+           CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_AuthCHAPChallenge,(void*)&challenge))
+        {
+            CFStringRef response = iSCSIAuthNegotiateCHAPCreateResponse(identifier,initiatorSecret,challenge);
         
-        // Send back our name and response
-        CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPResponse,response);
-        CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPName,initiatorUser);
+            // Send back our name and response
+            CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPResponse,response);
+            CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPName,initiatorUser);
 
-        // Dictionary retains response, we can release it
-        CFRelease(response);
+            // Dictionary retains response, we can release it
+            CFRelease(response);
+        }
     }
 
     // If we must authenticate the target, generate id, challenge & send
