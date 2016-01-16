@@ -149,7 +149,7 @@ static uint32_t crc32c_long[4][256];
 static uint32_t crc32c_short[4][256];
 
 /* Initialize tables for shifting crcs. */
-void crc32c_init(void)
+void crc32c_init()
 {
     crc32c_zeros(crc32c_long, LONG);
     crc32c_zeros(crc32c_short, SHORT);

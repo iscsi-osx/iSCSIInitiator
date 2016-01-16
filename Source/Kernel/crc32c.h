@@ -14,7 +14,7 @@
 #include <IOKit/IOLib.h>
 
 /*! Call once to initialize CRC32C. */
-void crc32c_init(void);
+void crc32c_init();
 
 /*! Computes the CRC32C checksum of data.
  *  @param crc the existing crc for prior data, if any,.
