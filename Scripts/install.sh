@@ -30,7 +30,7 @@ sudo chown -R root:wheel /Library/Extensions/$KEXT
 # Copy daemon & set permissions
 sudo rm -f /var/logs/iscsid.log
 sudo cp $SOURCE_PATH/$DAEMON /Library/PrivilegedHelperTools/$DAEMON
-sudo cp ../User\ Tools/com.github.iscsi-osx.iscsid.plist /System/Library/LaunchDaemons
+sudo cp $SOURCE_PATH/com.github.iscsi-osx.iscsid.plist /System/Library/LaunchDaemons
 sudo chmod -R 744 /Library/PrivilegedHelperTools/$DAEMON
 sudo chown -R root:wheel /Library/PrivilegedHelperTools/$DAEMON
 sudo chmod 644 /System/Library/LaunchDaemons/com.github.iscsi-osx.iscsid.plist
@@ -41,8 +41,8 @@ sudo cp $SOURCE_PATH/$TOOL /usr/local/bin/$TOOL
 sudo chmod +x /usr/local/bin/$TOOL
 
 # Copy man page
-sudo cp ../User\ Tools/iscsictl.8 /usr/share/man/man8
-sudo cp ../User\ Tools/iscsid.8 /usr/share/man/man8
+sudo cp $SOURCE_PATH/iscsictl.8 /usr/share/man/man8
+sudo cp $SOURCE_PATH/iscsid.8 /usr/share/man/man8
 
 # Load kernel extension
 sudo kextload /Library/Extensions/$KEXT

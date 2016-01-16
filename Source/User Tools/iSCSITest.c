@@ -34,65 +34,6 @@
 
 int main(int argc, const char * argv[]) {
 
-    /*
-
-    iSCSIInitialize(CFRunLoopGetCurrent());
-
-    // Test commands here
-    enum iSCSILoginStatusCode statusCode;
-    iSCSISessionConfigRef sessCfg = iSCSISessionConfigCreateMutable();
-    iSCSIConnectionConfigRef connCfg = iSCSIConnectionConfigCreateMutable();
-    CID connectionId;
-    SID sessionId;
-    iSCSITargetRef target = iSCSITargetCreateMutable();
-    iSCSITargetSetName(target,CFSTR("iqn.2012-06.com.example:target0"));
-    
-    iSCSISetInitiatiorName(CFSTR("iqn.2015-01.com.test"));
-    iSCSISetInitiatorAlias(CFSTR("default"));
-    
-    iSCSIPortalRef portal = iSCSIPortalCreateMutable();
-    iSCSIPortalSetAddress(portal,CFSTR("192.168.56.2"));
-    iSCSIPortalSetHostInterface(portal,CFSTR("vboxnet0"));
-    iSCSIPortalSetPort(portal,CFSTR("3260"));
-    
-    
-    iSCSIConnectionConfigSetHeaderDigest(connCfg, false);
-    iSCSIConnectionConfigSetDataDigest(connCfg, false);
-       errno_t error = iSCSILoginSession(target,portal,iSCSIAuthCreateCHAP(CFSTR("user"),CFSTR("passwordpassword"),NULL,NULL),sessCfg,connCfg,&sessionId,&connectionId,&statusCode);
-    //  enum iSCSILogoutStatusCode sc;
-    //  iSCSILogoutSession(0,&sc);
-    iSCSIDiscoveryRecRef discRec;
-    //   errno_t error = iSCSIQueryPortalForTargets(portal,iSCSIAuthCreateNone(),&discRec,&statusCode);
-    iSCSICreateCFPropertiesForSession(target);
-
-    
-    
-    iSCSICleanup();
-     
-
-     */
-    /*
-    SecKeychainRef keychain;
-    SecKeychainItemRef item;
-    OSStatus status;
-    status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&keychain);
-    SecKeychainUnlock(keychain, 0, NULL, false);
-    status = SecKeychainAddGenericPassword(keychain,25,"iSCSI CHAP Shared Secret",31,"iqn.2013-06.com.example:target0",3,"abc",&item);
-
-    */
-    iSCSIPLSynchronize();
-    iSCSIPLSetInitiatorIQN(CFSTR("iqn.test2.com"));
-
-    iSCSIAuthRef auth = iSCSIAuthCreateCHAP(CFSTR("usera"),CFSTR("secreta"));
-    //    iSCSIPLSetAuthenticationForInitiator(auth);
-    iSCSIAuthRef auth2 = iSCSIPLCopyAuthenticationForInitiator();
-
-    CFStringRef user,secret;
-    iSCSIAuthGetCHAPValues(auth2,&user,&secret);
-    CFShow(user);
-    CFShow(secret);
-
-    iSCSIPLSynchronize();
 
 
 

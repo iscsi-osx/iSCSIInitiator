@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<installer-gui-script minSpecVersion="1">
+    <title>iSCSI Initiator</title>
+    <pkg-ref id="com.github.iscsi-osx.iSCSIInitiator"/>
+    <options customize="never" require-scripts="false"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.github.iscsi-osx.iSCSIInitiator"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.github.iscsi-osx.iSCSIInitiator" visible="false">
+        <pkg-ref id="com.github.iscsi-osx.iSCSIInitiator"/>
+    </choice>
+    <pkg-ref id="com.github.iscsi-osx.iSCSIInitiator" version="1.00.0" onConclusion="none">Uninstaller.pkg.tmp</pkg-ref>
+</installer-gui-script>
