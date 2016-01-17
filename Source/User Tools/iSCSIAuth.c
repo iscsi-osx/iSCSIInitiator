@@ -395,7 +395,7 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     
     enum iSCSIPDURejectCode rejectCode;
     
-    // If no authentication is required, move to next stage
+    // If no authentication is supported (only value we sent was "None"), move on to the next stage
     if(iSCSIAuthGetMethod(initiatorAuth) == kiSCSIAuthMethodNone)
         context.nextStage = kiSCSIPDULoginOperationalNegotiation;
     
@@ -425,17 +425,6 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
         error = EAUTH;
         goto ERROR_AUTHENTICATION;
     }
-
-    // Get authentication method from response string. We can't rely
-    // on the value we specified to the target because for initiator CHAP
-    // authenticaiton we always supply a no authentication option in addition
-    // to CHAP (just because we offer authentication does not mean the target
-    // is obliged to use it). This tests whether the target chose to use it.
-    enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodNone;
-    CFStringRef authValue = CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod);
-
-    if(CFStringCompare(authValue,kRFC3720_Value_AuthMethodCHAP,0) == kCFCompareEqualTo)
-        authMethod = kiSCSIAuthMethodCHAP;
 
     // If this is not a discovery session, we expect to receive a target
     // portal group tag (TPGT) and validate it
@@ -468,6 +457,26 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
             if(targetPortalGroupTag != CFStringGetIntValue(targetPortalGroupRsp))
                 goto ERROR_AUTHENTICATION;
         }
+    }
+    
+    // Get authentication method from response string. We can't rely
+    // on the value we specified to the target because for initiator CHAP
+    // authenticaiton we always supply a no authentication option in addition
+    // to CHAP (just because we offer authentication does not mean the target
+    // is obliged to use it). This tests whether the target chose to use it.
+    enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodNone;
+    CFStringRef authValue = CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod);
+    
+    // Target chose to go with CHAP; since we supply a list of options including None,
+    // we need to confirm that we're okay with the target's selection to move on...
+    if(CFStringCompare(authValue,kRFC3720_Value_AuthMethodCHAP,0) == kCFCompareEqualTo)
+    {
+        authMethod = kiSCSIAuthMethodCHAP;
+    }
+    else if(CFStringCompare(authValue,kRFC3720_Value_AuthMethodNone,0) == kCFCompareEqualTo)
+    {
+        context.nextStage = kiSCSIPDULoginOperationalNegotiation;
+        iSCSISessionLoginQuery(&context,statusCode,&rejectCode,NULL,NULL);
     }
 
     if(authMethod == kiSCSIAuthMethodCHAP) {
