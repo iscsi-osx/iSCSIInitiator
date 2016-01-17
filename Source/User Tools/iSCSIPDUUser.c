@@ -89,7 +89,7 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
                              void (*callback)(void * keyContainer,CFStringRef key,
                                               void * valContainer,CFStringRef val))
 {
-    if(!data || length == 0 || !keyContainer || !valContainer || !callback)
+    if(!data || length == 0 || !callback)
         return;
     
     // Parse the text response
