@@ -415,17 +415,6 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     iSCSIKernelSetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOInitialExpStatSN,
                                 &expStatSN,sizeof(expStatSN));
     
-    // Determine if target supports desired authentication method
-    CFRange result = CFStringFind(CFDictionaryGetValue(authCmd,kRFC3720_Key_AuthMethod),
-                                  CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod),
-                                  kCFCompareCaseInsensitive);
-    
-    // If we wanted to use a particular method and the target doesn't support it
-    if(result.location == kCFNotFound) {
-        error = EAUTH;
-        goto ERROR_AUTHENTICATION;
-    }
-
     // If this is not a discovery session, we expect to receive a target
     // portal group tag (TPGT) and validate it
     if(CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
@@ -459,6 +448,17 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
         }
     }
     
+    // Determine if target supports desired authentication method
+    CFRange result = CFStringFind(CFDictionaryGetValue(authCmd,kRFC3720_Key_AuthMethod),
+                                  CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod),
+                                  kCFCompareCaseInsensitive);
+    
+    // If we wanted to use a particular method and the target doesn't support it
+    if(result.location == kCFNotFound) {
+        error = EAUTH;
+        goto ERROR_AUTHENTICATION;
+    }
+    
     // Get authentication method from response string. We can't rely
     // on the value we specified to the target because for initiator CHAP
     // authenticaiton we always supply a no authentication option in addition
@@ -473,10 +473,15 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
     {
         authMethod = kiSCSIAuthMethodCHAP;
     }
+    // Target chose to go with None (no authentication)
     else if(CFStringCompare(authValue,kRFC3720_Value_AuthMethodNone,0) == kCFCompareEqualTo)
     {
-        context.nextStage = kiSCSIPDULoginOperationalNegotiation;
-        iSCSISessionLoginQuery(&context,statusCode,&rejectCode,NULL,NULL);
+        // If we originally offered an authentication method and target chose none,
+        // we will have to send a PDU to transition to the next stage...
+        if(iSCSIAuthGetMethod(initiatorAuth) != kiSCSIAuthMethodNone) {
+            context.nextStage = kiSCSIPDULoginOperationalNegotiation;
+            iSCSISessionLoginQuery(&context,statusCode,&rejectCode,NULL,NULL);
+        }
     }
 
     if(authMethod == kiSCSIAuthMethodCHAP) {
