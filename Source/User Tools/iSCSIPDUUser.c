@@ -89,7 +89,7 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
                              void (*callback)(void * keyContainer,CFStringRef key,
                                               void * valContainer,CFStringRef val))
 {
-    if(!data || length == 0)
+    if(!data || length == 0 || !keyContainer || !valContainer || !callback)
         return;
     
     // Parse the text response
@@ -161,6 +161,9 @@ void iSCSIPDUDataParseToDictCallback(void * keyContainer,CFStringRef keyString,
  *  @param textDict a dictionary of key-value pairs. */
 void iSCSIPDUDataParseToDict(void * data,size_t length,CFMutableDictionaryRef textDict)
 {
+    if(!data || length == 0 || !textDict)
+        return;
+    
     iSCSIPDUDataParseCommon(data,length,textDict,textDict,&iSCSIPDUDataParseToDictCallback);
 }
 
@@ -179,6 +182,9 @@ void iSCSIPDUDataParseToArraysCallback(void * keyContainer,CFStringRef keyString
  *  @param values an array of corresponding values for each key. */
 void iSCSIPDUDataParseToArrays(void * data,size_t length,CFMutableArrayRef keys,CFMutableArrayRef values)
 {
+    if(!data || length == 0 || !values)
+        return;
+    
     iSCSIPDUDataParseCommon(data,length,keys,values,&iSCSIPDUDataParseToDictCallback);
 }
 
@@ -267,7 +273,7 @@ void iSCSIPDUPopulateWithTextCommand(const void * key,
  *  @param length the length of the data block, returned by this function. */
 void iSCSIPDUDataCreateFromDict(CFDictionaryRef textDict,void ** data,size_t * length)
 {
-    if(!length || !data)
+    if(!length || !data || !textDict)
         return;
     
     // Apply a function to key-value pairs to determine total byte size of
