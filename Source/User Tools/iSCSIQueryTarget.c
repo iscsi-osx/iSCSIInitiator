@@ -30,8 +30,8 @@ errno_t iSCSISessionLoginSingleQuery(struct iSCSILoginQueryContext * context,
         cmd.loginStage |= kiSCSIPDULoginTransitFlag;
     
     // Create a data segment based on text commands (key-value pairs)
-    void * data;
-    size_t length;
+    void * data = NULL;
+    size_t length = 0;
     iSCSIPDUDataCreateFromDict(textCmd,&data,&length);
 
     errno_t error = iSCSIKernelSend(context->sessionId,context->connectionId,
@@ -114,9 +114,13 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
                                CFDictionaryRef   textCmd,
                                CFMutableDictionaryRef  textRsp)
 {
-    // Perform the query if we're staying in the same login stage...
-    if(context->currentStage == context->nextStage)
-        return iSCSISessionLoginSingleQuery(context,statusCode,rejectCode,textCmd,textRsp);
+    // Try a single query first
+    errno_t error = iSCSISessionLoginSingleQuery(context,statusCode,rejectCode,textCmd,textRsp);
+    
+    // If we are not transitioning stages, or we are and the target agreed to
+    // transition, then we can move on...
+    if(context->currentStage == context->nextStage || context->transitNextStage)
+        return error;
 
     // If we were expecting the target to advance to the next stage; make sure
     // it agrees.  If it does not, we need to send login queries until it does
@@ -126,7 +130,8 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
     
     for(retryCount = 0; retryCount < maxRetryCount; retryCount++)
     {
-        iSCSISessionLoginSingleQuery(context,statusCode,rejectCode,textCmd,textRsp);
+        // Retries are blank, to get target to advance (per RFC3720)
+        error = iSCSISessionLoginSingleQuery(context,statusCode,rejectCode,NULL,NULL);
         
         if(context->transitNextStage)
             break;
@@ -137,7 +142,7 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
     if(retryCount == maxRetryCount)
         *statusCode = kiSCSILoginInvalidReqDuringLogin;
     
-    return 0;
+    return error;
 }
 
 /*! Helper function used during the full feature phase of a connection to
