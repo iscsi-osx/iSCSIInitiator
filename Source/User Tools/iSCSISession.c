@@ -1311,7 +1311,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSITargetRef target)
     CFNumberRef targetPortalGroupTag = CFNumberCreate(kCFAllocatorDefault,kCFNumberSInt16Type,&tpgt);
 
     TSIH tsih = 0;
-    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,&tpgt,sizeof(TSIH));
+    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,&tsih,sizeof(TSIH));
     CFNumberRef targetSessionId = CFNumberCreate(kCFAllocatorDefault,kCFNumberSInt16Type,&tsih);
 
     UInt8 optVal8 = 0;
