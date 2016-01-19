@@ -17,6 +17,11 @@ XCODE_RELEASE_BUILD_DIR="tmp"
 TMP_ROOT="../tmp"
 TMP_PACKAGE_DIR="../tmp/Packages"
 
+# Kernel extension path (built)
+KEXT_PATH=../$XCODE_RELEASE_BUILD_DIR/Release/iSCSIInitiator.kext
+DAEMON_PATH=KEXT_PATH=../$XCODE_RELEASE_BUILD_DIR/Release/iscsid
+TOOL_PATH=KEXT_PATH=../$XCODE_RELEASE_BUILD_DIR/Release/iscsictl
+
 # Location of installer and uninstaller scripts
 INSTALLER_SCRIPT="Scripts/Installer"
 UNINSTALLER_SCRIPT="Scripts/Uninstaller"
@@ -35,6 +40,9 @@ UNINSTALLER_DIST_XML="Resources/Uninstaller.xml"
 
 # Requirements
 REQUIREMENTS_PATH="Resources/Requirements.plist"
+
+# Developer certificate for signing
+$DEVELOPER_CERT=""
 
 # Relelase build of all three components
 xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
@@ -67,11 +75,15 @@ pkgbuild --nopayload \
 productbuild --distribution $INSTALLER_DIST_XML \
     --package-path $TMP_PACKAGE_DIR \
     --product $REQUIREMENTS_PATH \
+    --sign $DEVELOPER_CERT \
+    --timestamp \
     $INSTALLER_PATH
 
 productbuild --distribution $UNINSTALLER_DIST_XML \
     --package-path $TMP_PACKAGE_DIR \
     --product $REQUIREMENTS_PATH \
+    --sign $DEVELOPER_CERT \
+    --timestamp \
     $UNINSTALLER_PATH
 
 # Cleanup temporary packages, leaving final pacakges for DMG
