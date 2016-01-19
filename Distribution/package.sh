@@ -131,5 +131,5 @@ rm -f $RELEASE/$DMG_BASE_NAME-$VERSION.dmg
 hdiutil convert $TMP_ROOT/$DMG_BASE_NAME.dmg -format UDZO -imagekey zlib-level=9 -o $RELEASE/$DMG_BASE_NAME-$VERSION.dmg
 
 # Cleanup
-#rm -r $TMP_ROOT
+rm -r $TMP_ROOT
 
