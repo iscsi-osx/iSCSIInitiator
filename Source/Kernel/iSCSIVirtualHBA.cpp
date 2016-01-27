@@ -683,6 +683,7 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         case kiSCSIPDUOpCodeR2T:
             owner->ProcessR2T(session,connection,(iSCSIPDUR2TBHS*)&bhs);
             break;
+            
         case kiSCSIPDUOpCodeReject:
             owner->ProcessReject(session,connection,(iSCSIPDURejectBHS*)&bhs);
             break;
@@ -1061,7 +1062,7 @@ void iSCSIVirtualHBA::ProcessAsyncMsg(iSCSISession * session,
             
         // No support for proprietary vendor codes; do nothing
         case kiSCSIPDUAsyncMsgVendorCode: break;
-            
+
         default: break;
     };
     
@@ -1162,7 +1163,7 @@ void iSCSIVirtualHBA::ProcessDataOutForTask(iSCSISession * session,
     }
     
     // Cleanup buffer
-    IOFree(data,connection->maxRecvDataSegmentLength);
+    IOFree(data,connection->maxSendDataSegmentLength);
 }
 
 /*! Process an incoming reject PDU.
