@@ -1257,7 +1257,7 @@ void iSCSIDAcceptConnection(CFSocketRef socket,
 int main(void)
 {
     // Initialize logging
-    asl_object_t log = asl_open(NULL,NULL,ASL_OPT_STDERR);
+    aslclient log = asl_open(NULL,NULL,ASL_OPT_STDERR);
 
     // Read configuration parameters from the iSCSI property list
     iSCSIPLSynchronize();
