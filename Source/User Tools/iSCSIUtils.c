@@ -22,9 +22,9 @@ static int PORT_MAX = (1 << sizeof(in_port_t)*8) -1;
 Boolean iSCSIUtilsValidateIQN(CFStringRef IQN)
 {
     // IEEE regular expression for matching IQN name
-    const char pattern[] =  "^iqn\.[0-9]\{4\}-[0-9]\{2\}\.[[:alnum:]]\{3\}\."
-                            "[-A-Za-z0-9.]\{1,255\}:[-A-Za-z0-9.]\{1,255\}"
-                            "|^eui\.[[:xdigit:]]\{16\}$";
+    const char pattern[] =  "^iqn[.][0-9]{4}-[0-9]{2}[.][[:alnum:]]{1,}[.]"
+                            "[-A-Za-z0-9.]{1,255}:[-A-Za-z0-9.]{1,255}"
+                            "|^eui[.][[:xdigit:]]{16}$";
     
     Boolean validName = false;
     regex_t preg;
@@ -57,11 +57,11 @@ Boolean iSCSIUtilsValidatePort(CFStringRef port)
 CFArrayRef iSCSIUtilsCreateArrayByParsingPortalParts(CFStringRef portal)
 {
     // Regular expressions to match valid IPv4, IPv6 and DNS portal strings
-    const char IPv4Pattern[] = "^((((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|([0-9])?[0-9])[.])\{3\}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|([0-9])?[0-9]))(:([0-9]\{1,5\}))?)$";
+    const char IPv4Pattern[] = "^((((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|([0-9])?[0-9])[.]){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|([0-9])?[0-9]))(:([0-9]{1,5}))?)$";
     
-    const char IPv6Pattern[] = "^([[]?(([A-Fa-f0-9]\{0,4\}:)\{1,7\}[A-Fa-f0-9]\{0,4\})([\]]:([0-9]\{1,5\})?)?)$";
+    const char IPv6Pattern[] = "^([[]?(([A-Fa-f0-9]{0,4}:){1,7}[A-Fa-f0-9]{0,4})([]]:([0-9]{1,5})?)?)$";
     
-    const char DNSPattern[] = "^((([A-Za-z0-9]\{1,63\}[.])\{1,3\}[A-Za-z0-9]\{1,63\})(:([0-9]\{1,5\}))?)$";
+    const char DNSPattern[] = "^((([A-Za-z0-9]{1,63}[.]){1,3}[A-Za-z0-9]{1,63})(:([0-9]{1,5}))?)$";
     
     // Array of patterns to iterate, the indices of the matches that
     // correspond to the hostname, port and the maximum number of matches
