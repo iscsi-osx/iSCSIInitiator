@@ -1057,7 +1057,7 @@ void iSCSIDPrepareForSystemSleepComplete(iSCSITargetRef target,
                                          enum iSCSIDAOperationResult result,
                                          void * context)
 {
-    SID sessionId = (SID)context;
+    SID sessionId = *(SID *)context;
     enum iSCSILogoutStatusCode statusCode;
     iSCSILogoutSession(sessionId,&statusCode);
 }
@@ -1112,7 +1112,7 @@ void iSCSIDPrepareForSystemSleep()
         CFDictionarySetValue(activeTargets,targetIQN,portals);
 
         DASessionScheduleWithRunLoop(diskSession,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
-        iSCSIDAUnmountForTarget(diskSession,kDADiskUnmountOptionWhole,target,&iSCSIDPrepareForSystemSleepComplete,(void*)sessionId);
+        iSCSIDAUnmountForTarget(diskSession,kDADiskUnmountOptionWhole,target,&iSCSIDPrepareForSystemSleepComplete,(void*)&sessionId);
         iSCSITargetRelease(target);
     }
     
