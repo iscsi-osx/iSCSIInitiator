@@ -25,6 +25,7 @@ sudo chmod -R 755 $KEXT_DST/$KEXT
 sudo chown -R root:wheel $KEXT_DST/$KEXT
 
 # Copy daemon & set permissions
+sudo mkdir -p /Library/PrivilegedHelperTools/
 sudo cp $TMP/$DAEMON /Library/PrivilegedHelperTools/$DAEMON
 sudo cp $TMP/com.github.iscsi-osx.iscsid.plist /Library/LaunchDaemons/com.github.iscsi-osx.iscsid.plist
 sudo chmod -R 744 /usr/local/$DAEMON

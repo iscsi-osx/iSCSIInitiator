@@ -41,6 +41,7 @@ sudo chown -R root:wheel $KEXT_DST/$KEXT
 
 # Copy daemon & set permissions
 sudo rm -f /var/logs/iscsid.log
+sudo mkdir -p /Library/PrivilegedHelperTools/
 sudo cp $SOURCE_PATH/$DAEMON /Library/PrivilegedHelperTools/$DAEMON
 sudo cp $SOURCE_PATH/com.github.iscsi-osx.iscsid.plist /Library/LaunchDaemons
 sudo chmod -R 744 /Library/PrivilegedHelperTools/$DAEMON
