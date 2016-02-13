@@ -77,7 +77,7 @@
 		<key>com.apple.kpi.libkern</key>
 		<string>12.5</string>
 		<key>com.apple.kpi.mach</key>
-		<string>13.2</string>
+		<string>12.6</string>
 	</dict>
 </dict>
 </plist>
