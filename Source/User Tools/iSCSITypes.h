@@ -14,10 +14,6 @@
 #include "iSCSITypesShared.h"
 #include "iSCSIRFC3720Defaults.h"
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_8
-typedef int errno_t;
-#endif
-
 /*! The host interface name to use when the default interface is to be used. */
 static CFStringRef kiSCSIDefaultHostInterface = CFSTR("default");
 

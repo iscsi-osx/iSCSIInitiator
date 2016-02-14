@@ -10,6 +10,10 @@
 #ifndef __ISCSI_TYPES_SHARED_H__
 #define __ISCSI_TYPES_SHARED_H__
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_8
+typedef int errno_t;
+#endif
+
 /*! Session identifier. */
 typedef UInt16 SID;
 
