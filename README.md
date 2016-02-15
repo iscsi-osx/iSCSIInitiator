@@ -7,7 +7,7 @@ iSCSI initiator is a software initiator for OS X. It allows machines running OS 
 
 Disable kext signing before attempting to install the initiator.
  * Prior to El Capitan (that is, OS X versions 10.10 and below), this is achieved by running `sudo nvram boot-args=kext-dev-mode=1`
- * In El Capitan, this is achieved by running `csrutil enable` at the Recover OS terminal window (see the [System Integrity Protection Guide](https://developer.apple.com/library/mac/documentation/Security/Conceptual/System_Integrity_Protection_Guide/KernelExtensions/KernelExtensions.html#//apple_ref/doc/uid/TP40016462-CH4-SW1) for more details).
+ * In El Capitan, this is achieved by running `csrutil disable` at the Recover OS terminal window (see the [System Integrity Protection Guide](https://developer.apple.com/library/mac/documentation/Security/Conceptual/System_Integrity_Protection_Guide/KernelExtensions/KernelExtensions.html#//apple_ref/doc/uid/TP40016462-CH4-SW1) for more details).
 
  In both cases, a reboot is required.
  
