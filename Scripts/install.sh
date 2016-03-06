@@ -4,6 +4,7 @@
 DAEMON=iscsid
 TOOL=iscsictl
 KEXT=iSCSIInitiator.kext
+FRAMEWORK=iSCSI.framework
 
 # Get minor version of the OS
 OSX_MINOR_VER=$(sw_vers -productVersion | awk -F '.' '{print $2}')
@@ -38,6 +39,9 @@ fi
 sudo cp -R $SOURCE_PATH/$KEXT $KEXT_DST/$KEXT
 sudo chmod -R 755 $KEXT_DST/$KEXT
 sudo chown -R root:wheel $KEXT_DST/$KEXT
+
+# Copy framework
+sudo cp -R $SOURCE_PATH/$FRAMEWORK /Library/Frameworks/$FRAMEWORK
 
 # Copy daemon & set permissions
 sudo rm -f /var/logs/iscsid.log

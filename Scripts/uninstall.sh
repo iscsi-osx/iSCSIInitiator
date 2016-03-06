@@ -4,6 +4,7 @@
 DAEMON=iscsid
 TOOL=iscsictl
 KEXT=iSCSIInitiator.kext
+FRAMEWORK=iSCSI.framework
 
 # Get minor version of the OS
 OSX_MINOR_VER=$(sw_vers -productVersion | awk -F '.' '{print $2}')
@@ -31,6 +32,9 @@ sudo rm -f -R $KEXT_DST/$KEXT
 # Remove user tools
 sudo rm -f /usr/bin/$TOOL # Old location
 sudo rm -f /usr/local/bin/$TOOL
+
+# Remove framework
+sudo rm -R /Library/Frameworks/$FRAMEWORK
 
 # Remove man pages
 sudo rm -f /usr/share/man/man8/iscsictl.8

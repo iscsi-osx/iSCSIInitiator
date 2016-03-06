@@ -93,7 +93,7 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     iSCSIDaemonHandle handle = socket(PF_LOCAL,SOCK_STREAM,0);
     struct sockaddr_un address;
     address.sun_family = AF_LOCAL;
-    strcpy(address.sun_path,"/var/tmp/iscsid");
+    strcpy(address.sun_path,"/var/run/iscsid");
 
     // Do non-blocking connect
     int flags = 0;

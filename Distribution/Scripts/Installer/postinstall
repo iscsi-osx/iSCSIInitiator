@@ -4,6 +4,7 @@ TMP=/tmp
 DAEMON=iscsid
 TOOL=iscsictl
 KEXT=iSCSIInitiator.kext
+FRAMEWORK=iSCSI.framework
 MAN1=iscsictl.8
 MAN2=iscsid.8
 
@@ -23,6 +24,9 @@ fi
 sudo cp -R $TMP/$KEXT $KEXT_DST/$KEXT
 sudo chmod -R 755 $KEXT_DST/$KEXT
 sudo chown -R root:wheel $KEXT_DST/$KEXT
+
+# Copy framework
+sudo cp -R $TMP/$FRAMEWORK /Library/Frameworks/$FRAMEWORK
 
 # Copy daemon & set permissions
 sudo mkdir -p /Library/PrivilegedHelperTools/
