@@ -15,7 +15,7 @@
 		</dict>
 	</dict>
 	<key>Program</key>
-	<string>/Library/PrivilegedHelperTools/iscsid</string>
+	<string>/usr/local/libexec/iscsid</string>
 	<key>Label</key>
 	<string>com.github.iscsi-osx.iscsid</string>
 </dict>
