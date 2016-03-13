@@ -86,6 +86,7 @@ CFRunLoopSourceRef iSCSIKernelCreateRunLoopSource()
 {
     if(notificationPort)
         return CFMachPortCreateRunLoopSource(kCFAllocatorDefault,notificationPort,0);
+    
     return NULL;
 }
 

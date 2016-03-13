@@ -1562,10 +1562,17 @@ void iSCSISessionHandleKernelNotifications(enum iSCSIKernelNotificationTypes typ
 errno_t iSCSIInitialize(CFRunLoopRef rl)
 {
     errno_t error = iSCSIKernelInitialize(&iSCSISessionHandleKernelNotifications);
-
-    CFRunLoopSourceRef source = iSCSIKernelCreateRunLoopSource();
-    CFRunLoopAddSource(rl,source,kCFRunLoopDefaultMode);
     
+    if(!error) {
+        CFRunLoopSourceRef source;
+        
+        // Create a run loop source tied to the kernel notification system;
+        // if fail then kext may not be loaded, try again later
+        if(source = iSCSIKernelCreateRunLoopSource())
+            CFRunLoopAddSource(rl,source,kCFRunLoopDefaultMode);
+        else
+            error = EAGAIN;
+    }
     return error;
 }
 
