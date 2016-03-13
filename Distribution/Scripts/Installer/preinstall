@@ -6,6 +6,7 @@ TOOL=iscsictl
 KEXT=iSCSIInitiator.kext
 FRAMEWORK=iSCSI.framework
 DAEMON_PLIST=com.github.iscsi-osx.iscsid.plist
+DAEMON_PLIST_NOEXT=com.github.iscsi-osx.iscsid.plist
 MAN_TOOL=iscsictl.8
 MAN_DAEMON=iscsid.8
 
@@ -29,15 +30,22 @@ else
 fi
 
 # Stop, unload and remove launch daemon
-sudo launchctl stop $DAEMON_PLIST_DST/$DAEMON_PLIST
-sudo launchctl unload $DAEMON_PLIST_DST/$DAEMON_PLIST
+sudo launchctl stop $DAEMON_PLIST_NOEXT
+
+if [ -f $DAEMON_PLIST_DST/$DAEMON_PLIST ]; then
+    sudo launchctl unload $DAEMON_PLIST_DST/$DAEMON_PLIST
+fi
+
 sudo rm -f $DAEMON_PLIST_DST/$DAEMON_PLIST
 sudo rm -f /usr/sbin/$DAEMON # Old location
 sudo rm -f /System/Library/LaunchDaemons/$DAEMON_PLIST # Old location
 sudo rm -f $DAEMON_DST/$DAEMON
 
 # Unload & remove kernel extension
-sudo kextunload $KEXT_DST/$KEXT
+if [ -f $KEXT_DST/$KEXT ]; then
+    sudo kextunload $KEXT_DST/$KEXT
+fi
+
 sudo rm -f -R $KEXT_DST/$KEXT
 
 # Remove user tools
@@ -50,3 +58,9 @@ sudo rm -f $MAN_DST/$MAN_DAEMON
 
 # Remove framework
 sudo rm -f -R $FRAMEWORK_DST/$FRAMEWORK
+
+PKG_RSP="$(pkgutil --pkgs=com.github.iscsi-osx.iSCSIInitiator)"
+
+if [ "$PKG_RSP" == "com.github.iscsi-osx.iSCSIInitiator" ]; then
+    sudo pkgutil --forget com.github.iscsi-osx.iSCSIInitiator
+fi
