@@ -16,6 +16,11 @@
 	</dict>
 	<key>Program</key>
 	<string>/usr/local/libexec/iscsid</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/sbin/kextload</string>
+		<string>/Library/Extensions/iSCSIInitiator.kext</string>
+	</array>
 	<key>Label</key>
 	<string>com.github.iscsi-osx.iscsid</string>
 </dict>

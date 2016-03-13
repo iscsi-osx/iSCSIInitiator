@@ -33,6 +33,7 @@ sudo launchctl stop $DAEMON_PLIST_DST/$DAEMON_PLIST
 sudo launchctl unload $DAEMON_PLIST_DST/$DAEMON_PLIST
 sudo rm -f $DAEMON_PLIST_DST/$DAEMON_PLIST
 sudo rm -f /usr/sbin/$DAEMON # Old location
+sudo rm -f /System/Library/LaunchDaemons/$DAEMON_PLIST # Old location
 sudo rm -f $DAEMON_DST/$DAEMON
 
 # Unload & remove kernel extension
