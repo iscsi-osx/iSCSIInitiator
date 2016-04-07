@@ -46,9 +46,9 @@
 			<key>IOMaximumSegmentCountWrite</key>
 			<integer>512</integer>
 			<key>IOMaximumSegmentByteCountRead</key>
-			<integer>8192</integer>
+			<integer>2048</integer>
 			<key>IOMaximumSegmentByteCountWrite</key>
-			<integer>8192</integer>
+			<integer>2048</integer>
 			<key>CFBundleIdentifier</key>
 			<string>${NAME_PREFIX_D}.${PRODUCT_NAME}</string>
 			<key>IOClass</key>
