@@ -39,6 +39,10 @@
 #include "iSCSIIORegistry.h"
 #include "iSCSIUtils.h"
 
+#include <netdb.h>
+#include <ifaddrs.h>
+
+
 /*! Modes of operation for this utility. */
 enum iSCSICtlCmds {
 
@@ -1338,12 +1342,10 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
         targetState = CFSTR("inactive");
     
     CFStringRef status = NULL;
-    
-
     if(!properties) {
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                          CFSTR("%s <%@, %@>\n"),
-                                          CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+                                          CFSTR("%@ <%@, %@>\n"),
+                                          targetIQN,
                                           targetState,targetConfig);
     }
     else {
@@ -1355,8 +1357,8 @@ void displayTargetInfo(iSCSIDaemonHandle handle,
         CFNumberGetValue(targetSessionId,kCFNumberSInt16Type,&tsih);
 
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                          CFSTR("%s <%@, %@, sid %@, tpgt %@, tsid %#x>\n"),
-                                          CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+                                          CFSTR("%@ <%@, %@, sid %@, tpgt %@, tsid %#x>\n"),
+                                          targetIQN,
                                           targetState,
                                           targetConfig,
                                           sessionId,
@@ -1383,9 +1385,9 @@ void displayPortalInfo(iSCSIDaemonHandle handle,
     if(!properties) {
         portalStatus = CFStringCreateWithFormat(
             kCFAllocatorDefault,NULL,
-            CFSTR("\t%s <inactive, port %s, interface %@>\n"),
-            CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
-            CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
+            CFSTR("\t%@ <inactive, port %@, interface %@>\n"),
+            portalAddress,
+            iSCSIPortalGetPort(portal),
             iSCSIPortalGetHostInterface(portal));
     }
     else {
@@ -1394,8 +1396,8 @@ void displayPortalInfo(iSCSIDaemonHandle handle,
         
         portalStatus = CFStringCreateWithFormat(
             kCFAllocatorDefault,NULL,
-            CFSTR("\t%s <active, cid %@, port %s, interface %@>\n"),
-            CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
+            CFSTR("\t%@ <active, cid %@, port %s, interface %@>\n"),
+            portalAddress,
             connectionId,
             CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
             iSCSIPortalGetHostInterface(portal));
@@ -1660,13 +1662,17 @@ errno_t iSCSICtlListDiscoveryConfig(iSCSIDaemonHandle handle,CFDictionaryRef opt
     for(CFIndex idx = 0; idx < portalCount; idx++) {
         CFStringRef portalAddress = CFArrayGetValueAtIndex(portals,idx);
         iSCSIPortalRef portal = iSCSIPLCopySendTargetsDiscoveryPortal(portalAddress);
-
+        
+        char portalAddressBuffer[NI_MAXHOST];
+        CFStringGetCString(portalAddress,portalAddressBuffer,NI_MAXHOST,kCFStringEncodingASCII);
+        
         CFStringRef entry =
         CFStringCreateWithFormat(kCFAllocatorDefault,0,
-                                 CFSTR("\t\t%-15s <port %s, interface %@>\n"),
-                                 CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
-                                 CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
+                                 CFSTR("\t\t%-15s <port %@, interface %@>\n"),
+                                 portalAddressBuffer,
+                                 iSCSIPortalGetPort(portal),
                                  iSCSIPortalGetHostInterface(portal));
+        
         iSCSICtlDisplayString(entry);
         CFRelease(entry);
     }
@@ -1904,8 +1910,8 @@ void displayTargetProperties(CFDictionaryRef propertiesDict)
     CFStringRef targetIQN = CFDictionaryGetValue(protocolDict,CFSTR(kIOPropertyiSCSIQualifiedNameKey));
     
     CFStringRef targetStr = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,
-                                                     CFSTR("%s <scsi domain %@, target %@>\n\t%@ %@ %@\n\tSerial Number %@\n"),
-                                                     CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
+                                                     CFSTR("%@ <scsi domain %@, target %@>\n\t%@ %@ %@\n\tSerial Number %@\n"),
+                                                     targetIQN,
                                                      domainId,targetId,targetVendor,targetProduct,
                                                      targetRevision,serialNumber);
     iSCSICtlDisplayString(targetStr);
