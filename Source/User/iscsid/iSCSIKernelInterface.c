@@ -179,13 +179,6 @@ errno_t iSCSIKernelCreateSession(CFStringRef targetIQN,
     void * params[kNumParams];
     size_t paramSize[kNumParams];
     
-    params[0] = (void*)CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII);
-    params[1] = (void*)CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII);
-    params[2] = (void*)CFStringGetCStringPtr(portalPort,kCFStringEncodingASCII);
-    params[3] = (void*)CFStringGetCStringPtr(hostInterface,kCFStringEncodingASCII);
-    params[4] = (void*)portalSockAddr;
-    params[5] = (void*)hostSockAddr;
-    
     // Add one for string lengths to copy the NULL character (CFGetStringLength
     // does not include the length of the NULL terminator)
     paramSize[0] = CFStringGetLength(targetIQN) + 1;
@@ -194,6 +187,19 @@ errno_t iSCSIKernelCreateSession(CFStringRef targetIQN,
     paramSize[3] = CFStringGetLength(hostInterface) + 1;
     paramSize[4] = sizeof(struct sockaddr_storage);
     paramSize[5] = sizeof(struct sockaddr_storage);
+    
+    // Populate parameters
+    params[0] = malloc(paramSize[0]);
+    params[1] = malloc(paramSize[1]);
+    params[2] = malloc(paramSize[2]);
+    params[3] = malloc(paramSize[3]);
+    params[4] = (void*)portalSockAddr;
+    params[5] = (void*)hostSockAddr;
+    
+    CFStringGetCString(targetIQN,params[0],paramSize[0],kCFStringEncodingASCII);
+    CFStringGetCString(portalAddress,params[1],paramSize[1],kCFStringEncodingASCII);
+    CFStringGetCString(portalPort,params[2],paramSize[2],kCFStringEncodingASCII);
+    CFStringGetCString(hostInterface,params[3],paramSize[3],kCFStringEncodingASCII);
     
     // The input buffer will first have eight bytes to denote the length of
     // the portion that follows.  So for each of the six input parameters,
@@ -231,6 +237,12 @@ errno_t iSCSIKernelCreateSession(CFStringRef targetIQN,
     kern_return_t result =
         IOConnectCallMethod(connection,kiSCSICreateSession,inputs,inputCnt,
                             inputStruct,inputStructSize,output,&outputCnt,0,0);
+    
+    // Free allocated memory
+    free(params[0]);
+    free(params[1]);
+    free(params[2]);
+    free(params[3]);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt) {
         *sessionId    = (UInt16)output[0];
@@ -342,12 +354,6 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
     void * params[kNumParams];
     size_t paramSize[kNumParams];
     
-    params[0] = (void*)CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII);
-    params[1] = (void*)CFStringGetCStringPtr(portalPort,kCFStringEncodingASCII);
-    params[2] = (void*)CFStringGetCStringPtr(hostInterface,kCFStringEncodingASCII);
-    params[3] = (void*)portalSockAddr;
-    params[4] = (void*)hostSockAddr;
-    
     // Add one for string lengths to copy the NULL character (CFGetStringLength
     // does not include the length of the NULL terminator)
     paramSize[0] = CFStringGetLength(portalAddress) + 1;
@@ -355,6 +361,16 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
     paramSize[2] = CFStringGetLength(hostInterface) + 1;
     paramSize[3] = sizeof(struct sockaddr_storage);
     paramSize[4] = sizeof(struct sockaddr_storage);
+    
+    params[0] = malloc(paramSize[0]);
+    params[1] = malloc(paramSize[1]);
+    params[2] = malloc(paramSize[2]);
+    params[3] = (void*)portalSockAddr;
+    params[4] = (void*)hostSockAddr;
+    
+    CFStringGetCString(portalAddress,params[0],paramSize[0],kCFStringEncodingASCII);
+    CFStringGetCString(portalPort,params[1],paramSize[1],kCFStringEncodingASCII);
+    CFStringGetCString(hostInterface,params[2],paramSize[2],kCFStringEncodingASCII);
     
     // The input buffer will first have eight bytes to denote the length of
     // the portion that follows.  So for each of the six input parameters,
@@ -392,6 +408,11 @@ errno_t iSCSIKernelCreateConnection(SID sessionId,
     kern_return_t result =
         IOConnectCallMethod(connection,kiSCSICreateConnection,inputs,inputCnt,inputStruct,
                             inputStructSize,output,&outputCnt,0,0);
+    
+    // Free memory
+    free(params[0]);
+    free(params[1]);
+    free(params[2]);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt) {
         *connectionId = (UInt32)output[0];
@@ -699,13 +720,23 @@ SID iSCSIKernelGetSessionIdForTargetIQN(CFStringRef targetIQN)
     const UInt32 expOutputCnt = 1;
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
+    
+    const int targetIQNBufferSize = (int)CFStringGetLength(targetIQN)+1;
+    char * targetIQNBuffer = (char *)malloc(targetIQNBufferSize);
+    if(!CFStringGetCString(targetIQN,targetIQNBuffer,targetIQNBufferSize,kCFStringEncodingASCII))
+    {
+        free(targetIQNBuffer);
+        return kiSCSIInvalidSessionId;
+    }
 
     kern_return_t result = IOConnectCallMethod(
         connection,
         kiSCSIGetSessionIdForTargetIQN,0,0,
-        (const void*)CFStringGetCStringPtr(targetIQN,kCFStringEncodingASCII),
-        CFStringGetLength(targetIQN)+1,
+        targetIQNBuffer,
+        targetIQNBufferSize,
         output,&outputCnt,0,0);
+    
+    free(targetIQNBuffer);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt)
         return (SID)output[0];
@@ -731,12 +762,22 @@ CID iSCSIKernelGetConnectionIdForPortalAddress(SID sessionId,
     UInt64 output[expOutputCnt];
     UInt32 outputCnt = expOutputCnt;
     
+    const int portalAddressBufferSize = (int)CFStringGetLength(portalAddress)+1;
+    char * portalAddressBuffer = (char*)malloc(portalAddressBufferSize);
+    if(!CFStringGetCString(portalAddress,portalAddressBuffer,portalAddressBufferSize,kCFStringEncodingASCII))
+    {
+        free(portalAddressBuffer);
+        return EINVAL;
+    }
+    
     kern_return_t result =
         IOConnectCallMethod(connection,kiSCSIGetConnectionIdForPortalAddress,
                             &input,inputCnt,
-                            CFStringGetCStringPtr(portalAddress,kCFStringEncodingASCII),
-                            CFStringGetLength(portalAddress)+1,
+                            portalAddressBuffer,
+                            portalAddressBufferSize,
                             output,&outputCnt,0,0);
+    
+    free(portalAddressBuffer);
     
     if(result != kIOReturnSuccess || outputCnt != expOutputCnt)
         return kiSCSIInvalidConnectionId;
