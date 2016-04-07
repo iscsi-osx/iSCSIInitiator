@@ -242,6 +242,9 @@ void iSCSIPDUPopulateWithTextCommand(const void * key,
                                      const void * value,
                                      void * posTracker)
 {
+    const int MAX_KEY_SIZE = 100;
+    const int MAX_VAL_SIZE = 100;
+    
     // Ensure pointer to data segment is valid
     if(posTracker)
     {
@@ -249,13 +252,14 @@ void iSCSIPDUPopulateWithTextCommand(const void * key,
         CFIndex valueByteSize = CFStringGetLength((CFStringRef)value);
         CFStringEncoding stringEncoding = kCFStringEncodingUTF8;
         
-        const char * keyCString =
-            CFStringGetCStringPtr((CFStringRef)key,stringEncoding);
-        const char * valueCString =
-            CFStringGetCStringPtr((CFStringRef)value,stringEncoding);
+        char keyCString[MAX_KEY_SIZE];
+        char valueCString[MAX_VAL_SIZE];
+        
+        Boolean validKeyCString = CFStringGetCString(key,keyCString,MAX_KEY_SIZE,stringEncoding);
+        Boolean validValueCString = CFStringGetCString(value,valueCString,MAX_VAL_SIZE,stringEncoding);
         
         // If both strings are valid C-strings, copy them into the PDU
-        if(keyCString && valueCString)
+        if(validKeyCString && validValueCString)
         {
             iSCSIPDUDataSegmentTracker * position =
                 (iSCSIPDUDataSegmentTracker*)posTracker;
