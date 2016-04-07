@@ -100,7 +100,7 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
         CFArrayRef trustedList;
         SecTrustedApplicationRef trustedApps[2];
         SecTrustedApplicationCreateFromPath("/usr/local/bin/iscsictl",&trustedApps[0]);
-        SecTrustedApplicationCreateFromPath("/Library/PrivilegedHelperTools/iscsid",&trustedApps[1]);
+        SecTrustedApplicationCreateFromPath("/usr/local/libexec/iscsid",&trustedApps[1]);
         
         trustedList = CFArrayCreate(kCFAllocatorDefault,(const void **)trustedApps,2,&kCFTypeArrayCallBacks);
         
