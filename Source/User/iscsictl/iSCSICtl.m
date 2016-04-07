@@ -1396,10 +1396,10 @@ void displayPortalInfo(iSCSIDaemonHandle handle,
         
         portalStatus = CFStringCreateWithFormat(
             kCFAllocatorDefault,NULL,
-            CFSTR("\t%@ <active, cid %@, port %s, interface %@>\n"),
+            CFSTR("\t%@ <active, cid %@, port %@, interface %@>\n"),
             portalAddress,
             connectionId,
-            CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingASCII),
+            iSCSIPortalGetPort(portal),
             iSCSIPortalGetHostInterface(portal));
     }
     
