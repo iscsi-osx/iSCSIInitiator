@@ -141,7 +141,7 @@ void iSCSINegotiateBuildSWDictNormal(iSCSISessionConfigRef sessCfg,
     CFDictionaryAddValue(sessCmd,kRFC3720_Key_MaxConnections,value);
     CFRelease(value);
     
-    CFDictionaryAddValue(sessCmd,kRFC3720_Key_InitialR2T,kRFC3720_Value_No);
+    CFDictionaryAddValue(sessCmd,kRFC3720_Key_InitialR2T,kRFC3720_Value_Yes);
     CFDictionaryAddValue(sessCmd,kRFC3720_Key_ImmediateData,kRFC3720_Value_Yes);
     
     value = CFStringCreateWithFormat(kCFAllocatorDefault,NULL,CFSTR("%u"),kRFC3720_MaxBurstLength);
