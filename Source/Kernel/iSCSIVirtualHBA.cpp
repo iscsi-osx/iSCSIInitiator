@@ -610,22 +610,23 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         return;
     }
     
-    // At this point we have have a write command, determine whether we need
-    // to send data at this point or later in response to an R2T
+    // If there is no unsolicited data to send, simply send the WRITE
+    // command and return.
     if(session->initialR2T && !session->immediateData) {
         bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
         owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
         return;
     }
     
-    // Get data associated with this task and send ...
+    // At this point either immediate data, data-out PDUs or both
+    // are going to be sent out.
     IOMemoryDescriptor  * dataDesc  = owner->GetDataBuffer(parallelTask);
     UInt32 dataOffset = 0, dataLength = 0;
     
-    // First use immediate data to send as data with command PDU...
+    // First use immediate data to send data with command PDU...
     if(session->immediateData) {
         
-        // Either we send the max allowed data (immediate data length) or
+        // Either send the max allowed data (immediate data length) or
         // all of the data if it is lesser than the max allowed limit
         dataLength = min(connection->immediateDataLength,transferSize);
         
@@ -644,6 +645,11 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         connection->dataToTransfer -= dataLength;
         
         IOFree(data,dataLength);
+    }
+    else {
+        // No immediate data (but there will be data-out following this)
+        // just send the WRITE command without immediate data
+        owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
     }
 
     // Follow up with data out PDUs up to the firstBurstLength bytes if...
