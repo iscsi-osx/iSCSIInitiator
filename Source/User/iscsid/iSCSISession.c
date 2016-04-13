@@ -1568,7 +1568,7 @@ errno_t iSCSIInitialize(CFRunLoopRef rl)
         
         // Create a run loop source tied to the kernel notification system;
         // if fail then kext may not be loaded, try again later
-        if(source = iSCSIKernelCreateRunLoopSource())
+        if((source = iSCSIKernelCreateRunLoopSource()))
             CFRunLoopAddSource(rl,source,kCFRunLoopDefaultMode);
         else
             error = EAGAIN;
