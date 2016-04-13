@@ -842,7 +842,8 @@ errno_t iSCSICtlLogin(iSCSIDaemonHandle handle,CFDictionaryRef options)
             iSCSICtlDisplayErrorCode(error);
     }
 
-    iSCSITargetRelease(target);
+    if(target)
+        iSCSITargetRelease(target);
     return error;
 }
 
