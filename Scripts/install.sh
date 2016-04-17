@@ -52,6 +52,7 @@ sudo chown -R root:wheel $KEXT_DST/$KEXT
 
 # Copy framework
 sudo cp -R $SOURCE_PATH/$FRAMEWORK $FRAMEWORK_DST/$FRAMEWORK
+sudo chown -R root:wheel $FRAMEWORK_DST/$FRAMEWORK
 
 # Copy daemon & set permissions
 sudo rm -f /var/logs/iscsid.log
