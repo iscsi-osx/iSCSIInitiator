@@ -43,7 +43,7 @@ REQUIREMENTS_PATH="Resources/Requirements.plist"
 
 # Relelase build of all three components
 xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
-           -scheme iSCSIInitiator -configuration release BUILD_DIR=$XCODE_RELEASE_BUILD_DIR
+           -scheme iSCSI.kext -configuration release BUILD_DIR=$XCODE_RELEASE_BUILD_DIR
 xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
            -scheme iscsid -configuration release BUILD_DIR=$XCODE_RELEASE_BUILD_DIR
 xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
