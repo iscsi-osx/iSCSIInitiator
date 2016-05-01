@@ -305,7 +305,6 @@ CFArrayRef iSCSIPLGetDynamicTargetsForSendTargets(CFStringRef portalAddress,
     return targetsList;
 }
 
-
 CFMutableDictionaryRef iSCSIPLGetTargets(Boolean createIfMissing)
 {
     if(createIfMissing && !targetsCache)
@@ -774,7 +773,7 @@ CFStringRef iSCSIPLCopyInitiatorIQN()
 {
     if(!initiatorCache) {
         initiatorCache = iSCSIPLCreateInitiatorDict();
-        initiatorNodeCacheModified = true;
+//        initiatorNodeCacheModified = true;
     }
     
     // Lookup and copy the initiator name from the dictionary
@@ -815,7 +814,7 @@ CFStringRef iSCSIPLCopyInitiatorAlias()
 {
     if(!initiatorCache) {
         initiatorCache = iSCSIPLCreateInitiatorDict();
-        initiatorNodeCacheModified = true;
+//        initiatorNodeCacheModified = true;
     }
     
     // Lookup and copy the initiator alias from the dictionary
