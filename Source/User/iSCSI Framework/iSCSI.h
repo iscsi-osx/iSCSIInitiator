@@ -36,5 +36,12 @@ FOUNDATION_EXPORT const unsigned char iSCSIVersionString[];
 
 // In this header, you should import all the public headers of your framework using statements like #import <iSCSI/PublicHeader.h>
 #import "iSCSIUtils.h"
-
-
+#import "iSCSIDA.h"
+#import "iSCSIDaemonInterface.h"
+#import "iSCSIIORegistry.h"
+#import "iSCSIKeychain.h"
+#import "iSCSIPropertyList.h"
+#import "iSCSIRFC3720Keys.h"
+#import "iSCSITypes.h"
+#import "iSCSITypesShared.h"
+#import "iSCSIUtils.h"
