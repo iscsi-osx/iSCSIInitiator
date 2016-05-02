@@ -1405,6 +1405,9 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
     if(!theSession)
         return;
     
+    // Prevent others from accessing the session
+    sessionList[sessionId] = NULL;
+    
     DBLog("iscsi: Releasing session (sid %d)\n",sessionId);
     
     // Disconnect all connections
@@ -1431,7 +1434,6 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
             break;
         }
     }
-    sessionList[sessionId] = NULL;
 }
 
 /*! Allocates a new iSCSI connection associated with the particular session.
@@ -1611,6 +1613,9 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
     if(!connection)
         return;
     
+    // Prevents other from trying to access this connection...
+    session->connections[connectionId] = NULL;
+    
     // First deactivate connection before proceeding
     if(connection->taskQueue->isEnabled())
         DeactivateConnection(sessionId,connectionId);
@@ -1627,7 +1632,6 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
     connection->dataToTransfer = 0;
     
     IOFree(connection,sizeof(iSCSIConnection));
-    session->connections[connectionId] = NULL;
     
     DBLog("iscsi: Released connection (sid: %d, cid: %d)\n",sessionId,connectionId);
 }
