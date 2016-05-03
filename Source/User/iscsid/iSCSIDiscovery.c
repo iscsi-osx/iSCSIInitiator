@@ -202,6 +202,9 @@ void iSCSIDiscoveryRunSendTargets()
             }
         }
     }
+    
+    // Release the array of discovery portals
+    CFRelease(portals);
 
     iSCSIPLSynchronize();
 }
