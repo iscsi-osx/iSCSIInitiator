@@ -273,6 +273,9 @@ private:
     
     /*! The notification port associated with a user-space connection. */
     mach_port_t notificationPort;
+    
+    /*! Access lock for kernel functions. */
+    IOLock * accessLock;
 };
 
 #endif /* defined(__ISCSI_INITIATOR_CLIENT_H__) */
