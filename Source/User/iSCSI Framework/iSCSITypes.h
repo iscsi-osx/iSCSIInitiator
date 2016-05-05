@@ -43,6 +43,11 @@ static CFStringRef kiSCSIDefaultPort = CFSTR("3260");
  *  been specified. */
 static CFStringRef kiSCSIUnspecifiedTargetIQN = CFSTR("");
 
+/*! The value for the target alias in an iSCSITarget when the alias has not
+ *  been specified. */
+static CFStringRef kiSCSIUnspecifiedTargetAlias = CFSTR("");
+
+
 typedef CFMutableDictionaryRef iSCSIMutablePortalRef;
 typedef CFDictionaryRef iSCSIPortalRef;
 
@@ -57,7 +62,7 @@ typedef CFDictionaryRef iSCSIAuthRef;
 typedef CFDictionaryRef iSCSITargetAuthRef;
 typedef CFMutableDictionaryRef iSCSIMutableTargetAuthRef;
 
-/*! Initiator authenticaiton object. */
+/*! Initiator authentication object. */
 typedef CFDictionaryRef iSCSIInitiatorAuthRef;
 typedef CFMutableDictionaryRef iSCSIMutableInitiatorAuthRef;
 
@@ -300,13 +305,18 @@ CFStringRef iSCSITargetGetIQN(iSCSITargetRef target);
 /*! Sets the name associated with the iSCSI target.  This function has no
  *  effect if the specified target name is blank.
  *  @param target the target object.
- *  @param name the name to set. */
-void iSCSITargetSetIQN(iSCSIMutableTargetRef target,CFStringRef name);
+ *  @param IQN the name to set. */
+void iSCSITargetSetIQN(iSCSIMutableTargetRef target,CFStringRef IQN);
 
-/*! Gets the nickname associated with the iSCSI target.
+/*! Gets the alias associated with the iSCSI target.
  *  @param target the target object.
- *  @return the nickname associated with the target. */
-CFStringRef iSCSITargetGetNickName(iSCSIMutableTargetRef target);
+ *  @return the alias associated with the target. */
+CFStringRef iSCSITargetGetAlias(iSCSIMutableTargetRef target);
+
+/*! Sets the alias associated with the iSCSI target.
+ *  @param target the target object.
+ *  @param alias the alias associated with the target. */
+void iSCSITargetSetAlias(iSCSIMutableTargetRef target,CFStringRef alias);
 
 /*! Releases memory associated with an iSCSI target object.
  * @param target the iSCSI target object. */

@@ -148,6 +148,7 @@ iSCSISessionConfigRef iSCSITargetCreateWithData(CFDataRef data)
 /*! iSCSI target records are dictionaries with keys with string values
  *  that specify the target name and other parameters. */
 CFStringRef kiSCSITargetIQNKey = CFSTR("Target Name");
+CFStringRef kiSCSITargetAliasKey = CFSTR("Target Alias");
 
 /*! Convenience function.  Creates a new iSCSITargetRef with the above keys. */
 iSCSIMutableTargetRef iSCSITargetCreateMutable()
@@ -155,6 +156,7 @@ iSCSIMutableTargetRef iSCSITargetCreateMutable()
     iSCSIMutableTargetRef target = CFDictionaryCreateMutable(kCFAllocatorDefault,5,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
 
     CFDictionarySetValue(target,kiSCSITargetIQNKey,kiSCSIUnspecifiedTargetIQN);
+    CFDictionarySetValue(target,kiSCSITargetAliasKey,kiSCSIUnspecifiedTargetAlias);
     return target;
 }
 
@@ -165,13 +167,29 @@ CFStringRef iSCSITargetGetIQN(iSCSITargetRef target)
 }
 
 /*! Sets the name associated with the iSCSI target. */
-void iSCSITargetSetIQN(iSCSIMutableTargetRef target,CFStringRef name)
+void iSCSITargetSetIQN(iSCSIMutableTargetRef target,CFStringRef IQN)
 {
     // Ignore blanks
-    if(CFStringCompare(name,CFSTR(""),0) == kCFCompareEqualTo)
+    if(CFStringCompare(IQN,CFSTR(""),0) == kCFCompareEqualTo)
         return;
     
-    CFDictionarySetValue(target,kiSCSITargetIQNKey,name);
+    CFDictionarySetValue(target,kiSCSITargetIQNKey,IQN);
+}
+
+/*! Gets the alias associated with the iSCSI target. */
+CFStringRef iSCSITargetGetAlias(iSCSIMutableTargetRef target)
+{
+    return CFDictionaryGetValue(target,kiSCSITargetAliasKey);
+}
+
+/*! Sets the alias associated with the iSCSI target. */
+void iSCSITargetSetAlias(iSCSIMutableTargetRef target,CFStringRef alias)
+{
+    // Ignore blanks
+    if(CFStringCompare(alias,CFSTR(""),0) == kCFCompareEqualTo)
+        return;
+    
+    CFDictionarySetValue(target,kiSCSITargetAliasKey,alias);
 }
 
 /*! Releases memory associated with iSCSI targets. */
