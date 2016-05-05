@@ -81,7 +81,7 @@ const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 60000;
 
 /*! Default TCP timeout for new connections (seconds). */
-const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 10;
+const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 1;
 
 
 OSDefineMetaClassAndStructors(iSCSIVirtualHBA,IOSCSIParallelInterfaceController);
@@ -1405,9 +1405,6 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
     if(!theSession)
         return;
     
-    // Prevent others from accessing the session
-    sessionList[sessionId] = NULL;
-    
     DBLog("iscsi: Releasing session (sid %d)\n",sessionId);
     
     // Disconnect all connections
@@ -1416,6 +1413,9 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
         if(theSession->connections[connectionId])
             ReleaseConnection(sessionId,connectionId);
     }
+    
+    // Prevent others from accessing the session
+    sessionList[sessionId] = NULL;
     
     // Free connection list and session object
     IOFree(theSession->connections,kMaxConnectionsPerSession*sizeof(iSCSIConnection*));
@@ -1613,13 +1613,13 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
     if(!connection)
         return;
     
-    // Prevents other from trying to access this connection...
-    session->connections[connectionId] = NULL;
-    
     // First deactivate connection before proceeding
     if(connection->taskQueue->isEnabled())
         DeactivateConnection(sessionId,connectionId);
 
+    // Prevents other from trying to access this connection...
+    session->connections[connectionId] = NULL;
+    
     sock_close(connection->socket);
 
     GetWorkLoop()->removeEventSource(connection->dataRecvEventSource);
