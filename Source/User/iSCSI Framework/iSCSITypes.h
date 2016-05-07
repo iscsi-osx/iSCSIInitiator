@@ -289,13 +289,18 @@ CFDataRef iSCSIPortalCreateData(iSCSIPortalRef portal);
 
 
 /*! Creates a new target object from an external data representation.
- * @param data data used to construct an iSCSI target object.
- * @return an iSCSI target object or NULL if object creation failed */
+ *  @param data data used to construct an iSCSI target object.
+ *  @return an iSCSI target object or NULL if object creation failed */
 iSCSITargetRef iSCSITargetCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSITarget object with empty target parameters.
  *  @return an iSCSI target object. */
 iSCSIMutableTargetRef iSCSITargetCreateMutable();
+
+/*! Createa a new mutable iSCSITarget object.
+ *  @param target an exsiting target object.
+ *  @param a mutable target object. */
+iSCSIMutableTargetRef iSCSITargetCreateMutableCopy(iSCSITargetRef target);
 
 /*! Gets the name associated with the iSCSI target.
   * @param target the iSCSI target object.

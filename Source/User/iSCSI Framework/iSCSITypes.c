@@ -160,6 +160,14 @@ iSCSIMutableTargetRef iSCSITargetCreateMutable()
     return target;
 }
 
+/*! Createa a new mutable iSCSITarget object.
+ *  @param target an exsiting target object.
+ *  @param a mutable target object. */
+iSCSIMutableTargetRef iSCSITargetCreateMutableCopy(iSCSITargetRef target)
+{
+    return CFDictionaryCreateMutableCopy(kCFAllocatorDefault,0,(CFDictionaryRef)target);
+}
+
 /*! Gets the name associated with the iSCSI target. */
 CFStringRef iSCSITargetGetIQN(iSCSITargetRef target)
 {
