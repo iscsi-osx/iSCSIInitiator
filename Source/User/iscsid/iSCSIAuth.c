@@ -188,7 +188,7 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateId()
 /*! Helper function for iSCSIConnectionSecurityNegotiate.  Once it has been
  *  determined that a CHAP session is to be used, this function will perform
  *  the CHAP authentication. */
-errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
+errno_t iSCSIAuthNegotiateCHAP(iSCSIMutableTargetRef target,
                                iSCSIAuthRef initiatorAuth,
                                iSCSIAuthRef targetAuth,
                                SID sessionId,
@@ -313,6 +313,12 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSITargetRef target,
         }
     }
     
+    // If no error and the target returned an alias save it...
+    CFStringRef targetAlias;
+    if(!error && CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_TargetAlias,(const void **)&targetAlias)) {
+        iSCSITargetSetAlias(target,targetAlias);
+    }
+    
     CFRelease(authCmd);
     CFRelease(authRsp);
 
@@ -376,7 +382,7 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
  *  begin authentication between the initiator and a selected target.  If the
  *  target name is set to blank (e.g., by a call to iSCSITargetSetIQN()) or 
  *  never set at all, a discovery session is assumed for authentication. */
-errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
+errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
                            iSCSIAuthRef initiatorAuth,
                            iSCSIAuthRef targetAuth,
                            SID sessionId,
@@ -511,6 +517,12 @@ errno_t iSCSIAuthNegotiate(iSCSITargetRef target,
                                        statusCode);
         if(error || *statusCode != kiSCSILoginSuccess)
             goto ERROR_AUTHENTICATE_CHAP;
+    }
+    
+    // If no error and the target returned an alias save it...
+    CFStringRef targetAlias;
+    if(!error && CFDictionaryGetValueIfPresent(authRsp,kRFC3720_Key_TargetAlias,(const void**)&targetAlias)) {
+        iSCSITargetSetAlias(target,targetAlias);
     }
     
     CFRelease(authCmd);
