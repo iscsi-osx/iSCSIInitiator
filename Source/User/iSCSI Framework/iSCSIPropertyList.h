@@ -174,6 +174,16 @@ void iSCSIPLSetHeaderDigestForTarget(CFStringRef targetIQN,
  *  @param newIQN the new IQN to assign to the target. */
 void iSCSIPLSetTargetIQN(CFStringRef existingIQN,CFStringRef newIQN);
 
+/*! Sets the alias for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param alias the alias to associate with the specified target. */
+void iSCSIPLSetTargetAlias(CFStringRef targetIQN,CFStringRef alias);
+
+/*! Gets the alias for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the alias associated with the specified target. */
+CFStringRef iSCSIPLGetTargetAlias(CFStringRef targetIQN);
+
 /*! Sets authentication method to be used by target.
  *  @param targetIQN the target iSCSI qualified name (IQN).
  *  @param authMethod the authentication method to use. */

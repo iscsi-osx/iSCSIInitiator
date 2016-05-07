@@ -66,6 +66,9 @@ CFStringRef kiSCSIPKDiscovery = CFSTR("Discovery");
 /*! Preference key name for iSCSI portals dictionary (specific to each target). */
 CFStringRef kiSCSIPKPortals = CFSTR("Portals");
 
+/*! Target alias. */
+CFStringRef kiSCSIPKTargetAlias = CFSTR("Alias");
+
 /*! Preference key name for target configuration type. */
 CFStringRef kiSCSIPKTargetConfigType = CFSTR("Configuration Type");
 
@@ -962,6 +965,30 @@ void iSCSIPLSetTargetIQN(CFStringRef existingIQN,CFStringRef newIQN)
 
         targetNodesCacheModified = true;
     }
+}
+
+/*! Sets the alias for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param alias the alias to associate with the specified target. */
+void iSCSIPLSetTargetAlias(CFStringRef targetIQN,CFStringRef alias)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+    
+    if(targetDict)
+        CFDictionarySetValue(targetDict,kiSCSIPKTargetAlias,alias);
+}
+
+/*! Gets the alias for the specified target.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @return the alias associated with the specified target. */
+CFStringRef iSCSIPLGetTargetAlias(CFStringRef targetIQN)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPLGetTargetDict(targetIQN,false);
+
+    if(targetDict)
+        return CFDictionaryGetValue(targetDict,kiSCSIPKTargetAlias);
+    
+    return kiSCSIUnspecifiedTargetAlias;
 }
 
 /*! Sets authentication method to be used by target. */
