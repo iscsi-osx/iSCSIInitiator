@@ -1637,7 +1637,7 @@ errno_t iSCSICtlListDiscoveryConfig(iSCSIDaemonHandle handle,CFDictionaryRef opt
         enableString = CFSTR("enabled");
 
     CFStringRef format = CFSTR("\%@: %@"
-                               "\n\tinterval: %ld");
+                               "\n\tinterval: %ld seconds");
     CFStringRef discoveryConfig = CFStringCreateWithFormat(kCFAllocatorDefault,0,
                                                            format,
                                                            kOptKeySendTargetsEnable,
