@@ -62,7 +62,7 @@ errno_t iSCSICleanup();
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSILoginSession(iSCSITargetRef target,
+errno_t iSCSILoginSession(iSCSIMutableTargetRef target,
                           iSCSIPortalRef portal,
                           iSCSIAuthRef initiatorAuth,
                           iSCSIAuthRef targetAuth,

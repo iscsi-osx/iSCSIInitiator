@@ -475,7 +475,7 @@ errno_t iSCSINegotiateParseCWDict(SID sessionId,
     return 0;
 }
 
-errno_t iSCSINegotiateSession(iSCSITargetRef target,
+errno_t iSCSINegotiateSession(iSCSIMutableTargetRef target,
                               SID sessionId,
                               CID connectionId,
                               iSCSISessionConfigRef sessCfg,
@@ -536,6 +536,12 @@ errno_t iSCSINegotiateSession(iSCSITargetRef target,
     
         if(!error)
             error = iSCSINegotiateParseCWDict(sessionId,connectionId,sessCmd,sessRsp);
+    }
+    
+    // If no error and the target returned an alias save it...
+    CFStringRef targetAlias;
+    if(!error && CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_TargetAlias,(const void **)&targetAlias)) {
+        iSCSITargetSetAlias(target,targetAlias);
     }
     
     CFRelease(sessCmd);
@@ -785,7 +791,9 @@ errno_t iSCSILoginConnection(SID sessionId,
     if(error || *connectionId == kiSCSIInvalidConnectionId)
         return EAGAIN;
     
-    iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
+    iSCSITargetRef targetTemp = iSCSICreateTargetForSessionId(sessionId);
+    iSCSIMutableTargetRef target = iSCSITargetCreateMutableCopy(targetTemp);
+    iSCSITargetRelease(targetTemp);
     
     // If no error, authenticate (negotiate security parameters)
     if(!error && *statusCode == kiSCSILoginSuccess)
@@ -843,7 +851,7 @@ errno_t iSCSILogoutConnection(SID sessionId,
  *  @param connectionId the new connection identifier.
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
-errno_t iSCSILoginSession(iSCSITargetRef target,
+errno_t iSCSILoginSession(iSCSIMutableTargetRef target,
                           iSCSIPortalRef portal,
                           iSCSIAuthRef initiatorAuth,
                           iSCSIAuthRef targetAuth,
