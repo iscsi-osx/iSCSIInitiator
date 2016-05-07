@@ -487,7 +487,7 @@ iSCSISessionConfigRef iSCSISessionConfigCreateWithData(CFDataRef data);
 iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutable();
 
 /*! Creates a mutable session configuration object from an existing one. */
-iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutableWithExisting(iSCSISessionConfigRef config);
+iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutableCopy(iSCSISessionConfigRef config);
 
 /*! Gets the error recovery level associated with a  session. */
 enum iSCSIErrorRecoveryLevels iSCSISessionConfigGetErrorRecoveryLevel(iSCSISessionConfigRef config);
@@ -547,7 +547,7 @@ iSCSIConnectionConfigRef iSCSIConnectionConfigCreateWithData(CFDataRef data);
 iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutable();
 
 /*! Creates a mutable connection configuration object from an existing one. */
-iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableWithExisting(iSCSIConnectionConfigRef config);
+iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableCopy(iSCSIConnectionConfigRef config);
 
 /*! Gets whether a header digest is enabled in the config object.
  *  @param config the iSCSI config object.

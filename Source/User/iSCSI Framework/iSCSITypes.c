@@ -585,7 +585,7 @@ iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutable()
 }
 
 /*! Creates a mutable session configuration object from an existing one. */
-iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutableWithExisting(iSCSISessionConfigRef config)
+iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutableCopy(iSCSISessionConfigRef config)
 {
     return (iSCSIMutableSessionConfigRef)CFPropertyListCreateDeepCopy(
         kCFAllocatorDefault,config,kCFPropertyListMutableContainersAndLeaves);
@@ -718,7 +718,7 @@ iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutable()
 }
 
 /*! Creates a mutable connection configuration object from an existing one. */
-iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableWithExisting(iSCSIConnectionConfigRef config)
+iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableCopy(iSCSIConnectionConfigRef config)
 {
     return (iSCSIMutableConnectionConfigRef)CFPropertyListCreateDeepCopy(
         kCFAllocatorDefault,config,kCFPropertyListMutableContainersAndLeaves);
