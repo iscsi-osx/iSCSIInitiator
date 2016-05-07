@@ -322,9 +322,6 @@ IOReturn iSCSIInitiatorClient::clientDied()
     // Close the provider (decrease retain count)
     close();
     
-    if(accessLock)
-        IOLockFree(accessLock);
-    
 	return super::clientDied();
 }
 
