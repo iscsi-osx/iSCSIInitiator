@@ -31,7 +31,6 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreFoundation/CFPreferences.h>
-#include <CoreFoundation/CFPropertyList.h>
 
 #include <Security/Security.h>
 
@@ -42,13 +41,21 @@ enum iSCSIAuthRights {
     
     /*! The right to make modifications to the initiator, including
      *  modification of settings, addition/removal of targets, etc. */
-    kiSCSIAuthModifyRight
+    kiSCSIAuthModifyRight,
+    
+    /*! All authentication rights. */
+    kiSCSIAuthAllRights
 };
 
-/*! Creates all necessary rights if they are missing. */
+/*! Creates all necessary rights if they are missing.
+ *  @param authorization authorization used to create rights. */
 OSStatus iSCSIAuthRightsInitialize(AuthorizationRef authorization);
 
-/*! Used to acquire a right. */
+/*! Used to acquire a right.
+ *  @param authorization the authorization to associated with the acquired right.
+ *  @param authRight the right to acquire.
+ *  @return an status code indicating the result of the operation. */
 OSStatus iSCSIAuthRightsAcquire(AuthorizationRef authorization,enum iSCSIAuthRights authRight);
+
 
 #endif /* __ISCSI_AUTH_RIGHTS_H__ */

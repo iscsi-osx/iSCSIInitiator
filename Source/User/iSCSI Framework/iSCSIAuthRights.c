@@ -28,6 +28,7 @@
 
 #include "iSCSIAuthRights.h"
 
+
 /*! Authorization right for logging in and out of targets. */
 const char kiSCSIAuthRightLogin[] = "com.github.iscsi-osx.iSCSIInitiator.login";
 
@@ -39,6 +40,8 @@ CFStringRef kRightPromptLogin = CFSTR("For logging into and out of iSCSI targets
 CFStringRef kRightPromptModify = CFSTR("For modifying initiator, discovery and target settings and adding and removing targets.");
 
 
+/*! Creates all necessary rights if they are missing.
+ *  @param authorization authorization used to create rights. */
 OSStatus iSCSIAuthRightsInitialize(AuthorizationRef authorization)
 {
     OSStatus error = noErr;
@@ -57,6 +60,11 @@ OSStatus iSCSIAuthRightsInitialize(AuthorizationRef authorization)
     return error;
 }
 
+
+/*! Used to acquire a right.
+ *  @param authorization the authorization to associated with the acquired right.
+ *  @param authRight the right to acquire.
+ *  @return an status code indicating the result of the operation. */
 OSStatus iSCSIAuthRightsAcquire(AuthorizationRef authorization,enum iSCSIAuthRights authRight)
 {
     const char * rightName;
@@ -78,6 +86,5 @@ OSStatus iSCSIAuthRightsAcquire(AuthorizationRef authorization,enum iSCSIAuthRig
     
     OSStatus error = AuthorizationCopyRights(authorization,&rights,NULL,kAuthorizationFlagExtendRights|kAuthorizationFlagInteractionAllowed,NULL);
     
-    OSStatus a = errAuthorizationDenied;
     return error;
 }
