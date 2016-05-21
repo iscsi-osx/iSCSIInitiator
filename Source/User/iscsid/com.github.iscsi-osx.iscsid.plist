@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/var/log/iscsid</string>
+	<key>Sockets</key>
+	<dict>
+		<key>iscsid</key>
+		<dict>
+			<key>SockPathName</key>
+			<string>/var/run/iscsid</string>
+		</dict>
+	</dict>
+	<key>Program</key>
+	<string>/usr/local/libexec/iscsid</string>
+	<key>Label</key>
+	<string>com.github.iscsi-osx.iscsid</string>
+</dict>
+</plist>

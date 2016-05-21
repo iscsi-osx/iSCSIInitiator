@@ -1,8 +1,29 @@
-/*!
- * @author		Nareg Sinenian
- * @file		iSCSIVirtualHBA.cpp
- * @version		1.0
- * @copyright	(c) 2013-2015 Nareg Sinenian. All rights reserved.
+/*
+ * Copyright (c) 2016, Nareg Sinenian
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "iSCSIVirtualHBA.h"
@@ -60,7 +81,7 @@ const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 60000;
 
 /*! Default TCP timeout for new connections (seconds). */
-const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 10;
+const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 1;
 
 
 OSDefineMetaClassAndStructors(iSCSIVirtualHBA,IOSCSIParallelInterfaceController);
@@ -589,22 +610,23 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         return;
     }
     
-    // At this point we have have a write command, determine whether we need
-    // to send data at this point or later in response to an R2T
+    // If there is no unsolicited data to send, simply send the WRITE
+    // command and return.
     if(session->initialR2T && !session->immediateData) {
         bhs.flags |= kiSCSIPDUSCSICmdFlagNoUnsolicitedData;
         owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
         return;
     }
     
-    // Get data associated with this task and send ...
+    // At this point either immediate data, data-out PDUs or both
+    // are going to be sent out.
     IOMemoryDescriptor  * dataDesc  = owner->GetDataBuffer(parallelTask);
     UInt32 dataOffset = 0, dataLength = 0;
     
-    // First use immediate data to send as data with command PDU...
+    // First use immediate data to send data with command PDU...
     if(session->immediateData) {
         
-        // Either we send the max allowed data (immediate data length) or
+        // Either send the max allowed data (immediate data length) or
         // all of the data if it is lesser than the max allowed limit
         dataLength = min(connection->immediateDataLength,transferSize);
         
@@ -623,6 +645,11 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         connection->dataToTransfer -= dataLength;
         
         IOFree(data,dataLength);
+    }
+    else {
+        // No immediate data (but there will be data-out following this)
+        // just send the WRITE command without immediate data
+        owner->SendPDU(session,connection,(iSCSIPDUInitiatorBHS *)&bhs,NULL,NULL,0);
     }
 
     // Follow up with data out PDUs up to the firstBurstLength bytes if...
@@ -683,6 +710,7 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
         case kiSCSIPDUOpCodeR2T:
             owner->ProcessR2T(session,connection,(iSCSIPDUR2TBHS*)&bhs);
             break;
+            
         case kiSCSIPDUOpCodeReject:
             owner->ProcessReject(session,connection,(iSCSIPDURejectBHS*)&bhs);
             break;
@@ -1061,7 +1089,7 @@ void iSCSIVirtualHBA::ProcessAsyncMsg(iSCSISession * session,
             
         // No support for proprietary vendor codes; do nothing
         case kiSCSIPDUAsyncMsgVendorCode: break;
-            
+
         default: break;
     };
     
@@ -1162,7 +1190,7 @@ void iSCSIVirtualHBA::ProcessDataOutForTask(iSCSISession * session,
     }
     
     // Cleanup buffer
-    IOFree(data,connection->maxRecvDataSegmentLength);
+    IOFree(data,connection->maxSendDataSegmentLength);
 }
 
 /*! Process an incoming reject PDU.
@@ -1386,6 +1414,9 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
             ReleaseConnection(sessionId,connectionId);
     }
     
+    // Prevent others from accessing the session
+    sessionList[sessionId] = NULL;
+    
     // Free connection list and session object
     IOFree(theSession->connections,kMaxConnectionsPerSession*sizeof(iSCSIConnection*));
     IOFree(theSession,sizeof(iSCSISession));
@@ -1403,7 +1434,6 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
             break;
         }
     }
-    sessionList[sessionId] = NULL;
 }
 
 /*! Allocates a new iSCSI connection associated with the particular session.
@@ -1587,6 +1617,9 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
     if(connection->taskQueue->isEnabled())
         DeactivateConnection(sessionId,connectionId);
 
+    // Prevents other from trying to access this connection...
+    session->connections[connectionId] = NULL;
+    
     sock_close(connection->socket);
 
     GetWorkLoop()->removeEventSource(connection->dataRecvEventSource);
@@ -1599,7 +1632,6 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
     connection->dataToTransfer = 0;
     
     IOFree(connection,sizeof(iSCSIConnection));
-    session->connections[connectionId] = NULL;
     
     DBLog("iscsi: Released connection (sid: %d, cid: %d)\n",sessionId,connectionId);
 }

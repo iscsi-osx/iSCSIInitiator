@@ -1,7 +1,7 @@
 # Package parameters
 NAME="iSCSI Initiator for OS X"
 BUNDLE_ID="com.github.iscsi-osx.iSCSIInitiator"
-VERSION=$(cd ../ ; agvtool what-version -terse)
+VERSION="1.0.0-beta2"
 
 # Output of final DMG
 RELEASE="../Release"
@@ -43,7 +43,7 @@ REQUIREMENTS_PATH="Resources/Requirements.plist"
 
 # Relelase build of all three components
 xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
-           -scheme iSCSIInitiator -configuration release BUILD_DIR=$XCODE_RELEASE_BUILD_DIR
+           -scheme iSCSI.kext -configuration release BUILD_DIR=$XCODE_RELEASE_BUILD_DIR
 xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
            -scheme iscsid -configuration release BUILD_DIR=$XCODE_RELEASE_BUILD_DIR
 xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
@@ -68,16 +68,17 @@ pkgbuild --nopayload \
     --version $VERSION \
     $UNINSTALLER_PATH.tmp
 
+
 # Put packages inside a product archive
 productbuild --distribution $INSTALLER_DIST_XML \
-    --package-path $TMP_PACKAGE_DIR \
-    --product $REQUIREMENTS_PATH \
-    $INSTALLER_PATH
+--package-path $TMP_PACKAGE_DIR \
+--product $REQUIREMENTS_PATH \
+$INSTALLER_PATH
 
 productbuild --distribution $UNINSTALLER_DIST_XML \
-    --package-path $TMP_PACKAGE_DIR \
-    --product $REQUIREMENTS_PATH \
-    $UNINSTALLER_PATH
+--package-path $TMP_PACKAGE_DIR \
+--product $REQUIREMENTS_PATH \
+$UNINSTALLER_PATH
 
 # Cleanup temporary packages, leaving final pacakges for DMG
 rm $INSTALLER_PATH.tmp
@@ -85,11 +86,11 @@ rm $UNINSTALLER_PATH.tmp
 
 # Build the DMG
 hdiutil create -srcfolder $TMP_PACKAGE_DIR -volname "$NAME" -fs HFS+ \
-    -fsargs "-c c=64,a=16,e=16" -format UDRW -size ${DMG_SIZE}k $TMP_ROOT/$DMG_BASE_NAME.dmg
+-fsargs "-c c=64,a=16,e=16" -format UDRW -size ${DMG_SIZE}k $TMP_ROOT/$DMG_BASE_NAME.dmg
 
 # Load the DMG
 device=$(hdiutil attach -readwrite -noverify -noautoopen $TMP_ROOT/$DMG_BASE_NAME.dmg | \
-    egrep '^/dev/' | sed 1q | awk '{print $1}')
+egrep '^/dev/' | sed 1q | awk '{print $1}')
 
 sleep 2
 

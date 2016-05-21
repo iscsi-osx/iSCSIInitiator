@@ -4,6 +4,29 @@
 DAEMON=iscsid
 TOOL=iscsictl
 KEXT=iSCSIInitiator.kext
+FRAMEWORK=iSCSI.framework
+DAEMON_PLIST=com.github.iscsi-osx.iscsid.plist
+MAN_TOOL=iscsictl.8
+MAN_DAEMON=iscsid.8
+
+# Define install path
+DAEMON_DST=/usr/local/libexec
+DAEMON_PLIST_DST=/Library/LaunchDaemons
+FRAMEWORK_DST=/Library/Frameworks
+TOOL_DST=/usr/local/bin
+MAN_DST=/usr/share/man/man8
+
+# Get minor version of the OS
+OSX_MINOR_VER=$(sw_vers -productVersion | awk -F '.' '{print $2}')
+
+# Minor version of OS X Mavericks
+OSX_MAVERICKS_MINOR_VER="9"
+
+if [ "$OSX_MINOR_VER" -ge "$OSX_MAVERICKS_MINOR_VER" ]; then
+    KEXT_DST=/Library/Extensions
+else
+    KEXT_DST=/System/Library/Extensions
+fi
 
 # Look for build products in places Xcode might place them.
 for BUILD_PATH in \
@@ -23,30 +46,37 @@ if [ X"" == X"${SOURCE_PATH}" ]; then
 fi
 
 # Copy kernel extension & load it
-sudo cp -R $SOURCE_PATH/$KEXT /Library/Extensions/$KEXT
-sudo chmod -R 755 /Library/Extensions/$KEXT
-sudo chown -R root:wheel /Library/Extensions/$KEXT
+sudo cp -R $SOURCE_PATH/$KEXT $KEXT_DST/$KEXT
+sudo chmod -R 755 $KEXT_DST/$KEXT
+sudo chown -R root:wheel $KEXT_DST/$KEXT
+
+# Copy framework
+sudo cp -R $SOURCE_PATH/$FRAMEWORK $FRAMEWORK_DST/$FRAMEWORK
+sudo chown -R root:wheel $FRAMEWORK_DST/$FRAMEWORK
+sudo chmod -R 755 $FRAMEWORK_DST/$FRAMEWORK
+
 
 # Copy daemon & set permissions
 sudo rm -f /var/logs/iscsid.log
-sudo cp $SOURCE_PATH/$DAEMON /Library/PrivilegedHelperTools/$DAEMON
-sudo cp $SOURCE_PATH/com.github.iscsi-osx.iscsid.plist /System/Library/LaunchDaemons
-sudo chmod -R 744 /Library/PrivilegedHelperTools/$DAEMON
-sudo chown -R root:wheel /Library/PrivilegedHelperTools/$DAEMON
-sudo chmod 644 /System/Library/LaunchDaemons/com.github.iscsi-osx.iscsid.plist
-sudo chown root:wheel /System/Library/LaunchDaemons/com.github.iscsi-osx.iscsid.plist
+sudo mkdir -p $DAEMON_DST
+sudo cp $SOURCE_PATH/$DAEMON $DAEMON_DST/$DAEMON
+sudo cp $SOURCE_PATH/$DAEMON_PLIST $DAEMON_PLIST_DST
+sudo chmod -R 744 $DAEMON_DST/$DAEMON
+sudo chown -R root:wheel $DAEMON_DST/$DAEMON
+sudo chmod 644 $DAEMON_PLIST_DST/$DAEMON_PLIST
+sudo chown root:wheel $DAEMON_PLIST_DST/$DAEMON_PLIST
 
 # Copy user tool
-sudo cp $SOURCE_PATH/$TOOL /usr/local/bin/$TOOL
-sudo chmod +x /usr/local/bin/$TOOL
+sudo cp $SOURCE_PATH/$TOOL $TOOL_DST/$TOOL
+sudo chmod +x $TOOL_DST/$TOOL
 
 # Copy man page
-sudo cp $SOURCE_PATH/iscsictl.8 /usr/share/man/man8
-sudo cp $SOURCE_PATH/iscsid.8 /usr/share/man/man8
+sudo cp $SOURCE_PATH/$MAN_TOOL $MAN_DST
+sudo cp $SOURCE_PATH/$MAN_DAEMON $MAN_DST
 
 # Load kernel extension
-sudo kextload /Library/Extensions/$KEXT
+sudo kextload $KEXT_DST/$KEXT
 
 # Start daemon
-sudo launchctl load /System/Library/LaunchDaemons/com.github.iscsi-osx.iscsid.plist
-sudo launchctl start com.github.iscsi-osx.iscsid
+sudo launchctl load $DAEMON_PLIST_DST/$DAEMON_PLIST
+sudo launchctl start $DAEMON_PLIST
