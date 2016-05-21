@@ -87,6 +87,13 @@ const iSCSIDMsgUpdateDiscoveryCmd iSCSIDMsgUpdateDiscoveryCmdInit = {
     .funcCode = kiSCSIDUpdateDiscovery
 };
 
+const iSCSIDMsgPreferencesIOLockAndSyncCmd iSCSIDMsgPreferencesIOLockAndSyncCmdInit = {
+    .funcCode = kiSCSIDPreferencesIOLockAndSync
+};
+
+const iSCSIDMsgPreferencesIOUnlockAndSyncCmd iSCSIDMsgPreferencesIOUnlockAndSyncCmdInit = {
+    .funcCode = kiSCSIDPreferencesIOUnlockAndSync
+};
 
 iSCSIDaemonHandle iSCSIDaemonConnect()
 {
@@ -106,7 +113,7 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     // Set timeout for connect()
     struct timeval tv;
     memset(&tv,0,sizeof(tv));
-    tv.tv_usec = kiSCSIDaemonConnectTimeoutMilliSec*1000;
+    tv.tv_usec = kiSCSIDaemonConnectTimeoutMilliSec*2000;
 
     fd_set fdset;
     FD_ZERO(&fdset);
@@ -146,22 +153,25 @@ void iSCSIDaemonDisconnect(iSCSIDaemonHandle handle)
  *  If an argument is supplied for portal, login occurs over the specified
  *  portal.  Otherwise, the daemon will attempt to login over all portals.
  *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyLogin
  *  @param target specifies the target and connection parameters to use.
  *  @param portal specifies the portal to use (use NULL for all portals).
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
+                         AuthorizationRef authorization,
                          iSCSITargetRef target,
                          iSCSIPortalRef portal,
                          enum iSCSILoginStatusCode * statusCode)
 {
-    if(handle < 0 || !target || !statusCode)
+    if(handle < 0 || !target || !authorization || !statusCode)
         return EINVAL;
 
     CFDataRef targetData = iSCSITargetCreateData(target);
     CFDataRef portalData = NULL;
 
     iSCSIDMsgLoginCmd cmd = iSCSIDMsgLoginCmdInit;
+    cmd.authLength = kAuthorizationExternalFormLength;
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
     cmd.portalLength = 0;
 
@@ -169,9 +179,18 @@ errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
         portalData = iSCSIPortalCreateData(portal);
         cmd.portalLength = (UInt32)CFDataGetLength(portalData);
     }
+    
+    AuthorizationExternalForm authExtForm;
+    AuthorizationMakeExternalForm(authorization,&authExtForm);
+    
+    CFDataRef authData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
+                                                     (UInt8*)&authExtForm.bytes,
+                                                     kAuthorizationExternalFormLength,
+                                                     kCFAllocatorDefault);
 
     errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
-                                       targetData,portalData,NULL);
+                                       authData,targetData,portalData,NULL);
+    
     if(portal)
         CFRelease(portalData);
     CFRelease(targetData);
@@ -194,23 +213,26 @@ errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
 }
 
 
-/*! Logs out of the target or a specific portal, if specified.
+/*! Closes the iSCSI connection and frees the session qualifier.
  *  @param handle a handle to a daemon connection.
- *  @param target the target to logout.
- *  @param portal the portal to logout.  If one is not specified,
+ *  @param authorization an authorization for the right kiSCSIAuthModifyLogin
+ *  @param target specifies the target and connection parameters to use.
+ *  @param portal specifies the portal to use (use NULL for all portals).
  *  @param statusCode iSCSI response code indicating operation status. */
 errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
+                          AuthorizationRef authorization,
                           iSCSITargetRef target,
                           iSCSIPortalRef portal,
                           enum iSCSILogoutStatusCode * statusCode)
 {
-    if(handle < 0 || !target || !statusCode)
+    if(handle < 0 || !target || !authorization || !statusCode)
         return EINVAL;
 
     CFDataRef targetData = iSCSITargetCreateData(target);
     CFDataRef portalData = NULL;
 
     iSCSIDMsgLogoutCmd cmd = iSCSIDMsgLogoutCmdInit;
+    cmd.authLength = kAuthorizationExternalFormLength;
     cmd.targetLength = (UInt32)CFDataGetLength(targetData);
     cmd.portalLength = 0;
 
@@ -218,9 +240,18 @@ errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
         portalData = iSCSIPortalCreateData(portal);
         cmd.portalLength = (UInt32)CFDataGetLength(portalData);
     }
+    
+    AuthorizationExternalForm authExtForm;
+    AuthorizationMakeExternalForm(authorization,&authExtForm);
+    
+    CFDataRef authData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
+                                                     (UInt8*)&authExtForm.bytes,
+                                                     kAuthorizationExternalFormLength,
+                                                     kCFAllocatorDefault);
 
     errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
-                                       targetData,portalData,NULL);
+                                       authData,targetData,portalData,NULL);
+    
     if(portal)
         CFRelease(portalData);
     CFRelease(targetData);
@@ -567,5 +598,111 @@ errno_t iSCSIDaemonUpdateDiscovery(iSCSIDaemonHandle handle)
         return EIO;
 
     return 0;
+}
+
+/*! Semaphore that allows a client exclusive accesss to the property list
+ *  that contains iSCSI configuraiton parameters and targets. Forces the provided
+ *  preferences object to synchronize with property list on the disk.
+ *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyRights
+ *  @param preferences the preferences to be synchronized
+ *  @return an error code indicating whether the operating was successful. */
+errno_t iSCSIDaemonPreferencesIOLockAndSync(iSCSIDaemonHandle handle,
+                                            AuthorizationRef authorization,
+                                            iSCSIPreferencesRef preferences)
+{
+    // Validate inputs
+    if(handle < 0 || !authorization || !preferences)
+        return EINVAL;
+
+    //  Send in authorization and acquire lock
+    AuthorizationExternalForm authExtForm;
+    AuthorizationMakeExternalForm(authorization,&authExtForm);
+    
+    CFDataRef authData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
+                                                     (UInt8*)authExtForm.bytes,
+                                                     kAuthorizationExternalFormLength,
+                                                     kCFAllocatorDefault);
+    
+    iSCSIDMsgPreferencesIOLockAndSyncCmd cmd = iSCSIDMsgPreferencesIOLockAndSyncCmdInit;
+    cmd.authorizationLength = (UInt32)CFDataGetLength(authData);
+    
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,authData,NULL);
+    
+    if(error)
+        return error;
+    
+    iSCSIDMsgPreferencesIOLockAndSyncRsp rsp;
+    
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EIO;
+    
+    if(rsp.funcCode != kiSCSIDPreferencesIOLockAndSync)
+        return EIO;
+    
+    if(rsp.errorCode == 0) {
+        // Force preferences to synchronize after obtaining lock
+        // (this ensures that the client has the most up-to-date preferences data)
+        iSCSIPreferencesUpdateWithAppValues(preferences);
+    }
+    
+    return rsp.errorCode;
+}
+
+/*! Synchronizes cached preference changes to disk and releases the locked
+ *  semaphore, allowing other clients to make changes. If the prefereneces
+ *  parameter is NULL, then no changes are made to disk and the semaphore is
+ *  unlocked.
+ *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyRights
+ *  @param preferences the preferences to be synchronized
+ *  @return an error code indicating whether the operating was successful. */
+errno_t iSCSIDaemonPreferencesIOUnlockAndSync(iSCSIDaemonHandle handle,
+                                              AuthorizationRef authorization,
+                                              iSCSIPreferencesRef preferences)
+{
+    // Validate inputs
+    if(handle < 0 || !authorization)
+        return EINVAL;
+    
+    CFDataRef preferencesData = NULL;
+    
+    AuthorizationExternalForm authExtForm;
+    AuthorizationMakeExternalForm(authorization,&authExtForm);
+    
+    CFDataRef authData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
+                                                     (UInt8*)&authExtForm.bytes,
+                                                     kAuthorizationExternalFormLength,
+                                                     kCFAllocatorDefault);
+    
+    iSCSIDMsgPreferencesIOUnlockAndSyncCmd cmd = iSCSIDMsgPreferencesIOUnlockAndSyncCmdInit;
+    
+    if(preferences) {
+        preferencesData = iSCSIPreferencesCreateData(preferences);
+        cmd.preferencesLength = (UInt32)CFDataGetLength(preferencesData);
+    }
+    else
+        cmd.preferencesLength = 0;
+    
+    cmd.authorizationLength = cmd.authorizationLength = (UInt32)CFDataGetLength(authData);
+    
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
+                                       authData,preferencesData,NULL);
+    
+    if(preferencesData)
+        CFRelease(preferencesData);
+    
+    if(error)
+        return error;
+    
+    iSCSIDMsgPreferencesIOUnlockAndSyncRsp rsp;
+    
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EIO;
+    
+    if(rsp.funcCode != kiSCSIDPreferencesIOUnlockAndSync)
+        return EIO;
+    
+    return rsp.errorCode;
 }
 

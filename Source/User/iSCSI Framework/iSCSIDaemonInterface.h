@@ -41,6 +41,7 @@
 #include <MacTypes.h>
 
 #include "iSCSITypes.h"
+#include "iSCSIPreferences.h"
 
 typedef int iSCSIDaemonHandle;
 
@@ -56,20 +57,25 @@ void iSCSIDaemonDisconnect(iSCSIDaemonHandle handle);
  *  If an argument is supplied for portal, login occurs over the specified
  *  portal.  Otherwise, the daemon will attempt to login over all portals.
  *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyLogin
  *  @param target specifies the target and connection parameters to use.
  *  @param portal specifies the portal to use (use NULL for all portals).
  *  @param statusCode iSCSI response code indicating operation status.
  *  @return an error code indicating whether the operation was successful. */
 errno_t iSCSIDaemonLogin(iSCSIDaemonHandle handle,
+                         AuthorizationRef authorization,
                          iSCSITargetRef target,
                          iSCSIPortalRef portal,
                          enum iSCSILoginStatusCode * statusCode);
 
 /*! Closes the iSCSI connection and frees the session qualifier.
  *  @param handle a handle to a daemon connection.
- *  @param sessionId the session to free.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyLogin
+ *  @param target specifies the target and connection parameters to use.
+ *  @param portal specifies the portal to use (use NULL for all portals).
  *  @param statusCode iSCSI response code indicating operation status. */
 errno_t iSCSIDaemonLogout(iSCSIDaemonHandle handle,
+                          AuthorizationRef authorization,
                           iSCSITargetRef target,
                           iSCSIPortalRef portal,
                           enum iSCSILogoutStatusCode * statusCode);
@@ -137,8 +143,28 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForConnection(iSCSIDaemonHandle han
  *  @return an error code indicating whether the operationg was successful. */
 errno_t iSCSIDaemonUpdateDiscovery(iSCSIDaemonHandle handle);
 
+/*! Semaphore that allows a client exclusive accesss to the property list
+ *  that contains iSCSI configuraiton parameters and targets. Forces the provided
+ *  preferences object to synchronize with property list on the disk.
+ *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyRights
+ *  @param preferences the preferences to be synchronized
+ *  @return an error code indicating whether the operating was successful. */
+errno_t iSCSIDaemonPreferencesIOLockAndSync(iSCSIDaemonHandle handle,
+                                            AuthorizationRef authorization,
+                                            iSCSIPreferencesRef preferences);
 
-
+/*! Synchronizes cached preference changes to disk and releases the locked
+ *  semaphore, allowing other clients to make changes. If the prefereneces
+ *  parameter is NULL, then no changes are made to disk and the semaphore is
+ *  unlocked.
+ *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyRights
+ *  @param preferences the preferences to be synchronized
+ *  @return an error code indicating whether the operating was successful. */
+errno_t iSCSIDaemonPreferencesIOUnlockAndSync(iSCSIDaemonHandle handle,
+                                             AuthorizationRef authorization,
+                                             iSCSIPreferencesRef preferences);
 
 
 #endif /* defined(__ISCSI_DAEMON_INTERFACE__) */

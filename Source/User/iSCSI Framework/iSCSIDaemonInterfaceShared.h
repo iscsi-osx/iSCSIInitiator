@@ -120,9 +120,9 @@ typedef struct __iSCSIDMsgLoginCmd {
 
     const UInt16 funcCode;
     UInt16  reserved;
-    CFLength  portalLength;
+    CFLength  authLength;
     CFLength  targetLength;
-    UInt32  reserved2;
+    CFLength  portalLength;
     UInt32  reserved3;
     UInt32  reserved4;
 
@@ -150,9 +150,9 @@ typedef struct __iSCSIDMsgLogoutCmd {
 
     const UInt16 funcCode;
     UInt16  reserved;
-    CFLength  portalLength;
+    CFLength  authLength;
     CFLength  targetLength;
-    UInt32  reserved3;
+    CFLength  portalLength;
     UInt32  reserved4;
     UInt32  reserved5;
 
@@ -413,6 +413,67 @@ typedef struct __iSCSIDMsgUpdateDiscoveryRsp {
 } __attribute__((packed)) iSCSIDMsgUpdateDiscoveryRsp;
 
 
+/*! Command IO lock and sync preferences. */
+typedef struct __iSCSIDMsgPreferencesIOLockAndSyncCmd {
+    
+    const UInt16 funcCode;
+    UInt16  reserved;
+    UInt32  reserved2;
+    UInt32  reserved3;
+    UInt32  reserved4;
+    UInt32  reserved5;
+    CFLength authorizationLength;
+    
+} __attribute__((packed)) iSCSIDMsgPreferencesIOLockAndSyncCmd;
+
+/*! Default initialization IO lock and sync preferences command. */
+extern const iSCSIDMsgPreferencesIOLockAndSyncCmd iSCSIDMsgPreferencesIOLockAndSyncCmdInit;
+
+/*! Response to command IO lock and sync preferences. */
+typedef struct __iSCSIDMsgPreferencesIOLockAndSyncRsp {
+    
+    const UInt8 funcCode;
+    UInt16 reserved;
+    UInt32 errorCode;
+    UInt8  reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    UInt32 reserved6;
+    
+} __attribute__((packed)) iSCSIDMsgPreferencesIOLockAndSyncRsp;
+
+
+/*! Command IO unlock and sync preferences. */
+typedef struct __iSCSIDMsgPreferencesIOUnlockAndSyncCmd {
+    
+    const UInt16 funcCode;
+    UInt16  reserved;
+    UInt32  reserved2;
+    UInt32  reserved3;
+    UInt32  reserved4;
+    CFLength authorizationLength;
+    CFLength preferencesLength;
+    
+} __attribute__((packed)) iSCSIDMsgPreferencesIOUnlockAndSyncCmd;
+
+/*! Default initialization IO unlock and sync preferences command. */
+extern const iSCSIDMsgPreferencesIOUnlockAndSyncCmd iSCSIDMsgPreferencesIOUnlockAndSyncCmdInit;
+
+/*! Response to command IO unlock and sync preferences. */
+typedef struct __iSCSIDMsgPreferencesIOUnlockAndSyncRsp {
+    
+    const UInt8 funcCode;
+    UInt16 reserved;
+    UInt32 errorCode;
+    UInt8  reserved2;
+    UInt32 reserved3;
+    UInt32 reserved4;
+    UInt32 reserved5;
+    UInt32 reserved6;
+    
+} __attribute__((packed)) iSCSIDMsgPreferencesIOUnlockAndSyncRsp;
+
 ////////////////////////////// DAEMON FUNCTIONS ////////////////////////////////
 
 enum iSCSIDFunctionCodes {
@@ -458,6 +519,12 @@ enum iSCSIDFunctionCodes {
 
     /*! Shut down the daemon. */
     kiSCSIDShutdownDaemon = 13,
+    
+    /*! Lock preferences mutex and synchronize provided preferences object. */
+    kiSCSIDPreferencesIOLockAndSync = 14,
+    
+    /*! Unlock preferences mutex and update application values using preferences object. */
+    kiSCSIDPreferencesIOUnlockAndSync = 15,
 
     /*! Invalid daemon command. */
     kiSCSIDInvalidFunctionCode
