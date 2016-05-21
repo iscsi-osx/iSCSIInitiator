@@ -80,6 +80,10 @@ typedef CFMutableDictionaryRef iSCSIMutableSessionConfigRef;
 typedef CFDictionaryRef iSCSIConnectionConfigRef;
 typedef CFMutableDictionaryRef iSCSIMutableConnectionConfigRef;
 
+#define kiSCSITypeArrayCallbacks kCFTypeArrayCallBacks
+#define kiSCSITypeDictionaryKeyCallbacks kCFTypeDictionaryKeyCallBacks
+#define kiSCSITypeDictionaryValueCallbacks kCFTypeDictionaryValueCallBacks
+
 /*! Error recovery levels. */
 enum iSCSIErrorRecoveryLevels {
     
@@ -283,10 +287,6 @@ CFDictionaryRef iSCSIPortalCreateDictionary(iSCSIPortalRef portal);
  *  @param portal an iSCSI poratl object.
  *  @return data representing the portal or NULL if the portal is invalid. */
 CFDataRef iSCSIPortalCreateData(iSCSIPortalRef portal);
-
-
-
-
 
 /*! Creates a new target object from an external data representation.
  *  @param data data used to construct an iSCSI target object.
