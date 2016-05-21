@@ -34,12 +34,27 @@
 
 #include "iSCSISession.h"
 #include "iSCSITypes.h"
-#include "iSCSIPropertyList.h"
+#include "iSCSIPreferences.h"
 
 
-/*! Scans all iSCSI discovery portals for targets (SendTargets). Updates
- *  the iSCSI property list with information about targets and portals. */
-void iSCSIDiscoveryRunSendTargets();
+/*! Scans all iSCSI discovery portals found in iSCSI preferences
+ *  for targets (SendTargets). Returns a dictionary of key-value pairs
+ *  with discovery record objects as values and discovery portal names
+ *  as keys.
+ *  @param preferences an iSCSI preferences object.
+ *  @return a dictionary key-value pairs of dicovery portal names (addresses)
+ *  and the discovery records associated with the result of SendTargets
+ *  discovery of those portals. */
+CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSIPreferencesRef preferences);
 
+/*! Updates an iSCSI preference sobject with information about targets as
+ *  contained in the provided discovery record.
+ *  @param preferences an iSCSI preferences object.
+ *  @param discoveryPortal the portal (address) that was used to perform discovery.
+ *  @param discoveryRec the discovery record resulting from the discovery operation.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSIPreferencesRef preferences,
+                                                             CFStringRef discoveryPortal,
+                                                             iSCSIDiscoveryRecRef discoveryRec);
 
 #endif /* defined(__ISCSI_DISCOVERY_H__) */

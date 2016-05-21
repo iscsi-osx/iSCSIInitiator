@@ -28,7 +28,8 @@
 
 #include "iSCSIDiscovery.h"
 
-errno_t iSCSIDiscoveryAddTargetForSendTargets(CFStringRef targetIQN,
+errno_t iSCSIDiscoveryAddTargetForSendTargets(iSCSIPreferencesRef preferences,
+                                              CFStringRef targetIQN,
                                               iSCSIDiscoveryRecRef discoveryRec,
                                               CFStringRef discoveryPortal)
 {
@@ -51,18 +52,25 @@ errno_t iSCSIDiscoveryAddTargetForSendTargets(CFStringRef targetIQN,
                continue;
 
             // Add portal to target, or add target as necessary
-            if(iSCSIPLContainsTarget(targetIQN))
-                iSCSIPLSetPortalForTarget(targetIQN,portal);
+            if(iSCSIPreferencesContainsTarget(preferences,targetIQN))
+                iSCSIPreferencesSetPortalForTarget(preferences,targetIQN,portal);
             else
-                iSCSIPLAddDynamicTargetForSendTargets(targetIQN,portal,discoveryPortal);
+                iSCSIPreferencesAddDynamicTargetForSendTargets(preferences,targetIQN,portal,discoveryPortal);
         }
     }
 
     return 0;
 }
 
-errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
-                                                iSCSIDiscoveryRecRef discoveryRec)
+/*! Updates an iSCSI preference sobject with information about targets as
+ *  contained in the provided discovery record.
+ *  @param preferences an iSCSI preferences object.
+ *  @param discoveryPortal the portal (address) that was used to perform discovery.
+ *  @param discoveryRec the discovery record resulting from the discovery operation.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSIPreferencesRef preferences,
+                                                             CFStringRef discoveryPortal,
+                                                             iSCSIDiscoveryRecRef discoveryRec)
 {
     CFArrayRef targets = iSCSIDiscoveryRecCreateArrayOfTargets(discoveryRec);
     
@@ -80,8 +88,8 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
 
         // Target exists with static (or other configuration).  In
         // this case we do nothing, log a message and move on.
-        if(iSCSIPLContainsTarget(targetIQN) &&
-           iSCSIPLGetTargetConfigType(targetIQN) != kiSCSITargetConfigDynamicSendTargets)
+        if(iSCSIPreferencesContainsTarget(preferences,targetIQN) &&
+           iSCSIPreferencesGetTargetConfigType(preferences,targetIQN) != kiSCSITargetConfigDynamicSendTargets)
         {
             CFStringRef statusString = CFStringCreateWithFormat(
                 kCFAllocatorDefault,0,
@@ -95,7 +103,7 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
         // Target doesn't exist, or target exists with SendTargets
         // configuration (add or update as necessary)
         else {
-            iSCSIDiscoveryAddTargetForSendTargets(targetIQN,discoveryRec,discoveryPortal);
+            iSCSIDiscoveryAddTargetForSendTargets(preferences,targetIQN,discoveryRec,discoveryPortal);
             CFStringRef statusString = CFStringCreateWithFormat(
                 kCFAllocatorDefault,0,
                 CFSTR("discovered target %@ over discovery portal %@."),
@@ -114,7 +122,7 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
 
     // Are there any targets that must be removed?  Cross-check existing
     // list against the list we just built...
-    CFArrayRef existingTargets = iSCISPLCreateArrayOfDynamicTargetsForSendTargets(discoveryPortal);
+    CFArrayRef existingTargets = iSCSIPreferencesCreateArrayOfDynamicTargetsForSendTargets(preferences,discoveryPortal);
     targetCount = CFArrayGetCount(existingTargets);
 
     for(CFIndex targetIdx = 0; targetIdx < targetCount; targetIdx++)
@@ -131,32 +139,43 @@ errno_t iSCSIDiscoveryProcessSendTargetsResults(CFStringRef discoveryPortal,
             if(sessionId != kiSCSIInvalidSessionId)
                 iSCSILogoutSession(sessionId,&statusCode);
 
-            iSCSIPLRemoveTarget(targetIQN);
+            iSCSIPreferencesRemoveTarget(preferences,targetIQN);
         }
     }
 
     CFRelease(discTargets);
     CFRelease(existingTargets);
-
-    iSCSIPLSynchronize();
+    
     return 0;
 }
 
-void iSCSIDiscoveryRunSendTargets()
+/*! Scans all iSCSI discovery portals found in iSCSI preferences
+ *  for targets (SendTargets). Returns a dictionary of key-value pairs
+ *  with discovery record objects as values and discovery portal names
+ *  as keys.
+ *  @param preferences an iSCSI preferences object.
+ *  @return a dictionary key-value pairs of dicovery portal names (addresses)
+ *  and the discovery records associated with the result of SendTargets
+ *  discovery of those portals. */
+CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSIPreferencesRef preferences)
 {
-    // Obtain a list of SendTargets portals from the property list
-    iSCSIPLSynchronize();
-
-    CFArrayRef portals = iSCSIPLCreateArrayOfPortalsForSendTargetsDiscovery();
+    if(!preferences)
+        return NULL;
+    
+    CFArrayRef portals = iSCSIPreferencesCreateArrayOfPortalsForSendTargetsDiscovery(preferences);
     
     // Quit if no discovery portals are defined
     if(!portals)
-        return;
+        return NULL;
     
     CFIndex portalCount = CFArrayGetCount(portals);
 
     CFStringRef discoveryPortal = NULL;
     iSCSIPortalRef portal = NULL;
+
+    CFMutableDictionaryRef discoveryRecords = CFDictionaryCreateMutable(kCFAllocatorDefault,0,
+                                                                        &kiSCSITypeDictionaryKeyCallbacks,
+                                                                        &kiSCSITypeDictionaryValueCallbacks);
 
     for(CFIndex idx = 0; idx < portalCount; idx++)
     {
@@ -165,7 +184,7 @@ void iSCSIDiscoveryRunSendTargets()
         if(!discoveryPortal)
             continue;
         
-        portal = iSCSIPLCopySendTargetsDiscoveryPortal(discoveryPortal);
+        portal = iSCSIPreferencesCopySendTargetsDiscoveryPortal(preferences,discoveryPortal);
         
         if(!portal)
             continue;
@@ -195,9 +214,9 @@ void iSCSIDiscoveryRunSendTargets()
             CFRelease(errorString);
         }
         else {
-            // Now parse discovery results, add new targets and remove stale targets
+            // Queue discovery record so that it can be processes later
             if(discoveryRec) {
-                iSCSIDiscoveryProcessSendTargetsResults(discoveryPortal,discoveryRec);
+                CFDictionarySetValue(discoveryRecords,discoveryPortal,discoveryRec);
                 iSCSIDiscoveryRecRelease(discoveryRec);
             }
         }
@@ -205,6 +224,6 @@ void iSCSIDiscoveryRunSendTargets()
     
     // Release the array of discovery portals
     CFRelease(portals);
-
-    iSCSIPLSynchronize();
+    
+    return discoveryRecords;
 }
