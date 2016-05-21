@@ -1580,6 +1580,12 @@ int main(void)
     // functions and receive notifications from the kernel).
     iSCSIInitialize(CFRunLoopGetMain());
     
+    // Setup authorization rights if none exist
+    AuthorizationRef authorization;
+    AuthorizationCreate(NULL,NULL,0,&authorization);
+    iSCSIAuthRightsInitialize(authorization);
+    AuthorizationFree(authorization,kAuthorizationFlagDefaults);
+    
     // Sync discovery parameters upon startup
     iSCSIDUpdateDiscovery(0,NULL);
     
