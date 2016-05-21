@@ -39,6 +39,7 @@ sudo chown -R root:wheel $KEXT_DST/$KEXT
 # Copy framework
 sudo cp -R $TMP/$FRAMEWORK $FRAMEWORK_DST/$FRAMEWORK
 sudo chown -R root:wheel $FRAMEWORK_DST/$FRAMEWORK
+sudo chmod -R 755 $FRAMEWORK_DST/$FRAMEWORK
 
 # Copy daemon & set permissions
 sudo mkdir -p $DAEMON_DST
