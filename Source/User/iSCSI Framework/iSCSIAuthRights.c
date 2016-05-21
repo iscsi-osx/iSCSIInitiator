@@ -30,10 +30,10 @@
 
 
 /*! Authorization right for logging in and out of targets. */
-const char kiSCSIAuthRightLogin[] = "com.github.iscsi-osx.iSCSIInitiator.login";
+const char kiSCSIAuthRightLogin[] = "com.github.iscsi-osx.iSCSIInitiator.login-logout";
 
 /*! Authorization right for modifying initiator configuration (discovery, targets, etc). */
-const char kiSCSIAuthRightModify[] = "com.github.iscsi-osx.iSCSIInitiator.modify";
+const char kiSCSIAuthRightModify[] = "com.github.iscsi-osx.iSCSIInitiator.modify-config";
 
 CFStringRef kRightPromptLogin = CFSTR("For logging into and out of iSCSI targets.");
 
