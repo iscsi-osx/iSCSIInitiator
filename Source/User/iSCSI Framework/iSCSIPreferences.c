@@ -27,10 +27,6 @@
  */
 
 #include "iSCSIPreferences.h"
-#include <CoreFoundation/CoreFoundation.h>
-#include <CoreFoundation/CFPreferences.h>
-#include <CoreFoundation/CFPropertyList.h>
-
 
 /*! App ID. */
 CFStringRef kiSCSIPKAppId = CFSTR(CF_PREFERENCES_APP_ID);
@@ -129,7 +125,6 @@ CFStringRef kiSCSIPKDiscoveryInterval = CFSTR("Interval");
 
 /*! Preference key naem for iSCSI discovery portal that manages target. */
 CFStringRef kiSCSIPKSendTargetsPortal = CFSTR("Managing Portal");
-
 
 
 /*! Retrieves a mutable dictionary for the specified key.
@@ -899,7 +894,7 @@ CFArrayRef iSCSIPreferencesCreateArrayOfTargets(iSCSIPreferencesRef preferences)
  *  to the dynamically configured discovery targets.
  *  @return an array of iSCSI targets (IQNs) that were discovered using
  *  SendTargets over the specified portal. */
-CFArrayRef iSCISPLCreateArrayOfDynamicTargetsForSendTargets(iSCSIPreferencesRef preferences,CFStringRef portalAddress)
+CFArrayRef iSCSIPreferencesCreateArrayOfDynamicTargetsForSendTargets(iSCSIPreferencesRef preferences,CFStringRef portalAddress)
 {
     CFArrayRef targetsList = iSCSIPreferencesGetDynamicTargetsForSendTargets(preferences,portalAddress,false);
 
@@ -1272,9 +1267,42 @@ void iSCSIPreferencesReset(iSCSIPreferencesRef preferences)
     CFDictionaryRemoveAllValues(preferences);
 }
 
+/*! Create a dictionary representation of the preferences object.
+ *  @param preferences the iSCSI preferences object.
+ *  @return a dictionary representation containing key-value pairs of preferences values. */
 CFDictionaryRef iSCSIPreferencesCreateDictionary(iSCSIPreferencesRef preferences)
 {
     return (CFDictionaryRef)preferences;
+}
+
+/*! Creates a binary representation of an iSCSI preferences object.
+ *  @param data the data used to create the preferences object.
+ *  @return a binary data representation of a preferences object. */
+CFDataRef iSCSIPreferencesCreateData(iSCSIPreferencesRef preferences)
+{
+    return CFPropertyListCreateData(kCFAllocatorDefault,
+                                    preferences,
+                                    kCFPropertyListBinaryFormat_v1_0,0,NULL);
+}
+
+/*! Creates a new iSCSI preferences object.
+ *  @return a new (empty) preferences object. */
+iSCSIPreferencesRef iSCSIPreferencesCreate()
+{
+    iSCSIPreferencesRef preferences = CFDictionaryCreateMutable(kCFAllocatorDefault,0,
+                                                                &kCFTypeDictionaryKeyCallBacks,
+                                                                &kCFTypeDictionaryValueCallBacks);
+    return preferences;
+}
+
+/*! Creates a new iSCSI preferences object from using values stored in system preferences.
+ *  @param kAppId the application identification string.
+ *  @return a new preferences object containing stored iSCSI preferences. */
+iSCSIPreferencesRef iSCSIPreferencesCreateFromAppValues()
+{
+    iSCSIPreferencesRef preferences = iSCSIPreferencesCreate();
+    iSCSIPreferencesUpdateWithAppValues(preferences);
+    return preferences;
 }
 
 /*! Creates a new iSCSI preferences object from a dictionary object from a dictionary representation.
@@ -1292,22 +1320,46 @@ iSCSIPreferencesRef iSCSIPreferencesCreateWithDictionary(CFDictionaryRef dict)
     return mutablePropertyList;
 }
 
-/*!  Creates a new iSCSI preferences object from using values stored in system preferences. */
-iSCSIPreferencesRef iSCSIPreferencesCreateFromAppValues(CFStringRef kAppId)
+/*! Creates a new iSCSI preferences object from binary data.
+ *  @param data the data used to create the preferences object.
+ *  @return a new preferences object containing stored iSCSI preferences. */
+iSCSIPreferencesRef iSCSIPreferencesCreateWithData(CFDataRef data)
 {
-    iSCSIPreferencesRef preferences = CFDictionaryCreateMutable(kCFAllocatorDefault,0,
-                                                                  &kCFTypeDictionaryKeyCallBacks,
-                                                                  &kCFTypeDictionaryValueCallBacks);
+    CFPropertyListFormat format;
     
-    // Refresh from preferences
-    CFDictionarySetValue(preferences,kiSCSIPKInitiator,iSCSIPreferencesCopyPropertyDict(kAppId,kiSCSIPKInitiator));
-    CFDictionarySetValue(preferences,kiSCSIPKTargets,iSCSIPreferencesCopyPropertyDict(kAppId,kiSCSIPKTargets));
-    CFDictionarySetValue(preferences,kiSCSIPKDiscovery,iSCSIPreferencesCopyPropertyDict(kAppId,kiSCSIPKDiscovery));
+    iSCSIPreferencesRef preferences = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
     
-    return preferences;
+    if(format == kCFPropertyListBinaryFormat_v1_0)
+        return preferences;
+    
+    CFRelease(preferences);
+    return NULL;
 }
-                         
-void iSCSIPreferencesFree(iSCSIPreferencesRef preferences)
+
+/*! Updates the contents of the iSCSI preferences with application values.
+ *  @param preferences an iSCSI preferences object. */
+void iSCSIPreferencesUpdateWithAppValues(iSCSIPreferencesRef preferences)
+{
+    // Refresh from preferences
+    CFDictionarySetValue(preferences,kiSCSIPKInitiator,iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKInitiator));
+    CFDictionarySetValue(preferences,kiSCSIPKTargets,iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKTargets));
+    CFDictionarySetValue(preferences,kiSCSIPKDiscovery,iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKDiscovery));
+}
+
+/*! Synchronizes application values with those in the preferences object.
+ *  @param preferences an iSCSI preferences object.
+ *  @return true if application values were successfully updated. */
+Boolean iSCSIPreferencesSynchronzeAppValues(iSCSIPreferencesRef preferences)
+{
+    CFPreferencesSetMultiple((CFDictionaryRef)preferences,0,kiSCSIPKAppId,kCFPreferencesAnyUser,kCFPreferencesCurrentHost);
+    return CFPreferencesSynchronize(kiSCSIPKAppId,kCFPreferencesAnyUser,kCFPreferencesCurrentHost);
+}
+
+
+
+/*! Releasese an iSCSI preferences object.
+ *  @param preferences the preferences object to release. */
+void iSCSIPreferencesRelease(iSCSIPreferencesRef preferences)
 {
     CFRelease(preferences);
 }
