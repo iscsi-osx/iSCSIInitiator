@@ -215,7 +215,7 @@ iSCSIConnectionConfigRef iSCSIDCreateConnectionConfig(CFStringRef targetIQN,
     if(digestType == kiSCSIDigestInvalid)
         digestType = kiSCSIDigestNone;
 
-    iSCSIConnectionConfigSetHeaderDigest(config,iSCSIPreferencesGetHeaderDigestForTarget(preferences,targetIQN));
+    iSCSIConnectionConfigSetHeaderDigest(config,digestType);
 
     return config;
 }
@@ -1428,6 +1428,8 @@ void iSCSIDProcessIncomingRequest(void * info)
                 reqInfo->fd = 0;
                 pthread_mutex_unlock(&preferencesMutex);
         };
+        
+        asl_log(NULL,NULL,ASL_LEVEL_ERR,"error code %d while processing user request",error);
     }
     
     // If a request came in while we were processing, queue it up...
