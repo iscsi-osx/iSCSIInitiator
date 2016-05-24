@@ -894,10 +894,7 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,AuthorizationRef authorizatio
         // If portal and target both exist then do nothing, otherwise
         // add target and or portal with user-specified options
         CFStringRef targetIQN = iSCSITargetGetIQN(target);
-        
-        iSCSIPreferencesRef preferences = iSCSIPreferencesCreateFromAppValues();
-        iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences);
-        
+                
         if(!iSCSIPreferencesContainsTarget(preferences,targetIQN)) {
             iSCSIPreferencesAddStaticTarget(preferences,targetIQN,portal);
             iSCSICtlDisplayString(CFSTR("The specified target has been added\n"));
@@ -1033,23 +1030,24 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,AuthorizationRef author
         if(CFStringCompare(value,kOptValueEmpty,0) != kCFCompareEqualTo)
             iSCSIPreferencesSetInitiatorCHAPName(preferences,value);
     }
-/*
+
     // Check for CHAP shared secret
     if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
         CFStringRef secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
-
+/*
         if(secret != NULL) {
             CFStringRef initiatorIQN = iSCSIPreferencesCopyInitiatorIQN(preferences);
-            if(iSCSIKeychainSetCHAPSecretForNode(initiatorIQN,secret) != 0) {
-                iSCSICtlDisplayPermissionsError();
+            if(iSCSIKeychainSetCHAPSecretForNode(initiatorIQN,secret) != errSecSuccess) {
+                iSCSICtlDisplayError(CFSTR("Permission denied"));
                 error = EAUTH;
             }
             CFRelease(secret);
         }
         else
             error = EINVAL;
+ */
     }
-*/
+
     // Check for authentication method
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyAutMethod,(const void**)&value))
     {
