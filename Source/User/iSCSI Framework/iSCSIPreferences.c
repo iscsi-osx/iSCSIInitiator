@@ -1327,7 +1327,7 @@ iSCSIPreferencesRef iSCSIPreferencesCreateWithData(CFDataRef data)
 {
     CFPropertyListFormat format;
     
-    iSCSIPreferencesRef preferences = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+    iSCSIPreferencesRef preferences = (iSCSIPreferencesRef)CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
     
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return preferences;
