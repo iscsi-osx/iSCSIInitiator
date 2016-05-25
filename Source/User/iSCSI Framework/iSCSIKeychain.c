@@ -27,6 +27,7 @@
  */
 
 #include "iSCSIKeychain.h"
+#include <netdb.h>
 
 /*! Copies a shared secret associated with a particular
  *  iSCSI node (either initiator or target) to the system keychain.
@@ -74,6 +75,7 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
                                            CFStringRef sharedSecret)
 {
     SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
+    SecKeychainSetUserInteractionAllowed(true);
     SecKeychainUnlock(NULL,0,NULL,false);
 
     OSStatus status;
@@ -104,35 +106,38 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
         
         trustedList = CFArrayCreate(kCFAllocatorDefault,(const void **)trustedApps,2,&kCFTypeArrayCallBacks);
         
-        
         status = SecAccessCreate(CFSTR("Description"),trustedList,&accessRef);
         
         // Get the system keychain and unlock it (prompts user if required)
         SecKeychainRef keychain;
         status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&keychain);
+
+        const int nodeIQNlength = (int)CFStringGetLength(nodeIQN);
+        char nodeIQNBuffer[nodeIQNlength];
+        CFStringGetCString(nodeIQN,nodeIQNBuffer,NI_MAXHOST,kCFStringEncodingASCII);
         
-        CFStringRef secItemLabel = nodeIQN;
-        CFStringRef secItemDesc = CFSTR("iSCSI CHAP Shared Secret");
-        CFStringRef secItemAcct = nodeIQN;
-        CFStringRef secItemService = nodeIQN;
-        
+        const char secItemDesc[] = "iSCSI CHAP Shared Secret";
+        const int secItemDescLength = sizeof(secItemDesc)/sizeof(secItemDesc[0]);
         
         SecKeychainAttribute attrs[] = {
-            { kSecLabelItemAttr, (UInt32)CFStringGetLength(secItemLabel),(char *)CFStringGetCStringPtr(secItemLabel,kCFStringEncodingUTF8) },
-            { kSecDescriptionItemAttr, (UInt32)CFStringGetLength(secItemDesc),(char *)CFStringGetCStringPtr(secItemDesc,kCFStringEncodingUTF8) },
-            { kSecAccountItemAttr, (UInt32)CFStringGetLength(secItemAcct),(char *)CFStringGetCStringPtr(secItemAcct,kCFStringEncodingUTF8)     },
-            { kSecServiceItemAttr, (UInt32)CFStringGetLength(secItemService),(char *)CFStringGetCStringPtr(secItemService,kCFStringEncodingUTF8) }
+            { kSecLabelItemAttr, nodeIQNlength, nodeIQNBuffer },
+            { kSecDescriptionItemAttr, secItemDescLength, (void*)secItemDesc },
+            { kSecAccountItemAttr, nodeIQNlength, nodeIQNBuffer },
+            { kSecServiceItemAttr, nodeIQNlength, nodeIQNBuffer }
         };
         
         SecKeychainAttributeList attrList = { sizeof(attrs)/sizeof(attrs[0]), attrs };
         
+        const int secretLength = (int)CFStringGetLength(sharedSecret);
+        char secretBuffer[secretLength];
+        CFStringGetCString(sharedSecret,secretBuffer,secretLength,kCFStringEncodingASCII);
+        
         SecKeychainItemRef itemRef;
         status = SecKeychainItemCreateFromContent(kSecGenericPasswordItemClass,
                                                   &attrList,
-                                                  (UInt32)CFStringGetLength(sharedSecret),
-                                                  CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII),
+                                                  secretLength,
+                                                  secretBuffer,
                                                   keychain,accessRef,&itemRef);
-        
         if(keychain)
             CFRelease(keychain);
     }
