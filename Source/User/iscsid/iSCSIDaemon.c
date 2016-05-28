@@ -1184,11 +1184,12 @@ errno_t iSCSIDPreferencesIOUnlockAndSync(int fd,iSCSIDMsgPreferencesIOUnlockAndS
         iSCSIPreferencesSynchronzeAppValues(preferencesToSync);
         iSCSIPreferencesUpdateWithAppValues(preferences);
     }
+    
     pthread_mutex_unlock(&preferencesMutex);
     
     if(preferencesToSync)
         iSCSIPreferencesRelease(preferencesToSync);
-
+    
     // Compose a response to send back to the client
     iSCSIDMsgPreferencesIOUnlockAndSyncRsp rsp = iSCSIDMsgPreferencesIOUnlockAndSyncRspInit;
     rsp.errorCode = error;
@@ -1429,7 +1430,8 @@ void iSCSIDProcessIncomingRequest(void * info)
                 pthread_mutex_unlock(&preferencesMutex);
         };
         
-        asl_log(NULL,NULL,ASL_LEVEL_ERR,"error code %d while processing user request",error);
+        if(error)
+            asl_log(NULL,NULL,ASL_LEVEL_ERR,"error code %d while processing user request",error);
     }
     
     // If a request came in while we were processing, queue it up...
