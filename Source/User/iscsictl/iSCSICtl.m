@@ -886,7 +886,7 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,AuthorizationRef authorizatio
     
     preferences = iSCSIPreferencesCreateFromAppValues();
     
-    if((error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
+    if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
         iSCSICtlDisplayError(CFSTR("Permission denied"));
     
     if (!error) {
@@ -894,7 +894,7 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,AuthorizationRef authorizatio
         // If portal and target both exist then do nothing, otherwise
         // add target and or portal with user-specified options
         CFStringRef targetIQN = iSCSITargetGetIQN(target);
-                
+        
         if(!iSCSIPreferencesContainsTarget(preferences,targetIQN)) {
             iSCSIPreferencesAddStaticTarget(preferences,targetIQN,portal);
             iSCSICtlDisplayString(CFSTR("The specified target has been added\n"));
@@ -953,7 +953,7 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,AuthorizationRef authoriza
     
     preferences = iSCSIPreferencesCreateFromAppValues();
     
-    if((error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
+    if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
         iSCSICtlDisplayError(CFSTR("Permission denied"));
     
     if(!error) {
@@ -1016,12 +1016,30 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,AuthorizationRef authoriza
 
 errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,AuthorizationRef authorization,CFDictionaryRef options)
 {
+
     CFStringRef value = NULL;
     errno_t error = 0;
-    
+ 
     iSCSIPreferencesRef preferences = iSCSIPreferencesCreateFromAppValues();
+  
+    // Check for CHAP shared secret
+    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
+        CFStringRef secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+        
+        if(secret != NULL) {
+            CFStringRef initiatorIQN = iSCSIPreferencesCopyInitiatorIQN(preferences);
+            if(iSCSIKeychainSetCHAPSecretForNode(initiatorIQN,secret) != errSecSuccess) {
+                iSCSICtlDisplayError(CFSTR("Permission denied"));
+                error = EAUTH;
+            }
+            CFRelease(initiatorIQN);
+            CFRelease(secret);
+        }
+        else
+            error = EINVAL;
+    }
     
-    if((error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
+    if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
         iSCSICtlDisplayError(CFSTR("Permission denied"));
     
     // Check for CHAP user name
@@ -1029,23 +1047,6 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,AuthorizationRef author
     {
         if(CFStringCompare(value,kOptValueEmpty,0) != kCFCompareEqualTo)
             iSCSIPreferencesSetInitiatorCHAPName(preferences,value);
-    }
-
-    // Check for CHAP shared secret
-    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
-        CFStringRef secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
-/*
-        if(secret != NULL) {
-            CFStringRef initiatorIQN = iSCSIPreferencesCopyInitiatorIQN(preferences);
-            if(iSCSIKeychainSetCHAPSecretForNode(initiatorIQN,secret) != errSecSuccess) {
-                iSCSICtlDisplayError(CFSTR("Permission denied"));
-                error = EAUTH;
-            }
-            CFRelease(secret);
-        }
-        else
-            error = EINVAL;
- */
     }
 
     // Check for authentication method
@@ -1255,7 +1256,7 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,AuthorizationRef authoriza
     
     preferences = iSCSIPreferencesCreateFromAppValues();
     
-    if((error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
+    if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
         iSCSICtlDisplayError(CFSTR("Permission denied"));
     
     if(!error) {
@@ -1748,7 +1749,7 @@ errno_t iSCSICtlAddDiscoveryPortal(iSCSIDaemonHandle handle,AuthorizationRef aut
 
     preferences = iSCSIPreferencesCreateFromAppValues();
     
-    if((error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
+    if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
         iSCSICtlDisplayError(CFSTR("Permission denied"));
 
     if(!error)
@@ -1892,7 +1893,7 @@ errno_t iSCSICtlRemoveDiscoveryPortal(iSCSIDaemonHandle handle,AuthorizationRef 
     
     preferences = iSCSIPreferencesCreateFromAppValues();
     
-    if((error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
+    if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
         iSCSICtlDisplayError(CFSTR("Permission denied"));
     
     if (!error)
@@ -2196,7 +2197,7 @@ int main(int argc, char * argv[])
     iSCSIDaemonDisconnect(handle);
     CFWriteStreamClose(stdoutStream);
 
-//    AuthorizationFree(<#AuthorizationRef  _Nonnull authorization#>, <#AuthorizationFlags flags#>)
+    AuthorizationFree(authorization,kAuthorizationFlagDefaults);
 }
    
  
