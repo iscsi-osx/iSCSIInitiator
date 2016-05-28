@@ -45,12 +45,17 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN)
 
     UInt32 sharedSecretLength = 0;
     void * sharedSecretData = NULL;
+    
+    UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN);
+    char nodeIQNBuffer[nodeIQNLength];
+    
+    CFStringGetCString(nodeIQN,nodeIQNBuffer,nodeIQNLength,kCFStringEncodingASCII);
 
     status = SecKeychainFindGenericPassword(NULL,
-            (UInt32)CFStringGetLength(nodeIQN),
-            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
-            (UInt32)CFStringGetLength(nodeIQN),
-            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
+            nodeIQNLength,
+            nodeIQNBuffer,
+            nodeIQNLength,
+            nodeIQNBuffer,
             &sharedSecretLength,
             &sharedSecretData,&item);
 
@@ -80,12 +85,17 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
 
     OSStatus status;
     SecKeychainItemRef itemRef = NULL;
+    
+    UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN);
+    char nodeIQNBuffer[nodeIQNLength];
+    
+    CFStringGetCString(nodeIQN,nodeIQNBuffer,nodeIQNLength,kCFStringEncodingASCII);
 
     SecKeychainFindGenericPassword(NULL,
-            (UInt32)CFStringGetLength(nodeIQN),
-            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
-            (UInt32)CFStringGetLength(nodeIQN),
-            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
+            nodeIQNLength,
+            nodeIQNBuffer,
+            nodeIQNLength,
+            nodeIQNBuffer,
             0,0,&itemRef);
 
     // Update the secret if it exists; else create a new entry
@@ -99,47 +109,47 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
     // Create a new item
     else {
         SecAccessRef accessRef;
-        CFArrayRef trustedList;
-        SecTrustedApplicationRef trustedApps[2];
-        SecTrustedApplicationCreateFromPath("/usr/local/bin/iscsictl",&trustedApps[0]);
-        SecTrustedApplicationCreateFromPath("/usr/local/libexec/iscsid",&trustedApps[1]);
+        SecACLRef aclRef;
         
-        trustedList = CFArrayCreate(kCFAllocatorDefault,(const void **)trustedApps,2,&kCFTypeArrayCallBacks);
-        
-        status = SecAccessCreate(CFSTR("Description"),trustedList,&accessRef);
-        
-        // Get the system keychain and unlock it (prompts user if required)
-        SecKeychainRef keychain;
-        status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&keychain);
+        CFStringRef description = CFSTR("Description");
 
-        const int nodeIQNlength = (int)CFStringGetLength(nodeIQN);
-        char nodeIQNBuffer[nodeIQNlength];
-        CFStringGetCString(nodeIQN,nodeIQNBuffer,NI_MAXHOST,kCFStringEncodingASCII);
+        // Create new security access
+        status = SecAccessCreate(description,NULL,&accessRef);
         
-        const char secItemDesc[] = "iSCSI CHAP Shared Secret";
-        const int secItemDescLength = sizeof(secItemDesc)/sizeof(secItemDesc[0]);
+        if(status == errSecSuccess)
+            status = SecACLCreateWithSimpleContents(accessRef,NULL,description,kSecKeychainPromptRequirePassphase,&aclRef);
+   
+        if(status == errSecSuccess) {
         
-        SecKeychainAttribute attrs[] = {
-            { kSecLabelItemAttr, nodeIQNlength, nodeIQNBuffer },
-            { kSecDescriptionItemAttr, secItemDescLength, (void*)secItemDesc },
-            { kSecAccountItemAttr, nodeIQNlength, nodeIQNBuffer },
-            { kSecServiceItemAttr, nodeIQNlength, nodeIQNBuffer }
-        };
-        
-        SecKeychainAttributeList attrList = { sizeof(attrs)/sizeof(attrs[0]), attrs };
-        
-        const int secretLength = (int)CFStringGetLength(sharedSecret);
-        char secretBuffer[secretLength];
-        CFStringGetCString(sharedSecret,secretBuffer,secretLength,kCFStringEncodingASCII);
-        
-        SecKeychainItemRef itemRef;
-        status = SecKeychainItemCreateFromContent(kSecGenericPasswordItemClass,
-                                                  &attrList,
-                                                  secretLength,
-                                                  secretBuffer,
-                                                  keychain,accessRef,&itemRef);
-        if(keychain)
-            CFRelease(keychain);
+            // Get the system keychain and unlock it (prompts user if required)
+            SecKeychainRef keychain;
+            status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&keychain);
+            
+            const char secItemDesc[] = "iSCSI CHAP Shared Secret";
+            const int secItemDescLength = sizeof(secItemDesc)/sizeof(secItemDesc[0]);
+            
+            SecKeychainAttribute attrs[] = {
+                { kSecLabelItemAttr, nodeIQNLength, nodeIQNBuffer },
+                { kSecDescriptionItemAttr, secItemDescLength, (void*)secItemDesc },
+                { kSecAccountItemAttr, nodeIQNLength, nodeIQNBuffer },
+                { kSecServiceItemAttr, nodeIQNLength, nodeIQNBuffer }
+            };
+            
+            SecKeychainAttributeList attrList = { sizeof(attrs)/sizeof(attrs[0]), attrs };
+            
+            const int secretLength = (int)CFStringGetLength(sharedSecret);
+            char secretBuffer[secretLength];
+            CFStringGetCString(sharedSecret,secretBuffer,secretLength,kCFStringEncodingASCII);
+            
+            SecKeychainItemRef itemRef;
+            status = SecKeychainItemCreateFromContent(kSecGenericPasswordItemClass,
+                                                      &attrList,
+                                                      secretLength,
+                                                      secretBuffer,
+                                                      keychain,accessRef,&itemRef);
+            if(keychain)
+                CFRelease(keychain);
+        }
     }
 
     return status;
@@ -157,12 +167,17 @@ OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
 
     // Get the system keychain and unlock it (prompts user if required)
     SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
+    
+    UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN);
+    char nodeIQNBuffer[nodeIQNLength];
+    
+    CFStringGetCString(nodeIQN,nodeIQNBuffer,nodeIQNLength,kCFStringEncodingASCII);
 
     status = SecKeychainFindGenericPassword(NULL,
-            (UInt32)CFStringGetLength(nodeIQN),
-            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
-            (UInt32)CFStringGetLength(nodeIQN),
-            CFStringGetCStringPtr(nodeIQN,kCFStringEncodingASCII),
+            nodeIQNLength,
+            nodeIQNBuffer,
+            nodeIQNLength,
+            nodeIQNBuffer,
             0,0,&item);
 
     // Remove item from keychain
@@ -189,7 +204,6 @@ Boolean iSCSIKeychainContainsCHAPSecretForNode(CFStringRef nodeIQN)
     CFStringRef keys[] = {
         kSecClass,
         kSecAttrAccount
-
     };
 
     CFStringRef values[] = {
