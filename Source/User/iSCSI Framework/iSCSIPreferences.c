@@ -1341,9 +1341,22 @@ iSCSIPreferencesRef iSCSIPreferencesCreateWithData(CFDataRef data)
 void iSCSIPreferencesUpdateWithAppValues(iSCSIPreferencesRef preferences)
 {
     // Refresh from preferences
-    CFDictionarySetValue(preferences,kiSCSIPKInitiator,iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKInitiator));
-    CFDictionarySetValue(preferences,kiSCSIPKTargets,iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKTargets));
-    CFDictionarySetValue(preferences,kiSCSIPKDiscovery,iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKDiscovery));
+    CFDictionaryRef dict = NULL;
+    
+    dict = iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKInitiator);
+    
+    if(dict)
+        CFDictionarySetValue(preferences,kiSCSIPKInitiator,dict);
+    
+    dict = iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKTargets);
+    
+    if(dict)
+        CFDictionarySetValue(preferences,kiSCSIPKTargets,dict);
+    
+    dict = iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKDiscovery);
+    
+    if(dict)
+        CFDictionarySetValue(preferences,kiSCSIPKDiscovery,dict);
 }
 
 /*! Synchronizes application values with those in the preferences object.
