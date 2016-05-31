@@ -340,7 +340,15 @@ errno_t iSCSIDLoginCommon(SID sessionId,
         asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
         CFRelease(errorString);
     }
-
+    // Update target alias in preferences (if one was furnished)
+    else
+    {
+        pthread_mutex_lock(&preferencesMutex);
+        iSCSIPreferencesSetTargetAlias(preferences,targetIQN,iSCSITargetGetAlias(target));
+        iSCSIPreferencesSynchronzeAppValues(preferences);
+        pthread_mutex_unlock(&preferencesMutex);
+    }
+    
     return error;
 }
 
