@@ -287,9 +287,12 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSIMutableTargetRef target,
                                    statusCode,
                                    &rejectCode,
                                    authCmd,authRsp);
-
-    // Now perform target authentication (we authenticate target)
-    if(targetUser && targetSecret)
+    
+    if(*statusCode != kiSCSILoginSuccess)
+        error = EAUTH;
+    
+    // If target authenticated us successfully, perform target authentication (we authenticate target)
+    if(!error && targetUser && targetSecret)
     {
         // Calculate the response we expect to get
         CFStringRef expResponse = iSCSIAuthNegotiateCHAPCreateResponse(
