@@ -46,7 +46,7 @@ CFStringRef iSCSIKeychainCopyCHAPSecretForNode(CFStringRef nodeIQN)
     UInt32 sharedSecretLength = 0;
     void * sharedSecretData = NULL;
     
-    UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN);
+    UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN) + 1;
     char nodeIQNBuffer[nodeIQNLength];
     
     CFStringGetCString(nodeIQN,nodeIQNBuffer,nodeIQNLength,kCFStringEncodingASCII);
@@ -86,10 +86,14 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
     OSStatus status;
     SecKeychainItemRef itemRef = NULL;
     
-    UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN);
+    // Allow for a null terminator (C string) - hence the + 1
+    const UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN) + 1;
     char nodeIQNBuffer[nodeIQNLength];
-    
     CFStringGetCString(nodeIQN,nodeIQNBuffer,nodeIQNLength,kCFStringEncodingASCII);
+    
+    const int secretLength = (int)CFStringGetLength(sharedSecret) + 1;
+    char secretBuffer[secretLength];
+    CFStringGetCString(sharedSecret,secretBuffer,secretLength,kCFStringEncodingASCII);
 
     SecKeychainFindGenericPassword(NULL,
             nodeIQNLength,
@@ -98,12 +102,22 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
             nodeIQNBuffer,
             0,0,&itemRef);
 
+    // Create attribute list for later use
+    const char secItemDesc[] = "iSCSI CHAP Shared Secret";
+    const int secItemDescLength = sizeof(secItemDesc)/sizeof(secItemDesc[0]);
+    
+    SecKeychainAttribute attrs[] = {
+        { kSecLabelItemAttr, nodeIQNLength, nodeIQNBuffer },
+        { kSecDescriptionItemAttr, secItemDescLength, (void*)secItemDesc },
+        { kSecAccountItemAttr, nodeIQNLength, nodeIQNBuffer },
+        { kSecServiceItemAttr, nodeIQNLength, nodeIQNBuffer }
+    };
+    
+    SecKeychainAttributeList attrList = { sizeof(attrs)/sizeof(attrs[0]), attrs };
+    
     // Update the secret if it exists; else create a new entry
     if(itemRef) {
-        status = SecKeychainItemModifyContent(itemRef,0,
-            (UInt32)CFStringGetLength(sharedSecret),
-            CFStringGetCStringPtr(sharedSecret,kCFStringEncodingASCII));
-
+        SecKeychainItemModifyContent(itemRef,&attrList,secretLength,secretBuffer);
         CFRelease(itemRef);
     }
     // Create a new item
@@ -124,22 +138,6 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
             // Get the system keychain and unlock it (prompts user if required)
             SecKeychainRef keychain;
             status = SecKeychainCopyDomainDefault(kSecPreferencesDomainSystem,&keychain);
-            
-            const char secItemDesc[] = "iSCSI CHAP Shared Secret";
-            const int secItemDescLength = sizeof(secItemDesc)/sizeof(secItemDesc[0]);
-            
-            SecKeychainAttribute attrs[] = {
-                { kSecLabelItemAttr, nodeIQNLength, nodeIQNBuffer },
-                { kSecDescriptionItemAttr, secItemDescLength, (void*)secItemDesc },
-                { kSecAccountItemAttr, nodeIQNLength, nodeIQNBuffer },
-                { kSecServiceItemAttr, nodeIQNLength, nodeIQNBuffer }
-            };
-            
-            SecKeychainAttributeList attrList = { sizeof(attrs)/sizeof(attrs[0]), attrs };
-            
-            const int secretLength = (int)CFStringGetLength(sharedSecret);
-            char secretBuffer[secretLength];
-            CFStringGetCString(sharedSecret,secretBuffer,secretLength,kCFStringEncodingASCII);
             
             SecKeychainItemRef itemRef;
             status = SecKeychainItemCreateFromContent(kSecGenericPasswordItemClass,
@@ -168,7 +166,7 @@ OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
     // Get the system keychain and unlock it (prompts user if required)
     SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
     
-    UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN);
+    UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN) + 1;
     char nodeIQNBuffer[nodeIQNLength];
     
     CFStringGetCString(nodeIQN,nodeIQNBuffer,nodeIQNLength,kCFStringEncodingASCII);
