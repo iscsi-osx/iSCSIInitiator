@@ -147,6 +147,9 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
                                                       keychain,accessRef,&itemRef);
             if(keychain)
                 CFRelease(keychain);
+            
+            if(itemRef)
+                CFRelease(itemRef);
         }
     }
 
@@ -161,7 +164,7 @@ OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
 {
     SecKeychainRef sysKeychain = NULL;
     OSStatus status;
-    SecKeychainItemRef item = NULL;
+    SecKeychainItemRef itemRef = NULL;
 
     // Get the system keychain and unlock it (prompts user if required)
     SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
@@ -176,11 +179,11 @@ OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
             nodeIQNBuffer,
             nodeIQNLength,
             nodeIQNBuffer,
-            0,0,&item);
+            0,0,&itemRef);
 
     // Remove item from keychain
     if(status == errSecSuccess) {
-        SecKeychainItemDelete(item);
+        SecKeychainItemDelete(itemRef);
     }
 
     if(sysKeychain)
@@ -194,29 +197,28 @@ OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
  *  @return true if a CHAP secret exists for the specified node. */
 Boolean iSCSIKeychainContainsCHAPSecretForNode(CFStringRef nodeIQN)
 {
+    SecKeychainRef sysKeychain = NULL;
+    OSStatus status;
+    SecKeychainItemRef itemRef = NULL;
+
+    
     // Get the system keychain and unlock it (prompts user if required)
     SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
-
-    SecKeychainItemRef item = NULL;
-
-    CFStringRef keys[] = {
-        kSecClass,
-        kSecAttrAccount
-    };
-
-    CFStringRef values[] = {
-        kSecClassGenericPassword,
-        nodeIQN,
-    };
-
-    CFDictionaryRef query = CFDictionaryCreate(kCFAllocatorDefault,
-                                               (void*)keys,(void*)values,
-                                               sizeof(keys)/sizeof(void*),
-                                               &kCFTypeDictionaryKeyCallBacks,
-                                               &kCFTypeDictionaryValueCallBacks);
-
-    SecItemCopyMatching(query,(CFTypeRef *)&item);
-
-    return (item != NULL);
+    
+    UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN) + 1;
+    char nodeIQNBuffer[nodeIQNLength];
+    
+    CFStringGetCString(nodeIQN,nodeIQNBuffer,nodeIQNLength,kCFStringEncodingASCII);
+    
+    status = SecKeychainFindGenericPassword(NULL,
+                                            nodeIQNLength,
+                                            nodeIQNBuffer,
+                                            nodeIQNLength,
+                                            nodeIQNBuffer,
+                                            0,0,&itemRef);
+    if(itemRef)
+        CFRelease(itemRef);
+    
+    return status == errSecSuccess;
 }
 
