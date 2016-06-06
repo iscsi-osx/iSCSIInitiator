@@ -185,6 +185,9 @@ const char * executableName;
 /*! The standard out stream, used by various functions to write. */
 CFWriteStreamRef stdoutStream = NULL;
 
+/*! Error string to display when a persmissions error occurs. */
+CFStringRef kPermissionsErrorString = CFSTR("Permission denied");
+
 /*! Used to display the device tree (luns and target information) for a 
  *  particular iSCSI target object in the system's IO registry. */
 errno_t displayTargetDeviceTree(io_object_t);
@@ -887,7 +890,7 @@ errno_t iSCSICtlAddTarget(iSCSIDaemonHandle handle,AuthorizationRef authorizatio
     preferences = iSCSIPreferencesCreateFromAppValues();
     
     if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
-        iSCSICtlDisplayError(CFSTR("Permission denied"));
+        iSCSICtlDisplayError(kPermissionsErrorString);
     
     if (!error) {
 
@@ -954,7 +957,7 @@ errno_t iSCSICtlRemoveTarget(iSCSIDaemonHandle handle,AuthorizationRef authoriza
     preferences = iSCSIPreferencesCreateFromAppValues();
     
     if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
-        iSCSICtlDisplayError(CFSTR("Permission denied"));
+        iSCSICtlDisplayError(kPermissionsErrorString);
     
     if(!error) {
         
@@ -1029,7 +1032,7 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,AuthorizationRef author
         if(secret != NULL) {
             CFStringRef initiatorIQN = iSCSIPreferencesCopyInitiatorIQN(preferences);
             if(iSCSIKeychainSetCHAPSecretForNode(initiatorIQN,secret) != errSecSuccess) {
-                iSCSICtlDisplayError(CFSTR("Permission denied"));
+                iSCSICtlDisplayError(kPermissionsErrorString);
                 error = EAUTH;
             }
             CFRelease(initiatorIQN);
@@ -1040,7 +1043,7 @@ errno_t iSCSICtlModifyInitiator(iSCSIDaemonHandle handle,AuthorizationRef author
     }
     
     if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
-        iSCSICtlDisplayError(CFSTR("Permission denied"));
+        iSCSICtlDisplayError(kPermissionsErrorString);
     
     // Check for CHAP user name
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyCHAPName,(const void **)&value))
@@ -1257,7 +1260,7 @@ errno_t iSCSICtlModifyTarget(iSCSIDaemonHandle handle,AuthorizationRef authoriza
     preferences = iSCSIPreferencesCreateFromAppValues();
     
     if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
-        iSCSICtlDisplayError(CFSTR("Permission denied"));
+        iSCSICtlDisplayError(kPermissionsErrorString);
     
     if(!error) {
         
@@ -1750,7 +1753,7 @@ errno_t iSCSICtlAddDiscoveryPortal(iSCSIDaemonHandle handle,AuthorizationRef aut
     preferences = iSCSIPreferencesCreateFromAppValues();
     
     if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
-        iSCSICtlDisplayError(CFSTR("Permission denied"));
+        iSCSICtlDisplayError(kPermissionsErrorString);
 
     if(!error)
     {
@@ -1799,7 +1802,7 @@ errno_t iSCSICtlModifyDiscovery(iSCSIDaemonHandle handle,AuthorizationRef author
     preferences = iSCSIPreferencesCreateFromAppValues();
 
     if((error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
-        iSCSICtlDisplayError(CFSTR("Permission denied"));
+        iSCSICtlDisplayError(kPermissionsErrorString);
     
     // Check if user enabled or disable a discovery method and act accordingly
     if(!error && CFDictionaryGetValueIfPresent(optDictionary,kOptKeySendTargetsEnable,(const void **)&value))
@@ -1894,7 +1897,7 @@ errno_t iSCSICtlRemoveDiscoveryPortal(iSCSIDaemonHandle handle,AuthorizationRef 
     preferences = iSCSIPreferencesCreateFromAppValues();
     
     if(!error && (error = iSCSIDaemonPreferencesIOLockAndSync(handle,authorization,preferences)))
-        iSCSICtlDisplayError(CFSTR("Permission denied"));
+        iSCSICtlDisplayError(kPermissionsErrorString);
     
     if (!error)
     {
