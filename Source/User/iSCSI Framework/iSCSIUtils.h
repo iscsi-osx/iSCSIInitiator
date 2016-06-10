@@ -33,6 +33,8 @@
 #include <regex.h>
 #include <IOKit/scsi/SCSICmds_INQUIRY_Definitions.h>
 
+#include "iSCSITypes.h"
+
 /*! Verifies whether specified iSCSI qualified name (IQN) is valid per RFC3720.
  *  This function also validates 64-bit EUI names expressed as strings that
  *  start with the "eui" prefix.
@@ -61,5 +63,14 @@ CFArrayRef iSCSIUtilsCreateArrayByParsingPortalParts(CFStringRef portal);
  *  @return a string describing the device (guaranteed to be a valid string). */
 CFStringRef iSCSIUtilsGetSCSIPeripheralDeviceDescription(UInt8 peripheralDeviceType);
 
+/*! Gets a string describing the iSCSI login status.
+ *  @param statusCode the login status code.
+ *  @return a string describing the login status (guaranteed to be a valid string). */
+CFStringRef iSCSIUtilsGetStringForLoginStatus(enum iSCSILoginStatusCode statusCode);
+
+/*! Gets a string describing the iSCSI logout status.
+ *  @param statusCode the logout status code.
+ *  @return a string describing the login status (guaranteed to be a valid string). */
+CFStringRef iSCSIUtilsGetStringForLogoutStatus(enum iSCSILogoutStatusCode statusCode);
 
 #endif /* defined(__ISCSI_UTILS_H__) */
