@@ -201,58 +201,41 @@ CFStringRef iSCSIUtilsGetStringForLoginStatus(enum iSCSILoginStatusCode statusCo
     switch(statusCode)
     {
         case kiSCSILoginSuccess:
-            break;
+            return CFSTR("Login successful");
         case kiSCSILoginAccessDenied:
             return CFSTR("The target has denied access");
-            
         case kiSCSILoginAuthFail:
             return CFSTR("Authentication failure");
-            
         case kiSCSILoginCantIncludeInSeession:
             return CFSTR("Can't include the portal in the session");
-            
         case kiSCSILoginInitiatorError:
             return CFSTR("An initiator error has occurred");
-            
         case kiSCSILoginInvalidReqDuringLogin:
             return CFSTR("The initiator made an invalid request");
-            
         case kiSCSILoginMissingParam:
             return CFSTR("Missing login parameters");
-            
         case kiSCSILoginNotFound:
             return CFSTR("Target was not found");
-            
         case kiSCSILoginOutOfResources:
             return CFSTR("Target is out of resources");
-            
         case kiSCSILoginServiceUnavailable:
             return CFSTR("Target services unavailable");
-            
         case kiSCSILoginSessionDoesntExist:
             return CFSTR("Session doesn't exist");
-            
         case kiSCSILoginSessionTypeUnsupported:
             return CFSTR("Target doesn't support login");
-            
         case kiSCSILoginTargetHWorSWError:
             return CFSTR("Target software or hardware error has occured");
-            
         case kiSCSILoginTargetMovedPerm:
             return CFSTR("Target has permanently moved");
-            
         case kiSCSILoginTargetMovedTemp:
             return CFSTR("Target has temporarily moved");
-            
         case kiSCSILoginTargetRemoved:
             return CFSTR("Target has been removed");
-            
         case kiSCSILoginTooManyConnections:
             return CFSTR("The session cannot support additional connections");
-            
         case kiSCSILoginUnsupportedVer:
             return CFSTR("Target is incompatible with the initiator");
-            
         case kiSCSILoginInvalidStatusCode:
         default:
             return CFSTR("Unknown error occurred");
@@ -268,17 +251,13 @@ CFStringRef iSCSIUtilsGetStringForLogoutStatus(enum iSCSILogoutStatusCode status
     switch(statusCode)
     {
         case kiSCSILogoutSuccess:
-            break;
-            
+            return CFSTR("Logout successful");
         case kiSCSILogoutCIDNotFound:
             return CFSTR("The connection was not found");
-            
         case kiSCSILogoutCleanupFailed:
             return CFSTR("Target cleanup of connection failed");
-            
         case kiSCSILogoutRecoveryNotSupported:
             return CFSTR("Could not recover the connection");
-            
         case kiSCSILogoutInvalidStatusCode:
         default:
             return CFSTR("");
