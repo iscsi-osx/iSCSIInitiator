@@ -91,6 +91,9 @@ pthread_mutex_t preferencesMutex = PTHREAD_MUTEX_INITIALIZER;
 /*! Preferences object used to syncrhonize iSCSI preferences. */
 iSCSIPreferencesRef preferences = NULL;
 
+/*! Incoming request information struct. */
+struct iSCSIDIncomingRequestInfo * reqInfo = NULL;
+
 
 struct iSCSIDIncomingRequestInfo {
     CFSocketRef socket;
@@ -164,6 +167,16 @@ const iSCSIDMsgPreferencesIOLockAndSyncRsp iSCSIDMsgPreferencesIOLockAndSyncRspI
 
 const iSCSIDMsgPreferencesIOUnlockAndSyncRsp iSCSIDMsgPreferencesIOUnlockAndSyncRspInit = {
     .funcCode = kiSCSIDPreferencesIOUnlockAndSync,
+    .errorCode = 0,
+};
+
+const iSCSIDMsgSetSharedSecretRsp iSCSIDMsgSetSharedSecretRspInit = {
+    .funcCode = kiSCSIDSetSharedSecret,
+    .errorCode = 0,
+};
+
+const iSCSIDMsgRemoveSharedSecretRsp iSCSIDMsgRemoveSharedSecretRspInit = {
+    .funcCode = kiSCSIDRemoveSharedSecret,
     .errorCode = 0,
 };
 
@@ -1136,6 +1149,8 @@ errno_t iSCSIDPreferencesIOLockAndSync(int fd,iSCSIDMsgPreferencesIOLockAndSyncC
         CFRelease(authorizationData);
     }
     
+    
+    
     // If authorization object is valid, get the necessary rights
     if(authorization) {
         if(iSCSIAuthRightsAcquire(authorization,kiSCSIAuthModifyRight) != errAuthorizationSuccess)
@@ -1146,6 +1161,7 @@ errno_t iSCSIDPreferencesIOLockAndSync(int fd,iSCSIDMsgPreferencesIOLockAndSyncC
     
     // If we have the necessary rights, lock
     if(!error) {
+        fprintf(stderr,"Lock\n");
         pthread_mutex_lock(&preferencesMutex);
     }
     
@@ -1192,7 +1208,7 @@ errno_t iSCSIDPreferencesIOUnlockAndSync(int fd,iSCSIDMsgPreferencesIOUnlockAndS
         iSCSIPreferencesSynchronzeAppValues(preferencesToSync);
         iSCSIPreferencesUpdateWithAppValues(preferences);
     }
-    
+    fprintf(stderr,"Unlock-1\n");
     pthread_mutex_unlock(&preferencesMutex);
     
     if(preferencesToSync)
@@ -1204,6 +1220,125 @@ errno_t iSCSIDPreferencesIOUnlockAndSync(int fd,iSCSIDMsgPreferencesIOUnlockAndS
     
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EAGAIN;
+    
+    return 0;
+}
+
+errno_t iSCSIDSetSharedSecret(int fd,iSCSIDMsgSetSharedSecretCmd *cmd)
+{
+    // Verify that the client is authorized for the operation
+    CFDataRef authorizationData = NULL, nodeIQNData = NULL, sharedSecretData = NULL;
+    errno_t error = iSCSIDaemonRecvMsg(fd,0,&authorizationData,cmd->authorizationLength,
+                                       &nodeIQNData,cmd->nodeIQNLength,
+                                       &sharedSecretData,cmd->secretLength,NULL);
+    
+    AuthorizationRef authorization = NULL;
+    CFStringRef nodeIQN = NULL;
+    CFStringRef sharedSecret = NULL;
+    
+    if(authorizationData) {
+        AuthorizationExternalForm authorizationExtForm;
+        
+        CFDataGetBytes(authorizationData,
+                       CFRangeMake(0,kAuthorizationExternalFormLength),
+                       (UInt8 *)&authorizationExtForm.bytes);
+        
+        AuthorizationCreateFromExternalForm(&authorizationExtForm,&authorization);
+        CFRelease(authorizationData);
+    }
+    
+    if(nodeIQNData) {
+        nodeIQN = CFStringCreateFromExternalRepresentation(kCFAllocatorDefault,nodeIQNData,kCFStringEncodingASCII);
+        CFRelease(nodeIQNData);
+    }
+    
+    if(sharedSecretData) {
+        sharedSecret = CFStringCreateFromExternalRepresentation(kCFAllocatorDefault,sharedSecretData,kCFStringEncodingASCII);
+        CFRelease(sharedSecretData);
+    }
+    
+    // If no errors then update secret
+    if(!error && nodeIQN) {
+        // If authorization object is valid, get the necessary rights
+        if(authorization) {
+            if(iSCSIAuthRightsAcquire(authorization,kiSCSIAuthModifyRight) == errSecSuccess) {
+                if(iSCSIKeychainSetCHAPSecretForNode(nodeIQN,sharedSecret) == errSecSuccess)
+                    error = 0;
+                else
+                    error = EAUTH;
+            }
+        }
+        else
+            error = EINVAL;
+    }
+
+
+    // Compose a response to send back to the client
+    iSCSIDMsgSetSharedSecretRsp rsp = iSCSIDMsgSetSharedSecretRspInit;
+    rsp.errorCode = error;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+
+    if(nodeIQN)
+        CFRelease(nodeIQN);
+    
+    if(sharedSecret)
+        CFRelease(sharedSecret);
+
+    return 0;
+}
+
+errno_t iSCSIDRemoveSharedSecret(int fd,iSCSIDMsgRemoveSharedSecretCmd *cmd)
+{
+    // Verify that the client is authorized for the operation
+    CFDataRef authorizationData = NULL, nodeIQNData = NULL;
+    errno_t error = iSCSIDaemonRecvMsg(fd,0,&authorizationData,cmd->authorizationLength,
+                                       &nodeIQNData,cmd->nodeIQNLength,NULL);
+    
+    AuthorizationRef authorization = NULL;
+    CFStringRef nodeIQN = NULL;
+    
+    if(authorizationData) {
+        AuthorizationExternalForm authorizationExtForm;
+        
+        CFDataGetBytes(authorizationData,
+                       CFRangeMake(0,kAuthorizationExternalFormLength),
+                       (UInt8 *)&authorizationExtForm.bytes);
+        
+        AuthorizationCreateFromExternalForm(&authorizationExtForm,&authorization);
+        CFRelease(authorizationData);
+    }
+    
+    if(nodeIQNData) {
+        nodeIQN = CFStringCreateFromExternalRepresentation(kCFAllocatorDefault,nodeIQNData,kCFStringEncodingASCII);
+        CFRelease(nodeIQNData);
+    }
+    
+    // If no errors then remove secret
+    if(!error && nodeIQN) {
+        // If authorization object is valid, get the necessary rights
+        if(authorization) {
+            if(iSCSIAuthRightsAcquire(authorization,kiSCSIAuthModifyRight) == errSecSuccess) {
+                if(iSCSIKeychainDeleteCHAPSecretForNode(nodeIQN) == errSecSuccess)
+                    error = 0;
+                else
+                    error = EAUTH;
+            }
+        }
+        else
+            error = EINVAL;
+    }
+    
+    // Compose a response to send back to the client
+    iSCSIDMsgRemoveSharedSecretRsp rsp = iSCSIDMsgRemoveSharedSecretRspInit;
+    rsp.errorCode = error;
+    
+    if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EAGAIN;
+    
+    if(nodeIQN)
+        CFRelease(nodeIQN);
     
     return 0;
 }
@@ -1308,7 +1443,6 @@ void iSCSIDPrepareForSystemSleep()
                                               &kCFTypeDictionaryKeyCallBacks,
                                               &kCFTypeDictionaryValueCallBacks);
     
-    
     for(CFIndex idx = 0; idx < sessionCount; idx++)
     {
         SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
@@ -1406,6 +1540,7 @@ void iSCSIDProcessIncomingRequest(void * info)
     
     if(fd != 0 && recv(fd,&cmd,sizeof(cmd),MSG_WAITALL) == sizeof(cmd)) {
         errno_t error = 0;
+        
         switch(cmd.funcCode)
         {
             case kiSCSIDLogin:
@@ -1432,9 +1567,14 @@ void iSCSIDProcessIncomingRequest(void * info)
                 error = iSCSIDPreferencesIOLockAndSync(fd,(iSCSIDMsgPreferencesIOLockAndSyncCmd*)&cmd); break;
             case kiSCSIDPreferencesIOUnlockAndSync:
                 error = iSCSIDPreferencesIOUnlockAndSync(fd,(iSCSIDMsgPreferencesIOUnlockAndSyncCmd*)&cmd); break;
-             default:
+            case kiSCSIDSetSharedSecret:
+                error = iSCSIDSetSharedSecret(fd,(iSCSIDMsgSetSharedSecretCmd*)&cmd); break;
+            case kiSCSIDRemoveSharedSecret:
+                error = iSCSIDRemoveSharedSecret(fd,(iSCSIDMsgRemoveSharedSecretCmd*)&cmd); break;
+            default:
                 CFSocketInvalidate(reqInfo->socket);
                 reqInfo->fd = 0;
+                fprintf(stderr,"Unock-2\n");
                 pthread_mutex_unlock(&preferencesMutex);
         };
         
@@ -1480,6 +1620,18 @@ void iSCSIDAcceptConnection(CFSocketRef socket,
     }
     
     iSCSIDProcessIncomingRequest(info);
+}
+
+void sig_pipe_handler(int signal)
+{
+    if(!reqInfo)
+        return;
+
+    // Cleanup since pipe was broken
+    CFSocketInvalidate(reqInfo->socket);
+    reqInfo->fd = 0;
+    fprintf(stderr,"Unock-3\n");
+    pthread_mutex_unlock(&preferencesMutex);
 }
 
 /*! iSCSI daemon entry point. */
@@ -1553,7 +1705,7 @@ int main(void)
     
     // Context for processing incoming requests. Holds references to CFSocket and
     // associated structures (e.g., runloop sources)
-    struct iSCSIDIncomingRequestInfo * reqInfo = malloc(sizeof(struct iSCSIDIncomingRequestInfo));
+    reqInfo = malloc(sizeof(struct iSCSIDIncomingRequestInfo));
     
     // Create a socket with a callback to accept incoming connections
     CFSocketContext sockContext;
@@ -1586,7 +1738,7 @@ int main(void)
     asl_log(NULL,NULL,ASL_LEVEL_INFO,"daemon started");
 
     // Ignore SIGPIPE (generated when the client closes the connection)
-    signal(SIGPIPE,SIG_IGN);
+    signal(SIGPIPE,sig_pipe_handler);
     
     // Initialize iSCSI connection to kernel (ability to call iSCSI kernel
     // functions and receive notifications from the kernel).
@@ -1611,7 +1763,7 @@ int main(void)
     iSCSIDDeregisterForPowerEvents();
     
     // Free all CF objects and reqInfo structure...
-    
+    free(reqInfo);
     launch_data_free(reg_response);
     asl_close(log);
     return 0;
