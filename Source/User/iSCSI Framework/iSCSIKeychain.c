@@ -117,7 +117,7 @@ OSStatus iSCSIKeychainSetCHAPSecretForNode(CFStringRef nodeIQN,
     
     // Update the secret if it exists; else create a new entry
     if(itemRef) {
-        SecKeychainItemModifyContent(itemRef,&attrList,secretLength,secretBuffer);
+        status = SecKeychainItemModifyContent(itemRef,&attrList,secretLength,secretBuffer);
         CFRelease(itemRef);
     }
     // Create a new item
@@ -165,9 +165,11 @@ OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
     SecKeychainRef sysKeychain = NULL;
     OSStatus status;
     SecKeychainItemRef itemRef = NULL;
-
+    
     // Get the system keychain and unlock it (prompts user if required)
     SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
+    SecKeychainSetUserInteractionAllowed(true);
+    SecKeychainUnlock(NULL,0,NULL,false);
     
     UInt32 nodeIQNLength = (UInt32)CFStringGetLength(nodeIQN) + 1;
     char nodeIQNBuffer[nodeIQNLength];
@@ -197,10 +199,8 @@ OSStatus iSCSIKeychainDeleteCHAPSecretForNode(CFStringRef nodeIQN)
  *  @return true if a CHAP secret exists for the specified node. */
 Boolean iSCSIKeychainContainsCHAPSecretForNode(CFStringRef nodeIQN)
 {
-    SecKeychainRef sysKeychain = NULL;
     OSStatus status;
     SecKeychainItemRef itemRef = NULL;
-
     
     // Get the system keychain and unlock it (prompts user if required)
     SecKeychainSetPreferenceDomain(kSecPreferencesDomainSystem);
