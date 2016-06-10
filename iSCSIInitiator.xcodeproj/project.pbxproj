@@ -9,10 +9,10 @@
 /* Begin PBXBuildFile section */
 		2B171E421CE23677003C3E08 /* iSCSIAuthRights.c in Sources */ = {isa = PBXBuildFile; fileRef = 2B171E401CE23677003C3E08 /* iSCSIAuthRights.c */; };
 		2B171E431CE23677003C3E08 /* iSCSIAuthRights.h in Headers */ = {isa = PBXBuildFile; fileRef = 2B171E411CE23677003C3E08 /* iSCSIAuthRights.h */; };
-		2B2E3AE61CF9C52F000A511C /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B2E3AE51CF9C52F000A511C /* AppDelegate.m */; };
-		2B2E3AE91CF9C52F000A511C /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B2E3AE81CF9C52F000A511C /* main.m */; };
-		2B2E3AEB1CF9C52F000A511C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2B2E3AEA1CF9C52F000A511C /* Assets.xcassets */; };
-		2B2E3AEE1CF9C52F000A511C /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 2B2E3AEC1CF9C52F000A511C /* MainMenu.xib */; };
+		2B1EDC121CFAEC1F007BAB99 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B1EDC111CFAEC1F007BAB99 /* AppDelegate.m */; };
+		2B1EDC151CFAEC1F007BAB99 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B1EDC141CFAEC1F007BAB99 /* main.m */; };
+		2B1EDC1A1CFAEC1F007BAB99 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2B1EDC191CFAEC1F007BAB99 /* Assets.xcassets */; };
+		2B1EDC1D1CFAEC1F007BAB99 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2B1EDC1B1CFAEC1F007BAB99 /* Main.storyboard */; };
 		2B459D551B7B8192008F656F /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B459D541B7B8192008F656F /* Security.framework */; };
 		2B4A60371A3E6F690006AFCC /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B5935C21810DF7100FFC3D3 /* IOKit.framework */; };
 		2B4A60381A3E6F830006AFCC /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
@@ -21,6 +21,10 @@
 		2B5C213C1C70871A00ED8791 /* DiskArbitration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BC4CBB11AA55046003611F7 /* DiskArbitration.framework */; };
 		2B5C213D1C70872400ED8791 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B459D541B7B8192008F656F /* Security.framework */; };
 		2B5C213E1C70872E00ED8791 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */; };
+		2B7762991CFF220D003093CC /* NodeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B7762921CFEF9E7003093CC /* NodeViewController.m */; };
+		2B77629A1CFF2211003093CC /* Node.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B7762941CFEF9E7003093CC /* Node.m */; };
+		2B77629B1D00B388003093CC /* iSCSI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B7A0B741C8AEC47008290E9 /* iSCSI.framework */; };
+		2B77629E1D02CC9D003093CC /* InitiatorViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B77629D1D02CC9D003093CC /* InitiatorViewController.m */; };
 		2B9E3C941C493BAA00440116 /* iSCSIInitiator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B9E3C711C493B9C00440116 /* iSCSIInitiator.cpp */; settings = {COMPILER_FLAGS = "-Wno-inconsistent-missing-override"; }; };
 		2B9E3C961C493BAA00440116 /* iSCSIInitiatorClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B9E3C731C493B9C00440116 /* iSCSIInitiatorClient.cpp */; settings = {COMPILER_FLAGS = "-Wno-inconsistent-missing-override"; }; };
 		2B9E3C981C493BAA00440116 /* iSCSIIOEventSource.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B9E3C751C493B9C00440116 /* iSCSIIOEventSource.cpp */; settings = {COMPILER_FLAGS = "-Wno-inconsistent-missing-override"; }; };
@@ -28,6 +32,7 @@
 		2B9E3CA01C493BAA00440116 /* iSCSITaskQueue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B9E3C7D1C493B9C00440116 /* iSCSITaskQueue.cpp */; settings = {COMPILER_FLAGS = "-Wno-inconsistent-missing-override"; }; };
 		2B9E3CA31C493BAA00440116 /* iSCSIVirtualHBA.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B9E3C801C493B9C00440116 /* iSCSIVirtualHBA.cpp */; settings = {COMPILER_FLAGS = "-Wno-inconsistent-missing-override"; }; };
 		2B9E3CBE1C49ED0000440116 /* crc32c.c in Sources */ = {isa = PBXBuildFile; fileRef = 2B9E3CBA1C49ECF900440116 /* crc32c.c */; };
+		2BAAB8B71D03E8EF00C01C79 /* SplitViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2BAAB8B61D03E8EF00C01C79 /* SplitViewController.m */; };
 		2BC4CBB21AA55046003611F7 /* DiskArbitration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BC4CBB11AA55046003611F7 /* DiskArbitration.framework */; };
 		2BDE5E281C8B0274004BDB5F /* iscsictl.8 in Resources */ = {isa = PBXBuildFile; fileRef = 2BDE5E261C8B0274004BDB5F /* iscsictl.8 */; };
 		2BDE5E6E1C8B0292004BDB5F /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2BDE5E481C8B028B004BDB5F /* Info.plist */; };
@@ -92,14 +97,14 @@
 		2B171E401CE23677003C3E08 /* iSCSIAuthRights.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = iSCSIAuthRights.c; path = "Source/User/iSCSI Framework/iSCSIAuthRights.c"; sourceTree = "<group>"; };
 		2B171E411CE23677003C3E08 /* iSCSIAuthRights.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iSCSIAuthRights.h; path = "Source/User/iSCSI Framework/iSCSIAuthRights.h"; sourceTree = "<group>"; };
 		2B1B972A1C4937B400DA5281 /* Scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Scripts; sourceTree = "<group>"; };
+		2B1EDC0E1CFAEC1F007BAB99 /* iSCSI Utility.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "iSCSI Utility.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2B1EDC101CFAEC1F007BAB99 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		2B1EDC111CFAEC1F007BAB99 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		2B1EDC141CFAEC1F007BAB99 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		2B1EDC191CFAEC1F007BAB99 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		2B1EDC1C1CFAEC1F007BAB99 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		2B1EDC1E1CFAEC1F007BAB99 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2B20904F18C6E43C00C43190 /* libsystem_kernel.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsystem_kernel.dylib; path = usr/lib/system/libsystem_kernel.dylib; sourceTree = SDKROOT; };
-		2B2E3AE21CF9C52F000A511C /* iSCSI Utility.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "iSCSI Utility.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		2B2E3AE41CF9C52F000A511C /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
-		2B2E3AE51CF9C52F000A511C /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
-		2B2E3AE81CF9C52F000A511C /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-		2B2E3AEA1CF9C52F000A511C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		2B2E3AED1CF9C52F000A511C /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
-		2B2E3AEF1CF9C52F000A511C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2B459D541B7B8192008F656F /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		2B56ACEC1C4A48C800930E79 /* Distribution */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Distribution; sourceTree = "<group>"; };
 		2B5935651810D38E00FFC3D3 /* Kernel.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Kernel.framework; path = System/Library/Frameworks/Kernel.framework; sourceTree = SDKROOT; };
@@ -109,6 +114,12 @@
 		2B59357F1810D3C800FFC3D3 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
 		2B5935801810D3C800FFC3D3 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		2B5935C21810DF7100FFC3D3 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		2B7762911CFEF9E7003093CC /* NodeViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NodeViewController.h; sourceTree = "<group>"; };
+		2B7762921CFEF9E7003093CC /* NodeViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NodeViewController.m; sourceTree = "<group>"; };
+		2B7762931CFEF9E7003093CC /* Node.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Node.h; sourceTree = "<group>"; };
+		2B7762941CFEF9E7003093CC /* Node.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Node.m; sourceTree = "<group>"; };
+		2B77629C1D02CC9D003093CC /* InitiatorViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = InitiatorViewController.h; sourceTree = "<group>"; };
+		2B77629D1D02CC9D003093CC /* InitiatorViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = InitiatorViewController.m; sourceTree = "<group>"; };
 		2B7A0B741C8AEC47008290E9 /* iSCSI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = iSCSI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		2B84883C1BEBCE0E0038DC53 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		2B9CAB9A185527EC00F3A9C6 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
@@ -133,6 +144,12 @@
 		2B9E3C821C493B9C00440116 /* Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Prefix.pch; path = Source/Kernel/Prefix.pch; sourceTree = "<group>"; };
 		2B9E3CBA1C49ECF900440116 /* crc32c.c */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = crc32c.c; path = Source/Kernel/crc32c.c; sourceTree = "<group>"; };
 		2B9E3CBB1C49ECF900440116 /* crc32c.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = crc32c.h; path = Source/Kernel/crc32c.h; sourceTree = "<group>"; };
+		2BAAB8B51D03E8EF00C01C79 /* SplitViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SplitViewController.h; sourceTree = "<group>"; };
+		2BAAB8B61D03E8EF00C01C79 /* SplitViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SplitViewController.m; sourceTree = "<group>"; };
+		2BB321F31D087AAA0030DB94 /* libcurses.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcurses.tbd; path = usr/lib/libcurses.tbd; sourceTree = SDKROOT; };
+		2BB321F41D087AAA0030DB94 /* libncurses.5.4.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libncurses.5.4.tbd; path = usr/lib/libncurses.5.4.tbd; sourceTree = SDKROOT; };
+		2BB321F51D087AAA0030DB94 /* libncurses.5.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libncurses.5.tbd; path = usr/lib/libncurses.5.tbd; sourceTree = SDKROOT; };
+		2BB321F61D087AAA0030DB94 /* libncurses.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libncurses.tbd; path = usr/lib/libncurses.tbd; sourceTree = SDKROOT; };
 		2BC4CBB11AA55046003611F7 /* DiskArbitration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DiskArbitration.framework; path = System/Library/Frameworks/DiskArbitration.framework; sourceTree = SDKROOT; };
 		2BDE5E261C8B0274004BDB5F /* iscsictl.8 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = iscsictl.8; path = Source/User/iscsictl/iscsictl.8; sourceTree = "<group>"; };
 		2BDE5E271C8B0274004BDB5F /* iSCSICtl.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = iSCSICtl.m; path = Source/User/iscsictl/iSCSICtl.m; sourceTree = "<group>"; };
@@ -188,10 +205,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2B2E3ADF1CF9C52F000A511C /* Frameworks */ = {
+		2B1EDC0B1CFAEC1F007BAB99 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B77629B1D00B388003093CC /* iSCSI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -224,23 +242,31 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		2B2E3AE31CF9C52F000A511C /* iSCSI Utility */ = {
+		2B1EDC0F1CFAEC1F007BAB99 /* iSCSI Utility */ = {
 			isa = PBXGroup;
 			children = (
-				2B2E3AE41CF9C52F000A511C /* AppDelegate.h */,
-				2B2E3AE51CF9C52F000A511C /* AppDelegate.m */,
-				2B2E3AEA1CF9C52F000A511C /* Assets.xcassets */,
-				2B2E3AEC1CF9C52F000A511C /* MainMenu.xib */,
-				2B2E3AEF1CF9C52F000A511C /* Info.plist */,
-				2B2E3AE71CF9C52F000A511C /* Supporting Files */,
+				2B7762911CFEF9E7003093CC /* NodeViewController.h */,
+				2B7762921CFEF9E7003093CC /* NodeViewController.m */,
+				2B77629C1D02CC9D003093CC /* InitiatorViewController.h */,
+				2B77629D1D02CC9D003093CC /* InitiatorViewController.m */,
+				2BAAB8B51D03E8EF00C01C79 /* SplitViewController.h */,
+				2BAAB8B61D03E8EF00C01C79 /* SplitViewController.m */,
+				2B7762931CFEF9E7003093CC /* Node.h */,
+				2B7762941CFEF9E7003093CC /* Node.m */,
+				2B1EDC101CFAEC1F007BAB99 /* AppDelegate.h */,
+				2B1EDC111CFAEC1F007BAB99 /* AppDelegate.m */,
+				2B1EDC191CFAEC1F007BAB99 /* Assets.xcassets */,
+				2B1EDC1B1CFAEC1F007BAB99 /* Main.storyboard */,
+				2B1EDC1E1CFAEC1F007BAB99 /* Info.plist */,
+				2B1EDC131CFAEC1F007BAB99 /* Supporting Files */,
 			);
 			path = "iSCSI Utility";
 			sourceTree = "<group>";
 		};
-		2B2E3AE71CF9C52F000A511C /* Supporting Files */ = {
+		2B1EDC131CFAEC1F007BAB99 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
-				2B2E3AE81CF9C52F000A511C /* main.m */,
+				2B1EDC141CFAEC1F007BAB99 /* main.m */,
 			);
 			name = "Supporting Files";
 			sourceTree = "<group>";
@@ -258,13 +284,17 @@
 				2BDEA9411A715C7B00D5B48B /* iscsid */,
 				2BDEA9421A715C7B00D5B48B /* iscsictl */,
 				2B7A0B741C8AEC47008290E9 /* iSCSI.framework */,
-				2B2E3AE21CF9C52F000A511C /* iSCSI Utility.app */,
+				2B1EDC0E1CFAEC1F007BAB99 /* iSCSI Utility.app */,
 			);
 			sourceTree = "<group>";
 		};
 		2B5935631810D38E00FFC3D3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2BB321F31D087AAA0030DB94 /* libcurses.tbd */,
+				2BB321F41D087AAA0030DB94 /* libncurses.5.4.tbd */,
+				2BB321F51D087AAA0030DB94 /* libncurses.5.tbd */,
+				2BB321F61D087AAA0030DB94 /* libncurses.tbd */,
 				2B459D541B7B8192008F656F /* Security.framework */,
 				2BC4CBB11AA55046003611F7 /* DiskArbitration.framework */,
 				2B20904F18C6E43C00C43190 /* libsystem_kernel.dylib */,
@@ -327,7 +357,7 @@
 		2BDE5E1A1C8B020A004BDB5F /* User */ = {
 			isa = PBXGroup;
 			children = (
-				2B2E3AE31CF9C52F000A511C /* iSCSI Utility */,
+				2B1EDC0F1CFAEC1F007BAB99 /* iSCSI Utility */,
 				2BDE5E231C8B0255004BDB5F /* iscsictl */,
 				2BDE5E221C8B024A004BDB5F /* iscsid */,
 				2BDE5E211C8B0241004BDB5F /* iSCSI Framwork */,
@@ -443,13 +473,13 @@
 			productReference = 2BDEA9421A715C7B00D5B48B /* iscsictl */;
 			productType = "com.apple.product-type.tool";
 		};
-		2B2E3AE11CF9C52F000A511C /* iSCSI Utility */ = {
+		2B1EDC0D1CFAEC1F007BAB99 /* iSCSI Utility */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2B2E3AF01CF9C52F000A511C /* Build configuration list for PBXNativeTarget "iSCSI Utility" */;
+			buildConfigurationList = 2B1EDC1F1CFAEC1F007BAB99 /* Build configuration list for PBXNativeTarget "iSCSI Utility" */;
 			buildPhases = (
-				2B2E3ADE1CF9C52F000A511C /* Sources */,
-				2B2E3ADF1CF9C52F000A511C /* Frameworks */,
-				2B2E3AE01CF9C52F000A511C /* Resources */,
+				2B1EDC0A1CFAEC1F007BAB99 /* Sources */,
+				2B1EDC0B1CFAEC1F007BAB99 /* Frameworks */,
+				2B1EDC0C1CFAEC1F007BAB99 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -457,7 +487,7 @@
 			);
 			name = "iSCSI Utility";
 			productName = "iSCSI Utility";
-			productReference = 2B2E3AE21CF9C52F000A511C /* iSCSI Utility.app */;
+			productReference = 2B1EDC0E1CFAEC1F007BAB99 /* iSCSI Utility.app */;
 			productType = "com.apple.product-type.application";
 		};
 		2B7A0B731C8AEC47008290E9 /* iSCSI */ = {
@@ -523,7 +553,7 @@
 				LastSwiftUpdateCheck = 0730;
 				LastUpgradeCheck = 0700;
 				TargetAttributes = {
-					2B2E3AE11CF9C52F000A511C = {
+					2B1EDC0D1CFAEC1F007BAB99 = {
 						CreatedOnToolsVersion = 7.3.1;
 					};
 					2B7A0B731C8AEC47008290E9 = {
@@ -548,18 +578,18 @@
 				2BA96D8818D4F60200F135E3 /* iscsid */,
 				2B16EEC8196085A40061E7FA /* iscsictl */,
 				2B7A0B731C8AEC47008290E9 /* iSCSI */,
-				2B2E3AE11CF9C52F000A511C /* iSCSI Utility */,
+				2B1EDC0D1CFAEC1F007BAB99 /* iSCSI Utility */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		2B2E3AE01CF9C52F000A511C /* Resources */ = {
+		2B1EDC0C1CFAEC1F007BAB99 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2B2E3AEB1CF9C52F000A511C /* Assets.xcassets in Resources */,
-				2B2E3AEE1CF9C52F000A511C /* MainMenu.xib in Resources */,
+				2B1EDC1A1CFAEC1F007BAB99 /* Assets.xcassets in Resources */,
+				2B1EDC1D1CFAEC1F007BAB99 /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -601,12 +631,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2B2E3ADE1CF9C52F000A511C /* Sources */ = {
+		2B1EDC0A1CFAEC1F007BAB99 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2B2E3AE91CF9C52F000A511C /* main.m in Sources */,
-				2B2E3AE61CF9C52F000A511C /* AppDelegate.m in Sources */,
+				2B77629A1CFF2211003093CC /* Node.m in Sources */,
+				2BAAB8B71D03E8EF00C01C79 /* SplitViewController.m in Sources */,
+				2B7762991CFF220D003093CC /* NodeViewController.m in Sources */,
+				2B77629E1D02CC9D003093CC /* InitiatorViewController.m in Sources */,
+				2B1EDC151CFAEC1F007BAB99 /* main.m in Sources */,
+				2B1EDC121CFAEC1F007BAB99 /* AppDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -656,12 +690,12 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXVariantGroup section */
-		2B2E3AEC1CF9C52F000A511C /* MainMenu.xib */ = {
+		2B1EDC1B1CFAEC1F007BAB99 /* Main.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (
-				2B2E3AED1CF9C52F000A511C /* Base */,
+				2B1EDC1C1CFAEC1F007BAB99 /* Base */,
 			);
-			name = MainMenu.xib;
+			name = Main.storyboard;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -744,7 +778,7 @@
 			};
 			name = Release;
 		};
-		2B2E3AF11CF9C52F000A511C /* Debug */ = {
+		2B1EDC201CFAEC1F007BAB99 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -791,7 +825,7 @@
 			};
 			name = Debug;
 		};
-		2B2E3AF21CF9C52F000A511C /* Release */ = {
+		2B1EDC211CFAEC1F007BAB99 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -1169,13 +1203,14 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2B2E3AF01CF9C52F000A511C /* Build configuration list for PBXNativeTarget "iSCSI Utility" */ = {
+		2B1EDC1F1CFAEC1F007BAB99 /* Build configuration list for PBXNativeTarget "iSCSI Utility" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				2B2E3AF11CF9C52F000A511C /* Debug */,
-				2B2E3AF21CF9C52F000A511C /* Release */,
+				2B1EDC201CFAEC1F007BAB99 /* Debug */,
+				2B1EDC211CFAEC1F007BAB99 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		2B5935581810CE6800FFC3D3 /* Build configuration list for PBXProject "iSCSIInitiator" */ = {
 			isa = XCConfigurationList;
