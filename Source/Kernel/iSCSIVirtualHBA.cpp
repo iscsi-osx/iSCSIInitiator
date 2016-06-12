@@ -862,10 +862,10 @@ void iSCSIVirtualHBA::ProcessNOPIn(iSCSISession * session,
         // Grab current system uptime
         clock_get_system_microtime(&secs,&usecs);
     
-        UInt32 latency_ms = (secs - secs_stamp)*1e3 + (usecs - usecs_stamp)/1e3;
+        connection->latency_ms = (secs - secs_stamp)*1e3 + (usecs - usecs_stamp)/1e3;
         
         DBLog("iscsi: Connection latency: %d ms (sid: %d, cid: %d)\n",
-              latency_ms,session->sessionId,connection->cid);
+              connection->latency_ms,session->sessionId,connection->cid);
         
         // Remove latency measurement task from queue
         connection->taskQueue->completeCurrentTask();

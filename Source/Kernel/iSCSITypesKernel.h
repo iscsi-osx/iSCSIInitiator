@@ -105,6 +105,9 @@ typedef struct iSCSIConnection {
     /*! Keeps track of the index in the above array should be populated next. */
     UInt8 bytesPerSecHistoryIdx;
     
+    /*! Keeps track of the connection latency (ms). */
+    UInt32 latency_ms;
+    
     //////////////////// Configured Connection Parameters /////////////////////
     
     /*! Flag that indicates if this connection uses header digests. */
