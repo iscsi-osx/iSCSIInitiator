@@ -1113,8 +1113,6 @@ errno_t iSCSIDUpdateDiscovery(int fd,
         discoveryTimer = CFRunLoopTimerCreate(kCFAllocatorDefault,
                                               CFAbsoluteTimeGetCurrent() + 2.0,
                                               interval,0,0,callout,NULL);
-        
-
 
         CFRunLoopAddTimer(CFRunLoopGetCurrent(),discoveryTimer,kCFRunLoopDefaultMode);
     }
@@ -1149,8 +1147,6 @@ errno_t iSCSIDPreferencesIOLockAndSync(int fd,iSCSIDMsgPreferencesIOLockAndSyncC
         CFRelease(authorizationData);
     }
     
-    
-    
     // If authorization object is valid, get the necessary rights
     if(authorization) {
         if(iSCSIAuthRightsAcquire(authorization,kiSCSIAuthModifyRight) != errAuthorizationSuccess)
@@ -1161,7 +1157,6 @@ errno_t iSCSIDPreferencesIOLockAndSync(int fd,iSCSIDMsgPreferencesIOLockAndSyncC
     
     // If we have the necessary rights, lock
     if(!error) {
-        fprintf(stderr,"Lock\n");
         pthread_mutex_lock(&preferencesMutex);
     }
     
@@ -1208,7 +1203,7 @@ errno_t iSCSIDPreferencesIOUnlockAndSync(int fd,iSCSIDMsgPreferencesIOUnlockAndS
         iSCSIPreferencesSynchronzeAppValues(preferencesToSync);
         iSCSIPreferencesUpdateWithAppValues(preferences);
     }
-    fprintf(stderr,"Unlock-1\n");
+    
     pthread_mutex_unlock(&preferencesMutex);
     
     if(preferencesToSync)
@@ -1509,7 +1504,6 @@ bool iSCSIDRegisterForPowerEvents()
                                               &powerNotifyPortRef,
                                               iSCSIDHandlePowerEvent,
                                               &powerNotifier);
-
     if(powerPlaneRoot == 0)
         return false;
 
@@ -1574,7 +1568,6 @@ void iSCSIDProcessIncomingRequest(void * info)
             default:
                 CFSocketInvalidate(reqInfo->socket);
                 reqInfo->fd = 0;
-                fprintf(stderr,"Unock-2\n");
                 pthread_mutex_unlock(&preferencesMutex);
         };
         
@@ -1630,7 +1623,6 @@ void sig_pipe_handler(int signal)
     // Cleanup since pipe was broken
     CFSocketInvalidate(reqInfo->socket);
     reqInfo->fd = 0;
-    fprintf(stderr,"Unock-3\n");
     pthread_mutex_unlock(&preferencesMutex);
 }
 
