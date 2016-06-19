@@ -369,6 +369,8 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
             CFStringRef methodStrings = CFStringCreateByCombiningStrings(
                 kCFAllocatorDefault,methods,CFSTR(","));
             CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthMethod,methodStrings);
+            CFRelease(methodStrings);
+            CFRelease(methods);
         }
         // Bidirectional CHAP
         else {

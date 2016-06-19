@@ -362,6 +362,18 @@ errno_t iSCSIDLoginCommon(SID sessionId,
         pthread_mutex_unlock(&preferencesMutex);
     }
     
+    if(sessCfg)
+        iSCSISessionConfigRelease(sessCfg);
+    
+    if(connCfg)
+        iSCSIConnectionConfigRelease(connCfg);
+    
+    if(targetAuth)
+        iSCSIAuthRelease(targetAuth);
+    
+    if(initiatorAuth)
+        iSCSIAuthRelease(initiatorAuth);
+    
     return error;
 }
 
@@ -441,6 +453,9 @@ errno_t iSCSIDLoginAllPortals(iSCSIMutableTargetRef target,
             }
         }
     };
+    
+    if(portals)
+        CFRelease(portals);
     
     return errorCode;
 }
@@ -684,6 +699,8 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
     if(authorization) {
         if(iSCSIAuthRightsAcquire(authorization,kiSCSIAuthLoginRight) != errAuthorizationSuccess)
             errorCode = EAUTH;
+        
+        AuthorizationFree(authorization,kAuthorizationFlagDefaults);
     }
     else
         errorCode = EINVAL;
@@ -796,6 +813,7 @@ errno_t iSCSIDCreateArrayOfActiveTargets(int fd,iSCSIDMsgCreateArrayOfActiveTarg
 errno_t iSCSIDCreateArrayofActivePortalsForTarget(int fd,
                                                   iSCSIDMsgCreateArrayOfActivePortalsForTargetCmd * cmd)
 {
+// TODO: null check
     CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
     CFIndex sessionCount = CFArrayGetCount(sessionIds);
 
@@ -829,6 +847,9 @@ errno_t iSCSIDCreateArrayofActivePortalsForTarget(int fd,
 
     if(data)
         CFRelease(data);
+    
+    if(sessionIds)
+        CFRelease(sessionIds);
 
     return 0;
 }
@@ -848,6 +869,8 @@ errno_t iSCSIDIsTargetActive(int fd,iSCSIDMsgIsTargetActiveCmd *cmd)
     if(target) {
         iSCSIDMsgIsTargetActiveRsp rsp = iSCSIDMsgIsTargetActiveRspInit;
         rsp.active = (iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target)) != kiSCSIInvalidSessionId);
+        
+        iSCSITargetRelease(target);
 
         if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
             return EAGAIN;
@@ -881,6 +904,12 @@ errno_t iSCSIDIsPortalActive(int fd,iSCSIDMsgIsPortalActiveCmd *cmd)
         rsp.active = false;
     else
         rsp.active = (iSCSIGetConnectionIdForPortal(sessionId,portal) != kiSCSIInvalidConnectionId);
+    
+    if(target)
+        iSCSITargetRelease(target);
+    
+    if(portal)
+        iSCSIPortalRelease(portal);
 
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
         return EAGAIN;
@@ -967,6 +996,10 @@ errno_t iSCSIDCreateCFPropertiesForSession(int fd,
         if(data)
             CFRelease(data);
     }
+    
+    if(target)
+        iSCSITargetRelease(target);
+    
     return error;
 }
 
@@ -1019,6 +1052,12 @@ errno_t iSCSIDCreateCFPropertiesForConnection(int fd,
         if(data)
             CFRelease(data);
     }
+    
+    if(target)
+        iSCSITargetRelease(target);
+    
+    if(portal)
+        iSCSIPortalRelease(portal);
 
     return error;
 }
@@ -1151,6 +1190,8 @@ errno_t iSCSIDPreferencesIOLockAndSync(int fd,iSCSIDMsgPreferencesIOLockAndSyncC
     if(authorization) {
         if(iSCSIAuthRightsAcquire(authorization,kiSCSIAuthModifyRight) != errAuthorizationSuccess)
             error = EAUTH;
+        
+        AuthorizationFree(authorization,kAuthorizationFlagDefaults);
     }
     else
         error = EINVAL;
@@ -1178,7 +1219,7 @@ errno_t iSCSIDPreferencesIOUnlockAndSync(int fd,iSCSIDMsgPreferencesIOUnlockAndS
     errno_t error = iSCSIDaemonRecvMsg(fd,0,&authorizationData,cmd->authorizationLength,&preferencesData,cmd->preferencesLength,NULL);
     
     AuthorizationRef authorization = NULL;
-    
+// TODO: authorization for unlock?
     if(authorizationData) {
         AuthorizationExternalForm authorizationExtForm;
         

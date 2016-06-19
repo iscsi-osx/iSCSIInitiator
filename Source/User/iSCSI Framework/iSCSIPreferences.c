@@ -1345,18 +1345,27 @@ void iSCSIPreferencesUpdateWithAppValues(iSCSIPreferencesRef preferences)
     
     dict = iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKInitiator);
     
-    if(dict)
+    if(dict) {
         CFDictionarySetValue(preferences,kiSCSIPKInitiator,dict);
+        CFRelease(dict);
+        dict = NULL;
+    }
     
     dict = iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKTargets);
     
-    if(dict)
+    if(dict) {
         CFDictionarySetValue(preferences,kiSCSIPKTargets,dict);
+        CFRelease(dict);
+        dict = NULL;
+    }
     
     dict = iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKDiscovery);
     
-    if(dict)
+    if(dict) {
         CFDictionarySetValue(preferences,kiSCSIPKDiscovery,dict);
+        CFRelease(dict);
+        dict = NULL;
+    }
 }
 
 /*! Synchronizes application values with those in the preferences object.

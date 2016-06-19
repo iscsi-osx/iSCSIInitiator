@@ -243,6 +243,7 @@ errno_t iSCSIKernelCreateSession(CFStringRef targetIQN,
     free(params[1]);
     free(params[2]);
     free(params[3]);
+    free(inputStruct);
     
     if(result == kIOReturnSuccess && outputCnt == expOutputCnt) {
         *sessionId    = (UInt16)output[0];
