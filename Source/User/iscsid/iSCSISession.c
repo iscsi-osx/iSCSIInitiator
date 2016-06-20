@@ -1052,6 +1052,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSIPortalRef portal,
     error = iSCSIKernelSend(sessionId,connectionId,(iSCSIPDUInitiatorBHS *)&cmd,data,length);
     
     iSCSIPDUDataRelease(&data);
+    CFRelease(textCmd);
      
     if(error)
     {
