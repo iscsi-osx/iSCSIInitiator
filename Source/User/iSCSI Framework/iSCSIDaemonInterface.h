@@ -159,12 +159,10 @@ errno_t iSCSIDaemonPreferencesIOLockAndSync(iSCSIDaemonHandle handle,
  *  parameter is NULL, then no changes are made to disk and the semaphore is
  *  unlocked.
  *  @param handle a handle to a daemon connection.
- *  @param authorization an authorization for the right kiSCSIAuthModifyRights
  *  @param preferences the preferences to be synchronized
  *  @return an error code indicating whether the operating was successful. */
 errno_t iSCSIDaemonPreferencesIOUnlockAndSync(iSCSIDaemonHandle handle,
-                                             AuthorizationRef authorization,
-                                             iSCSIPreferencesRef preferences);
+                                              iSCSIPreferencesRef preferences);
 
 /*! Sets or updates a shared secret.
  *  @param handle a handle to a daemon connection.

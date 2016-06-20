@@ -662,26 +662,16 @@ errno_t iSCSIDaemonPreferencesIOLockAndSync(iSCSIDaemonHandle handle,
  *  parameter is NULL, then no changes are made to disk and the semaphore is
  *  unlocked.
  *  @param handle a handle to a daemon connection.
- *  @param authorization an authorization for the right kiSCSIAuthModifyRights
  *  @param preferences the preferences to be synchronized
  *  @return an error code indicating whether the operating was successful. */
 errno_t iSCSIDaemonPreferencesIOUnlockAndSync(iSCSIDaemonHandle handle,
-                                              AuthorizationRef authorization,
                                               iSCSIPreferencesRef preferences)
 {
     // Validate inputs
-    if(handle < 0 || !authorization)
+    if(handle < 0)
         return EINVAL;
     
     CFDataRef preferencesData = NULL;
-    
-    AuthorizationExternalForm authExtForm;
-    AuthorizationMakeExternalForm(authorization,&authExtForm);
-    
-    CFDataRef authData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
-                                                     (UInt8*)&authExtForm.bytes,
-                                                     kAuthorizationExternalFormLength,
-                                                     kCFAllocatorDefault);
     
     iSCSIDMsgPreferencesIOUnlockAndSyncCmd cmd = iSCSIDMsgPreferencesIOUnlockAndSyncCmdInit;
     
@@ -692,10 +682,7 @@ errno_t iSCSIDaemonPreferencesIOUnlockAndSync(iSCSIDaemonHandle handle,
     else
         cmd.preferencesLength = 0;
     
-    cmd.authorizationLength = (UInt32)CFDataGetLength(authData);
-    
-    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
-                                       authData,preferencesData,NULL);
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,preferencesData,NULL);
     
     if(preferencesData)
         CFRelease(preferencesData);

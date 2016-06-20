@@ -452,7 +452,7 @@ typedef struct __iSCSIDMsgPreferencesIOUnlockAndSyncCmd {
     UInt32  reserved2;
     UInt32  reserved3;
     UInt32  reserved4;
-    UInt32  authorizationLength;
+    UInt32  reserved5;
     UInt32  preferencesLength;
     
 } __attribute__((packed)) iSCSIDMsgPreferencesIOUnlockAndSyncCmd;

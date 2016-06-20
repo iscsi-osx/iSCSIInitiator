@@ -610,13 +610,18 @@ errno_t iSCSICtlModifyPortalFromOptions(CFDictionaryRef options,
 {
     iSCSIPortalRef portalUpdates = iSCSICtlCreatePortalFromOptions(options);
 
-    // If a port was explicity specified, update it
-    if(CFDictionaryContainsKey(options,kOptKeyPort))
-        iSCSIPortalSetPort(portal,iSCSIPortalGetPort(portalUpdates));
+    if(portalUpdates) {
+        
+        // If a port was explicity specified, update it
+        if(CFDictionaryContainsKey(options,kOptKeyPort))
+            iSCSIPortalSetPort(portal,iSCSIPortalGetPort(portalUpdates));
 
-    // If the interface was explicitly specified, update it
-    if(CFDictionaryContainsKey(options,kOptKeyInterface))
-        iSCSIPortalSetHostInterface(portal,iSCSIPortalGetHostInterface(portalUpdates));
+        // If the interface was explicitly specified, update it
+        if(CFDictionaryContainsKey(options,kOptKeyInterface))
+            iSCSIPortalSetHostInterface(portal,iSCSIPortalGetHostInterface(portalUpdates));
+            
+        iSCSIPortalRelease(portalUpdates);
+    }
 
     return 0;
 }
@@ -871,9 +876,9 @@ errno_t iSCSICtlAddTarget(AuthorizationRef authorization,CFDictionaryRef options
     }
 
     if(!error)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,preferences);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
     else if(lockAndSync)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,NULL);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
     
     if(target)
         iSCSITargetRelease(target);
@@ -971,9 +976,9 @@ errno_t iSCSICtlRemoveTarget(AuthorizationRef authorization,CFDictionaryRef opti
     }
     
     if(!error)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,preferences);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
     else if(lockAndSync)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,NULL);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
     
     if(portal)
         iSCSIPortalRelease(portal);
@@ -1067,11 +1072,11 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
     }
 
     if(!error) {
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,preferences);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
         iSCSICtlDisplayString(CFSTR("Initiator settings have been updated\n"));
     }
     else if(lockAndSync)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,NULL);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
     
     if(preferences)
         iSCSIPreferencesRelease(preferences);
@@ -1302,9 +1307,9 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
     }
     
     if(!error)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,preferences);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
     else if(lockAndSync)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,NULL);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
     
     if(portal)
         iSCSIPortalRelease(portal);
@@ -1702,6 +1707,7 @@ errno_t iSCSICtlListDiscoveryConfig()
         
         iSCSICtlDisplayString(entry);
         CFRelease(entry);
+        iSCSIPortalRelease(portal);
     }
 
     iSCSIPreferencesRelease(preferences);
@@ -1810,9 +1816,9 @@ errno_t iSCSICtlAddDiscoveryPortal(AuthorizationRef authorization,CFDictionaryRe
     }
     
     if(!error)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,preferences);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
     else if(lockAndSync)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,NULL);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
     
     if(portal)
         iSCSIPortalRelease(portal);
@@ -1885,11 +1891,11 @@ errno_t iSCSICtlModifyDiscovery(AuthorizationRef authorization,CFDictionaryRef o
     }
     
     if(!error) {
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,preferences);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
         iSCSICtlDisplayString(CFSTR("Discovery settings have been updated\n"));
     }
     else if(lockAndSync)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,NULL);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
     
     if(!error)
         iSCSIDaemonUpdateDiscovery(handle);
@@ -2001,10 +2007,10 @@ errno_t iSCSICtlRemoveDiscoveryPortal(AuthorizationRef authorization,CFDictionar
         iSCSICtlDisplayString(status);
         CFRelease(status);
         
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,preferences);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
     }
     else if(lockAndSync)
-        iSCSIDaemonPreferencesIOUnlockAndSync(handle,authorization,NULL);
+        iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
     
     if(!error)
         iSCSIPreferencesRelease(preferences);

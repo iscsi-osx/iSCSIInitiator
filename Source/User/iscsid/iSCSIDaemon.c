@@ -552,6 +552,8 @@ errno_t iSCSIDLogin(int fd,iSCSIDMsgLoginCmd * cmd)
     if(authorization) {
         if(iSCSIAuthRightsAcquire(authorization,kiSCSIAuthLoginRight) != errAuthorizationSuccess)
             errorCode = EAUTH;
+        
+        AuthorizationFree(authorization,kAuthorizationFlagDefaults);
     }
     else
         errorCode = EINVAL;
@@ -1211,25 +1213,11 @@ errno_t iSCSIDPreferencesIOLockAndSync(int fd,iSCSIDMsgPreferencesIOLockAndSyncC
     return 0;
 }
 
-
 errno_t iSCSIDPreferencesIOUnlockAndSync(int fd,iSCSIDMsgPreferencesIOUnlockAndSyncCmd * cmd)
 {
     // Verify that the client is authorized for the operation
-    CFDataRef authorizationData = NULL, preferencesData = NULL;
-    errno_t error = iSCSIDaemonRecvMsg(fd,0,&authorizationData,cmd->authorizationLength,&preferencesData,cmd->preferencesLength,NULL);
-    
-    AuthorizationRef authorization = NULL;
-// TODO: authorization for unlock?
-    if(authorizationData) {
-        AuthorizationExternalForm authorizationExtForm;
-        
-        CFDataGetBytes(authorizationData,
-                   CFRangeMake(0,kAuthorizationExternalFormLength),
-                   (UInt8 *)&authorizationExtForm.bytes);
-        
-        AuthorizationCreateFromExternalForm(&authorizationExtForm,&authorization);
-        CFRelease(authorizationData);
-    }
+    CFDataRef preferencesData = NULL;
+    errno_t error = iSCSIDaemonRecvMsg(fd,0,&preferencesData,cmd->preferencesLength,NULL);
     
     iSCSIPreferencesRef preferencesToSync = NULL;
     
