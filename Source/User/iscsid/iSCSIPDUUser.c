@@ -156,11 +156,15 @@ void iSCSIPDUDataParseCommon(void * data,size_t length,
         currentByte++;
     }
 
-    if (keyString) {
+    if(keyString) {
         CFRelease(keyString);
         keyString = NULL;
     }
-
+    
+    if(valString) {
+        CFRelease(valString);
+        valString = NULL;
+    }
 }
 
 void iSCSIPDUDataParseToDictCallback(void * keyContainer,CFStringRef keyString,

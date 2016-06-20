@@ -58,6 +58,8 @@ errno_t iSCSIDiscoveryAddTargetForSendTargets(iSCSIPreferencesRef preferences,
                 iSCSIPreferencesAddDynamicTargetForSendTargets(preferences,targetIQN,portal,discoveryPortal);
         }
     }
+    
+    CFRelease(portalGroups);
 
     return 0;
 }
@@ -143,6 +145,7 @@ errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSIPreferencesRef
         }
     }
 
+    CFRelease(targets);
     CFRelease(discTargets);
     CFRelease(existingTargets);
     
@@ -194,7 +197,8 @@ CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSIPreferencesRef p
 
         // If there was an error, log it and move on to the next portal
         errno_t error = 0;
-        if((error = iSCSIQueryPortalForTargets(portal,iSCSIAuthCreateNone(),&discoveryRec,&statusCode)))
+        iSCSIAuthRef auth = iSCSIAuthCreateNone();
+        if((error = iSCSIQueryPortalForTargets(portal,auth,&discoveryRec,&statusCode)))
         {
             CFStringRef errorString = CFStringCreateWithFormat(
                 kCFAllocatorDefault,0,
@@ -220,6 +224,9 @@ CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSIPreferencesRef p
                 iSCSIDiscoveryRecRelease(discoveryRec);
             }
         }
+        
+        iSCSIAuthRelease(auth);
+        iSCSIPortalRelease(portal);
     }
     
     // Release the array of discovery portals

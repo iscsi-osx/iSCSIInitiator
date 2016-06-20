@@ -1327,7 +1327,7 @@ iSCSIPreferencesRef iSCSIPreferencesCreateWithData(CFDataRef data)
 {
     CFPropertyListFormat format;
     
-    iSCSIPreferencesRef preferences = CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
+    iSCSIPreferencesRef preferences = (iSCSIPreferencesRef)CFPropertyListCreateWithData(kCFAllocatorDefault,data,0,&format,NULL);
     
     if(format == kCFPropertyListBinaryFormat_v1_0)
         return preferences;
@@ -1341,9 +1341,31 @@ iSCSIPreferencesRef iSCSIPreferencesCreateWithData(CFDataRef data)
 void iSCSIPreferencesUpdateWithAppValues(iSCSIPreferencesRef preferences)
 {
     // Refresh from preferences
-    CFDictionarySetValue(preferences,kiSCSIPKInitiator,iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKInitiator));
-    CFDictionarySetValue(preferences,kiSCSIPKTargets,iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKTargets));
-    CFDictionarySetValue(preferences,kiSCSIPKDiscovery,iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKDiscovery));
+    CFDictionaryRef dict = NULL;
+    
+    dict = iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKInitiator);
+    
+    if(dict) {
+        CFDictionarySetValue(preferences,kiSCSIPKInitiator,dict);
+        CFRelease(dict);
+        dict = NULL;
+    }
+    
+    dict = iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKTargets);
+    
+    if(dict) {
+        CFDictionarySetValue(preferences,kiSCSIPKTargets,dict);
+        CFRelease(dict);
+        dict = NULL;
+    }
+    
+    dict = iSCSIPreferencesCopyPropertyDict(kiSCSIPKAppId,kiSCSIPKDiscovery);
+    
+    if(dict) {
+        CFDictionarySetValue(preferences,kiSCSIPKDiscovery,dict);
+        CFRelease(dict);
+        dict = NULL;
+    }
 }
 
 /*! Synchronizes application values with those in the preferences object.

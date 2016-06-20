@@ -159,12 +159,29 @@ errno_t iSCSIDaemonPreferencesIOLockAndSync(iSCSIDaemonHandle handle,
  *  parameter is NULL, then no changes are made to disk and the semaphore is
  *  unlocked.
  *  @param handle a handle to a daemon connection.
- *  @param authorization an authorization for the right kiSCSIAuthModifyRights
  *  @param preferences the preferences to be synchronized
  *  @return an error code indicating whether the operating was successful. */
 errno_t iSCSIDaemonPreferencesIOUnlockAndSync(iSCSIDaemonHandle handle,
-                                             AuthorizationRef authorization,
-                                             iSCSIPreferencesRef preferences);
+                                              iSCSIPreferencesRef preferences);
 
+/*! Sets or updates a shared secret.
+ *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyRights.
+ *  @param nodeIQN the node iSCSI qualified name.
+ *  @param sharedSecret the secret to set.
+ *  @return an error code indicating whether the operating was successful. */
+errno_t iSCSIDaemonSetSharedSecret(iSCSIDaemonHandle handle,
+                                   AuthorizationRef authorization,
+                                   CFStringRef nodeIQN,
+                                   CFStringRef sharedSecret);
+
+/*! Sets or updates a shared secret.
+ *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyRights.
+ *  @param nodeIQN the node iSCSI qualified name.
+ *  @return an error code indicating whether the operating was successful. */
+errno_t iSCSIDaemonRemoveSharedSecret(iSCSIDaemonHandle handle,
+                                      AuthorizationRef authorization,
+                                      CFStringRef nodeIQN);
 
 #endif /* defined(__ISCSI_DAEMON_INTERFACE__) */

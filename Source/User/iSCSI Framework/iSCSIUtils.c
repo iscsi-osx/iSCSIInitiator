@@ -147,7 +147,6 @@ CFArrayRef iSCSIUtilsCreateArrayByParsingPortalParts(CFStringRef portal)
  *  @param peripheralDeviceType the single byte peripheral device descriptor
  *  as outlined in the SPC-4 r36d.
  *  @return a string describing the device (guaranteed to be a valid string). */
-
 CFStringRef iSCSIUtilsGetSCSIPeripheralDeviceDescription(UInt8 peripheralDeviceType)
 {
     switch(peripheralDeviceType)
@@ -192,4 +191,76 @@ CFStringRef iSCSIUtilsGetSCSIPeripheralDeviceDescription(UInt8 peripheralDeviceT
         default:
             return CFSTR("Unknown or no device");
     };
+}
+
+/*! Gets a string describing the iSCSI login status.
+ *  @param statusCode the login status code.
+ *  @return a string describing the login status (guaranteed to be a valid string). */
+CFStringRef iSCSIUtilsGetStringForLoginStatus(enum iSCSILoginStatusCode statusCode)
+{
+    switch(statusCode)
+    {
+        case kiSCSILoginSuccess:
+            return CFSTR("Login successful");
+        case kiSCSILoginAccessDenied:
+            return CFSTR("The target has denied access");
+        case kiSCSILoginAuthFail:
+            return CFSTR("Authentication failure");
+        case kiSCSILoginCantIncludeInSeession:
+            return CFSTR("Can't include the portal in the session");
+        case kiSCSILoginInitiatorError:
+            return CFSTR("An initiator error has occurred");
+        case kiSCSILoginInvalidReqDuringLogin:
+            return CFSTR("The initiator made an invalid request");
+        case kiSCSILoginMissingParam:
+            return CFSTR("Missing login parameters");
+        case kiSCSILoginNotFound:
+            return CFSTR("Target was not found");
+        case kiSCSILoginOutOfResources:
+            return CFSTR("Target is out of resources");
+        case kiSCSILoginServiceUnavailable:
+            return CFSTR("Target services unavailable");
+        case kiSCSILoginSessionDoesntExist:
+            return CFSTR("Session doesn't exist");
+        case kiSCSILoginSessionTypeUnsupported:
+            return CFSTR("Target doesn't support login");
+        case kiSCSILoginTargetHWorSWError:
+            return CFSTR("Target software or hardware error has occured");
+        case kiSCSILoginTargetMovedPerm:
+            return CFSTR("Target has permanently moved");
+        case kiSCSILoginTargetMovedTemp:
+            return CFSTR("Target has temporarily moved");
+        case kiSCSILoginTargetRemoved:
+            return CFSTR("Target has been removed");
+        case kiSCSILoginTooManyConnections:
+            return CFSTR("The session cannot support additional connections");
+        case kiSCSILoginUnsupportedVer:
+            return CFSTR("Target is incompatible with the initiator");
+        case kiSCSILoginInvalidStatusCode:
+        default:
+            return CFSTR("Unknown error occurred");
+    };
+    return CFSTR("");
+}
+
+/*! Gets a string describing the iSCSI logout status.
+ *  @param statusCode the logout status code.
+ *  @return a string describing the login status (guaranteed to be a valid string). */
+CFStringRef iSCSIUtilsGetStringForLogoutStatus(enum iSCSILogoutStatusCode statusCode)
+{
+    switch(statusCode)
+    {
+        case kiSCSILogoutSuccess:
+            return CFSTR("Logout successful");
+        case kiSCSILogoutCIDNotFound:
+            return CFSTR("The connection was not found");
+        case kiSCSILogoutCleanupFailed:
+            return CFSTR("Target cleanup of connection failed");
+        case kiSCSILogoutRecoveryNotSupported:
+            return CFSTR("Could not recover the connection");
+        case kiSCSILogoutInvalidStatusCode:
+        default:
+            return CFSTR("");
+    };
+    return CFSTR("");
 }

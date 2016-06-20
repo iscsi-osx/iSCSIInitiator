@@ -35,7 +35,7 @@ static const int kiSCSIDaemonConnectTimeoutMilliSec = 100;
 /*! Timeout to use for normal communication with daemon. This is the time
  *  that the client will have to wait for the deamon to perform the desired
  *  operation (potentially over the network). */
-static const int kiSCSIDaemonDefaultTimeoutSec = 30;
+static const int kiSCSIDaemonDefaultTimeoutSec = 10;
 
 
 const iSCSIDMsgLoginCmd iSCSIDMsgLoginCmdInit  = {
@@ -93,6 +93,14 @@ const iSCSIDMsgPreferencesIOLockAndSyncCmd iSCSIDMsgPreferencesIOLockAndSyncCmdI
 
 const iSCSIDMsgPreferencesIOUnlockAndSyncCmd iSCSIDMsgPreferencesIOUnlockAndSyncCmdInit = {
     .funcCode = kiSCSIDPreferencesIOUnlockAndSync
+};
+
+const iSCSIDMsgSetSharedSecretCmd iSCSIDMsgSetSharedSecretCmdInit = {
+    .funcCode = kiSCSIDSetSharedSecret
+};
+
+const iSCSIDMsgRemoveSharedSecretCmd iSCSIDMsgRemoveSharedSecretCmdInit = {
+    .funcCode = kiSCSIDRemoveSharedSecret
 };
 
 iSCSIDaemonHandle iSCSIDaemonConnect()
@@ -654,26 +662,16 @@ errno_t iSCSIDaemonPreferencesIOLockAndSync(iSCSIDaemonHandle handle,
  *  parameter is NULL, then no changes are made to disk and the semaphore is
  *  unlocked.
  *  @param handle a handle to a daemon connection.
- *  @param authorization an authorization for the right kiSCSIAuthModifyRights
  *  @param preferences the preferences to be synchronized
  *  @return an error code indicating whether the operating was successful. */
 errno_t iSCSIDaemonPreferencesIOUnlockAndSync(iSCSIDaemonHandle handle,
-                                              AuthorizationRef authorization,
                                               iSCSIPreferencesRef preferences)
 {
     // Validate inputs
-    if(handle < 0 || !authorization)
+    if(handle < 0)
         return EINVAL;
     
     CFDataRef preferencesData = NULL;
-    
-    AuthorizationExternalForm authExtForm;
-    AuthorizationMakeExternalForm(authorization,&authExtForm);
-    
-    CFDataRef authData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
-                                                     (UInt8*)&authExtForm.bytes,
-                                                     kAuthorizationExternalFormLength,
-                                                     kCFAllocatorDefault);
     
     iSCSIDMsgPreferencesIOUnlockAndSyncCmd cmd = iSCSIDMsgPreferencesIOUnlockAndSyncCmdInit;
     
@@ -684,10 +682,7 @@ errno_t iSCSIDaemonPreferencesIOUnlockAndSync(iSCSIDaemonHandle handle,
     else
         cmd.preferencesLength = 0;
     
-    cmd.authorizationLength = cmd.authorizationLength = (UInt32)CFDataGetLength(authData);
-    
-    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
-                                       authData,preferencesData,NULL);
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,preferencesData,NULL);
     
     if(preferencesData)
         CFRelease(preferencesData);
@@ -705,4 +700,107 @@ errno_t iSCSIDaemonPreferencesIOUnlockAndSync(iSCSIDaemonHandle handle,
     
     return rsp.errorCode;
 }
+
+/*! Sets or updates a shared secret.
+ *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyRights.
+ *  @param nodeIQN the node iSCSI qualified name.
+ *  @param sharedSecret the secret to set.
+ *  @return an error code indicating whether the operating was successful. */
+errno_t iSCSIDaemonSetSharedSecret(iSCSIDaemonHandle handle,
+                                   AuthorizationRef authorization,
+                                   CFStringRef nodeIQN,
+                                   CFStringRef sharedSecret)
+{
+    // Validate inputs
+    if(handle < 0 || !authorization || !nodeIQN || !sharedSecret)
+        return EINVAL;
+    
+    AuthorizationExternalForm authExtForm;
+    AuthorizationMakeExternalForm(authorization,&authExtForm);
+    
+    CFDataRef authData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
+                                                     (UInt8*)&authExtForm.bytes,
+                                                     kAuthorizationExternalFormLength,
+                                                     kCFAllocatorDefault);
+    
+    CFDataRef nodeIQNData = CFStringCreateExternalRepresentation(kCFAllocatorDefault,nodeIQN,kCFStringEncodingASCII,NULL);
+    CFDataRef sharedSecretData = CFStringCreateExternalRepresentation(kCFAllocatorDefault,sharedSecret,kCFStringEncodingASCII,NULL);
+    
+    iSCSIDMsgSetSharedSecretCmd cmd = iSCSIDMsgSetSharedSecretCmdInit;
+    cmd.authorizationLength = (UInt32)CFDataGetLength(authData);
+    cmd.nodeIQNLength = CFDataGetLength(nodeIQNData);
+    cmd.secretLength = CFDataGetLength(sharedSecretData);
+    
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
+                                       authData,nodeIQNData,sharedSecretData,NULL);
+    
+    if(nodeIQNData)
+        CFRelease(nodeIQNData);
+    
+    if(sharedSecretData)
+        CFRelease(sharedSecretData);
+
+    if(error)
+        return error;
+    
+    iSCSIDMsgSetSharedSecretRsp rsp;
+    
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EIO;
+    
+    if(rsp.funcCode != kiSCSIDSetSharedSecret)
+        return EIO;
+
+    return rsp.errorCode;
+}
+
+/*! Sets or updates a shared secret.
+ *  @param handle a handle to a daemon connection.
+ *  @param authorization an authorization for the right kiSCSIAuthModifyRights.
+ *  @param nodeIQN the node iSCSI qualified name.
+ *  @return an error code indicating whether the operating was successful. */
+errno_t iSCSIDaemonRemoveSharedSecret(iSCSIDaemonHandle handle,
+                                      AuthorizationRef authorization,
+                                      CFStringRef nodeIQN)
+{
+    // Validate inputs
+    if(handle < 0 || !authorization || !nodeIQN)
+        return EINVAL;
+    
+    AuthorizationExternalForm authExtForm;
+    AuthorizationMakeExternalForm(authorization,&authExtForm);
+    
+    CFDataRef authData = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
+                                                     (UInt8*)&authExtForm.bytes,
+                                                     kAuthorizationExternalFormLength,
+                                                     kCFAllocatorDefault);
+    
+    CFDataRef nodeIQNData = CFStringCreateExternalRepresentation(kCFAllocatorDefault,nodeIQN,kCFStringEncodingASCII,'0');
+    
+    iSCSIDMsgRemoveSharedSecretCmd cmd = iSCSIDMsgRemoveSharedSecretCmdInit;
+    cmd.authorizationLength = (UInt32)CFDataGetLength(authData);
+    cmd.nodeIQNLength = CFDataGetLength(nodeIQNData);
+    
+    errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
+                                       authData,nodeIQNData,NULL);
+    
+    if(nodeIQNData)
+        CFRelease(nodeIQNData);
+    
+    if(error)
+        return error;
+    
+    iSCSIDMsgRemoveSharedSecretRsp rsp;
+    
+    if(recv(handle,&rsp,sizeof(rsp),0) != sizeof(rsp))
+        return EIO;
+    
+    if(rsp.funcCode != kiSCSIDRemoveSharedSecret)
+        return EIO;
+    
+    
+    return rsp.errorCode;
+}
+
 

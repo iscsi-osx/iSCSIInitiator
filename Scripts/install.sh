@@ -22,7 +22,7 @@ OSX_MINOR_VER=$(sw_vers -productVersion | awk -F '.' '{print $2}')
 # Minor version of OS X Mavericks
 OSX_MAVERICKS_MINOR_VER="9"
 
-if [ "$OSX_MINOR_VER" -ge "$OSX_MAVERICKS_MINOR_VER" ]; then
+if [ "$OSX_MINOR_VER" -gt "$OSX_MAVERICKS_MINOR_VER" ]; then
     KEXT_DST=/Library/Extensions
 else
     KEXT_DST=/System/Library/Extensions
@@ -46,15 +46,16 @@ if [ X"" == X"${SOURCE_PATH}" ]; then
 fi
 
 # Copy kernel extension & load it
+sudo mkdir -p $KEXT_DST
 sudo cp -R $SOURCE_PATH/$KEXT $KEXT_DST/$KEXT
 sudo chmod -R 755 $KEXT_DST/$KEXT
 sudo chown -R root:wheel $KEXT_DST/$KEXT
 
 # Copy framework
+sudo mkdir -p $FRAMEWORK_DST
 sudo cp -R $SOURCE_PATH/$FRAMEWORK $FRAMEWORK_DST/$FRAMEWORK
 sudo chown -R root:wheel $FRAMEWORK_DST/$FRAMEWORK
 sudo chmod -R 755 $FRAMEWORK_DST/$FRAMEWORK
-
 
 # Copy daemon & set permissions
 sudo rm -f /var/logs/iscsid.log
@@ -67,10 +68,12 @@ sudo chmod 644 $DAEMON_PLIST_DST/$DAEMON_PLIST
 sudo chown root:wheel $DAEMON_PLIST_DST/$DAEMON_PLIST
 
 # Copy user tool
+sudo mkdir -p $TOOL_DST
 sudo cp $SOURCE_PATH/$TOOL $TOOL_DST/$TOOL
 sudo chmod +x $TOOL_DST/$TOOL
 
 # Copy man page
+sudo mkdir -p $MAN_DST
 sudo cp $SOURCE_PATH/$MAN_TOOL $MAN_DST
 sudo cp $SOURCE_PATH/$MAN_DAEMON $MAN_DST
 

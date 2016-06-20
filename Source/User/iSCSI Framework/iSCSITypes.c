@@ -401,6 +401,8 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
         return;
     
     CFMutableDictionaryRef targetDict;
+    bool targetDictCreated = false;
+    bool portalsArrayCreated = false;
     
     // If target doesn't exist add it
     if(!CFDictionaryGetValueIfPresent(discoveryRec,targetIQN,(void *)&targetDict))
@@ -408,6 +410,7 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
         targetDict = CFDictionaryCreateMutable(kCFAllocatorDefault,0,
                                                &kCFTypeDictionaryKeyCallBacks,
                                                &kCFTypeDictionaryValueCallBacks);
+        targetDictCreated = true;
     }
     
     // If the group tag doesn't exist add it
@@ -417,7 +420,7 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
     {
         portalsArray = CFArrayCreateMutable(kCFAllocatorDefault,0,
                                             &kCFTypeArrayCallBacks);
-    
+        portalsArrayCreated = true;
     }
     
     CFDictionaryRef portalDict = iSCSIPortalCreateDictionary(portal);
@@ -428,6 +431,12 @@ void iSCSIDiscoveryRecAddPortal(iSCSIMutableDiscoveryRecRef discoveryRec,
     CFDictionarySetValue(discoveryRec,targetIQN,targetDict);
     
     CFRelease(portalDict);
+    
+    if(targetDictCreated)
+        CFRelease(targetDict);
+    
+    if(portalsArrayCreated)
+        CFRelease(portalsArray);
 }
 
 
@@ -442,6 +451,7 @@ void iSCSIDiscoveryRecAddTarget(iSCSIMutableDiscoveryRecRef discoveryRec,
         return;
 
     CFMutableDictionaryRef targetDict;
+    bool targetDictCreated = false;
 
     // If target doesn't exist add it
     if(!CFDictionaryGetValueIfPresent(discoveryRec,targetIQN,(void *)&targetDict))
@@ -449,10 +459,15 @@ void iSCSIDiscoveryRecAddTarget(iSCSIMutableDiscoveryRecRef discoveryRec,
         targetDict = CFDictionaryCreateMutable(kCFAllocatorDefault,0,
                                                &kCFTypeDictionaryKeyCallBacks,
                                                &kCFTypeDictionaryValueCallBacks);
+        targetDictCreated = true;
     }
+    
 
     // Add target to discovery record
     CFDictionarySetValue(discoveryRec,targetIQN,targetDict);
+
+    if(targetDictCreated)
+        CFRelease(targetDict);
 }
 
 /*! Creates a CFArray object containing CFString objects with names of

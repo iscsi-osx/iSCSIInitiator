@@ -1,7 +1,7 @@
 # Package parameters
 NAME="iSCSI Initiator for OS X"
 BUNDLE_ID="com.github.iscsi-osx.iSCSIInitiator"
-VERSION="1.0.0-beta2"
+VERSION="1.0.0-beta3"
 
 # Output of final DMG
 RELEASE="../Release"
@@ -42,6 +42,8 @@ UNINSTALLER_DIST_XML="Resources/Uninstaller.xml"
 REQUIREMENTS_PATH="Resources/Requirements.plist"
 
 # Relelase build of all three components
+xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
+            -scheme iSCSI.framework -configuration release BUILD_DIR=$XCODE_RELEASE_BUILD_DIR
 xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
            -scheme iSCSI.kext -configuration release BUILD_DIR=$XCODE_RELEASE_BUILD_DIR
 xcodebuild -workspace ../iSCSIInitiator.xcodeproj/project.xcworkspace \
