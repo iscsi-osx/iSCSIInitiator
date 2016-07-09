@@ -1065,7 +1065,14 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
 
     // Check for initiator alias
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyNodeAlias,(const void**)&value))
-        iSCSIPreferencesSetInitiatorAlias(preferences,value);
+    {
+        if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("alias not specified"));
+            error = EINVAL;
+        }
+        else
+            iSCSIPreferencesSetInitiatorAlias(preferences,value);
+    }
 
     // Check for initiator IQN
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
