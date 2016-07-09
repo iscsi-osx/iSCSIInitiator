@@ -1334,7 +1334,7 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
                 }
             }
             // Else we're modifying target parameters
-            else if {
+            else {
                 if(iSCSIDaemonIsTargetActive(handle,target))
                     iSCSICtlDisplayString(CFSTR("The specified target has an active session and cannot be modified\n"));
                 else {
