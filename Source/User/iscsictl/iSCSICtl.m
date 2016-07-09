@@ -1532,6 +1532,15 @@ errno_t iSCSICtlListTarget(CFDictionaryRef options)
     
     displayTargetInfo(target,properties);
     
+    // Retrieve last known target alias (if available) and display it
+    CFStringRef targetAlias = iSCSIPreferencesGetTargetAlias(preferences,targetIQN);
+    if(!targetAlias)
+        targetAlias = CFSTR("unknown");
+        
+    CFStringRef aliasString = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\talias: %@\n"),targetAlias);
+    iSCSICtlDisplayString(aliasString);
+    CFRelease(aliasString);
+    
     // Get information about automatic login
     CFStringRef autoLogin = CFSTR("disabled");
     
