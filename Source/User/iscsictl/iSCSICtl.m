@@ -375,7 +375,7 @@ CFStringRef iSCSICtlCreateSecretFromInput(CFIndex retries)
 {
     CFStringRef secret = NULL;
 
-    const int MAX_SECRET_LENGTH = 128; //256
+    const int MAX_SECRET_LENGTH = 128;
     char buffer[MAX_SECRET_LENGTH];
     char verify[MAX_SECRET_LENGTH];
     
@@ -1040,6 +1040,10 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
     {
         if(CFStringCompare(value,kOptValueEmpty,0) != kCFCompareEqualTo)
             iSCSIPreferencesSetInitiatorCHAPName(preferences,value);
+        else {
+            iSCSICtlDisplayError(CFSTR("CHAP name not specified"));
+            error = EINVAL;
+        }
     }
 
     // Check for authentication method
@@ -1049,6 +1053,10 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
             iSCSIPreferencesSetInitiatorAuthenticationMethod(preferences,kiSCSIAuthMethodNone);
         else if(CFStringCompare(value,kOptValueAuthMethodCHAP,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPreferencesSetInitiatorAuthenticationMethod(preferences,kiSCSIAuthMethodCHAP);
+        else if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("Authentication method not specified"));
+            error = EINVAL;
+        }
         else {
             iSCSICtlDisplayError(CFSTR("The specified authentication method is invalid"));
             error = EINVAL;
@@ -1062,8 +1070,11 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
     // Check for initiator IQN
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
     {
-        // Validate the chosen initiator IQN
-        if(iSCSIUtilsValidateIQN(value))
+        if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("IQN not specified"));
+            error = EINVAL;
+        }
+        else if(iSCSIUtilsValidateIQN(value))
             iSCSIPreferencesSetInitiatorIQN(preferences,value);
         else {
             iSCSICtlDisplayError(CFSTR("The specified name is not a valid IQN or EUI-64 identifier"));
