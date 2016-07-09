@@ -935,6 +935,10 @@ void iSCSIPreferencesSetTargetIQN(iSCSIPreferencesRef preferences,
                          CFStringRef existingIQN,
                          CFStringRef newIQN)
 {
+    // Do not allow a change in IQN for dynamically configured targets
+    if(iSCSIPreferencesGetTargetConfigType(preferences,existingIQN) != kiSCSITargetConfigStatic)
+        return;
+    
     CFMutableDictionaryRef targetNodes = iSCSIPreferencesGetTargets(preferences,false);
     CFMutableDictionaryRef target = iSCSIPreferencesGetTargetDict(preferences,existingIQN,false);
 
