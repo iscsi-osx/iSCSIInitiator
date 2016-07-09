@@ -1535,9 +1535,9 @@ errno_t iSCSICtlListTarget(CFDictionaryRef options)
     // Retrieve last known target alias (if available) and display it
     CFStringRef targetAlias = iSCSIPreferencesGetTargetAlias(preferences,targetIQN);
     if(!targetAlias)
-        targetAlias = CFSTR("unknown");
+        targetAlias = CFSTR("<unknown>");
         
-    CFStringRef aliasString = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\talias: %@\n"),targetAlias);
+    CFStringRef aliasString = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\tnode-alias: %@\n"),targetAlias);
     iSCSICtlDisplayString(aliasString);
     CFRelease(aliasString);
     
