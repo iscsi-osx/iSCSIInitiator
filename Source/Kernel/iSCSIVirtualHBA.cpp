@@ -1897,9 +1897,16 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     // Update io vector count, send data
     msg.msg_iovlen = iovecCnt;
     size_t bytesSent = 0;
-    int result = sock_send(connection->socket,&msg,0,&bytesSent);
+    errno_t error;
     
-    return result;
+    if((error = sock_send(connection->socket,&msg,0,&bytesSent)))
+    {
+        DBLog("iscsi: sock_send error returned with code %d (sid: %d, cid: %d)\n",error,session->sessionId,connection->cid);
+        HandleConnectionTimeout(session->sessionId,connection->cid);
+        return error;
+    }
+    
+    return error;
 }
 
 
@@ -1959,11 +1966,18 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
 
     // Bytes received from sock_receive call
     size_t bytesRecv;
-    errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
-    
-    if(result != 0)
-        DBLog("iscsi: sock_receive error returned with code %d (sid: %d, cid: %d)\n",result,session->sessionId,connection->cid);
+    errno_t error;
 
+    // Handle connection problems
+    if((error = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv)))
+    {
+        if(error != EWOULDBLOCK) {
+            DBLog("iscsi: sock_receive error returned with code %d (sid: %d, cid: %d)\n",error,session->sessionId,connection->cid);
+            HandleConnectionTimeout(session->sessionId,connection->cid);
+            return error;
+        }
+    }
+    
     // Verify length; incoming PDUS from a target should have no AHS, verify.
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
     {
@@ -1993,7 +2007,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     if(bhs->opCode == kiSCSIPDUOpCodeDataIn) {
         iSCSIPDUDataInBHS * bhsDataIn = (iSCSIPDUDataInBHS *)bhs;
         if((bhsDataIn->flags & kiSCSIPDUDataInStatusFlag) == 0)
-            return result;
+            return EIO;
     }
 
     // Read and update the command sequence numbers
@@ -2009,7 +2023,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     if(bhs->opCode != kiSCSIPDUOpCodeR2T && bhs->statSN != 0xffffffff && bhs->initiatorTaskTag != 0xffffffff)
         OSIncrementAtomic(&connection->expStatSN);
     
-    return result;
+    return error;
 }
 
 /*! Receives a data segment over a kernel socket.  If the specified length is 
@@ -2066,7 +2080,17 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     msg.msg_iovlen = iovecCnt;
     
     size_t bytesRecv;
-    errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
+    errno_t error = 0;
+    
+    // Handle connection problems
+    if((error = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv)))
+    {
+        if(error != EWOULDBLOCK) {
+            DBLog("iscsi: sock_receive error returned with code %d (sid: %d, cid: %d)\n",error,session->sessionId,connection->cid);
+            HandleConnectionTimeout(session->sessionId,connection->cid);
+            return error;
+        }
+    }
     
     // Verify digest if present
     if(connection->useDataDigest)
@@ -2084,5 +2108,5 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
         }
     }
 
-    return result;
+    return error;
 }
