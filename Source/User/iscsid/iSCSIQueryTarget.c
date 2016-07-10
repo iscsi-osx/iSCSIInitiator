@@ -84,8 +84,7 @@ errno_t iSCSISessionLoginSingleQuery(struct iSCSILoginQueryContext * context,
             iSCSIPDUDataParseToDict(data,length,textRsp);
             
             // Save & return the TSIH if this is the leading login
-            if(context->targetSessionId == 0 &&
-               context->nextStage == kiSCSIPDUFullFeaturePhase) {
+            if(context->targetSessionId == 0 && context->nextStage == kiSCSIPDUFullFeaturePhase) {
                 context->targetSessionId = CFSwapInt16BigToHost(rsp.TSIH);
             }
             
@@ -94,7 +93,6 @@ errno_t iSCSISessionLoginSingleQuery(struct iSCSILoginQueryContext * context,
             context->statSN = rsp.statSN;
             context->expCmdSN = rsp.expCmdSN;
             context->transitNextStage = (rsp.loginStage & kiSCSIPDULoginTransitFlag);
-            
         }
         // For this case some other kind of PDU or invalid data was received
         else if(rsp.opCode == kiSCSIPDUOpCodeReject)
@@ -134,6 +132,10 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
 {
     // Try a single query first
     errno_t error = iSCSISessionLoginSingleQuery(context,statusCode,rejectCode,textCmd,textRsp);
+    
+    // If error occured, do nothing
+    if(error || *statusCode != kiSCSILoginSuccess)
+        return error;
     
     // If we are not transitioning stages, or we are and the target agreed to
     // transition, then we can move on...
