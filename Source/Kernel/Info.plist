@@ -56,7 +56,7 @@
 			<key>IOProviderClass</key>
 			<string>${NAME_PREFIX_U}_iSCSIInitiator</string>
 			<key>IOUserClientClass</key>
-			<string>${NAME_PREFIX_U}_iSCSIInitiatorClient</string>
+			<string>${NAME_PREFIX_U}_iSCSIHBAUserClient</string>
 			<key>Protocol Characteristics</key>
 			<dict>
 				<key>Physical Interconnect</key>
