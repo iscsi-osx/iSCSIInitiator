@@ -46,7 +46,7 @@ typedef struct iSCSIConnection {
     UInt32 expStatSN;
     
     /*! Connection ID. */
-    CID cid; // Might need this for ErrorRecovery (otherwise have to search through list for it)
+    ConnectionIdentifier cid;
     
     /*! Portal address (IPv4/IPv6/DNS address). */
     OSString * portalAddress;
@@ -146,7 +146,7 @@ typedef struct iSCSISession {
     
     /*! The initiator session ID, which is also used as the target ID within
      *  this kernel extension since there is a 1-1 mapping. */
-    SID sessionId;
+    SessionIdentifier sessionId;
     
     /*! Command sequence number to be used for the next initiator command. */
     UInt32 cmdSN;
@@ -203,10 +203,10 @@ typedef struct iSCSISession {
     UInt32 firstBurstLength;
     
     /*! Target session identifying handle. */
-    TSIH targetSessionId;
+    TargetSessionIdentifier targetSessionId;
     
     /*! Target portal group tag. */
-    TPGT targetPortalGroupTag;
+    TargetPortalGroupTag targetPortalGroupTag;
     
 } iSCSISession;
 

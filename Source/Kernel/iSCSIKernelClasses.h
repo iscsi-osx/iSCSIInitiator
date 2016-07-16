@@ -39,7 +39,7 @@
 #define iSCSIVirtualHBA         ADD_PREFIX(iSCSIVirtualHBA)
 #define iSCSITaskQueue          ADD_PREFIX(iSCSITaskQueue)
 #define iSCSIIOEventSource      ADD_PREFIX(iSCSIIOEventSource)
-#define iSCSIInitiatorClient    ADD_PREFIX(iSCSIInitiatorClient)
+#define iSCSIHBAUserClient      ADD_PREFIX(iSCSIHBAUserClient)
 #define iSCSIInitiator          ADD_PREFIX(iSCSIInitiator)
 
 #define kiSCSIVirtualHBA_IOClassName STRINGIFY_EVAL(iSCSIVirtualHBA)

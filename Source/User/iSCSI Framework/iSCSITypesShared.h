@@ -34,16 +34,16 @@ typedef int errno_t;
 #endif
 
 /*! Session identifier. */
-typedef UInt16 SID;
+typedef UInt16 SessionIdentifier;
 
 /*! Connection identifier. */
-typedef UInt32 CID;
+typedef UInt32 ConnectionIdentifier;
 
 /*! Target portal group tag. */
-typedef UInt16 TPGT;
+typedef UInt16 TargetPortalGroupTag;
 
 /*! Target session identifier. */
-typedef UInt16 TSIH;
+typedef UInt16 TargetSessionIdentifier;
 
 /*! Session qualifier value for an invalid session. */
 static const UInt16 kiSCSIInvalidSessionId = 0xFFFF;
@@ -58,79 +58,79 @@ static const UInt16 kiSCSIMaxSessions = 16;
 static const UInt32 kiSCSIMaxConnectionsPerSession = 2;
 
 /*! An enumeration of configurable session parameters. */
-enum iSCSIKernelSessionOptTypes {
+enum iSCSIHBASessionParameters {
     
     /*! Time to retain (UInt16). */
-    kiSCSIKernelSODefaultTime2Retain,
+    kiSCSIHBASODefaultTime2Retain,
     
     /*! Time to wait (UInt16). */
-    kiSCSIKernelSODefaultTime2Wait,
+    kiSCSIHBASODefaultTime2Wait,
     
     /*! Error recovery level (UInt8). */
-    kiSCSIKernelSOErrorRecoveryLevel,
+    kiSCSIHBASOErrorRecoveryLevel,
     
     /*! Max connections supported by target (UInt32). */
-    kiSCSIKernelSOMaxConnections,
+    kiSCSIHBASOMaxConnections,
     
     /*! Send data immediately (bool). */
-    kiSCSIKernelSOImmediateData,
+    kiSCSIHBASOImmediateData,
     
     /*!  Expect an initial R2T from target (bool). */
-    kiSCSIKernelSOInitialR2T,
+    kiSCSIHBASOInitialR2T,
     
     /*! Data PDUs in order (bool). */
-    kiSCSIKernelSODataPDUInOrder,
+    kiSCSIHBASODataPDUInOrder,
     
     /*! Data sequence in order (bool). */
-    kiSCSIKernelSODataSequenceInOrder,
+    kiSCSIHBASODataSequenceInOrder,
     
     /*! Number of outstanding R2Ts allowed (UInt16). */
-    kiSCSIKernelSOMaxOutstandingR2T,
+    kiSCSIHBASOMaxOutstandingR2T,
     
     /*! Maximum data burst length in bytes (UInt32). */
-    kiSCSIKernelSOMaxBurstLength,
+    kiSCSIHBASOMaxBurstLength,
     
     /*! First data burst length in bytes (UInt32). */
-    kiSCSIKernelSOFirstBurstLength,
+    kiSCSIHBASOFirstBurstLength,
     
     /*! Target session identifying handle (TSIH). */
-    kiSCSIKernelSOTargetSessionId,
+    kiSCSIHBASOTargetSessionId,
     
     /*! Target portal group tag (TPGT). */
-    kiSCSIKernelSOTargetPortalGroupTag,
+    kiSCSIHBASOTargetPortalGroupTag,
     
 };
 
 
 /*! An enumeration of configurable connection parameters. */
-enum iSCSIKernelConnectionOptTypes {
+enum iSCSIHBAConnectionParameters {
     
     /*! Flag that indicates if this connection uses header digests (bool). */
-    kiSCSIKernelCOUseHeaderDigest,
+    kiSCSIHBACOUseHeaderDigest,
     
     /*! Flag that indicates if this connection uses data digests (bool). */
-    kiSCSIKernelCOUseDataDigest,
+    kiSCSIHBACOUseDataDigest,
     
     /*! Flag that indicates if this connection uses IF markers (bool). */
-    kiSCSIKernelCOUseIFMarker,
+    kiSCSIHBACOUseIFMarker,
     
     /*! Flag that indicates if this connection uses OF markers (bool). */
-    kiSCSIKernelCOUseOFMarker,
+    kiSCSIHBACOUseOFMarker,
     
     /*! Interval for OF marker (UInt16). */
-    kiSCSIKernelCOOFMarkInt,
+    kiSCSIHBACOOFMarkInt,
     
     /*! Interval for IF marker (UInt16). */
-    kiSCSIKernelCOIFMarkInt,
+    kiSCSIHBACOIFMarkInt,
     
     /*! Maximum data segment length allowed by the target (UInt32). */
-    kiSCSIKernelCOMaxSendDataSegmentLength,
+    kiSCSIHBACOMaxSendDataSegmentLength,
     
     /*! Maximum data segment length initiator can receive (UInt32). */
-    kiSCSIKernelCOMaxRecvDataSegmentLength,
+    kiSCSIHBACOMaxRecvDataSegmentLength,
     
     /*! Initial expStatSN. */
-    kiSCSIKernelCOInitialExpStatSN
+    kiSCSIHBACOInitialExpStatSN
     
 };
 
