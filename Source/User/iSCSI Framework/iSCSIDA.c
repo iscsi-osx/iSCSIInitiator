@@ -96,8 +96,11 @@ void iSCSIDAUnmountApplierFunc(io_object_t entry, void * context)
     opContext->diskCount++;
     
     DADiskRef disk = DADiskCreateFromIOMedia(kCFAllocatorDefault,opContext->session,entry);
-    DADiskUnmount(disk,opContext->options,iSCSIDADiskUnmountComplete,context);
-    CFRelease(disk);
+    
+    if(disk) {
+        DADiskUnmount(disk,opContext->options,iSCSIDADiskUnmountComplete,context);
+        CFRelease(disk);
+    }
 }
 
 
@@ -137,8 +140,11 @@ void iSCSIDAMountApplierFunc(io_object_t entry, void * context)
     opContext->diskCount++;
     
     DADiskRef disk = DADiskCreateFromIOMedia(kCFAllocatorDefault,opContext->session,entry);
-    DADiskMount(disk,NULL,opContext->options,iSCSIDADiskMountComplete,context);
-    CFRelease(disk);
+    
+    if(disk) {
+        DADiskMount(disk,NULL,opContext->options,iSCSIDADiskMountComplete,context);
+        CFRelease(disk);
+    }
 }
 
 /*! Mounts all IOMedia associated with a particular iSCSI session, and
