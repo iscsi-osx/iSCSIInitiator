@@ -680,7 +680,9 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     // Grab incoming bhs (we are guaranteed to have a basic header at this
     // point (iSCSIIOEventSource ensures that this is the case)
     iSCSIPDUTargetBHS bhs;
-    if(owner->RecvPDUHeader(session,connection,&bhs,0))
+    errno_t error = owner->RecvPDUHeader(session,connection,&bhs,0);
+    
+    if(error && error != EWOULDBLOCK)
     {
         DBLog("iscsi: Failed to get PDU header (sid: %d, cid: %d)\n",
               session->sessionId,connection->cid);
@@ -1985,7 +1987,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     // Verify length; incoming PDUS from a target should have no AHS, verify.
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
     {
-        DBLog("iscsi: Received incomplete PDU header: %zu bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->cid);
+        DBLog("iscsi: Received incomplete PDU header: %d bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->cid);
         
 // TODO: handle error
         
@@ -2008,12 +2010,13 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     
     // Update command sequence numbers only if the PDU was not a data PDU
     // (unless the data PDU contains a SCSI service response)
+
     if(bhs->opCode == kiSCSIPDUOpCodeDataIn) {
         iSCSIPDUDataInBHS * bhsDataIn = (iSCSIPDUDataInBHS *)bhs;
         if((bhsDataIn->flags & kiSCSIPDUDataInStatusFlag) == 0)
-            return EIO;
+            return error;
     }
-
+ 
     // Read and update the command sequence numbers
     bhs->maxCmdSN = OSSwapBigToHostInt32(bhs->maxCmdSN);
     bhs->expCmdSN = OSSwapBigToHostInt32(bhs->expCmdSN);
