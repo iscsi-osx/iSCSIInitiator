@@ -53,7 +53,7 @@ enum iSCSIHBANotificationTypes {
     
     /*! Notifies clients that the kernel extension or controller is going
      *  shut down.  Clients should release all resources. */
-    kISCSIHBANotificationTerminate,
+    kiSCSIHBANotificationTerminate,
     
     /*! Notifies clients that a network connnectivity issue has
      *  caused the specified connection and session to be dropped. */
