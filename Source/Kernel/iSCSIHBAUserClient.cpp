@@ -260,9 +260,9 @@ IOReturn iSCSIHBAUserClient::externalMethod(uint32_t selector,
 
 // Called as a result of user-space call to IOServiceOpen()
 bool iSCSIHBAUserClient::initWithTask(task_t owningTask,
-										void * securityToken,
-										UInt32 type,
-										OSDictionary * properties)
+                                      void * securityToken,
+                                      UInt32 type,
+                                      OSDictionary * properties)
 {
 	// Save owning task, securty token and type so that we can validate user
 	// as a root user (UID 0) for secure operations (e.g., adding an iSCSI
@@ -444,8 +444,8 @@ IOReturn iSCSIHBAUserClient::close()
 /*! Dispatched function called from the device interface to this user
  *	client .*/
 IOReturn iSCSIHBAUserClient::OpenInitiator(iSCSIHBAUserClient * target,
-                                             void * reference,
-                                             IOExternalMethodArguments * args)
+                                           void * reference,
+                                           IOExternalMethodArguments * args)
 {
     return target->open();
 }
@@ -453,16 +453,16 @@ IOReturn iSCSIHBAUserClient::OpenInitiator(iSCSIHBAUserClient * target,
 /*! Dispatched function called from the device interface to this user
  *	client .*/
 IOReturn iSCSIHBAUserClient::CloseInitiator(iSCSIHBAUserClient * target,
-                                              void * reference,
-                                              IOExternalMethodArguments * args)
+                                            void * reference,
+                                            IOExternalMethodArguments * args)
 {
     return target->close();
 }
 
 /*! Dispatched function invoked from user-space to create new session. */
 IOReturn iSCSIHBAUserClient::CreateSession(iSCSIHBAUserClient * target,
-                                             void * reference,
-                                             IOExternalMethodArguments * args)
+                                           void * reference,
+                                           IOExternalMethodArguments * args)
 {
     // Create a new session and return session ID
     SessionIdentifier sessionId;
@@ -517,8 +517,8 @@ IOReturn iSCSIHBAUserClient::CreateSession(iSCSIHBAUserClient * target,
 
 /*! Dispatched function invoked from user-space to release session. */
 IOReturn iSCSIHBAUserClient::ReleaseSession(iSCSIHBAUserClient * target,
-                                              void * reference,
-                                              IOExternalMethodArguments * args)
+                                            void * reference,
+                                            IOExternalMethodArguments * args)
 {
     // Release the session with the specified ID
     IOLockLock(target->accessLock);
@@ -690,8 +690,8 @@ IOReturn iSCSIHBAUserClient::GetSessionParameter(iSCSIHBAUserClient * target,
 
 /*! Dispatched function invoked from user-space to create new connection. */
 IOReturn iSCSIHBAUserClient::CreateConnection(iSCSIHBAUserClient * target,
-                                                void * reference,
-                                                IOExternalMethodArguments * args)
+                                              void * reference,
+                                              IOExternalMethodArguments * args)
 {
     SessionIdentifier sessionId = (SessionIdentifier)args->scalarInput[0];
     ConnectionIdentifier connectionId;
@@ -738,11 +738,13 @@ IOReturn iSCSIHBAUserClient::CreateConnection(iSCSIHBAUserClient * target,
 
 /*! Dispatched function invoked from user-space to release connection. */
 IOReturn iSCSIHBAUserClient::ReleaseConnection(iSCSIHBAUserClient * target,
-                                                 void * reference,
-                                                 IOExternalMethodArguments * args)
+                                               void * reference,
+                                               IOExternalMethodArguments * args)
 {
+    iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
+
     SessionIdentifier sessionId = (SessionIdentifier)args->scalarInput[0];
-    ConnectionIdentifier connectionId = (ConnectionIdentifier)args->scalarInput[1]);
+    ConnectionIdentifier connectionId = (ConnectionIdentifier)args->scalarInput[1];
     
     // Range-check input
     if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
@@ -773,11 +775,11 @@ IOReturn iSCSIHBAUserClient::ReleaseConnection(iSCSIHBAUserClient * target,
 }
 
 IOReturn iSCSIHBAUserClient::ActivateConnection(iSCSIHBAUserClient * target,
-                                                  void * reference,
-                                                  IOExternalMethodArguments * args)
+                                                void * reference,
+                                                IOExternalMethodArguments * args)
 {
     IOLockLock(target->accessLock);
-
+    
     *args->scalarOutput =
         target->provider->ActivateConnection((SessionIdentifier)args->scalarInput[0],
                                              (ConnectionIdentifier)args->scalarInput[1]);
@@ -786,8 +788,8 @@ IOReturn iSCSIHBAUserClient::ActivateConnection(iSCSIHBAUserClient * target,
 }
 
 IOReturn iSCSIHBAUserClient::ActivateAllConnections(iSCSIHBAUserClient * target,
-                                                      void * reference,
-                                                      IOExternalMethodArguments * args)
+                                                    void * reference,
+                                                    IOExternalMethodArguments * args)
 {
     IOLockLock(target->accessLock);
 
@@ -799,8 +801,8 @@ IOReturn iSCSIHBAUserClient::ActivateAllConnections(iSCSIHBAUserClient * target,
 }
 
 IOReturn iSCSIHBAUserClient::DeactivateConnection(iSCSIHBAUserClient * target,
-                                                    void * reference,
-                                                    IOExternalMethodArguments * args)
+                                                  void * reference,
+                                                  IOExternalMethodArguments * args)
 {
     IOLockLock(target->accessLock);
     
@@ -813,8 +815,8 @@ IOReturn iSCSIHBAUserClient::DeactivateConnection(iSCSIHBAUserClient * target,
 }
 
 IOReturn iSCSIHBAUserClient::DeactivateAllConnections(iSCSIHBAUserClient * target,
-                                                        void * reference,
-                                                        IOExternalMethodArguments * args)
+                                                      void * reference,
+                                                      IOExternalMethodArguments * args)
 {
     IOLockLock(target->accessLock);
     
@@ -828,8 +830,8 @@ IOReturn iSCSIHBAUserClient::DeactivateAllConnections(iSCSIHBAUserClient * targe
 /*! Dispatched function invoked from user-space to send data
  *  over an existing, active connection. */
 IOReturn iSCSIHBAUserClient::SendBHS(iSCSIHBAUserClient * target,
-                                       void * reference,
-                                       IOExternalMethodArguments * args)
+                                     void * reference,
+                                     IOExternalMethodArguments * args)
 {
     // Validate input
     if(args->structureInputSize != kiSCSIPDUBasicHeaderSegmentSize)
@@ -845,8 +847,8 @@ IOReturn iSCSIHBAUserClient::SendBHS(iSCSIHBAUserClient * target,
 /*! Dispatched function invoked from user-space to send data
  *  over an existing, active connection. */
 IOReturn iSCSIHBAUserClient::SendData(iSCSIHBAUserClient * target,
-                                        void * reference,
-                                        IOExternalMethodArguments * args)
+                                      void * reference,
+                                      IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
@@ -888,8 +890,8 @@ IOReturn iSCSIHBAUserClient::SendData(iSCSIHBAUserClient * target,
  *  over an existing, active connection, and to retrieve the size of
  *  a user-space buffer that is required to hold the data. */
 IOReturn iSCSIHBAUserClient::RecvBHS(iSCSIHBAUserClient * target,
-                                        void * reference,
-                                        IOExternalMethodArguments * args)
+                                     void * reference,
+                                     IOExternalMethodArguments * args)
 {
     // Verify user-supplied buffer is large enough to hold BHS
     if(args->structureOutputSize != kiSCSIPDUBasicHeaderSegmentSize)
@@ -924,9 +926,9 @@ IOReturn iSCSIHBAUserClient::RecvBHS(iSCSIHBAUserClient * target,
         else
             retVal = kIOReturnSuccess;
     }
-
+    
     IOLockUnlock(target->accessLock);
-
+    
     return retVal;
 }
 
@@ -934,8 +936,8 @@ IOReturn iSCSIHBAUserClient::RecvBHS(iSCSIHBAUserClient * target,
  *  over an existing, active connection, and to retrieve the size of
  *  a user-space buffer that is required to hold the data. */
 IOReturn iSCSIHBAUserClient::RecvData(iSCSIHBAUserClient * target,
-                                        void * reference,
-                                        IOExternalMethodArguments * args)
+                                      void * reference,
+                                      IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
@@ -1121,8 +1123,8 @@ IOReturn iSCSIHBAUserClient::GetConnectionParameter(iSCSIHBAUserClient * target,
 }
 
 IOReturn iSCSIHBAUserClient::GetConnection(iSCSIHBAUserClient * target,
-                                             void * reference,
-                                             IOExternalMethodArguments * args)
+                                           void * reference,
+                                           IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
@@ -1162,8 +1164,8 @@ IOReturn iSCSIHBAUserClient::GetConnection(iSCSIHBAUserClient * target,
 }
 
 IOReturn iSCSIHBAUserClient::GetNumConnections(iSCSIHBAUserClient * target,
-                                                 void * reference,
-                                                 IOExternalMethodArguments * args)
+                                               void * reference,
+                                               IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
@@ -1195,8 +1197,8 @@ IOReturn iSCSIHBAUserClient::GetNumConnections(iSCSIHBAUserClient * target,
 }
 
 IOReturn iSCSIHBAUserClient::GetSessionIdForTargetIQN(iSCSIHBAUserClient * target,
-                                                         void * reference,
-                                                         IOExternalMethodArguments * args)
+                                                      void * reference,
+                                                      IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
@@ -1219,8 +1221,8 @@ IOReturn iSCSIHBAUserClient::GetSessionIdForTargetIQN(iSCSIHBAUserClient * targe
 }
 
 IOReturn iSCSIHBAUserClient::GetConnectionIdForPortalAddress(iSCSIHBAUserClient * target,
-                                                          void * reference,
-                                                          IOExternalMethodArguments * args)
+                                                             void * reference,
+                                                             IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
@@ -1274,8 +1276,8 @@ IOReturn iSCSIHBAUserClient::GetConnectionIdForPortalAddress(iSCSIHBAUserClient 
 }
 
 IOReturn iSCSIHBAUserClient::GetSessionIds(iSCSIHBAUserClient * target,
-                                             void * reference,
-                                             IOExternalMethodArguments * args)
+                                           void * reference,
+                                           IOExternalMethodArguments * args)
 {
     if(args->structureOutputSize < sizeof(SessionIdentifier)*kiSCSIMaxSessions)
         return kIOReturnBadArgument;
@@ -1305,8 +1307,8 @@ IOReturn iSCSIHBAUserClient::GetSessionIds(iSCSIHBAUserClient * target,
 }
 
 IOReturn iSCSIHBAUserClient::GetConnectionIds(iSCSIHBAUserClient * target,
-                                                void * reference,
-                                                IOExternalMethodArguments * args)
+                                              void * reference,
+                                              IOExternalMethodArguments * args)
 {
     if(args->structureOutputSize < sizeof(ConnectionIdentifier)*kiSCSIMaxConnectionsPerSession)
         return kIOReturnBadArgument;
@@ -1399,8 +1401,8 @@ IOReturn iSCSIHBAUserClient::GetTargetIQNForSessionId(iSCSIHBAUserClient * targe
 }
 
 IOReturn iSCSIHBAUserClient::GetPortalAddressForConnectionId(iSCSIHBAUserClient * target,
-                                                         void * reference,
-                                                         IOExternalMethodArguments * args)
+                                                             void * reference,
+                                                             IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
@@ -1438,8 +1440,8 @@ IOReturn iSCSIHBAUserClient::GetPortalAddressForConnectionId(iSCSIHBAUserClient 
 }
 
 IOReturn iSCSIHBAUserClient::GetPortalPortForConnectionId(iSCSIHBAUserClient * target,
-                                                            void * reference,
-                                                            IOExternalMethodArguments * args)
+                                                          void * reference,
+                                                          IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
@@ -1477,8 +1479,8 @@ IOReturn iSCSIHBAUserClient::GetPortalPortForConnectionId(iSCSIHBAUserClient * t
 }
 
 IOReturn iSCSIHBAUserClient::GetHostInterfaceForConnectionId(iSCSIHBAUserClient * target,
-                                                               void * reference,
-                                                               IOExternalMethodArguments * args)
+                                                             void * reference,
+                                                             IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
