@@ -212,7 +212,7 @@ const IOExternalMethodDispatch iSCSIHBAUserClient::methods[kiSCSIInitiatorNumMet
         (IOExternalMethodAction) &iSCSIHBAUserClient::GetTargetIQNForSessionId,
         1,                                  // Session ID
         0,
-        0,                                  // Returned connection count
+        0,                                  
         kIOUCVariableStructureSize // Target name
     },
     {
@@ -271,6 +271,7 @@ bool iSCSIHBAUserClient::initWithTask(task_t owningTask,
 	this->securityToken = securityToken;
 	this->type = type;
     this->accessLock = IOLockAlloc();
+    this->notificationPort = MACH_PORT_NULL;
         
 	// Perform any initialization tasks here
 	return super::initWithTask(owningTask,securityToken,type,properties);
@@ -332,8 +333,8 @@ IOReturn iSCSIHBAUserClient::clientDied()
  *  @param refCon a user reference value.
  *  @return an error code indicating the result of the operation. */
 IOReturn iSCSIHBAUserClient::registerNotificationPort(mach_port_t port,
-                                                        UInt32 type,
-                                                        io_user_reference_t refCon)
+                                                      UInt32 type,
+                                                      io_user_reference_t refCon)
 {
     notificationPort = port;
     return kIOReturnSuccess;
@@ -347,14 +348,17 @@ IOReturn iSCSIHBAUserClient::sendNotification(iSCSIHBANotificationMessage * mess
     if(notificationPort == MACH_PORT_NULL)
         return kIOReturnNotOpen;
     
+    if(isInactive() || provider == NULL)
+        return kIOReturnNotAttached;
+    
     message->header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND,0);
-    message->header.msgh_size = sizeof(message);
+    message->header.msgh_size = sizeof(iSCSIHBANotificationMessage);
     message->header.msgh_remote_port = notificationPort;
     message->header.msgh_local_port = MACH_PORT_NULL;
     message->header.msgh_reserved = 0;
     message->header.msgh_id = 0;
     
-    mach_msg_send_from_kernel_proper(&message->header,sizeof(message));
+    mach_msg_send_from_kernel_proper(&message->header,message->header.msgh_size);
     return kIOReturnSuccess;
 }
 
@@ -399,7 +403,7 @@ IOReturn iSCSIHBAUserClient::sendTimeoutMessageNotification(SessionIdentifier se
 IOReturn iSCSIHBAUserClient::sendTerminateMessageNotification()
 {
     iSCSIHBANotificationMessage message;
-    message.notificationType = kISCSIHBANotificationTerminate;
+    message.notificationType = kiSCSIHBANotificationTerminate;
     
     return sendNotification(&message);
 }
@@ -738,9 +742,25 @@ IOReturn iSCSIHBAUserClient::ReleaseConnection(iSCSIHBAUserClient * target,
                                                  IOExternalMethodArguments * args)
 {
     IOLockLock(target->accessLock);
-
-    target->provider->ReleaseConnection((SessionIdentifier)args->scalarInput[0],
-                                        (ConnectionIdentifier)args->scalarInput[1]);
+    
+    // If this is the only connection, releasing the connection should
+    // release the session as well...
+    ConnectionIdentifier connectionCount = 0;
+    
+    if(session) {
+        // Iterate over list of connections to see how many are valid
+        for(ConnectionIdentifier connectionId = 0; connectionId < kiSCSIMaxConnectionsPerSession; connectionId++)
+            if(session->connections[connectionId])
+                connectionCount++;
+    }
+    
+    if(connectionCount == 1)
+        target->provider->ReleaseSession((SessionIdentifier)args->scalarInput[0]);
+    else
+        target->provider->ReleaseConnection((SessionIdentifier)args->scalarInput[0],
+                                            (ConnectionIdentifier)args->scalarInput[1]);
+    
+    
     IOLockUnlock(target->accessLock);
     return kIOReturnSuccess;
 }
@@ -1324,8 +1344,8 @@ IOReturn iSCSIHBAUserClient::GetConnectionIds(iSCSIHBAUserClient * target,
 }
 
 IOReturn iSCSIHBAUserClient::GetTargetIQNForSessionId(iSCSIHBAUserClient * target,
-                                                         void * reference,
-                                                         IOExternalMethodArguments * args)
+                                                      void * reference,
+                                                      IOExternalMethodArguments * args)
 {
     iSCSIVirtualHBA * hba = OSDynamicCast(iSCSIVirtualHBA,target->provider);
     
@@ -1359,7 +1379,7 @@ IOReturn iSCSIHBAUserClient::GetTargetIQNForSessionId(iSCSIHBAUserClient * targe
                 size_t size = min(targetIQN->getLength(),args->structureOutputSize);
                 memcpy(args->structureOutput,targetIQN->getCStringNoCopy(),size);
 
-                retVal =  kIOReturnSuccess;
+                retVal = kIOReturnSuccess;
                 break;
             }
         }
