@@ -78,7 +78,7 @@ const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
 const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 
 /*! Default task timeout for new tasks (milliseconds). */
-const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 60000;
+const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 20000;
 
 /*! Default TCP timeout for new connections (seconds). */
 const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 1;
@@ -457,9 +457,9 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SessionIdentifier sessionId,Connec
     
     // In the future add recovery here...
     if(connectionCount > 1)
-        ReleaseConnection(sessionId,connectionId);
+        DeactivateConnection(sessionId,connectionId);
     else
-        ReleaseSession(sessionId);
+        DeactivateAllConnections(sessionId);
 // TOOD: ....
     client->sendTimeoutMessageNotification(sessionId,connectionId);
 }
@@ -680,9 +680,8 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     // Grab incoming bhs (we are guaranteed to have a basic header at this
     // point (iSCSIIOEventSource ensures that this is the case)
     iSCSIPDUTargetBHS bhs;
-    errno_t error = owner->RecvPDUHeader(session,connection,&bhs,0);
     
-    if(error && error != EWOULDBLOCK)
+    if(owner->RecvPDUHeader(session,connection,&bhs,0))
     {
         DBLog("iscsi: Failed to get PDU header (sid: %d, cid: %d)\n",
               session->sessionId,connection->cid);
@@ -1982,10 +1981,12 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
             HandleConnectionTimeout(session->sessionId,connection->cid);
             return error;
         }
+        else
+            error = 0;
     }
     
     // Verify length; incoming PDUS from a target should have no AHS, verify.
-    if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
+    if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize)// || bhs->totalAHSLength != 0)
     {
         DBLog("iscsi: Received incomplete PDU header: %d bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->cid);
         
@@ -2097,6 +2098,8 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
             HandleConnectionTimeout(session->sessionId,connection->cid);
             return error;
         }
+        else
+            error = 0;
     }
     
     // Verify digest if present
