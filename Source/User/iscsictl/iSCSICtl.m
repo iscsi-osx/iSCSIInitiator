@@ -113,11 +113,20 @@ CFStringRef kOptKeyInterface = CFSTR("interface");
 /*! Auto login command-line option. */
 CFStringRef kOptKeyAutoLogin = CFSTR("auto-login");
 
+/*! Persistent command-line option. */
+CFStringRef kOptKeyPersistent = CFSTR("persistent");
+
 /*! Auto-login enable/disable command-line value. */
 CFStringRef kOptValueAutoLoginEnable = CFSTR("enable");
 
 /*! Auto login enable/disable command-line value. */
 CFStringRef kOptValueAutoLoginDisable = CFSTR("disable");
+
+/*! Persistent enable/disable command-line value. */
+CFStringRef kOptValuePersistentEnable = CFSTR("enable");
+
+/*! Persistent enable/disable command-line value. */
+CFStringRef kOptValuePersistentDisable = CFSTR("disable");
 
 /*! Digest command-line options. */
 CFStringRef kOptKeyDigest = CFSTR("digest");
@@ -1179,6 +1188,23 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
         }
     }
 
+    // Check for persistent
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyPersistent,(const void **)&value))
+    {
+        
+        if(CFStringCompare(value,kOptValuePersistentEnable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPreferencesSetPersistenceForTarget(preferences,targetIQN,true);
+        else if(CFStringCompare(value,kOptValuePersistentDisable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPreferencesSetPersistenceForTarget(preferences,targetIQN,false);
+        else {
+            CFStringRef errorString = CFStringCreateWithFormat(
+                kCFAllocatorDefault,0,CFSTR("Invalid argument for %@"),kOptKeyPersistent);
+            iSCSICtlDisplayError(errorString);
+            CFRelease(errorString);
+            error = EINVAL;
+        }
+    }
+
     // Check for maximum connections
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyMaxConnections,(const void **)&value))
     {
@@ -1189,7 +1215,7 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
         }
         else if(maxConnections > kRFC3720_MaxConnections_Max) {
             iSCSICtlDisplayError(CFSTR("Specified maximum number of connections is not sufficient"));
-            error = EINVAL;
+            error = EINVAL; 
         }
         else
             iSCSIPreferencesSetMaxConnectionsForTarget(preferences,targetIQN,maxConnections);
@@ -1573,9 +1599,19 @@ errno_t iSCSICtlListTarget(CFDictionaryRef options)
     if(iSCSIPreferencesGetAutoLoginForTarget(preferences,targetIQN))
         autoLogin = CFSTR("enabled");
     
-    CFStringRef targetConfig = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\t%@: %@\n"),kOptKeyAutoLogin,autoLogin);
-    iSCSICtlDisplayString(targetConfig);
-    CFRelease(targetConfig);
+    CFStringRef autoLoginString = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\t%@: %@\n"),kOptKeyAutoLogin,autoLogin);
+    iSCSICtlDisplayString(autoLoginString);
+    CFRelease(autoLoginString);
+    
+    // Get information about persistence
+    CFStringRef persistent = CFSTR("no");
+    
+    if(iSCSIPreferencesGetPersistenceForTarget(preferences,targetIQN))
+        persistent = CFSTR("yes");
+    
+    CFStringRef persistentString = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\t%@: %@\n"),kOptKeyPersistent,persistent);
+    iSCSICtlDisplayString(persistentString);
+    CFRelease(persistentString);
     
     if(iSCSIPreferencesGetTargetConfigType(preferences,targetIQN) == kiSCSITargetConfigDynamicSendTargets)
     {
