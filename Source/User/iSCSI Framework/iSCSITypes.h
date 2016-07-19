@@ -84,6 +84,8 @@ typedef CFMutableDictionaryRef iSCSIMutableConnectionConfigRef;
 #define kiSCSITypeDictionaryKeyCallbacks kCFTypeDictionaryKeyCallBacks
 #define kiSCSITypeDictionaryValueCallbacks kCFTypeDictionaryValueCallBacks
 
+typedef CFTypeRef iSCSITypeRef;
+
 /*! Error recovery levels. */
 enum iSCSIErrorRecoveryLevels {
     
