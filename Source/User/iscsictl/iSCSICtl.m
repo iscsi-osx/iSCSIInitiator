@@ -1123,10 +1123,7 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             error = EINVAL;
         }
     }
-
-    // Check for authentication method
-    enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
-
+    
     // Check for authentication method
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyAutMethod,(const void**)&value))
     {
@@ -1400,7 +1397,7 @@ void displayTargetInfo(iSCSITargetRef target,CFDictionaryRef properties)
         CFNumberRef targetSessionId = CFDictionaryGetValue(properties,kRFC3720_Key_TargetSessionId);
         CFNumberRef sessionId = CFDictionaryGetValue(properties,kRFC3720_Key_SessionId);
         
-        TSIH tsih = 0;
+        TargetSessionIdentifier tsih = 0;
         CFNumberGetValue(targetSessionId,kCFNumberSInt16Type,&tsih);
 
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
