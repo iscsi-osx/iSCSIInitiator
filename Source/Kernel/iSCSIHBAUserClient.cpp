@@ -741,8 +741,17 @@ IOReturn iSCSIHBAUserClient::ReleaseConnection(iSCSIHBAUserClient * target,
                                                  void * reference,
                                                  IOExternalMethodArguments * args)
 {
+    SessionIdentifier sessionId = (SessionIdentifier)args->scalarInput[0];
+    ConnectionIdentifier connectionId = (ConnectionIdentifier)args->scalarInput[1]);
+    
+    // Range-check input
+    if(sessionId >= kiSCSIMaxSessions || connectionId >= kiSCSIMaxConnectionsPerSession)
+        return kIOReturnBadArgument;
+    
     IOLockLock(target->accessLock);
     
+    iSCSISession * session = hba->sessionList[sessionId];
+
     // If this is the only connection, releasing the connection should
     // release the session as well...
     ConnectionIdentifier connectionCount = 0;
@@ -755,11 +764,9 @@ IOReturn iSCSIHBAUserClient::ReleaseConnection(iSCSIHBAUserClient * target,
     }
     
     if(connectionCount == 1)
-        target->provider->ReleaseSession((SessionIdentifier)args->scalarInput[0]);
+        target->provider->ReleaseSession(sessionId);
     else
-        target->provider->ReleaseConnection((SessionIdentifier)args->scalarInput[0],
-                                            (ConnectionIdentifier)args->scalarInput[1]);
-    
+        target->provider->ReleaseConnection(sessionId,connectionId);
     
     IOLockUnlock(target->accessLock);
     return kIOReturnSuccess;
