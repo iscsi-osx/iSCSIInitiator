@@ -60,6 +60,9 @@ CFStringRef kiSCSIPVTargetConfigTypeDiscovery = CFSTR("SendTargets");
 /*! Preference key name for auto-login of target. */
 CFStringRef kiSCSIPKAutoLogin = CFSTR("Automatic Login");
 
+/*! Preference key name for target persistence. */
+CFStringRef kiSCSIPKPersistent = CFSTR("Persistent");
+
 /*! Preference key name for error recovery level. */
 CFStringRef kiSCSIPKErrorRecoveryLevel = CFSTR("Error Recovery Level");
 
@@ -213,6 +216,7 @@ CFMutableDictionaryRef iSCSIPreferencesCreateTargetDict()
     CFDictionaryAddValue(targetDict,kiSCSIPKAuthCHAPName,(void *)CFSTR(""));
     CFDictionaryAddValue(targetDict,kiSCSIPKAuth,kiSCSIPVAuthNone);
     CFDictionaryAddValue(targetDict,kiSCSIPKAutoLogin,kCFBooleanFalse);
+    CFDictionaryAddValue(targetDict,kiSCSIPKPersistent,kCFBooleanTrue);
     CFDictionaryAddValue(targetDict,kiSCSIPKMaxConnections,maxConnections);
     CFDictionaryAddValue(targetDict,kiSCSIPKErrorRecoveryLevel,errorRecoveryLevel);
     CFDictionaryAddValue(targetDict,kiSCSIPKHeaderDigest,kiSCSIPVDigestNone);
@@ -670,6 +674,42 @@ Boolean iSCSIPreferencesGetAutoLoginForTarget(iSCSIPreferencesRef preferences,
     }
     
     return autoLogin;
+}
+
+/*! Sets whether the a connection to the target should be re-established
+ *  in the event of an interruption.
+ *  @param preferences an iSCSI preferences object.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param persistent true to make target persistent, false otherwise. */
+void iSCSIPreferencesSetPersistenceForTarget(iSCSIPreferencesRef preferences,
+                                             CFStringRef targetIQN,
+                                             Boolean persistent)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPreferencesGetTargetDict(preferences,targetIQN,true);
+    
+    if(targetDict) {
+        if(persistent)
+            CFDictionarySetValue(targetDict,kiSCSIPKPersistent,kCFBooleanTrue);
+        else
+            CFDictionarySetValue(targetDict,kiSCSIPKPersistent,kCFBooleanFalse);
+    }}
+
+/*! Gets whether the a connection to the target should be re-established
+ *  in the event of an interruption.
+ *  @param preferences an iSCSI preferences object.
+ *  @param targetIQN the target iSCSI qualified name (IQN). */
+Boolean iSCSIPreferencesGetPersistenceForTarget(iSCSIPreferencesRef preferences,
+                                                CFStringRef targetIQN)
+{
+    CFMutableDictionaryRef targetDict = iSCSIPreferencesGetTargetDict(preferences,targetIQN,true);
+    Boolean persistent = false;
+    
+    if(targetDict) {
+        if(CFDictionaryGetValue(targetDict,kiSCSIPKPersistent) == kCFBooleanTrue)
+            persistent = true;
+    }
+    
+    return persistent;
 }
 
 /*! Adds a target object with a specified portal.

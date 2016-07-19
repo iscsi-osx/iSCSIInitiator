@@ -152,6 +152,22 @@ void iSCSIPreferencesSetAutoLoginForTarget(iSCSIPreferencesRef preferences,
 Boolean iSCSIPreferencesGetAutoLoginForTarget(iSCSIPreferencesRef preferences,
                                               CFStringRef targetIQN);
 
+/*! Sets whether the a connection to the target should be re-established
+ *  in the event of an interruption.
+ *  @param preferences an iSCSI preferences object.
+ *  @param targetIQN the target iSCSI qualified name (IQN).
+ *  @param persistent true to make target persistent, false otherwise. */
+void iSCSIPreferencesSetPersistenceForTarget(iSCSIPreferencesRef preferences,
+                                             CFStringRef targetIQN,
+                                             Boolean persistent);
+
+/*! Gets whether the a connection to the target should be re-established
+ *  in the event of an interruption.
+ *  @param preferences an iSCSI preferences object.
+ *  @param targetIQN the target iSCSI qualified name (IQN). */
+Boolean iSCSIPreferencesGetPersistenceForTarget(iSCSIPreferencesRef preferences,
+                                                CFStringRef targetIQN);
+
 /*! Sets the maximum number of connections for the specified target.
  *  @param preferences an iSCSI preferences object.
  *  @param targetIQN the target iSCSI qualified name (IQN).
