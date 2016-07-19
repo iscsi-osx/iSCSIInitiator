@@ -460,8 +460,17 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SessionIdentifier sessionId,Connec
         DeactivateConnection(sessionId,connectionId);
     else
         DeactivateAllConnections(sessionId);
-// TOOD: ....
-    client->sendTimeoutMessageNotification(sessionId,connectionId);
+
+    // Send a notification to the daemon; if the daemon does not respond then
+    // release the session or connection as appropriate
+    if(client->sendTimeoutMessageNotification(sessionId,connectionId) != kIOReturnSuccess)
+    {
+        if(connectionCount > 1)
+            ReleaseConnection(sessionId,connectionId);
+        else
+            ReleaseSession(sessionId);
+    }
+    
 }
 
 SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask)
