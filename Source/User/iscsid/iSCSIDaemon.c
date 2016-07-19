@@ -1418,7 +1418,7 @@ void iSCSIDQueueLogin(iSCSITargetRef target,iSCSIPortalRef portal)
         reachabilityTarget = SCNetworkReachabilityCreateWithName(kCFAllocatorDefault,portalAddressBuffer);
     else {
 
-    
+//  TODO: create reachability target for portals with non-default host interface
     }
 
     SCNetworkReachabilitySetCallback(reachabilityTarget,iSCSIDProcessQueuedLogin,&reachabilityContext);
@@ -1437,7 +1437,12 @@ void iSCSIDSessionTimeoutHandler(iSCSITargetRef target,iSCSIPortalRef portal)
     
     // If this was a persistance target, queue another login when the network is
     // available
-    iSCSIDQueueLogin(target,portal);
+    if(iSCSIPreferencesGetPersistenceForTarget(preferences,iSCSITargetGetIQN(target)))
+        iSCSIDQueueLogin(target,portal);
+    else {
+        iSCSITargetRelease(target);
+        iSCSIPortalRelease(portal);
+    }
 }
 
 /*! Automatically logs in to targets that were specified for auto-login.
