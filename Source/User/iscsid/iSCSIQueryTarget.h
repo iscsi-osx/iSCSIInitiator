@@ -31,17 +31,21 @@
 
 #include "iSCSITypes.h"
 #include "iSCSIPDUUser.h"
+#include "iSCSIHBAInterface.h"
 
 /*! Used to perform a login query during the login phase of a connection. */
 struct iSCSILoginQueryContext {
     
     // These inputs are required when calling iSCSISessionLoginQuery()
     
+    /*! Reference to the HBA interface. */
+    iSCSIHBAInterfaceRef interface;
+    
     /*! The session identifier. */
-    SID sessionId;
+    SessionIdentifier sessionId;
     
     /*! The connection identifier. */
-    CID connectionId;
+    ConnectionIdentifier connectionId;
 
     /*! The current stage of negotiation process. */
     enum iSCSIPDULoginStages currentStage;
@@ -59,7 +63,7 @@ struct iSCSILoginQueryContext {
     UInt32 expCmdSN;
     
     /*! The target session identifier. */
-    TSIH targetSessionId;
+    TargetSessionIdentifier targetSessionId;
     
     /*! Whether the target agrees to advance to next stage. */
     bool transitNextStage;
@@ -101,8 +105,8 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
  *  @param textCmd a dictionary of key-value pairs to send.
  *  @param textRsp a dictionary of key-value pairs to receive.
  *  @return an error code that indicates the result of the operation. */
-errno_t iSCSISessionTextQuery(SID sessionId,
-                              CID connectionId,
+errno_t iSCSISessionTextQuery(SessionIdentifier sessionId,
+                              ConnectionIdentifier connectionId,
                               CFDictionaryRef   textCmd,
                               CFMutableDictionaryRef  textRsp);
 

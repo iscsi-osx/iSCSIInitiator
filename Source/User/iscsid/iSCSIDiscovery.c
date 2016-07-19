@@ -70,7 +70,8 @@ errno_t iSCSIDiscoveryAddTargetForSendTargets(iSCSIPreferencesRef preferences,
  *  @param discoveryPortal the portal (address) that was used to perform discovery.
  *  @param discoveryRec the discovery record resulting from the discovery operation.
  *  @return an error code indicating the result of the operation. */
-errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSIPreferencesRef preferences,
+errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSISessionManagerRef managerRef,
+                                                             iSCSIPreferencesRef preferences,
                                                              CFStringRef discoveryPortal,
                                                              iSCSIDiscoveryRecRef discoveryRec)
 {
@@ -136,10 +137,10 @@ errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSIPreferencesRef
         if(!CFDictionaryContainsKey(discTargets,targetIQN)) {
 
             // If the target is logged in, logout of the target and remove it
-            SID sessionId = iSCSIGetSessionIdForTarget(targetIQN);
+            SessionIdentifier sessionId = iSCSIGetSessionIdForTarget(managerRef,targetIQN);
             enum iSCSILogoutStatusCode statusCode;
             if(sessionId != kiSCSIInvalidSessionId)
-                iSCSILogoutSession(sessionId,&statusCode);
+                iSCSISessionLogout(managerRef,sessionId,&statusCode);
 
             iSCSIPreferencesRemoveTarget(preferences,targetIQN);
         }
@@ -160,7 +161,8 @@ errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSIPreferencesRef
  *  @return a dictionary key-value pairs of dicovery portal names (addresses)
  *  and the discovery records associated with the result of SendTargets
  *  discovery of those portals. */
-CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSIPreferencesRef preferences)
+CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSISessionManagerRef managerRef,
+                                                           iSCSIPreferencesRef preferences)
 {
     if(!preferences)
         return NULL;
@@ -198,7 +200,7 @@ CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSIPreferencesRef p
         // If there was an error, log it and move on to the next portal
         errno_t error = 0;
         iSCSIAuthRef auth = iSCSIAuthCreateNone();
-        if((error = iSCSIQueryPortalForTargets(portal,auth,&discoveryRec,&statusCode)))
+        if((error = iSCSIQueryPortalForTargets(managerRef,portal,auth,&discoveryRec,&statusCode)))
         {
             CFStringRef errorString = CFStringCreateWithFormat(
                 kCFAllocatorDefault,0,

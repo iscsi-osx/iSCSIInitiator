@@ -29,7 +29,7 @@
 #include "iSCSIAuth.h"
 #include "iSCSIPDUUser.h"
 #include "iSCSISession.h"
-#include "iSCSIKernelInterface.h"
+#include "iSCSIHBAInterface.h"
 #include "iSCSIQueryTarget.h"
 
 
@@ -188,18 +188,15 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateId()
 /*! Helper function for iSCSIConnectionSecurityNegotiate.  Once it has been
  *  determined that a CHAP session is to be used, this function will perform
  *  the CHAP authentication. */
-errno_t iSCSIAuthNegotiateCHAP(iSCSIMutableTargetRef target,
+errno_t iSCSIAuthNegotiateCHAP(iSCSISessionManagerRef managerRef,
+                               iSCSIMutableTargetRef target,
                                iSCSIAuthRef initiatorAuth,
                                iSCSIAuthRef targetAuth,
-                               SID sessionId,
-                               CID connectionId,
-                               TSIH targetSessionId,
+                               SessionIdentifier sessionId,
+                               ConnectionIdentifier connectionId,
+                               TargetSessionIdentifier targetSessionId,
                                enum iSCSILoginStatusCode * statusCode)
 {
-    if(!target || !initiatorAuth || !targetAuth ||
-       sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
-        return EINVAL;
-    
     // Setup dictionary CHAP authentication information
     CFMutableDictionaryRef authCmd = CFDictionaryCreateMutable(
         kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,
@@ -223,6 +220,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSIMutableTargetRef target,
     CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPDigest,kRFC3720_Value_AuthCHAPDigestMD5);
     
     struct iSCSILoginQueryContext context;
+    context.interface       = iSCSISessionManagerGetHBAInterface(managerRef);
     context.sessionId       = sessionId;
     context.connectionId    = connectionId;
     context.targetSessionId = targetSessionId;
@@ -387,17 +385,16 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
  *  begin authentication between the initiator and a selected target.  If the
  *  target name is set to blank (e.g., by a call to iSCSITargetSetIQN()) or 
  *  never set at all, a discovery session is assumed for authentication. */
-errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
+errno_t iSCSIAuthNegotiate(iSCSISessionManagerRef managerRef,
+                           iSCSIMutableTargetRef target,
                            iSCSIAuthRef initiatorAuth,
                            iSCSIAuthRef targetAuth,
-                           SID sessionId,
-                           CID connectionId,
+                           SessionIdentifier sessionId,
+                           ConnectionIdentifier connectionId,
                            enum iSCSILoginStatusCode * statusCode)
 {
-    if(!target || !initiatorAuth || !targetAuth ||
-       sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
-        return EINVAL;
-
+    iSCSIHBAInterfaceRef hbaInterface = iSCSISessionManagerGetHBAInterface(managerRef);
+    
     // Setup dictionary with target and initiator info for authentication
     CFMutableDictionaryRef authCmd = CFDictionaryCreateMutable(
         kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,
@@ -411,14 +408,16 @@ errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
     iSCSIAuthNegotiateBuildDict(target,initiatorAuth,targetAuth,authCmd);
     
     struct iSCSILoginQueryContext context;
+    context.interface    = hbaInterface;
     context.sessionId    = sessionId;
     context.connectionId = connectionId;
     context.currentStage = kiSCSIPDUSecurityNegotiation;
     context.nextStage    = kiSCSIPDUSecurityNegotiation;
     
     // Retrieve the TSIH from the kernel
-    TSIH targetSessionId = 0;
-    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,&targetSessionId,sizeof(TSIH));
+    TargetSessionIdentifier targetSessionId = 0;
+    iSCSIHBAInterfaceGetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOTargetSessionId,
+                                         &targetSessionId,sizeof(TargetSessionIdentifier));
     context.targetSessionId = targetSessionId;
     
     enum iSCSIPDURejectCode rejectCode;
@@ -440,8 +439,8 @@ errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
     // This was the first query of the connection; record the status
     // sequence number provided by the target
     UInt32 expStatSN = context.statSN + 1;
-    iSCSIKernelSetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOInitialExpStatSN,
-                                &expStatSN,sizeof(expStatSN));
+    iSCSIHBAInterfaceSetConnectionParameter(hbaInterface,sessionId,connectionId,kiSCSIHBACOInitialExpStatSN,
+                                            &expStatSN,sizeof(expStatSN));
     
     // If this is not a discovery session, we expect to receive a target
     // portal group tag (TPGT) and validate it
@@ -459,16 +458,16 @@ errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
         // If this is leading login (TSIH = 0 for leading login), store TPGT,
         // else compare it to the TPGT that we have stored for this session...
         if(targetSessionId == 0) {
-            TPGT targetPortalGroupTag = CFStringGetIntValue(targetPortalGroupRsp);
+            TargetPortalGroupTag targetPortalGroupTag = CFStringGetIntValue(targetPortalGroupRsp);
             
-            iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOTargetPortalGroupTag,
-                                     &targetPortalGroupTag,sizeof(TPGT));
+            iSCSIHBAInterfaceSetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOTargetPortalGroupTag,
+                                                 &targetPortalGroupTag,sizeof(TargetPortalGroupTag));
         }
         else {
             // Retrieve from kernel
-            TPGT targetPortalGroupTag = 0;
-            iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetPortalGroupTag,
-                                     &targetPortalGroupTag,sizeof(TPGT));
+            TargetPortalGroupTag targetPortalGroupTag = 0;
+            iSCSIHBAInterfaceGetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOTargetPortalGroupTag,
+                                                 &targetPortalGroupTag,sizeof(TargetPortalGroupTag));
 
             // Validate existing group against TPGT for this connection
             if(targetPortalGroupTag != CFStringGetIntValue(targetPortalGroupRsp))
@@ -513,7 +512,8 @@ errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
     }
 
     if(authMethod == kiSCSIAuthMethodCHAP) {
-        error = iSCSIAuthNegotiateCHAP(target,
+        error = iSCSIAuthNegotiateCHAP(managerRef,
+                                       target,
                                        initiatorAuth,
                                        targetAuth,
                                        sessionId,
@@ -552,9 +552,10 @@ ERROR_GENERIC:
 
 /*! Helper function.  Called by session or connection creation functions to
  *  determine available authentication options for a given target. */
-errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
-                             SID sessionId,
-                             CID connectionId,
+errno_t iSCSIAuthInterrogate(iSCSISessionManagerRef managerRef,
+                             iSCSITargetRef target,
+                             SessionIdentifier sessionId,
+                             ConnectionIdentifier connectionId,
                              enum iSCSIAuthMethods * authMethod,
                              enum iSCSILoginStatusCode * statusCode)
 {
@@ -581,6 +582,7 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
         &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     
     struct iSCSILoginQueryContext context;
+    context.interface    = iSCSISessionManagerGetHBAInterface(managerRef);
     context.sessionId    = sessionId;
     context.connectionId = connectionId;
     context.currentStage = kiSCSIPDUSecurityNegotiation;

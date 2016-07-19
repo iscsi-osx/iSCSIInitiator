@@ -27,7 +27,7 @@
  */
 
 #include "iSCSIQueryTarget.h"
-#include "iSCSIKernelInterface.h"
+#include "iSCSIHBAInterface.h"
 
 errno_t iSCSISessionLoginSingleQuery(struct iSCSILoginQueryContext * context,
                                      enum iSCSILoginStatusCode * statusCode,
@@ -52,9 +52,8 @@ errno_t iSCSISessionLoginSingleQuery(struct iSCSILoginQueryContext * context,
     size_t length = 0;
     iSCSIPDUDataCreateFromDict(textCmd,&data,&length);
 
-    errno_t error = iSCSIKernelSend(context->sessionId,context->connectionId,
-                                    (iSCSIPDUInitiatorBHS *)&cmd,
-                                    data,length);
+    errno_t error = iSCSIHBAInterfaceSend(context->interface,context->sessionId,context->connectionId,
+                                          (iSCSIPDUInitiatorBHS *)&cmd,data,length);
     iSCSIPDUDataRelease(&data);
     
     if(error) {
@@ -65,8 +64,8 @@ errno_t iSCSISessionLoginSingleQuery(struct iSCSILoginQueryContext * context,
     iSCSIPDULoginRspBHS rsp;
     
     do {
-        if((error = iSCSIKernelRecv(context->sessionId,context->connectionId,
-                                    (iSCSIPDUTargetBHS *)&rsp,&data,&length)))
+        if((error = iSCSIHBAInterfaceReceive(context->interface,context->sessionId,context->connectionId,
+                                             (iSCSIPDUTargetBHS *)&rsp,&data,&length)))
         {
             iSCSIPDUDataRelease(&data);
             return error;
@@ -178,8 +177,8 @@ errno_t iSCSISessionLoginQuery(struct iSCSILoginQueryContext * context,
  *  @param textCmd a dictionary of key-value pairs to send.
  *  @param textRsp a dictionary of key-value pairs to receive.
  *  @return an error code that indicates the result of the operation. */
-errno_t iSCSISessionTextQuery(SID sessionId,
-                              CID connectionId,
+errno_t iSCSISessionTextQuery(SessionIdentifier sessionId,
+                              ConnectionIdentifier connectionId,
                               CFDictionaryRef   textCmd,
                               CFMutableDictionaryRef  textRsp)
 {
@@ -192,7 +191,7 @@ errno_t iSCSISessionTextQuery(SID sessionId,
     size_t length;
     iSCSIPDUDataCreateFromDict(textCmd,&data,&length);
     
-    errno_t error = iSCSIKernelSend(sessionId,
+    errno_t error = iSCSIHBAInterfaceSend(0,sessionId,
                                     connectionId,
                                     (iSCSIPDUInitiatorBHS *)&cmd,
                                     data,length);
@@ -206,7 +205,7 @@ errno_t iSCSISessionTextQuery(SID sessionId,
     iSCSIPDUTextRspBHS rsp;
     
     do {
-        if((error = iSCSIKernelRecv(sessionId,connectionId,
+        if((error = iSCSIHBAInterfaceReceive(0,sessionId,connectionId,
                                     (iSCSIPDUTargetBHS *)&rsp,&data,&length)))
         {
             iSCSIPDUDataRelease(&data);

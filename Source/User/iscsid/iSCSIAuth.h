@@ -32,23 +32,26 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <CommonCrypto/CommonDigest.h>
 
+#include "iSCSISessionManager.h"
 #include "iSCSITypes.h"
-#include "iSCSIKernelInterfaceShared.h"
+#include "iSCSIHBATypes.h"
 
 /*! Authentication function defined in the authentication module
  *  (in the file iSCSIAuth.h). */
-errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
+errno_t iSCSIAuthNegotiate(iSCSISessionManagerRef manager,
+                           iSCSIMutableTargetRef target,
                            iSCSIAuthRef initiatorAuth,
                            iSCSIAuthRef targetAuth,
-                           SID sessionId,
-                           CID connectionId,
+                           SessionIdentifier sessionId,
+                           ConnectionIdentifier connectionId,
                            enum iSCSILoginStatusCode * statusCode);
 
 /*! Authentication function defined in the authentication module
  *  (in the file iSCSIAuth.h). */
-errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
-                             SID sessionId,
-                             CID connectionId,
+errno_t iSCSIAuthInterrogate(iSCSISessionManagerRef manager,
+                             iSCSITargetRef target,
+                             SessionIdentifier sessionId,
+                             ConnectionIdentifier connectionId,
                              enum iSCSIAuthMethods * authMethod,
                              enum iSCSILoginStatusCode * statusCode);
 
