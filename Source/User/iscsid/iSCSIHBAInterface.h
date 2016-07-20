@@ -125,8 +125,8 @@ IOReturn iSCSIHBAInterfaceCreateSession(iSCSIHBAInterfaceRef interface,
                                         CFStringRef portalAddress,
                                         CFStringRef portalPort,
                                         CFStringRef hostInterface,
-                                        const struct sockaddr_storage * portalSockAddr,
-                                        const struct sockaddr_storage * hostSockAddr,
+                                        const struct sockaddr_storage * remoteAddress,
+                                        const struct sockaddr_storage * localAddress,
                                         SessionIdentifier * sessionId,
                                         ConnectionIdentifier * connectionId);
 
@@ -179,8 +179,8 @@ IOReturn iSCSIHBAInterfaceCreateConnection(iSCSIHBAInterfaceRef interface,
                                            CFStringRef portalAddress,
                                            CFStringRef portalPort,
                                            CFStringRef hostInterface,
-                                           const struct sockaddr_storage * portalSockAddr,
-                                           const struct sockaddr_storage * hostSockAddr,
+                                           const struct sockaddr_storage * remoteAddress,
+                                           const struct sockaddr_storage * localAddress,
                                            ConnectionIdentifier * connectionId);
 
 /*! Frees a given iSCSI connection associated with a given session.

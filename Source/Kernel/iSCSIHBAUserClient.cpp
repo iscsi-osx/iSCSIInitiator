@@ -490,15 +490,15 @@ IOReturn iSCSIHBAUserClient::CreateSession(iSCSIHBAUserClient * target,
     OSString * portalAddress = OSString::withCString((const char *)params[1]);
     OSString * portalPort = OSString::withCString((const char *)params[2]);
     OSString * hostInterface = OSString::withCString((const char *)params[3]);
-    const sockaddr_storage * portalSockAddr = (struct sockaddr_storage*)params[4];
-    const sockaddr_storage * hostSockAddr = (struct sockaddr_storage*)params[5];
+    const sockaddr_storage * remoteAddress = (struct sockaddr_storage*)params[4];
+    const sockaddr_storage * localAddress = (struct sockaddr_storage*)params[5];
  
     IOLockLock(target->accessLock);
     
     // Create a connection
     errno_t error = target->provider->CreateSession(
-        targetIQN,portalAddress,portalPort,hostInterface,portalSockAddr,
-        hostSockAddr,&sessionId,&connectionId);
+        targetIQN,portalAddress,portalPort,hostInterface,remoteAddress,
+        localAddress,&sessionId,&connectionId);
     
     IOLockUnlock(target->accessLock);
     
@@ -717,15 +717,15 @@ IOReturn iSCSIHBAUserClient::CreateConnection(iSCSIHBAUserClient * target,
     OSString * portalAddress = OSString::withCString((const char *)params[0]);
     OSString * portalPort = OSString::withCString((const char *)params[1]);
     OSString * hostInterface = OSString::withCString((const char *)params[2]);
-    const sockaddr_storage * portalSockAddr = (struct sockaddr_storage*)params[3];
-    const sockaddr_storage * hostSockAddr = (struct sockaddr_storage*)params[4];
+    const sockaddr_storage * remoteAddress = (struct sockaddr_storage*)params[3];
+    const sockaddr_storage * localAddress = (struct sockaddr_storage*)params[4];
     
     IOLockLock(target->accessLock);
     
     // Create a connection
     errno_t error = target->provider->CreateConnection(
-            sessionId,portalAddress,portalPort,hostInterface,portalSockAddr,
-            hostSockAddr,&connectionId);
+            sessionId,portalAddress,portalPort,hostInterface,remoteAddress,
+            localAddress,&connectionId);
     
     IOLockUnlock(target->accessLock);
     

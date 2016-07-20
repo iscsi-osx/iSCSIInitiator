@@ -228,14 +228,14 @@ IOReturn iSCSIHBAInterfaceCreateSession(iSCSIHBAInterfaceRef interface,
                                         CFStringRef portalAddress,
                                         CFStringRef portalPort,
                                         CFStringRef hostInterface,
-                                        const struct sockaddr_storage * portalSockAddr,
-                                        const struct sockaddr_storage * hostSockAddr,
+                                        const struct sockaddr_storage * remoteAddress,
+                                        const struct sockaddr_storage * localAddress,
                                         SessionIdentifier * sessionId,
                                         ConnectionIdentifier * connectionId)
 {
     // Check parameters
-    if(!interface || !portalAddress || !portalPort || !hostInterface || !portalSockAddr ||
-       !hostSockAddr || !sessionId || !connectionId)
+    if(!interface || !portalAddress || !portalPort || !hostInterface || !remoteAddress ||
+       !localAddress || !sessionId || !connectionId)
         return kIOReturnBadArgument;
     
     // Pack the input parameters into a single buffer to send to the kernel
@@ -257,8 +257,8 @@ IOReturn iSCSIHBAInterfaceCreateSession(iSCSIHBAInterfaceRef interface,
     params[1] = malloc(paramSize[1]);
     params[2] = malloc(paramSize[2]);
     params[3] = malloc(paramSize[3]);
-    params[4] = (void*)portalSockAddr;
-    params[5] = (void*)hostSockAddr;
+    params[4] = (void*)remoteAddress;
+    params[5] = (void*)localAddress;
     
     CFStringGetCString(targetIQN,params[0],paramSize[0],kCFStringEncodingASCII);
     CFStringGetCString(portalAddress,params[1],paramSize[1],kCFStringEncodingASCII);
@@ -413,12 +413,12 @@ IOReturn iSCSIHBAInterfaceCreateConnection(iSCSIHBAInterfaceRef interface,
                                            CFStringRef portalAddress,
                                            CFStringRef portalPort,
                                            CFStringRef hostInterface,
-                                           const struct sockaddr_storage * portalSockAddr,
-                                           const struct sockaddr_storage * hostSockAddr,
+                                           const struct sockaddr_storage * remoteAddress,
+                                           const struct sockaddr_storage * localAddress,
                                            ConnectionIdentifier * connectionId)
 {
     // Check parameters
-    if(!interface || sessionId == kiSCSIInvalidSessionId || !portalAddress || !portalPort || !hostInterface || !portalSockAddr || !connectionId)
+    if(!interface || sessionId == kiSCSIInvalidSessionId || !portalAddress || !portalPort || !hostInterface || !remoteAddress || !connectionId)
         return kIOReturnBadArgument;
     
     // Pack the input parameters into a single buffer to send to the kernel
@@ -438,8 +438,8 @@ IOReturn iSCSIHBAInterfaceCreateConnection(iSCSIHBAInterfaceRef interface,
     params[0] = malloc(paramSize[0]);
     params[1] = malloc(paramSize[1]);
     params[2] = malloc(paramSize[2]);
-    params[3] = (void*)portalSockAddr;
-    params[4] = (void*)hostSockAddr;
+    params[3] = (void*)remoteAddress;
+    params[4] = (void*)localAddress;
     
     CFStringGetCString(portalAddress,params[0],paramSize[0],kCFStringEncodingASCII);
     CFStringGetCString(portalPort,params[1],paramSize[1],kCFStringEncodingASCII);
