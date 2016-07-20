@@ -1389,6 +1389,8 @@ void iSCSIDProcessQueuedLogin(SCNetworkReachabilityRef reachabilityTarget,
     iSCSITargetRelease(target);
     iSCSITargetRelease(loginRef->target);
     iSCSIPortalRelease(portal);
+    
+    free(loginRef);
 }
 
 /*! Helper function used by auto-login, sleep-mode and persistent
