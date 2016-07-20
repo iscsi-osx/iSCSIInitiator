@@ -1418,7 +1418,12 @@ void iSCSIDQueueLogin(iSCSITargetRef target,iSCSIPortalRef portal)
         reachabilityTarget = SCNetworkReachabilityCreateWithName(kCFAllocatorDefault,portalAddressBuffer);
     else {
 
-//  TODO: create reachability target for portals with non-default host interface
+        struct sockaddr_storage remoteAddress, localAddress;
+        iSCSIUtilsGetAddressForPortal(portal,&remoteAddress,&localAddress);
+        
+        reachabilityTarget = SCNetworkReachabilityCreateWithAddressPair(kCFAllocatorDefault,
+                                                                        (const struct sockaddr *)&localAddress,
+                                                                        (const struct sockaddr *)&remoteAddress);
     }
 
     SCNetworkReachabilitySetCallback(reachabilityTarget,iSCSIDProcessQueuedLogin,&reachabilityContext);
