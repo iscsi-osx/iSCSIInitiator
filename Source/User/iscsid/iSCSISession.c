@@ -32,10 +32,8 @@
 #include "iSCSIHBAInterface.h"
 #include "iSCSIAuth.h"
 #include "iSCSIQueryTarget.h"
-#include "iSCSITypes.h"
-#include "iSCSIDA.h"
-#include "iSCSIIORegistry.h"
-#include "iSCSIRFC3720Defaults.h"
+
+#include "iSCSI.h"
 
 /*! Maximum number of key-value pairs supported by a dictionary that is used
  *  to produce the data section of text and login PDUs. */
@@ -663,106 +661,6 @@ errno_t iSCSISessionLogoutCommon(iSCSISessionManagerRef managerRef,
     return error;
 }
 
-/*! Helper function used to resolve target nodes as specified by connInfo.
- *  The target nodes specified in connInfo may be a DNS name, an IPv4 or
- *  IPv6 address. */
-errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
-                                struct sockaddr_storage * ssTarget,
-                                struct sockaddr_storage * ssHost)
-{
-    if (!portal || !ssTarget || !ssHost)
-        return EINVAL;
-    
-    errno_t error = 0;
-    
-    // Resolve the target node first and get a sockaddr info for it
-    const char * targetAddr, * targetPort;
-
-    targetAddr = CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingUTF8);
-    targetPort = CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingUTF8);
-
-    struct addrinfo hints = {
-        .ai_family = AF_UNSPEC,
-        .ai_socktype = SOCK_STREAM,
-        .ai_protocol = IPPROTO_TCP,
-    };
-    
-    struct addrinfo * aiTarget = NULL;
-    if((error = getaddrinfo(targetAddr,targetPort,&hints,&aiTarget)))
-        return error;
-    
-    // Copy the sock_addr structure into a sockaddr_storage structure (this
-    // may be either an IPv4 or IPv6 sockaddr structure)
-    memcpy(ssTarget,aiTarget->ai_addr,aiTarget->ai_addrlen);
-
-    freeaddrinfo(aiTarget);
-
-    // If the default interface is to be used, prepare a structure for it
-    CFStringRef hostIface = iSCSIPortalGetHostInterface(portal);
-
-    if(CFStringCompare(hostIface,kiSCSIDefaultHostInterface,0) == kCFCompareEqualTo)
-    {
-        ssHost->ss_family = ssTarget->ss_family;
-
-        // For completeness, setup the sockaddr_in structure
-        if(ssHost->ss_family == AF_INET)
-        {
-            struct sockaddr_in * sa = (struct sockaddr_in *)ssHost;
-            sa->sin_port = 0;
-            sa->sin_addr.s_addr = htonl(INADDR_ANY);
-            sa->sin_len = sizeof(struct sockaddr_in);
-        }
-
-// TODO: test IPv6 functionality
-        else if(ssHost->ss_family == AF_INET6)
-        {
-            struct sockaddr_in6 * sa = (struct sockaddr_in6 *)ssHost;
-            sa->sin6_addr = in6addr_any;
-        }
-
-        return error;
-    }
-
-    // Otherwise we have to search the list of all interfaces for the specified
-    // interface and copy the corresponding address structure
-    struct ifaddrs * interfaceList;
-    
-    if((error = getifaddrs(&interfaceList)))
-        return error;
-    
-    error = EAFNOSUPPORT;
-    struct ifaddrs * interface = interfaceList;
-
-    while(interface)
-    {
-        // Check if interface supports the targets address family (e.g., IPv4)
-        if(interface->ifa_addr->sa_family == ssTarget->ss_family)
-        {
-            CFStringRef currIface = CFStringCreateWithCStringNoCopy(
-                kCFAllocatorDefault,
-                interface->ifa_name,
-                kCFStringEncodingUTF8,
-                kCFAllocatorNull);
-
-            Boolean ifaceNameMatch =
-                CFStringCompare(currIface,hostIface,kCFCompareCaseInsensitive) == kCFCompareEqualTo;
-            CFRelease(currIface);
-            // Check if interface names match...
-            if(ifaceNameMatch)
-            {
-                memcpy(ssHost,interface->ifa_addr,interface->ifa_addr->sa_len);
-                error = 0;
-                break;
-            }
-        }
-        interface = interface->ifa_next;
-    }
-
-    freeifaddrs(interfaceList);
-    return error;
-}
-
-
 /*! Adds a new connection to an iSCSI session.
  *  @param sessionId the new session identifier.
  *  @param portal specifies the portal to use for the connection.
@@ -792,7 +690,7 @@ errno_t iSCSISessionAddConnection(iSCSISessionManagerRef managerRef,
     // Resolve information about the target
     struct sockaddr_storage ssTarget, ssHost;
     
-    if((error = iSCSISessionResolveNode(portal,&ssTarget,&ssHost)))
+    if((error = iSCSIUtilsGetAddressForPortal(portal,&ssTarget,&ssHost)))
         return error;
     
     // If both target and host were resolved, grab a connection
@@ -890,7 +788,7 @@ errno_t iSCSISessionLogin(iSCSISessionManagerRef managerRef,
     // Resolve the target address
     struct sockaddr_storage ssTarget, ssHost;
     
-    if((error = iSCSISessionResolveNode(portal,&ssTarget,&ssHost)))
+    if((error = iSCSIUtilsGetAddressForPortal(portal,&ssTarget,&ssHost)))
         return error;
 
     // Create a new session in the kernel.  This allocates session and
@@ -1174,7 +1072,7 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSISessionManagerRef managerRef,
     // Resolve information about the target
     struct sockaddr_storage ssTarget, ssHost;
     
-    if((error = iSCSISessionResolveNode(portal,&ssTarget,&ssHost)))
+    if((error = iSCSIUtilsGetAddressForPortal(portal,&ssTarget,&ssHost)))
         return error;
     
     // Create a discovery session to the portal

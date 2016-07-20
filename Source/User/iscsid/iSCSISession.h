@@ -30,14 +30,9 @@
 #define __ISCSI_SESSION_H__
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <netdb.h>
-#include <ifaddrs.h>
-#include <asl.h>
 
 #include "iSCSISessionManager.h"
-#include "iSCSITypes.h"
-#include "iSCSIRFC3720Keys.h"
-
+#include "iSCSI.h"
 
 /*! Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionClose to close this session and free resources.
@@ -202,13 +197,5 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSISessionManagerRef mana
                                                      iSCSITargetRef target,
                                                      iSCSIPortalRef portal);
 
-
-/*! Creates address structures for an iSCSI target and the host (initiator) 
- *  given an iSCSI portal reference. This function may be helpful when 
- *  interfacing to low-level C networking APIs or other foundation libraries.
- *  */
-errno_t iSCSISessionCreateAddressForPortal(iSCSIPortalRef portal,
-                                           struct sockaddr_storage * targetaddress,
-                                           struct sockaddr_storage * hostAddress);
 
 #endif
