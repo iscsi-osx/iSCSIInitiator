@@ -113,6 +113,10 @@ The following options can be used to modify target-config:
 Specifies whether the iSCSI daemon should login to the target upon startup. Possible values for
 .Ar enable
 are enable or disable.
+.It Fl persistent Ar enable
+Specifies whether the iSCSI daemon should reconnect to the target in the event of a network interruption or connection timeout. Possible values for
+.Ar enable
+are enable or disable.
 .It Fl MaxConnections Ar max_connections
 The maximum number of simultaneous connections allowed for this target.
 .It Fl ErrorRecoveryLevel Ar error_level
