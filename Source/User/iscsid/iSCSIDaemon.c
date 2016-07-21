@@ -1764,10 +1764,9 @@ int main(void)
     callbacks.timeoutCallback = iSCSIDSessionTimeoutHandler;
     sessionManager = iSCSISessionManagerCreate(kCFAllocatorDefault,callbacks);
     
+    // Let launchd call us again once the HBA kext is loaded
     if(!sessionManager)
-    {
-// TODO: handle error when kext not loaded
-    }
+        return EAGAIN;
     
     iSCSISessionManagerScheduleWithRunLoop(sessionManager,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
 
