@@ -93,13 +93,12 @@ void iSCSIDADiskMountComplete(DADiskRef disk,DADissenterRef dissenter,void * con
 void iSCSIDAUnmountApplierFunc(io_object_t entry, void * context)
 {
     iSCSIDiskOperationContext * opContext = (iSCSIDiskOperationContext*)context;
-    opContext->diskCount++;
-    
     DADiskRef disk = DADiskCreateFromIOMedia(kCFAllocatorDefault,opContext->session,entry);
     
     if(disk) {
         DADiskUnmount(disk,opContext->options,iSCSIDADiskUnmountComplete,context);
         CFRelease(disk);
+        opContext->diskCount++;
     }
 }
 
@@ -137,13 +136,13 @@ void iSCSIDAUnmountForTarget(DASessionRef session,
 void iSCSIDAMountApplierFunc(io_object_t entry, void * context)
 {
     iSCSIDiskOperationContext * opContext = (iSCSIDiskOperationContext*)context;
-    opContext->diskCount++;
     
     DADiskRef disk = DADiskCreateFromIOMedia(kCFAllocatorDefault,opContext->session,entry);
     
     if(disk) {
         DADiskMount(disk,NULL,opContext->options,iSCSIDADiskMountComplete,context);
         CFRelease(disk);
+        opContext->diskCount++;
     }
 }
 
