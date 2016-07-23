@@ -137,7 +137,7 @@ errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSISessionManager
         if(!CFDictionaryContainsKey(discTargets,targetIQN)) {
 
             // If the target is logged in, logout of the target and remove it
-            SessionIdentifier sessionId = iSCSIGetSessionIdForTarget(managerRef,targetIQN);
+            SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(managerRef,targetIQN);
             enum iSCSILogoutStatusCode statusCode;
             if(sessionId != kiSCSIInvalidSessionId)
                 iSCSISessionLogout(managerRef,sessionId,&statusCode);

@@ -57,8 +57,8 @@ struct __iSCSISessionManager
      // Retrieve the target name and portal address associated with
      // the timeout. Pass information along to pre-designated runloop
      // so that clients of this layer can act
-     iSCSITargetRef target = iSCSICreateTargetForSessionId(managerRef,msg->sessionId);
-     iSCSIPortalRef portal = iSCSICreatePortalForConnectionId(managerRef,msg->sessionId,msg->connectionId);
+     iSCSITargetRef target = iSCSISessionCopyTargetForId(managerRef,msg->sessionId);
+     iSCSIPortalRef portal = iSCSISessionCopyPortalForConnectionId(managerRef,msg->sessionId,msg->connectionId);
      
      // Release the stale session/connection
      iSCSIHBAInterfaceReleaseConnection(managerRef->hbaInterface,msg->sessionId,msg->connectionId);

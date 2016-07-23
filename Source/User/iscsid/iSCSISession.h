@@ -36,6 +36,7 @@
 
 /*! Creates a normal iSCSI session and returns a handle to the session. Users
  *  must call iSCSISessionClose to close this session and free resources.
+ *  @param managerRef a session manager instance.
  *  @param target specifies the target and connection parameters to use.
  *  @param portal specifies the portal to use for the new session.
  *  @param initiatorAuth specifies the initiator authentication parameters.
@@ -58,12 +59,14 @@ errno_t iSCSISessionLogin(iSCSISessionManagerRef managerRef,
                           enum iSCSILoginStatusCode * statusCode);
 
 /*! Closes the iSCSI connection and frees the session qualifier.
+ *  @param managerRef a session manager instance.
  *  @param sessionId the session to free. */
 errno_t iSCSISessionLogout(iSCSISessionManagerRef managerRef,
                            SessionIdentifier sessionId,
                            enum iSCSILogoutStatusCode * statusCode);
 
 /*! Adds a new connection to an iSCSI session.
+ *  @param managerRef a session manager instance.
  *  @param sessionId the new session identifier.
  *  @param portal specifies the portal to use for the connection.
  *  @param initiatorAuth specifies the initiator authentication parameters.
@@ -82,6 +85,7 @@ errno_t iSCSISessionAddConnection(iSCSISessionManagerRef managerRef,
                                   enum iSCSILoginStatusCode * statusCode);
 
 /*! Removes a connection from an existing session.
+ *  @param managerRef a session manager instance.
  *  @param sessionId the session to remove a connection from.
  *  @param connectionId the connection to remove.
  *  @param statusCode iSCSI response code indicating operation status.
@@ -92,6 +96,7 @@ errno_t iSCSISessionRemoveConnection(iSCSISessionManagerRef managerRef,
                                      enum iSCSILogoutStatusCode * statusCode);
 
 /*! Queries a portal for available targets (utilizes iSCSI SendTargets).
+ *  @param managerRef a session manager instance.
  *  @param portal the iSCSI portal to query.
  *  @param auth specifies the authentication parameters to use.
  *  @param discoveryRec a discovery record, containing the query results.
@@ -104,6 +109,7 @@ errno_t iSCSIQueryPortalForTargets(iSCSISessionManagerRef managerRef,
                                    enum iSCSILoginStatusCode * statuscode);
 
 /*! Retrieves a list of targets available from a give portal.
+ *  @param managerRef a session manager instance.
  *  @param portal the iSCSI portal to look for targets.
  *  @param initiatorAuth specifies the initiator authentication parameters.
  *  @param statusCode iSCSI response code indicating operation status.
@@ -115,43 +121,49 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSISessionManagerRef managerRef,
                                       enum iSCSILoginStatusCode * statusCode);
 
 /*! Gets the session identifier associated with the specified target.
+ *  @param managerRef a session manager instance.
  *  @param targetIQN the name of the target.
  *  @return the session identiifer. */
-SessionIdentifier iSCSIGetSessionIdForTarget(iSCSISessionManagerRef managerRef,
-                                             CFStringRef targetIQN);
+SessionIdentifier iSCSISessionGetSessionIdForTarget(iSCSISessionManagerRef managerRef,
+                                                    CFStringRef targetIQN);
 
 /*! Gets the connection identifier associated with the specified portal.
+ *  @param managerRef a session manager instance.
  *  @param sessionId the session identifier.
  *  @param portal the portal connected on the specified session.
  *  @return the associated connection identifier. */
-ConnectionIdentifier iSCSIGetConnectionIdForPortal(iSCSISessionManagerRef managerRef,
-                                                   SessionIdentifier sessionId,
-                                                   iSCSIPortalRef portal);
+ConnectionIdentifier iSCSISessionGetConnectionIdForPortal(iSCSISessionManagerRef managerRef,
+                                                          SessionIdentifier sessionId,
+                                                          iSCSIPortalRef portal);
 
 /*! Gets an array of session identifiers for each session.
+ *  @param managerRef a session manager instance.
  *  @param sessionIds an array of session identifiers.
  *  @return an array of session identifiers. */
-CFArrayRef iSCSICreateArrayOfSessionIds(iSCSISessionManagerRef managerRef);
+CFArrayRef iSCSISessionCopyArrayOfSessionIds(iSCSISessionManagerRef managerRef);
 
 /*! Gets an array of connection identifiers for each session.
+ *  @param managerRef a session manager instance.
  *  @param sessionId session identifier.
  *  @return an array of connection identifiers. */
-CFArrayRef iSCSICreateArrayOfConnectionsIds(iSCSISessionManagerRef managerRef,
-                                            SessionIdentifier sessionId);
+CFArrayRef iSCSISessionCopyArrayOfConnectionIds(iSCSISessionManagerRef managerRef,
+                                                SessionIdentifier sessionId);
 
 /*! Creates a target object for the specified session.
+ *  @param managerRef a session manager instance.
  *  @param sessionId the session identifier.
  *  @return target the target object. */
-iSCSITargetRef iSCSICreateTargetForSessionId(iSCSISessionManagerRef managerRef,
-                                             SessionIdentifier sessionId);
+iSCSITargetRef iSCSISessionCopyTargetForId(iSCSISessionManagerRef managerRef,
+                                           SessionIdentifier sessionId);
 
 /*! Creates a connection object for the specified connection.
+ *  @param managerRef a session manager instance.
  *  @param sessionId the session identifier.
  *  @param connectionId the connection identifier.
  *  @return portal information about the portal. */
-iSCSIPortalRef iSCSICreatePortalForConnectionId(iSCSISessionManagerRef managerRef,
-                                                SessionIdentifier sessionId,
-                                                ConnectionIdentifier connectionId);
+iSCSIPortalRef iSCSISessionCopyPortalForConnectionId(iSCSISessionManagerRef managerRef,
+                                                     SessionIdentifier sessionId,
+                                                     ConnectionIdentifier connectionId);
 
 /*! Creates a dictionary of session parameters for the session associated with
  *  the specified target, if one exists. The following keys are guaranteed
@@ -172,12 +184,12 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(iSCSISessionManagerRef managerRe
  *  kRFC3720_Key_TargetSessionId            (CFNumberRef, kCFNumberSInt16Type)
  *  kRFC3720_Key_SessionId                  (CFNumberRef, kCFNumberSInt16Type)
  *
- *  @param handle a handle to a daemon connection.
+ *  @param managerRef a session manager instance.
  *  @param target the target to check for associated sessions to generate
  *  a dictionary of session parameters.
  *  @return a dictionary of session properties. */
-CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSISessionManagerRef managerRef,
-                                                  iSCSITargetRef target);
+CFDictionaryRef iSCSISessionCopyCFPropertiesForTarget(iSCSISessionManagerRef managerRef,
+                                                      iSCSITargetRef target);
 
 /*! Creates a dictionary of connection parameters for the connection associated 
  *  with the specified target and portal, if one exists.  The following keys
@@ -188,14 +200,14 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSISessionManagerRef manager
  *  kRFC3720_Key_MaxRecvDataSegmentLength   (CFNumberRef)
  *  kRFC3720_Key_ConnectionId               (CFNumberRef)
  *
- *  @param handle a handle to a daemon connection.
+ *  @param managerRef a session manager instance.
  *  @param target the target associated with the the specified portal.
  *  @param portal the portal to check for active connections to generate
  *  a dictionary of connection parameters.
  *  @return a dictionary of connection properties. */
-CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSISessionManagerRef managerRef,
-                                                     iSCSITargetRef target,
-                                                     iSCSIPortalRef portal);
+CFDictionaryRef iSCSISessionCopyCFPropertiesForPortal(iSCSISessionManagerRef managerRef,
+                                                      iSCSITargetRef target,
+                                                      iSCSIPortalRef portal);
 
 
 #endif

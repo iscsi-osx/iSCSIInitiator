@@ -395,7 +395,7 @@ errno_t iSCSIDLoginAllPortals(iSCSIMutableTargetRef target,
     *statusCode = kiSCSILoginInvalidStatusCode;
 
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
-    SessionIdentifier sessionId = iSCSIGetSessionIdForTarget(sessionManager,targetIQN);
+    SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,targetIQN);
 
     // Set initial values for maxConnections and activeConnections
     if(sessionId == kiSCSIInvalidSessionId)
@@ -404,7 +404,7 @@ errno_t iSCSIDLoginAllPortals(iSCSIMutableTargetRef target,
     else {
 
         // If session exists, get the max connections and active connections
-        CFDictionaryRef properties = iSCSICreateCFPropertiesForSession(sessionManager,target);
+        CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForTarget(sessionManager,target);
 
         if(properties) {
             // Get max connections from property list
@@ -412,7 +412,7 @@ errno_t iSCSIDLoginAllPortals(iSCSIMutableTargetRef target,
             CFNumberGetValue(number,kCFNumberSInt32Type,&maxConnections);
             CFRelease(properties);
 
-            CFArrayRef connections = iSCSICreateArrayOfConnectionsIds(sessionManager,sessionId);
+            CFArrayRef connections = iSCSISessionCopyArrayOfConnectionIds(sessionManager,sessionId);
 
             if(connections) {
                 activeConnections = CFArrayGetCount(connections);
@@ -445,12 +445,12 @@ errno_t iSCSIDLoginAllPortals(iSCSIMutableTargetRef target,
         portalIdx++;
 
         // Determine how many connections this session supports
-        sessionId = iSCSIGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target));
+        sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target));
 
         // If this was the first connection of the session, get the number of
         // allowed maximum connections
         if(activeConnections == 1) {
-            CFDictionaryRef properties = iSCSICreateCFPropertiesForSession(sessionManager,target);
+            CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForTarget(sessionManager,target);
             if(properties) {
                 // Get max connections from property list
                 CFNumberRef number = CFDictionaryGetValue(properties,kRFC3720_Key_MaxConnections);
@@ -478,19 +478,19 @@ errno_t iSCSIDLoginWithPortal(iSCSIMutableTargetRef target,
     errno_t errorCode = 0;
 
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
-    sessionId = iSCSIGetSessionIdForTarget(sessionManager,targetIQN);
+    sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,targetIQN);
 
     // Existing session, add a connection
     if(sessionId != kiSCSIInvalidSessionId) {
 
-        connectionId = iSCSIGetConnectionIdForPortal(sessionManager,sessionId,portal);
+        connectionId = iSCSISessionGetConnectionIdForPortal(sessionManager,sessionId,portal);
 
         // If there's an active session display error otherwise login
         if(connectionId != kiSCSIInvalidConnectionId)
         {} //iSCSICtlDisplayError("The specified target has an active session over the specified portal.");
         else {
             // See if the session can support an additional connection
-            CFDictionaryRef properties = iSCSICreateCFPropertiesForSession(sessionManager,target);
+            CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForTarget(sessionManager,target);
             if(properties) {
                 // Get max connections from property list
                 UInt32 maxConnections;
@@ -498,7 +498,7 @@ errno_t iSCSIDLoginWithPortal(iSCSIMutableTargetRef target,
                 CFNumberGetValue(number,kCFNumberSInt32Type,&maxConnections);
                 CFRelease(properties);
 
-                CFArrayRef connections = iSCSICreateArrayOfConnectionsIds(sessionManager,sessionId);
+                CFArrayRef connections = iSCSISessionCopyArrayOfConnectionIds(sessionManager,sessionId);
                 if(connections)
                 {
                     CFIndex activeConnections = CFArrayGetCount(connections);
@@ -616,7 +616,7 @@ void iSCSIDLogoutComplete(iSCSITargetRef target,enum iSCSIDAOperationResult resu
     
     if(!errorCode)
     {
-        SessionIdentifier sessionId = iSCSIGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target));
+        SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target));
 
         // For session logout, ensure that disk unmount was successful...
         if(!portal) {
@@ -627,7 +627,7 @@ void iSCSIDLogoutComplete(iSCSITargetRef target,enum iSCSIDAOperationResult resu
                 errorCode = EBUSY;
         }
         else {
-            ConnectionIdentifier connectionId = iSCSIGetConnectionIdForPortal(sessionManager,sessionId,portal);
+            ConnectionIdentifier connectionId = iSCSISessionGetConnectionIdForPortal(sessionManager,sessionId,portal);
             errorCode = iSCSISessionRemoveConnection(sessionManager,sessionId,connectionId,&statusCode);
         }
     }
@@ -714,7 +714,7 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
         errorCode = EINVAL;
 
     // See if there exists an active session for this target
-    SessionIdentifier sessionId = iSCSIGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target));
+    SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target));
 
     if(!errorCode && sessionId == kiSCSIInvalidSessionId)
     {
@@ -733,7 +733,7 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
     CFIndex connectionCount = 0;
     
     if(!errorCode && portal) {
-        connectionId = iSCSIGetConnectionIdForPortal(sessionManager,sessionId,portal);
+        connectionId = iSCSISessionGetConnectionIdForPortal(sessionManager,sessionId,portal);
         
         if(connectionId == kiSCSIInvalidConnectionId) {
         
@@ -748,7 +748,7 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
         }
         else {
             // Determine the number of connections
-            CFArrayRef connectionIds = iSCSICreateArrayOfConnectionsIds(sessionManager,sessionId);
+            CFArrayRef connectionIds = iSCSISessionCopyArrayOfConnectionIds(sessionManager,sessionId);
             connectionCount = CFArrayGetCount(connectionIds);
             CFRelease(connectionIds);
         }
@@ -780,7 +780,7 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
 
 errno_t iSCSIDCreateArrayOfActiveTargets(int fd,iSCSIDMsgCreateArrayOfActiveTargetsCmd * cmd)
 {
-    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds(sessionManager);
+    CFArrayRef sessionIds = iSCSISessionCopyArrayOfSessionIds(sessionManager);
     CFIndex sessionCount = CFArrayGetCount(sessionIds);
 
     // Prepare an array to hold our targets
@@ -791,7 +791,7 @@ errno_t iSCSIDCreateArrayOfActiveTargets(int fd,iSCSIDMsgCreateArrayOfActiveTarg
     // Get target object for each active session and add to array
     for(CFIndex idx = 0; idx < sessionCount; idx++)
     {
-        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionManager,(SessionIdentifier)CFArrayGetValueAtIndex(sessionIds,idx));
+        iSCSITargetRef target = iSCSISessionCopyTargetForId(sessionManager,(SessionIdentifier)CFArrayGetValueAtIndex(sessionIds,idx));
         CFArrayAppendValue(activeTargets,target);
         iSCSITargetRelease(target);
     }
@@ -821,7 +821,7 @@ errno_t iSCSIDCreateArrayofActivePortalsForTarget(int fd,
                                                   iSCSIDMsgCreateArrayOfActivePortalsForTargetCmd * cmd)
 {
 // TODO: null check
-    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds(sessionManager);
+    CFArrayRef sessionIds = iSCSISessionCopyArrayOfSessionIds(sessionManager);
     CFIndex sessionCount = CFArrayGetCount(sessionIds);
 
     // Prepare an array to hold our targets
@@ -832,7 +832,7 @@ errno_t iSCSIDCreateArrayofActivePortalsForTarget(int fd,
     // Get target object for each active session and add to array
     for(CFIndex idx = 0; idx < sessionCount; idx++)
     {
-        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionManager,(SessionIdentifier)CFArrayGetValueAtIndex(sessionIds,idx));
+        iSCSITargetRef target = iSCSISessionCopyTargetForId(sessionManager,(SessionIdentifier)CFArrayGetValueAtIndex(sessionIds,idx));
         CFArrayAppendValue(activeTargets,target);
         iSCSITargetRelease(target);
     }
@@ -875,7 +875,7 @@ errno_t iSCSIDIsTargetActive(int fd,iSCSIDMsgIsTargetActiveCmd *cmd)
 
     if(target) {
         iSCSIDMsgIsTargetActiveRsp rsp = iSCSIDMsgIsTargetActiveRspInit;
-        rsp.active = (iSCSIGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target)) != kiSCSIInvalidSessionId);
+        rsp.active = (iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target)) != kiSCSIInvalidSessionId);
         
         iSCSITargetRelease(target);
 
@@ -905,12 +905,12 @@ errno_t iSCSIDIsPortalActive(int fd,iSCSIDMsgIsPortalActiveCmd *cmd)
     }
 
     iSCSIDMsgIsPortalActiveRsp rsp = iSCSIDMsgIsPortalActiveRspInit;
-    SessionIdentifier sessionId = (iSCSIGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target)));
+    SessionIdentifier sessionId = (iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target)));
 
     if(sessionId == kiSCSIInvalidSessionId)
         rsp.active = false;
     else
-        rsp.active = (iSCSIGetConnectionIdForPortal(sessionManager,sessionId,portal) != kiSCSIInvalidConnectionId);
+        rsp.active = (iSCSISessionGetConnectionIdForPortal(sessionManager,sessionId,portal) != kiSCSIInvalidConnectionId);
     
     if(target)
         iSCSITargetRelease(target);
@@ -980,7 +980,7 @@ errno_t iSCSIDCreateCFPropertiesForSession(int fd,
     }
 
     if(!error) {
-        CFDictionaryRef properties = iSCSICreateCFPropertiesForSession(sessionManager,target);
+        CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForTarget(sessionManager,target);
 
         // Send back response
         iSCSIDMsgCreateCFPropertiesForSessionRsp rsp = iSCSIDMsgCreateCFPropertiesForSessionRspInit;
@@ -1037,7 +1037,7 @@ errno_t iSCSIDCreateCFPropertiesForConnection(int fd,
 
     if(!error) {
 
-        CFDictionaryRef properties = iSCSICreateCFPropertiesForConnection(sessionManager,target,portal);
+        CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForPortal(sessionManager,target,portal);
 
         // Send back response
         iSCSIDMsgCreateCFPropertiesForConnectionRsp rsp = iSCSIDMsgCreateCFPropertiesForConnectionRspInit;
@@ -1546,7 +1546,7 @@ void iSCSIDPrepareForSystemSleepComplete(iSCSITargetRef target,
  *  is used to restore active sessions upon wakeup. */
 void iSCSIDPrepareForSystemSleep()
 {
-    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds(sessionManager);
+    CFArrayRef sessionIds = iSCSISessionCopyArrayOfSessionIds(sessionManager);
     
     if(!sessionIds)
         return;
@@ -1568,13 +1568,13 @@ void iSCSIDPrepareForSystemSleep()
     for(CFIndex idx = 0; idx < sessionCount; idx++)
     {
         SessionIdentifier sessionId = (SessionIdentifier)CFArrayGetValueAtIndex(sessionIds,idx);
-        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionManager,sessionId);
+        iSCSITargetRef target = iSCSISessionCopyTargetForId(sessionManager,sessionId);
         
         if(!target)
             continue;
     
         CFStringRef targetIQN = iSCSITargetGetIQN(target);
-        CFArrayRef connectionIds = iSCSICreateArrayOfConnectionsIds(sessionManager,sessionId);
+        CFArrayRef connectionIds = iSCSISessionCopyArrayOfConnectionIds(sessionManager,sessionId);
         CFIndex connectionCount = CFArrayGetCount(connectionIds);
         
         CFMutableArrayRef portals = CFArrayCreateMutable(kCFAllocatorDefault,0,&kCFTypeArrayCallBacks);
@@ -1582,7 +1582,7 @@ void iSCSIDPrepareForSystemSleep()
         for(CFIndex connIdx = 0; connIdx < connectionCount; connIdx++)
         {
             ConnectionIdentifier connectionId = (ConnectionIdentifier)CFArrayGetValueAtIndex(connectionIds,connIdx);
-            iSCSIPortalRef portal = iSCSICreatePortalForConnectionId(sessionManager,sessionId,connectionId);
+            iSCSIPortalRef portal = iSCSISessionCopyPortalForConnectionId(sessionManager,sessionId,connectionId);
             CFArrayAppendValue(portals,portal);
             CFRelease(portal);
         }

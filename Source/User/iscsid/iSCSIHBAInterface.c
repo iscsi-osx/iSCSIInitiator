@@ -833,7 +833,7 @@ SessionIdentifier iSCSIHBAInterfaceGetSessionIdForTargetIQN(iSCSIHBAInterfaceRef
 
     kern_return_t result = IOConnectCallMethod(
         interface->connect,
-        kiSCSIGetSessionIdForTargetIQN,0,0,
+        kiSCSISessionGetSessionIdForTargetIQN,0,0,
         targetIQNBuffer,
         targetIQNBufferSize,
         output,&outputCnt,0,0);
@@ -875,7 +875,7 @@ ConnectionIdentifier iSCSIHBAInterfaceGetConnectionIdForPortalAddress(iSCSIHBAIn
     }
     
     kern_return_t result =
-        IOConnectCallMethod(interface->connect,kiSCSIGetConnectionIdForPortalAddress,
+        IOConnectCallMethod(interface->connect,kiSCSISessionGetConnectionIdForPortalAddress,
                             &input,inputCnt,
                             portalAddressBuffer,
                             portalAddressBufferSize,

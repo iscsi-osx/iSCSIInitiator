@@ -705,7 +705,7 @@ errno_t iSCSISessionAddConnection(iSCSISessionManagerRef managerRef,
     if(error || *connectionId == kiSCSIInvalidConnectionId)
         return EAGAIN;
     
-    iSCSITargetRef targetTemp = iSCSICreateTargetForSessionId(managerRef,sessionId);
+    iSCSITargetRef targetTemp = iSCSISessionCopyTargetForId(managerRef,sessionId);
     iSCSIMutableTargetRef target = iSCSITargetCreateMutableCopy(targetTemp);
     iSCSITargetRelease(targetTemp);
     
@@ -1111,7 +1111,7 @@ errno_t iSCSIQueryTargetForAuthMethod(iSCSISessionManagerRef managerRef,
 /*! Gets the session identifier associated with the specified target.
  *  @param targetIQN the name of the target.
  *  @return the session identiifer. */
-SessionIdentifier iSCSIGetSessionIdForTarget(iSCSISessionManagerRef managerRef,
+SessionIdentifier iSCSISessionGetSessionIdForTarget(iSCSISessionManagerRef managerRef,
                                              CFStringRef targetIQN)
 {
     iSCSIHBAInterfaceRef hbaInterface = iSCSISessionManagerGetHBAInterface(managerRef);
@@ -1122,7 +1122,7 @@ SessionIdentifier iSCSIGetSessionIdForTarget(iSCSISessionManagerRef managerRef,
  *  @param sessionId the session identifier.
  *  @param portal the portal connected on the specified session.
  *  @return the associated connection identifier. */
-ConnectionIdentifier iSCSIGetConnectionIdForPortal(iSCSISessionManagerRef managerRef,
+ConnectionIdentifier iSCSISessionGetConnectionIdForPortal(iSCSISessionManagerRef managerRef,
                                                    SessionIdentifier sessionId,
                                                    iSCSIPortalRef portal)
 {
@@ -1133,7 +1133,7 @@ ConnectionIdentifier iSCSIGetConnectionIdForPortal(iSCSISessionManagerRef manage
 /*! Gets an array of session identifiers for each session.
  *  @param sessionIds an array of session identifiers.
  *  @return an array of session identifiers. */
-CFArrayRef iSCSICreateArrayOfSessionIds(iSCSISessionManagerRef managerRef)
+CFArrayRef iSCSISessionCopyArrayOfSessionIds(iSCSISessionManagerRef managerRef)
 {
     iSCSIHBAInterfaceRef hbaInterface = iSCSISessionManagerGetHBAInterface(managerRef);
     SessionIdentifier sessionIds[kiSCSIMaxSessions];
@@ -1148,7 +1148,7 @@ CFArrayRef iSCSICreateArrayOfSessionIds(iSCSISessionManagerRef managerRef)
 /*! Gets an array of connection identifiers for each session.
  *  @param sessionId session identifier.
  *  @return an array of connection identifiers. */
-CFArrayRef iSCSICreateArrayOfConnectionsIds(iSCSISessionManagerRef managerRef,
+CFArrayRef iSCSISessionCopyArrayOfConnectionIds(iSCSISessionManagerRef managerRef,
                                             SessionIdentifier sessionId)
 {
     if(sessionId == kiSCSIInvalidSessionId)
@@ -1167,7 +1167,7 @@ CFArrayRef iSCSICreateArrayOfConnectionsIds(iSCSISessionManagerRef managerRef,
 /*! Creates a target object for the specified session.
  *  @param sessionId the session identifier.
  *  @return target the target object. */
-iSCSITargetRef iSCSICreateTargetForSessionId(iSCSISessionManagerRef managerRef,SessionIdentifier sessionId)
+iSCSITargetRef iSCSISessionCopyTargetForId(iSCSISessionManagerRef managerRef,SessionIdentifier sessionId)
 {
     if(sessionId == kiSCSIInvalidSessionId)
         return NULL;
@@ -1190,7 +1190,7 @@ iSCSITargetRef iSCSICreateTargetForSessionId(iSCSISessionManagerRef managerRef,S
  *  @param sessionId the session identifier.
  *  @param connectionId the connection identifier.
  *  @return portal information about the portal. */
-iSCSIPortalRef iSCSICreatePortalForConnectionId(iSCSISessionManagerRef managerRef,
+iSCSIPortalRef iSCSISessionCopyPortalForConnectionId(iSCSISessionManagerRef managerRef,
                                                 SessionIdentifier sessionId,
                                                 ConnectionIdentifier connectionId)
                                       
@@ -1234,7 +1234,7 @@ iSCSIPortalRef iSCSICreatePortalForConnectionId(iSCSISessionManagerRef managerRe
  *  @param target the target to check for associated sessions to generate
  *  a dictionary of session parameters.
  *  @return a dictionary of session properties. */
-CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSISessionManagerRef managerRef,
+CFDictionaryRef iSCSISessionCopyCFPropertiesForTarget(iSCSISessionManagerRef managerRef,
                                                   iSCSITargetRef target)
 {
     if(!target)
@@ -1243,7 +1243,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSISessionManagerRef manager
     iSCSIHBAInterfaceRef hbaInterface = iSCSISessionManagerGetHBAInterface(managerRef);
     CFDictionaryRef dictionary = NULL;
     
-    SessionIdentifier sessionId = iSCSIGetSessionIdForTarget(managerRef,iSCSITargetGetIQN(target));
+    SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(managerRef,iSCSITargetGetIQN(target));
     
     if(sessionId == kiSCSIInvalidSessionId)
         return NULL;
@@ -1356,7 +1356,7 @@ CFDictionaryRef iSCSICreateCFPropertiesForSession(iSCSISessionManagerRef manager
  *  @param portal the portal to check for active connections to generate
  *  a dictionary of connection parameters.
  *  @return a dictionary of connection properties. */
-CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSISessionManagerRef managerRef,
+CFDictionaryRef iSCSISessionCopyCFPropertiesForPortal(iSCSISessionManagerRef managerRef,
                                                      iSCSITargetRef target,
                                                      iSCSIPortalRef portal)
 {
@@ -1366,14 +1366,14 @@ CFDictionaryRef iSCSICreateCFPropertiesForConnection(iSCSISessionManagerRef mana
     iSCSIHBAInterfaceRef hbaInterface = iSCSISessionManagerGetHBAInterface(managerRef);
     CFDictionaryRef dictionary = NULL;
 
-    SessionIdentifier sessionId = iSCSIGetSessionIdForTarget(managerRef,iSCSITargetGetIQN(target));
+    SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(managerRef,iSCSITargetGetIQN(target));
     ConnectionIdentifier connectionId = kiSCSIInvalidConnectionId;
 
     if(sessionId == kiSCSIInvalidSessionId)
         return NULL;
 
     // Validate connection identifier
-    connectionId = iSCSIGetConnectionIdForPortal(managerRef,sessionId,portal);
+    connectionId = iSCSISessionGetConnectionIdForPortal(managerRef,sessionId,portal);
     if(connectionId == kiSCSIInvalidConnectionId)
         return NULL;
     
