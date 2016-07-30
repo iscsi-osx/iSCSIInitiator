@@ -414,8 +414,8 @@ enum iSCSIErrorRecoveryLevels iSCSIPreferencesGetErrorRecoveryLevelForTarget(iSC
 }
 
 iSCSIPortalRef iSCSIPreferencesCopyPortalForTarget(iSCSIPreferencesRef preferences,
-                                          CFStringRef targetIQN,
-                                          CFStringRef portalAddress)
+                                                   CFStringRef targetIQN,
+                                                   CFStringRef portalAddress)
 {
     // Get list of portals for this target
     CFMutableDictionaryRef portalsList = iSCSIPreferencesGetPortalsList(preferences,targetIQN,false);
@@ -692,7 +692,8 @@ void iSCSIPreferencesSetPersistenceForTarget(iSCSIPreferencesRef preferences,
             CFDictionarySetValue(targetDict,kiSCSIPKPersistent,kCFBooleanTrue);
         else
             CFDictionarySetValue(targetDict,kiSCSIPKPersistent,kCFBooleanFalse);
-    }}
+    }
+}
 
 /*! Gets whether the a connection to the target should be re-established
  *  in the event of an interruption.
