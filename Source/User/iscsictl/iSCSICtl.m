@@ -1010,6 +1010,7 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
     bool lockAndSync = false;
     iSCSIPreferencesRef preferences = NULL;
     errno_t error = 0;
+    bool validOption = false; // Was there at least one valid option?
     
     // Check for CHAP shared secret
     CFStringRef secret = NULL;
@@ -1053,6 +1054,8 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
             iSCSICtlDisplayError(CFSTR("A CHAP name was not specified"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     // Check for authentication method
@@ -1070,6 +1073,8 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
             iSCSICtlDisplayError(CFSTR("The specified authentication method is invalid"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     // Check for initiator alias
@@ -1081,6 +1086,8 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
         }
         else
             iSCSIPreferencesSetInitiatorAlias(preferences,value);
+        
+        validOption = true;
     }
 
     // Check for initiator IQN
@@ -1096,11 +1103,17 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
             iSCSICtlDisplayError(CFSTR("The specified name is not a valid IQN or EUI-64 identifier"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     if(!error) {
         iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
-        iSCSICtlDisplayString(CFSTR("Initiator settings have been updated\n"));
+        
+        if(validOption)
+            iSCSICtlDisplayString(CFSTR("Initiator settings have been updated\n"));
+        else
+            iSCSICtlDisplayError(CFSTR("No valid options have been specified."));
     }
     else if(lockAndSync)
         iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
@@ -1121,6 +1134,7 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
     CFStringRef value = NULL;
     errno_t error = 0;
+    bool validOption = false; // Was there at least one valid option?
 
     // Check for CHAP user name, ensure it is not blank
     if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPName,(const void **)&value))
@@ -1131,6 +1145,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             iSCSICtlDisplayError(CFSTR("A CHAP name was not specified"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
     
     // Check for authentication method
@@ -1148,6 +1164,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             iSCSICtlDisplayError(CFSTR("The specified authentication method is invalid"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     // Check for target IQN changes (preferences will not allow a change to the IQN for
@@ -1169,6 +1187,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             iSCSICtlDisplayError(CFSTR("The specified name is not a valid IQN or EUI-64 identifier"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
     
     // Check for auto-login
@@ -1186,6 +1206,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             CFRelease(errorString);
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     // Check for persistent
@@ -1203,6 +1225,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             CFRelease(errorString);
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     // Check for maximum connections
@@ -1219,6 +1243,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
         }
         else
             iSCSIPreferencesSetMaxConnectionsForTarget(preferences,targetIQN,maxConnections);
+        
+        validOption = true;
     }
 
     // Check for error recovery level
@@ -1233,6 +1259,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
         else {
             iSCSIPreferencesSetErrorRecoveryLevelForTarget(preferences,targetIQN,level);
         }
+        
+        validOption = true;
     }
 
     // Check for header digest
@@ -1250,6 +1278,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     // Check for data digest
@@ -1267,8 +1297,15 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
-
+    
+    if(!error && !validOption) {
+        iSCSICtlDisplayError(CFSTR("No valid options have been specified."));
+        error = EINVAL;
+    }
+    
     return error;
 }
 
@@ -1925,6 +1962,7 @@ errno_t iSCSICtlModifyDiscovery(AuthorizationRef authorization,CFDictionaryRef o
     iSCSIPreferencesRef preferences = NULL;
     bool lockAndSync = false;
     errno_t error = 0;
+    bool validOption = false; // Was there at least one valid option?
     
     if(!error)
         error = iSCSICtlConnectToDaemon(&handle);
@@ -1955,6 +1993,8 @@ errno_t iSCSICtlModifyDiscovery(AuthorizationRef authorization,CFDictionaryRef o
             CFRelease(errorString);
             error = EINVAL;
         }
+        
+        validOption = true;
     }
     // Check if user modified the discovery interval
     if(!error && CFDictionaryGetValueIfPresent(optDictionary,kOptKeyDiscoveryInterval,(const void **)&value))
@@ -1970,11 +2010,17 @@ errno_t iSCSICtlModifyDiscovery(AuthorizationRef authorization,CFDictionaryRef o
         }
         else
             iSCSIPreferencesSetSendTargetsDiscoveryInterval(preferences,interval);
+        
+        validOption = true;
     }
     
     if(!error) {
         iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
-        iSCSICtlDisplayString(CFSTR("Discovery settings have been updated\n"));
+        
+        if(validOption)
+            iSCSICtlDisplayString(CFSTR("Discovery settings have been updated\n"));
+        else
+            iSCSICtlDisplayError(CFSTR("No valid options have been specified."));
     }
     else if(lockAndSync)
         iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
