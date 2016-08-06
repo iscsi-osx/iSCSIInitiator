@@ -442,8 +442,8 @@ errno_t iSCSIAuthNegotiate(iSCSISessionManagerRef managerRef,
     iSCSIHBAInterfaceSetConnectionParameter(hbaInterface,sessionId,connectionId,kiSCSIHBACOInitialExpStatSN,
                                             &expStatSN,sizeof(expStatSN));
     
-    // If this is not a discovery session, we expect to receive a target
-    // portal group tag (TPGT) and validate it
+    // If this is not a discovery session (the target is not specified for discovery),
+    // we expect to receive a target portal group tag (TPGT) and validate it
     if(CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
     {
         // Ensure that the target returned a portal group tag (TPGT)...
@@ -475,12 +475,14 @@ errno_t iSCSIAuthNegotiate(iSCSISessionManagerRef managerRef,
         }
     }
     
-    // Determine if target supports desired authentication method
+    // Determine if target supports desired authentication method. Desired method could
+    // be a comma-separated list in authCmd, so we check the target's desired method
+    // as specified in the response (authRsp) against our list
     CFRange result = CFStringFind(CFDictionaryGetValue(authCmd,kRFC3720_Key_AuthMethod),
                                   CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod),
                                   kCFCompareCaseInsensitive);
     
-    // If we wanted to use a particular method and the target doesn't support it
+    // Check if target supported our desired authentication method
     if(result.location == kCFNotFound) {
         error = EAUTH;
         goto ERROR_AUTHENTICATION;
