@@ -323,14 +323,8 @@ void iSCSICtlDisplayString(CFStringRef string)
     CFIndex usedBufLen = 0;
     UInt8 buffer[maxBufLen];
     
-    CFStringGetBytes(string,
-                     CFRangeMake(0,CFStringGetLength(string)),
-                     kCFStringEncodingASCII,
-                     0,
-                     false,
-                     buffer,
-                     maxBufLen,
-                     &usedBufLen);
+    CFStringGetBytes(string,CFRangeMake(0,CFStringGetLength(string)),kCFStringEncodingASCII,
+                     0,false,buffer,maxBufLen,&usedBufLen);
     
     CFWriteStreamWrite(stdoutStream,buffer,usedBufLen);
 }
