@@ -1123,12 +1123,12 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
                                         iSCSIPreferencesRef preferences,
                                         CFDictionaryRef options,
                                         iSCSITargetRef target,
-                                        iSCSIPortalRef portal)
+                                        iSCSIPortalRef portal,
+                                        bool validOption)
 {
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
     CFStringRef value = NULL;
     errno_t error = 0;
-    bool validOption = false; // Was there at least one valid option?
 
     // Check for CHAP user name, ensure it is not blank
     if(CFDictionaryGetValueIfPresent(options,kOptKeyCHAPName,(const void **)&value))
@@ -1320,6 +1320,7 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
     iSCSIPreferencesRef preferences = NULL;
     CFStringRef targetIQN = NULL;
     errno_t error = 0;
+    bool validOption = false; // Was there at least one valid option?
     
     if(!error && !(target = iSCSICtlCreateTargetFromOptions(options)))
         error = EINVAL;
@@ -1332,8 +1333,10 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
     
     // Check for CHAP shared secret
     CFStringRef secret = NULL;
-    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret))
+    if(!error && CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
+        validOption = true;
         secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+    }
     
     if(!error)
         error = iSCSICtlConnectToDaemon(&handle);
@@ -1341,16 +1344,18 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
     if(!error)
         preferences = iSCSIPreferencesCreateFromAppValues();
     
-    if(!error && CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
-        if(secret != NULL) {
+    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
+        if(!error && secret != NULL) {
             if(iSCSIDaemonSetSharedSecret(handle,authorization,targetIQN,secret)) {
                 iSCSICtlDisplayError(kPermissionsErrorString);
                 error = EAUTH;
             }
-            CFRelease(secret);
         }
         else
             error = EINVAL;
+        
+        if(secret)
+            CFRelease(secret);
     }
     
     if(!error) {
@@ -1392,7 +1397,7 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
                 if(iSCSIDaemonIsTargetActive(handle,target))
                     iSCSICtlDisplayString(CFSTR("The specified target has an active session and cannot be modified\n"));
                 else {
-                    error = iSCSICtlModifyTargetFromOptions(authorization,preferences,options,target,portal);
+                    error = iSCSICtlModifyTargetFromOptions(authorization,preferences,options,target,portal,validOption);
 
                     if(!error)
                         iSCSICtlDisplayString(CFSTR("Target settings have been updated\n"));
