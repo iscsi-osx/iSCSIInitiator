@@ -1997,7 +1997,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     // Verify length; incoming PDUS from a target should have no AHS, verify.
     if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize)// || bhs->totalAHSLength != 0)
     {
-        DBLog("iscsi: Received incomplete PDU header: %d bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->cid);
+        DBLog("iscsi: Received incomplete PDU header: %zu bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->cid);
         
 // TODO: handle error
         
