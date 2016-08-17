@@ -724,13 +724,13 @@ errno_t iSCSIDaemonSetSharedSecret(iSCSIDaemonHandle handle,
                                                      kAuthorizationExternalFormLength,
                                                      kCFAllocatorDefault);
     
-    CFDataRef nodeIQNData = CFStringCreateExternalRepresentation(kCFAllocatorDefault,nodeIQN,kCFStringEncodingASCII,NULL);
-    CFDataRef sharedSecretData = CFStringCreateExternalRepresentation(kCFAllocatorDefault,sharedSecret,kCFStringEncodingASCII,NULL);
+    CFDataRef nodeIQNData = CFStringCreateExternalRepresentation(kCFAllocatorDefault,nodeIQN,kCFStringEncodingASCII,0);
+    CFDataRef sharedSecretData = CFStringCreateExternalRepresentation(kCFAllocatorDefault,sharedSecret,kCFStringEncodingASCII,0);
     
     iSCSIDMsgSetSharedSecretCmd cmd = iSCSIDMsgSetSharedSecretCmdInit;
     cmd.authorizationLength = (UInt32)CFDataGetLength(authData);
-    cmd.nodeIQNLength = CFDataGetLength(nodeIQNData);
-    cmd.secretLength = CFDataGetLength(sharedSecretData);
+    cmd.nodeIQNLength = (UInt32)CFDataGetLength(nodeIQNData);
+    cmd.secretLength = (UInt32)CFDataGetLength(sharedSecretData);
     
     errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
                                        authData,nodeIQNData,sharedSecretData,NULL);
@@ -780,7 +780,7 @@ errno_t iSCSIDaemonRemoveSharedSecret(iSCSIDaemonHandle handle,
     
     iSCSIDMsgRemoveSharedSecretCmd cmd = iSCSIDMsgRemoveSharedSecretCmdInit;
     cmd.authorizationLength = (UInt32)CFDataGetLength(authData);
-    cmd.nodeIQNLength = CFDataGetLength(nodeIQNData);
+    cmd.nodeIQNLength = (UInt32)CFDataGetLength(nodeIQNData);
     
     errno_t error = iSCSIDaemonSendMsg(handle,(iSCSIDMsgGeneric *)&cmd,
                                        authData,nodeIQNData,NULL);
