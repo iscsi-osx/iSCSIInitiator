@@ -660,10 +660,17 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
     errno_t error = 0;
     
     // Resolve the target node first and get a sockaddr info for it
-    const char * targetAddr, * targetPort;
-
-    targetAddr = CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingUTF8);
-    targetPort = CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingUTF8);
+    CFStringRef targetAddrCf = iSCSIPortalGetAddress(portal);
+    size_t      targetAddrLength = CFStringGetLength(targetAddrCf);
+    size_t      targetAddrMaxSize = CFStringGetMaximumSizeForEncoding(targetAddrLength, kCFStringEncodingUTF8) + 1;
+    char *      targetAddr = (char *)malloc(targetAddrMaxSize);
+    CFStringGetCString(targetAddrCf, targetAddr, targetAddrMaxSize, kCFStringEncodingUTF8);
+    
+    CFStringRef targetPortCf = iSCSIPortalGetPort(portal);
+    size_t      targetPortLength = CFStringGetLength(targetPortCf);
+    size_t      targetPortMaxSize = CFStringGetMaximumSizeForEncoding(targetPortLength, kCFStringEncodingUTF8) + 1;
+    char *      targetPort = (char *)malloc(targetPortMaxSize);
+    CFStringGetCString(targetPortCf, targetPort, targetPortMaxSize, kCFStringEncodingUTF8);
 
     struct addrinfo hints = {
         .ai_family = AF_UNSPEC,
@@ -673,8 +680,13 @@ errno_t iSCSISessionResolveNode(iSCSIPortalRef portal,
     
     struct addrinfo * aiTarget = NULL;
     if((error = getaddrinfo(targetAddr,targetPort,&hints,&aiTarget)))
+    {
+        free(targetAddr);
+        free(targetPort);
         return error;
-    
+    }
+    free(targetAddr);
+    free(targetPort);
     // Copy the sock_addr structure into a sockaddr_storage structure (this
     // may be either an IPv4 or IPv6 sockaddr structure)
     memcpy(ssTarget,aiTarget->ai_addr,aiTarget->ai_addrlen);
@@ -1520,13 +1532,10 @@ void iSCSISessionHandleKernelNotificationAsyncMessage(iSCSIKernelNotificationAsy
     enum iSCSIPDUAsyncMsgEvent asyncEvent = (enum iSCSIPDUAsyncMsgEvent)msg->asyncEvent;
     enum iSCSILogoutStatusCode statusCode;
     
-    CFStringRef statusString = CFStringCreateWithFormat(kCFAllocatorDefault,0,
-        CFSTR("iSCSI asynchronous message (code %d) received (sid: %d, cid: %d)"),
-        asyncEvent,msg->sessionId,msg->connectionId);
-    
-    asl_log(NULL,NULL,ASL_LEVEL_WARNING,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
-    
-    CFRelease(statusString);
+    asl_log(NULL,NULL,ASL_LEVEL_WARNING,"iSCSI asynchronous message (code %d) received (sid: %d, cid: %d)",
+            asyncEvent,
+            msg->sessionId,
+            msg->connectionId);
     
     switch (asyncEvent) {
     

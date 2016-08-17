@@ -49,11 +49,16 @@ Boolean iSCSIUtilsValidateIQN(CFStringRef IQN)
     Boolean validName = false;
     regex_t preg;
     regcomp(&preg,pattern,REG_EXTENDED | REG_NOSUB);
+    size_t      iqnLength = CFStringGetLength(IQN);
+    char *      iqnCStr = (char *)malloc(iqnLength + 1);
+    CFStringGetCString(IQN, iqnCStr, iqnLength + 1, kCFStringEncodingASCII);
     
-    if(regexec(&preg,CFStringGetCStringPtr(IQN,kCFStringEncodingASCII),0,NULL,0) == 0)
+    
+    if(regexec(&preg,iqnCStr,0,NULL,0) == 0)
         validName = true;
     
     regfree(&preg);
+    free(iqnCStr);
     return validName;
 }
 
@@ -102,14 +107,20 @@ CFArrayRef iSCSIUtilsCreateArrayByParsingPortalParts(CFStringRef portal)
         regmatch_t matches[maxMatches[index]];
         memset(matches,0,sizeof(regmatch_t)*maxMatches[index]);
         
+        size_t      portalLength = CFStringGetLength(portal);
+        char *      portalCStr = (char *)malloc(portalLength + 1);
+        CFStringGetCString(portal, portalCStr, portalLength + 1, kCFStringEncodingASCII);
+        
         // Match against pattern[index]
-        if(regexec(&preg,CFStringGetCStringPtr(portal,kCFStringEncodingASCII),maxMatches[index],matches,0))
+        if(regexec(&preg,portalCStr,maxMatches[index],matches,0))
         {
             regfree(&preg);
             index++;
+            free(portalCStr);
             continue;
         }
         
+        free(portalCStr);
         CFMutableArrayRef portalParts = CFArrayCreateMutable(kCFAllocatorDefault,0,&kCFTypeArrayCallBacks);
         
         // Get the host name
