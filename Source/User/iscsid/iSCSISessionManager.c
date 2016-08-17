@@ -79,13 +79,13 @@ void iSCSIHBANotificationAsyncMessageHandler(iSCSISessionManagerRef managerRef,
     
     switch (asyncEvent) {
             
-            // We are required to issue a logout request
+        // We are required to issue a logout request
         case kiSCSIPDUAsyncMsgLogout:
             iSCSISessionRemoveConnection(managerRef,msg->sessionId,msg->connectionId,&statusCode);
             break;
             
-            // We have been asked to re-negotiate parameters for this connection
-            // (this is currently unsupported and we logout)
+        // We have been asked to re-negotiate parameters for this connection
+        // (this is currently unsupported and we logout)
         case kiSCSIPDUAsyncMsgNegotiateParams:
             iSCSISessionRemoveConnection(managerRef,msg->sessionId,msg->connectionId,&statusCode);
             break;
