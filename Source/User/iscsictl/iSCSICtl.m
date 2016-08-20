@@ -1028,6 +1028,8 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
         }
         else
             error = EINVAL;
+        
+        validOption = true;
     }
     
     if(!error) {
