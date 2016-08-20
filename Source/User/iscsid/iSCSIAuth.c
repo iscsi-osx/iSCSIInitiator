@@ -42,29 +42,30 @@ extern CFStringRef kiSCSIInitiatorAlias;
 /*! Helper function.  Create a byte array (CFDataRef object) that holds the
  *  value represented by the hexidecimal string. Handles strings with or
  *  without a 0x prefix. */
-CFDataRef CFDataCreateWithHexString(CFStringRef hexStr)
+CFDataRef CFDataCreateWithHexString(CFStringRef hexString)
 {
-    if(!hexStr)
+    if(!hexString)
         return NULL;
 
     // Get length and pointer to hex string
-    CFIndex hexStrLen = CFStringGetLength(hexStr);
-    const char * hexStrPtr = CFStringGetCStringPtr(hexStr,kCFStringEncodingASCII);
+    CFIndex hexStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(hexString),kCFStringEncodingASCII) + sizeof('\0');
+    char hexStringBuffer[hexStringLength];
+    CFStringGetCString(hexString,hexStringBuffer,hexStringLength,kCFStringEncodingASCII);
 
     // Byte length stars off as the number of hex characters, and is adjusted
     // to reflect the number of bytes depending on the format of the hex string
-    // (e.g., if the hex string
-    CFIndex byteLength = hexStrLen;
+    // (does not include null terminator)
+    CFIndex byteLength = CFStringGetLength(hexString);
 
     // The index we'll start processing the hex string
     unsigned int startIndex = 0;
     
-    // Check for the "0x" prefix, ignore it if present...
-    if(hexStrLen >= 2 && hexStrPtr[0] == '0' && hexStrPtr[1] == 'x') {
+    // Check for the "0x" or "x" prefix, ignore it if present...
+    if(hexStringLength >= 2 && hexStringBuffer[0] == '0' && hexStringBuffer[1] == 'x') {
         startIndex+=2;
         byteLength-=2;
     }
-    else if(hexStrLen >= 1 && hexStrPtr[0] == 'x') {
+    else if(hexStringLength >= 1 && hexStringBuffer[0] == 'x') {
         startIndex++;
         byteLength--;
     }
@@ -82,21 +83,21 @@ CFDataRef CFDataCreateWithHexString(CFStringRef hexStr)
     int buffer = 0;
 
     // If an odd number of hex characters, process first one differently...
-    if(hexStrLen % 2 != 0) {
+    if(hexStringLength % 2 != 0) {
         // Pick off the first character and convert differently
-        sscanf(&hexStrPtr[startIndex],"%01x",&buffer);
+        sscanf(&hexStringBuffer[startIndex],"%01x",&buffer);
         bytes[byteIdx] = buffer;
         startIndex++;
         byteIdx++;
     }
 
     // Process remaining characters in pairs (2 hex characters = 1 byte)
-    for(unsigned int idx = startIndex; idx < hexStrLen; idx+=2) {
-        sscanf(&hexStrPtr[idx],"%02x",&buffer);
+    for(unsigned int idx = startIndex; idx < hexStringLength; idx+=2) {
+        sscanf(&hexStringBuffer[idx],"%02x",&buffer);
         bytes[byteIdx] = buffer;
         byteIdx++;
     }
-
+    
     return data;
 }
 
@@ -107,9 +108,9 @@ CFDataRef CFDataCreateWithHexString(CFStringRef hexStr)
 CFStringRef CreateHexStringWithBytes(const UInt8 * bytes, size_t length)
 {
     // Pad string by 3 bytes to leave room for "0x" prefix and null terminator
-    const long hexStrLen = length * 2 + 3;
+    const long hexStrLength = length * 2 + 3;
     
-    char hexStr[hexStrLen];
+    char hexStr[hexStrLength];
     hexStr[0] = '0';
     hexStr[1] = 'x';
     
@@ -118,7 +119,7 @@ CFStringRef CreateHexStringWithBytes(const UInt8 * bytes, size_t length)
         sprintf(&hexStr[i*2+2], "%02x", bytes[i]);
     
     // Null terminate
-    hexStr[hexStrLen-1] = 0;
+    hexStr[hexStrLength-1] = 0;
     
     // This copies our buffer into a CFString object
     return CFStringCreateWithCString(kCFAllocatorDefault,hexStr,kCFStringEncodingASCII);
@@ -143,8 +144,11 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateResponse(CFStringRef identifier,
     CC_MD5_Update(&md5,&id,(CC_LONG)sizeof(id));
 
     // Hash in the secret
-    const UInt8 * byteSecret = (const UInt8*)CFStringGetCStringPtr(secret,kCFStringEncodingASCII);
-    CC_MD5_Update(&md5,byteSecret,(CC_LONG)CFStringGetLength(secret));
+    CFIndex secretLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(secret),kCFStringEncodingASCII) + sizeof('\0');
+    char secretBuffer[secretLength];
+    CFStringGetCString(secret,secretBuffer,secretLength,kCFStringEncodingASCII);
+    
+    CC_MD5_Update(&md5,secretBuffer,(CC_LONG)CFStringGetLength(secret));
 
     // Hash in the challenge
     CFDataRef challengeData = CFDataCreateWithHexString(challenge);
@@ -155,7 +159,7 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateResponse(CFStringRef identifier,
     CC_MD5_Final(md5Hash,&md5);
 
     CFRelease(challengeData);
-
+    
     return CreateHexStringWithBytes(md5Hash,CC_MD5_DIGEST_LENGTH);
 }
 

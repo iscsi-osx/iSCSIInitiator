@@ -50,7 +50,11 @@ Boolean iSCSIUtilsValidateIQN(CFStringRef IQN)
     regex_t preg;
     regcomp(&preg,pattern,REG_EXTENDED | REG_NOSUB);
     
-    if(regexec(&preg,CFStringGetCStringPtr(IQN,kCFStringEncodingASCII),0,NULL,0) == 0)
+    CFIndex IQNLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(IQN),kCFStringEncodingASCII) + sizeof('\0');
+    char IQNBuffer[IQNLength];
+    CFStringGetCString(IQN,IQNBuffer,IQNLength,kCFStringEncodingASCII);
+
+    if(regexec(&preg,IQNBuffer,0,NULL,0) == 0)
         validName = true;
     
     regfree(&preg);
@@ -101,9 +105,13 @@ CFArrayRef iSCSIUtilsCreateArrayByParsingPortalParts(CFStringRef portal)
         
         regmatch_t matches[maxMatches[index]];
         memset(matches,0,sizeof(regmatch_t)*maxMatches[index]);
-        
+       
+        CFIndex portalLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(portal),kCFStringEncodingASCII) + sizeof('\0');
+        char portalBuffer[portalLength];
+        CFStringGetCString(portal,portalBuffer,portalLength,kCFStringEncodingASCII);
+
         // Match against pattern[index]
-        if(regexec(&preg,CFStringGetCStringPtr(portal,kCFStringEncodingASCII),maxMatches[index],matches,0))
+        if(regexec(&preg,portalBuffer,maxMatches[index],matches,0))
         {
             regfree(&preg);
             index++;

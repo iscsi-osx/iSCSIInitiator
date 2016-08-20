@@ -355,7 +355,12 @@ errno_t iSCSIDLoginCommon(SessionIdentifier sessionId,
             iSCSIPortalGetPort(portal),
             strerror(error));
 
-        asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        CFIndex errorStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(errorString),kCFStringEncodingASCII) + sizeof('\0');
+        char errorStringBuffer[errorStringLength];
+        CFStringGetCString(errorString,errorStringBuffer,errorStringLength,kCFStringEncodingASCII);
+        
+        asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringBuffer);
+        
         CFRelease(errorString);
     }
     // Update target alias in preferences (if one was furnished)
@@ -652,7 +657,12 @@ void iSCSIDLogoutComplete(iSCSITargetRef target,enum iSCSIDAOperationResult resu
                 strerror(errorCode));
         }
         
-        asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        CFIndex errorStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(errorString),kCFStringEncodingASCII) + sizeof('\0');
+        char errorStringBuffer[errorStringLength];
+        CFStringGetCString(errorString,errorStringBuffer,errorStringLength,kCFStringEncodingASCII);
+
+        asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringBuffer);
+        
         CFRelease(errorString);
     }
 
@@ -722,7 +732,12 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
             CFSTR("logout of %@ failed: the target has no active sessions"),
             iSCSITargetGetIQN(target));
         
-        asl_log(0,0,ASL_LEVEL_CRIT,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        CFIndex errorStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(errorString),kCFStringEncodingASCII) + sizeof('\0');
+        char errorStringBuffer[errorStringLength];
+        CFStringGetCString(errorString,errorStringBuffer,errorStringLength,kCFStringEncodingASCII);
+        
+        asl_log(NULL, NULL, ASL_LEVEL_CRIT, "%s", errorStringBuffer);
+        
         CFRelease(errorString);
         errorCode = EINVAL;
     }
@@ -741,7 +756,12 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
                 CFSTR("logout of %@,%@:%@ failed: the portal has no active connections"),
                 iSCSITargetGetIQN(target),iSCSIPortalGetAddress(portal),iSCSIPortalGetPort(portal));
         
-            asl_log(0,0,ASL_LEVEL_CRIT,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            CFIndex errorStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(errorString),kCFStringEncodingASCII) + sizeof('\0');
+            char errorStringBuffer[errorStringLength];
+            CFStringGetCString(errorString,errorStringBuffer,errorStringLength,kCFStringEncodingASCII);
+
+            asl_log(NULL, NULL, ASL_LEVEL_CRIT, "%s", errorStringBuffer);
+            
             CFRelease(errorString);
             errorCode = EINVAL;
         }
