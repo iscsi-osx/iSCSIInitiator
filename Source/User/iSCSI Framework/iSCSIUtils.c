@@ -49,11 +49,15 @@ Boolean iSCSIUtilsValidateIQN(CFStringRef IQN)
     Boolean validName = false;
     regex_t preg;
     regcomp(&preg,pattern,REG_EXTENDED | REG_NOSUB);
-    
-    if(regexec(&preg,CFStringGetCStringPtr(IQN,kCFStringEncodingASCII),0,NULL,0) == 0)
+    size_t      iqnLength = CFStringGetLength(IQN);
+    char *      iqnCStr = (char *)malloc(iqnLength + 1);
+    CFStringGetCString(IQN, iqnCStr, iqnLength + 1, kCFStringEncodingASCII);
+
+    if(regexec(&preg,iqnCStr,0,NULL,0) == 0)
         validName = true;
     
     regfree(&preg);
+    free(iqnCStr);
     return validName;
 }
 
@@ -102,14 +106,20 @@ CFArrayRef iSCSIUtilsCreateArrayByParsingPortalParts(CFStringRef portal)
         regmatch_t matches[maxMatches[index]];
         memset(matches,0,sizeof(regmatch_t)*maxMatches[index]);
         
+        size_t      portalLength = CFStringGetLength(portal);
+        char *      portalCStr = (char *)malloc(portalLength + 1);
+        CFStringGetCString(portal, portalCStr, portalLength + 1, kCFStringEncodingASCII);
+        
         // Match against pattern[index]
-        if(regexec(&preg,CFStringGetCStringPtr(portal,kCFStringEncodingASCII),maxMatches[index],matches,0))
+        if(regexec(&preg,portalCStr,maxMatches[index],matches,0))
         {
             regfree(&preg);
             index++;
+            free(portalCStr);
             continue;
         }
         
+        free(portalCStr);
         CFMutableArrayRef portalParts = CFArrayCreateMutable(kCFAllocatorDefault,0,&kCFTypeArrayCallBacks);
         
         // Get the host name
@@ -281,10 +291,17 @@ errno_t iSCSIUtilsGetAddressForPortal(iSCSIPortalRef portal,
     errno_t error = 0;
     
     // Resolve the target node first and get a sockaddr info for it
-    const char * targetAddr, * targetPort;
-    
-    targetAddr = CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingUTF8);
-    targetPort = CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingUTF8);
+    CFStringRef targetAddrCf = iSCSIPortalGetAddress(portal);
+    size_t      targetAddrLength = CFStringGetLength(targetAddrCf);
+    size_t      targetAddrMaxSize = CFStringGetMaximumSizeForEncoding(targetAddrLength, kCFStringEncodingUTF8) + 1;
+    char *      targetAddr = (char *)malloc(targetAddrMaxSize);
+    CFStringGetCString(targetAddrCf, targetAddr, targetAddrMaxSize, kCFStringEncodingUTF8);
+
+    CFStringRef targetPortCf = iSCSIPortalGetPort(portal);
+    size_t      targetPortLength = CFStringGetLength(targetPortCf);
+    size_t      targetPortMaxSize = CFStringGetMaximumSizeForEncoding(targetPortLength, kCFStringEncodingUTF8) + 1;
+    char *      targetPort = (char *)malloc(targetPortMaxSize);
+    CFStringGetCString(targetPortCf, targetPort, targetPortMaxSize, kCFStringEncodingUTF8);
     
     struct addrinfo hints = {
         .ai_family = AF_UNSPEC,
@@ -294,8 +311,13 @@ errno_t iSCSIUtilsGetAddressForPortal(iSCSIPortalRef portal,
     
     struct addrinfo * aiTarget = NULL;
     if((error = getaddrinfo(targetAddr,targetPort,&hints,&aiTarget)))
+    {
+        free(targetAddr);
+        free(targetPort);
         return error;
-    
+    }
+    free(targetAddr);
+    free(targetPort);
     // Copy the sock_addr structure into a sockaddr_storage structure (this
     // may be either an IPv4 or IPv6 sockaddr structure)
     memcpy(remoteAddress,aiTarget->ai_addr,aiTarget->ai_addrlen);

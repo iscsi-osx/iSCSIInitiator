@@ -355,7 +355,13 @@ errno_t iSCSIDLoginCommon(SessionIdentifier sessionId,
             iSCSIPortalGetPort(portal),
             strerror(error));
 
-        asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        size_t errorStringLength = CFStringGetLength(errorString);
+        char * errorStringCStr = malloc(errorStringLength + 1);
+        CFStringGetCString(errorString, errorStringCStr, errorStringLength + 1, kCFStringEncodingASCII);
+        
+        asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringCStr);
+        
+        free(errorStringCStr);
         CFRelease(errorString);
     }
     // Update target alias in preferences (if one was furnished)
@@ -652,7 +658,13 @@ void iSCSIDLogoutComplete(iSCSITargetRef target,enum iSCSIDAOperationResult resu
                 strerror(errorCode));
         }
         
-        asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        size_t errorStringLength = CFStringGetLength(errorString);
+        char * errorStringCStr = malloc(errorStringLength + 1);
+        CFStringGetCString(errorString, errorStringCStr, errorStringLength + 1, kCFStringEncodingASCII);
+
+        asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringCStr);
+
+        free(errorStringCStr);
         CFRelease(errorString);
     }
 
@@ -722,7 +734,13 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
             CFSTR("logout of %@ failed: the target has no active sessions"),
             iSCSITargetGetIQN(target));
         
-        asl_log(0,0,ASL_LEVEL_CRIT,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        size_t errorStringLength = CFStringGetLength(errorString);
+        char * errorStringCStr = malloc(errorStringLength + 1);
+        CFStringGetCString(errorString, errorStringCStr, errorStringLength + 1, kCFStringEncodingASCII);
+
+        asl_log(NULL, NULL, ASL_LEVEL_CRIT, "%s", errorStringCStr);
+
+        free(errorStringCStr);
         CFRelease(errorString);
         errorCode = EINVAL;
     }
@@ -741,7 +759,13 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
                 CFSTR("logout of %@,%@:%@ failed: the portal has no active connections"),
                 iSCSITargetGetIQN(target),iSCSIPortalGetAddress(portal),iSCSIPortalGetPort(portal));
         
-            asl_log(0,0,ASL_LEVEL_CRIT,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            size_t errorStringLength = CFStringGetLength(errorString);
+            char * errorStringCStr = malloc(errorStringLength + 1);
+            CFStringGetCString(errorString, errorStringCStr, errorStringLength + 1, kCFStringEncodingASCII);
+
+            asl_log(NULL, NULL, ASL_LEVEL_CRIT, "%s", errorStringCStr);
+
+            free(errorStringCStr);
             CFRelease(errorString);
             errorCode = EINVAL;
         }
@@ -1140,8 +1164,13 @@ errno_t iSCSIDUpdatePreferencesWithDiscoveredTargets(iSCSISessionManagerRef mana
                                                                 CFSTR("discovered target %@ already exists with static configuration."),
                                                                 targetIQN);
             
-            asl_log(NULL,NULL,ASL_LEVEL_INFO,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
-            
+            size_t statusStringLength = CFStringGetLength(statusString);
+            char * statusStringCStr = malloc(statusStringLength + 1);
+            CFStringGetCString(statusString, statusStringCStr, statusStringLength + 1, kCFStringEncodingASCII);
+
+            asl_log(NULL, NULL, ASL_LEVEL_INFO, "%s", statusStringCStr);
+        
+            free(statusStringCStr);
             CFRelease(statusString);
         }
         // Target doesn't exist, or target exists with SendTargets
@@ -1153,8 +1182,13 @@ errno_t iSCSIDUpdatePreferencesWithDiscoveredTargets(iSCSISessionManagerRef mana
                                                                 CFSTR("discovered target %@ over discovery portal %@."),
                                                                 targetIQN,discoveryPortal);
             
-            asl_log(NULL,NULL,ASL_LEVEL_INFO,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+            size_t statusStringLength = CFStringGetLength(statusString);
+            char * statusStringCStr = malloc(statusStringLength + 1);
+            CFStringGetCString(statusString, statusStringCStr, statusStringLength + 1, kCFStringEncodingASCII);
             
+            asl_log(NULL, NULL, ASL_LEVEL_INFO, "%s", statusStringCStr);
+            
+            free(statusStringCStr);
             CFRelease(statusString);
         }
         
@@ -1248,7 +1282,13 @@ CFDictionaryRef iSCSIDCreateRecordsWithSendTargets(iSCSISessionManagerRef manage
                                                                CFSTR("system error (code %d) occurred during SendTargets discovery of %@."),
                                                                error,discoveryPortal);
             
-            asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            size_t errorStringLength = CFStringGetLength(errorString);
+            char * errorStringCStr = malloc(errorStringLength + 1);
+            CFStringGetCString(errorString, errorStringCStr, errorStringLength + 1, kCFStringEncodingASCII);
+
+            asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringCStr);
+        
+            free(errorStringCStr);
             CFRelease(errorString);
         }
         else if(statusCode != kiSCSILoginSuccess) {
@@ -1257,7 +1297,13 @@ CFDictionaryRef iSCSIDCreateRecordsWithSendTargets(iSCSISessionManagerRef manage
                                                                CFSTR("login failed with (code %d) during SendTargets discovery of %@."),
                                                                statusCode,discoveryPortal);
             
-            asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            size_t errorStringLength = CFStringGetLength(errorString);
+            char * errorStringCStr = malloc(errorStringLength + 1);
+            CFStringGetCString(errorString, errorStringCStr, errorStringLength + 1, kCFStringEncodingASCII);
+            
+            asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringCStr);
+            
+            free(errorStringCStr);
             CFRelease(errorString);
         }
         else {
@@ -1647,9 +1693,19 @@ void iSCSIDSessionTimeoutHandler(iSCSITargetRef target,iSCSIPortalRef portal)
         return;
     
     // Post message to system log
-    asl_log(NULL,NULL,ASL_LEVEL_ERR,"TCP timeout for %s over portal %s.",
-            CFStringGetCStringPtr(iSCSITargetGetIQN(target),kCFStringEncodingASCII),
-            CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingASCII));
+    CFStringRef errorString = CFStringCreateWithFormat(
+                                                       kCFAllocatorDefault,0,
+                                                       CFSTR("TCP timeout for %s@ over portal %@."),
+                                                       target, portal);
+    
+    size_t errorStringLength = CFStringGetLength(errorString);
+    char * errorStringCStr = malloc(errorStringLength + 1);
+    CFStringGetCString(errorString, errorStringCStr, errorStringLength + 1, kCFStringEncodingASCII);
+    
+    asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringCStr);
+    
+    free(errorStringCStr);
+    CFRelease(errorString);
     
     // If this was a persistance target, queue another login when the network is
     // available
