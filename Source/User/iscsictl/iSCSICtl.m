@@ -1006,10 +1006,23 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
     errno_t error = 0;
     bool validOption = false; // Was there at least one valid option?
     
-    // Check for CHAP shared secret
+    // Get CHAP shared secret if present, otherwise get from input
     CFStringRef secret = NULL;
-    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret))
-        secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+    if (CFDictionaryGetValueIfPresent(options, kOptKeyCHAPSecret, (const void **)&secret))
+    {
+        if (CFStringCompare(secret, kOptValueEmpty, 0) == kCFCompareEqualTo)
+        {
+            if (CFDictionaryContainsKey(options,kOptKeyCHAPSecret))
+			{
+                secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+				validOption = true;
+			}
+        }
+		else
+		{
+			validOption = true;
+		}
+    }
     
     error = iSCSICtlConnectToDaemon(&handle);
     
@@ -1331,11 +1344,22 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
         if(!(portal = iSCSICtlCreatePortalFromOptions(options)))
             error = EINVAL;
     
-    // Check for CHAP shared secret
+    // Get CHAP shared secret if present, otherwise get from input
     CFStringRef secret = NULL;
-    if(!error && CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
-        validOption = true;
-        secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+    if (CFDictionaryGetValueIfPresent(options, kOptKeyCHAPSecret, (const void **)&secret))
+    {
+        if (CFStringCompare(secret, kOptValueEmpty, 0) == kCFCompareEqualTo)
+        {
+            if (CFDictionaryContainsKey(options,kOptKeyCHAPSecret))
+			{
+                secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+				validOption = true;
+			}
+        }
+		else
+		{
+			validOption = true;
+		}
     }
     
     if(!error)
