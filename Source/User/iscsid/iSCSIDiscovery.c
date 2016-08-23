@@ -99,7 +99,13 @@ errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSISessionManager
                 CFSTR("discovered target %@ already exists with static configuration."),
                 targetIQN);
 
-            asl_log(NULL,NULL,ASL_LEVEL_INFO,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+            size_t statusStringLength = CFStringGetLength(statusString);
+            char * statusStringCStr = malloc(statusStringLength + 1);
+            CFStringGetCString(statusString, statusStringCStr, statusStringLength + 1, kCFStringEncodingASCII);
+
+            asl_log(NULL, NULL, ASL_LEVEL_INFO, "%s", statusStringCStr);
+
+            free(statusStringCStr);
 
             CFRelease(statusString);
         }
@@ -112,7 +118,13 @@ errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSISessionManager
                 CFSTR("discovered target %@ over discovery portal %@."),
                 targetIQN,discoveryPortal);
 
-            asl_log(NULL,NULL,ASL_LEVEL_INFO,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+            size_t statusStringLength = CFStringGetLength(statusString);
+            char * statusStringCStr = malloc(statusStringLength + 1);
+            CFStringGetCString(statusString, statusStringCStr, statusStringLength + 1, kCFStringEncodingASCII);
+
+            asl_log(NULL, NULL, ASL_LEVEL_INFO, "%s", statusStringCStr);
+
+            free(statusStringCStr);
 
             CFRelease(statusString);
         }
@@ -207,7 +219,13 @@ CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSISessionManagerRe
                 CFSTR("system error (code %d) occurred during SendTargets discovery of %@."),
                 error,discoveryPortal);
 
-            asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            size_t errorStringLength = CFStringGetLength(errorString);
+            char * errorStringCStr = malloc(errorStringLength + 1);
+            CFStringGetCString(errorString, errorStringCStr, errorStringLength + 1, kCFStringEncodingASCII);
+
+            asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringCStr);
+            
+            free(errorStringCStr);
             CFRelease(errorString);
         }
         else if(statusCode != kiSCSILoginSuccess) {
@@ -216,7 +234,13 @@ CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSISessionManagerRe
                 CFSTR("login failed with (code %d) during SendTargets discovery of %@."),
                 statusCode,discoveryPortal);
             
-            asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            size_t errorStringLength = CFStringGetLength(errorString);
+            char * errorStringCStr = malloc(errorStringLength + 1);
+            CFStringGetCString(errorString, errorStringCStr, errorStringLength + 1, kCFStringEncodingASCII);
+
+            asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringCStr);
+            
+            free(errorStringCStr);
             CFRelease(errorString);
         }
         else {

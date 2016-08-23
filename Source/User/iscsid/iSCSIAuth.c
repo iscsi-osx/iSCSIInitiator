@@ -49,7 +49,8 @@ CFDataRef CFDataCreateWithHexString(CFStringRef hexStr)
 
     // Get length and pointer to hex string
     CFIndex hexStrLen = CFStringGetLength(hexStr);
-    const char * hexStrPtr = CFStringGetCStringPtr(hexStr,kCFStringEncodingASCII);
+    char * hexStrPtr = malloc(hexStrLen + 1);
+    CFStringGetCString(hexStr, hexStrPtr, hexStrLen + 1, kCFStringEncodingASCII);
 
     // Byte length stars off as the number of hex characters, and is adjusted
     // to reflect the number of bytes depending on the format of the hex string
@@ -97,6 +98,7 @@ CFDataRef CFDataCreateWithHexString(CFStringRef hexStr)
         byteIdx++;
     }
 
+    free(hexStrPtr);
     return data;
 }
 
@@ -143,7 +145,9 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateResponse(CFStringRef identifier,
     CC_MD5_Update(&md5,&id,(CC_LONG)sizeof(id));
 
     // Hash in the secret
-    const UInt8 * byteSecret = (const UInt8*)CFStringGetCStringPtr(secret,kCFStringEncodingASCII);
+    size_t secretLength = CFStringGetLength(secret);
+    UInt8 * byteSecret = malloc(secretLength + 1);
+    CFStringGetCString(secret, (char *)byteSecret, secretLength + 1, kCFStringEncodingASCII);
     CC_MD5_Update(&md5,byteSecret,(CC_LONG)CFStringGetLength(secret));
 
     // Hash in the challenge
@@ -155,6 +159,7 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateResponse(CFStringRef identifier,
     CC_MD5_Final(md5Hash,&md5);
 
     CFRelease(challengeData);
+    free(byteSecret);
 
     return CreateHexStringWithBytes(md5Hash,CC_MD5_DIGEST_LENGTH);
 }
