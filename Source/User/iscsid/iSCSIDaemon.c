@@ -48,6 +48,7 @@
 // Foundation includes
 #include <launch.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <SystemConfiguration/SystemConfiguration.h>
 
 // Mach kernel includes
 #include <mach/mach_port.h>
@@ -60,7 +61,6 @@
 
 // iSCSI includes
 #include "iSCSISession.h"
-#include "iSCSIDiscovery.h"
 #include "iSCSIDaemonInterfaceShared.h"
 #include "iSCSIPreferences.h"
 #include "iSCSIDA.h"
@@ -94,6 +94,8 @@ iSCSIPreferencesRef preferences = NULL;
 /*! Incoming request information struct. */
 struct iSCSIDIncomingRequestInfo * reqInfo = NULL;
 
+/*! Used to manage iSCSI sessions. */
+iSCSISessionManagerRef sessionManager = NULL;
 
 struct iSCSIDIncomingRequestInfo {
     CFSocketRef socket;
@@ -101,6 +103,10 @@ struct iSCSIDIncomingRequestInfo {
     int fd;
 };
 
+struct iSCSIDQueueLoginForTargetPortal {
+    iSCSITargetRef target;
+    iSCSIPortalRef portal;
+};
 
 const iSCSIDMsgLoginRsp iSCSIDMsgLoginRspInit = {
     .funcCode = kiSCSIDLogin,
@@ -259,7 +265,6 @@ iSCSIAuthRef iSCSIDCreateAuthenticationForTarget(CFStringRef targetIQN)
             CFRelease(name);
         if(sharedSecret)
             CFRelease(sharedSecret);
-
     }
     else
         auth = iSCSIAuthCreateNone();
@@ -302,7 +307,7 @@ iSCSIAuthRef iSCSIDCreateAuthenticationForInitiator()
     return auth;
 }
 
-errno_t iSCSIDLoginCommon(SID sessionId,
+errno_t iSCSIDLoginCommon(SessionIdentifier sessionId,
                           iSCSIMutableTargetRef target,
                           iSCSIPortalRef portal,
                           enum iSCSILoginStatusCode * statusCode)
@@ -312,7 +317,7 @@ errno_t iSCSIDLoginCommon(SID sessionId,
     iSCSIConnectionConfigRef connCfg = NULL;
     iSCSIAuthRef initiatorAuth = NULL, targetAuth = NULL;
 
-    CID connectionId = kiSCSIInvalidConnectionId;
+    ConnectionIdentifier connectionId = kiSCSIInvalidConnectionId;
 
     *statusCode = kiSCSILoginInvalidStatusCode;
 
@@ -336,9 +341,9 @@ errno_t iSCSIDLoginCommon(SID sessionId,
 
     // Do either session or connection login
     if(sessionId == kiSCSIInvalidSessionId)
-        error = iSCSILoginSession(target,portal,initiatorAuth,targetAuth,sessCfg,connCfg,&sessionId,&connectionId,statusCode);
+        error = iSCSISessionLogin(sessionManager,target,portal,initiatorAuth,targetAuth,sessCfg,connCfg,&sessionId,&connectionId,statusCode);
     else
-        error = iSCSILoginConnection(sessionId,portal,initiatorAuth,targetAuth,connCfg,&connectionId,statusCode);
+        error = iSCSISessionAddConnection(sessionManager,sessionId,portal,initiatorAuth,targetAuth,connCfg,&connectionId,statusCode);
 
     // Log error message
     if(error) {
@@ -350,7 +355,12 @@ errno_t iSCSIDLoginCommon(SID sessionId,
             iSCSIPortalGetPort(portal),
             strerror(error));
 
-        asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        CFIndex errorStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(errorString),kCFStringEncodingASCII) + sizeof('\0');
+        char errorStringBuffer[errorStringLength];
+        CFStringGetCString(errorString,errorStringBuffer,errorStringLength,kCFStringEncodingASCII);
+        
+        asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringBuffer);
+        
         CFRelease(errorString);
     }
     // Update target alias in preferences (if one was furnished)
@@ -389,7 +399,7 @@ errno_t iSCSIDLoginAllPortals(iSCSIMutableTargetRef target,
     *statusCode = kiSCSILoginInvalidStatusCode;
 
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
-    SID sessionId = iSCSIGetSessionIdForTarget(targetIQN);
+    SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,targetIQN);
 
     // Set initial values for maxConnections and activeConnections
     if(sessionId == kiSCSIInvalidSessionId)
@@ -398,7 +408,7 @@ errno_t iSCSIDLoginAllPortals(iSCSIMutableTargetRef target,
     else {
 
         // If session exists, get the max connections and active connections
-        CFDictionaryRef properties = iSCSICreateCFPropertiesForSession(target);
+        CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForTarget(sessionManager,target);
 
         if(properties) {
             // Get max connections from property list
@@ -406,7 +416,7 @@ errno_t iSCSIDLoginAllPortals(iSCSIMutableTargetRef target,
             CFNumberGetValue(number,kCFNumberSInt32Type,&maxConnections);
             CFRelease(properties);
 
-            CFArrayRef connections = iSCSICreateArrayOfConnectionsIds(sessionId);
+            CFArrayRef connections = iSCSISessionCopyArrayOfConnectionIds(sessionManager,sessionId);
 
             if(connections) {
                 activeConnections = CFArrayGetCount(connections);
@@ -439,12 +449,12 @@ errno_t iSCSIDLoginAllPortals(iSCSIMutableTargetRef target,
         portalIdx++;
 
         // Determine how many connections this session supports
-        sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
+        sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target));
 
         // If this was the first connection of the session, get the number of
         // allowed maximum connections
         if(activeConnections == 1) {
-            CFDictionaryRef properties = iSCSICreateCFPropertiesForSession(target);
+            CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForTarget(sessionManager,target);
             if(properties) {
                 // Get max connections from property list
                 CFNumberRef number = CFDictionaryGetValue(properties,kRFC3720_Key_MaxConnections);
@@ -466,25 +476,25 @@ errno_t iSCSIDLoginWithPortal(iSCSIMutableTargetRef target,
                               enum iSCSILoginStatusCode * statusCode)
 {
     // Check for active sessions before attempting loginb
-    SID sessionId = kiSCSIInvalidSessionId;
-    CID connectionId = kiSCSIInvalidConnectionId;
+    SessionIdentifier sessionId = kiSCSIInvalidSessionId;
+    ConnectionIdentifier connectionId = kiSCSIInvalidConnectionId;
     *statusCode = kiSCSILoginInvalidStatusCode;
     errno_t errorCode = 0;
 
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
-    sessionId = iSCSIGetSessionIdForTarget(targetIQN);
+    sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,targetIQN);
 
     // Existing session, add a connection
     if(sessionId != kiSCSIInvalidSessionId) {
 
-        connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
+        connectionId = iSCSISessionGetConnectionIdForPortal(sessionManager,sessionId,portal);
 
         // If there's an active session display error otherwise login
         if(connectionId != kiSCSIInvalidConnectionId)
         {} //iSCSICtlDisplayError("The specified target has an active session over the specified portal.");
         else {
             // See if the session can support an additional connection
-            CFDictionaryRef properties = iSCSICreateCFPropertiesForSession(target);
+            CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForTarget(sessionManager,target);
             if(properties) {
                 // Get max connections from property list
                 UInt32 maxConnections;
@@ -492,7 +502,7 @@ errno_t iSCSIDLoginWithPortal(iSCSIMutableTargetRef target,
                 CFNumberGetValue(number,kCFNumberSInt32Type,&maxConnections);
                 CFRelease(properties);
 
-                CFArrayRef connections = iSCSICreateArrayOfConnectionsIds(sessionId);
+                CFArrayRef connections = iSCSISessionCopyArrayOfConnectionIds(sessionManager,sessionId);
                 if(connections)
                 {
                     CFIndex activeConnections = CFArrayGetCount(connections);
@@ -610,19 +620,19 @@ void iSCSIDLogoutComplete(iSCSITargetRef target,enum iSCSIDAOperationResult resu
     
     if(!errorCode)
     {
-        SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
+        SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target));
 
         // For session logout, ensure that disk unmount was successful...
         if(!portal) {
             
             if(result == kiSCSIDAOperationSuccess)
-                errorCode = iSCSILogoutSession(sessionId,&statusCode);
+                errorCode = iSCSISessionLogout(sessionManager,sessionId,&statusCode);
             else
                 errorCode = EBUSY;
         }
         else {
-            CID connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
-            errorCode = iSCSILogoutConnection(sessionId,connectionId,&statusCode);
+            ConnectionIdentifier connectionId = iSCSISessionGetConnectionIdForPortal(sessionManager,sessionId,portal);
+            errorCode = iSCSISessionRemoveConnection(sessionManager,sessionId,connectionId,&statusCode);
         }
     }
     
@@ -647,7 +657,12 @@ void iSCSIDLogoutComplete(iSCSITargetRef target,enum iSCSIDAOperationResult resu
                 strerror(errorCode));
         }
         
-        asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        CFIndex errorStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(errorString),kCFStringEncodingASCII) + sizeof('\0');
+        char errorStringBuffer[errorStringLength];
+        CFStringGetCString(errorString,errorStringBuffer,errorStringLength,kCFStringEncodingASCII);
+
+        asl_log(NULL, NULL, ASL_LEVEL_ERR, "%s", errorStringBuffer);
+        
         CFRelease(errorString);
     }
 
@@ -707,9 +722,8 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
     else
         errorCode = EINVAL;
 
-
     // See if there exists an active session for this target
-    SID sessionId = iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target));
+    SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target));
 
     if(!errorCode && sessionId == kiSCSIInvalidSessionId)
     {
@@ -718,17 +732,22 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
             CFSTR("logout of %@ failed: the target has no active sessions"),
             iSCSITargetGetIQN(target));
         
-        asl_log(0,0,ASL_LEVEL_CRIT,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+        CFIndex errorStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(errorString),kCFStringEncodingASCII) + sizeof('\0');
+        char errorStringBuffer[errorStringLength];
+        CFStringGetCString(errorString,errorStringBuffer,errorStringLength,kCFStringEncodingASCII);
+        
+        asl_log(NULL, NULL, ASL_LEVEL_CRIT, "%s", errorStringBuffer);
+        
         CFRelease(errorString);
         errorCode = EINVAL;
     }
     
     // See if there exists an active connection for this portal
-    CID connectionId = kiSCSIInvalidConnectionId;
+    ConnectionIdentifier connectionId = kiSCSIInvalidConnectionId;
     CFIndex connectionCount = 0;
     
     if(!errorCode && portal) {
-        connectionId = iSCSIGetConnectionIdForPortal(sessionId,portal);
+        connectionId = iSCSISessionGetConnectionIdForPortal(sessionManager,sessionId,portal);
         
         if(connectionId == kiSCSIInvalidConnectionId) {
         
@@ -737,13 +756,18 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
                 CFSTR("logout of %@,%@:%@ failed: the portal has no active connections"),
                 iSCSITargetGetIQN(target),iSCSIPortalGetAddress(portal),iSCSIPortalGetPort(portal));
         
-            asl_log(0,0,ASL_LEVEL_CRIT,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            CFIndex errorStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(errorString),kCFStringEncodingASCII) + sizeof('\0');
+            char errorStringBuffer[errorStringLength];
+            CFStringGetCString(errorString,errorStringBuffer,errorStringLength,kCFStringEncodingASCII);
+
+            asl_log(NULL, NULL, ASL_LEVEL_CRIT, "%s", errorStringBuffer);
+            
             CFRelease(errorString);
             errorCode = EINVAL;
         }
         else {
             // Determine the number of connections
-            CFArrayRef connectionIds = iSCSICreateArrayOfConnectionsIds(sessionId);
+            CFArrayRef connectionIds = iSCSISessionCopyArrayOfConnectionIds(sessionManager,sessionId);
             connectionCount = CFArrayGetCount(connectionIds);
             CFRelease(connectionIds);
         }
@@ -775,7 +799,7 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
 
 errno_t iSCSIDCreateArrayOfActiveTargets(int fd,iSCSIDMsgCreateArrayOfActiveTargetsCmd * cmd)
 {
-    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
+    CFArrayRef sessionIds = iSCSISessionCopyArrayOfSessionIds(sessionManager);
     CFIndex sessionCount = CFArrayGetCount(sessionIds);
 
     // Prepare an array to hold our targets
@@ -786,7 +810,7 @@ errno_t iSCSIDCreateArrayOfActiveTargets(int fd,iSCSIDMsgCreateArrayOfActiveTarg
     // Get target object for each active session and add to array
     for(CFIndex idx = 0; idx < sessionCount; idx++)
     {
-        iSCSITargetRef target = iSCSICreateTargetForSessionId((SID)CFArrayGetValueAtIndex(sessionIds,idx));
+        iSCSITargetRef target = iSCSISessionCopyTargetForId(sessionManager,(SessionIdentifier)CFArrayGetValueAtIndex(sessionIds,idx));
         CFArrayAppendValue(activeTargets,target);
         iSCSITargetRelease(target);
     }
@@ -816,7 +840,7 @@ errno_t iSCSIDCreateArrayofActivePortalsForTarget(int fd,
                                                   iSCSIDMsgCreateArrayOfActivePortalsForTargetCmd * cmd)
 {
 // TODO: null check
-    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
+    CFArrayRef sessionIds = iSCSISessionCopyArrayOfSessionIds(sessionManager);
     CFIndex sessionCount = CFArrayGetCount(sessionIds);
 
     // Prepare an array to hold our targets
@@ -827,7 +851,7 @@ errno_t iSCSIDCreateArrayofActivePortalsForTarget(int fd,
     // Get target object for each active session and add to array
     for(CFIndex idx = 0; idx < sessionCount; idx++)
     {
-        iSCSITargetRef target = iSCSICreateTargetForSessionId((SID)CFArrayGetValueAtIndex(sessionIds,idx));
+        iSCSITargetRef target = iSCSISessionCopyTargetForId(sessionManager,(SessionIdentifier)CFArrayGetValueAtIndex(sessionIds,idx));
         CFArrayAppendValue(activeTargets,target);
         iSCSITargetRelease(target);
     }
@@ -870,7 +894,7 @@ errno_t iSCSIDIsTargetActive(int fd,iSCSIDMsgIsTargetActiveCmd *cmd)
 
     if(target) {
         iSCSIDMsgIsTargetActiveRsp rsp = iSCSIDMsgIsTargetActiveRspInit;
-        rsp.active = (iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target)) != kiSCSIInvalidSessionId);
+        rsp.active = (iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target)) != kiSCSIInvalidSessionId);
         
         iSCSITargetRelease(target);
 
@@ -900,12 +924,12 @@ errno_t iSCSIDIsPortalActive(int fd,iSCSIDMsgIsPortalActiveCmd *cmd)
     }
 
     iSCSIDMsgIsPortalActiveRsp rsp = iSCSIDMsgIsPortalActiveRspInit;
-    SID sessionId = (iSCSIGetSessionIdForTarget(iSCSITargetGetIQN(target)));
+    SessionIdentifier sessionId = (iSCSISessionGetSessionIdForTarget(sessionManager,iSCSITargetGetIQN(target)));
 
     if(sessionId == kiSCSIInvalidSessionId)
         rsp.active = false;
     else
-        rsp.active = (iSCSIGetConnectionIdForPortal(sessionId,portal) != kiSCSIInvalidConnectionId);
+        rsp.active = (iSCSISessionGetConnectionIdForPortal(sessionManager,sessionId,portal) != kiSCSIInvalidConnectionId);
     
     if(target)
         iSCSITargetRelease(target);
@@ -941,7 +965,7 @@ errno_t iSCSIDQueryTargetForAuthMethod(int fd,iSCSIDMsgQueryTargetForAuthMethodC
     enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
     enum iSCSILoginStatusCode statusCode = kiSCSILoginInvalidStatusCode;
 
-    errno_t error = iSCSIQueryTargetForAuthMethod(portal,iSCSITargetGetIQN(target),&authMethod,&statusCode);
+    errno_t error = iSCSIQueryTargetForAuthMethod(sessionManager,portal,iSCSITargetGetIQN(target),&authMethod,&statusCode);
 
     // Compose a response to send back to the client
     iSCSIDMsgQueryTargetForAuthMethodRsp rsp = iSCSIDMsgQueryTargetForAuthMethodRspInit;
@@ -975,7 +999,7 @@ errno_t iSCSIDCreateCFPropertiesForSession(int fd,
     }
 
     if(!error) {
-        CFDictionaryRef properties = iSCSICreateCFPropertiesForSession(target);
+        CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForTarget(sessionManager,target);
 
         // Send back response
         iSCSIDMsgCreateCFPropertiesForSessionRsp rsp = iSCSIDMsgCreateCFPropertiesForSessionRspInit;
@@ -1032,7 +1056,7 @@ errno_t iSCSIDCreateCFPropertiesForConnection(int fd,
 
     if(!error) {
 
-        CFDictionaryRef properties = iSCSICreateCFPropertiesForConnection(target,portal);
+        CFDictionaryRef properties = iSCSISessionCopyCFPropertiesForPortal(sessionManager,target,portal);
 
         // Send back response
         iSCSIDMsgCreateCFPropertiesForConnectionRsp rsp = iSCSIDMsgCreateCFPropertiesForConnectionRspInit;
@@ -1064,9 +1088,219 @@ errno_t iSCSIDCreateCFPropertiesForConnection(int fd,
     return error;
 }
 
+
+errno_t iSCSIDAddTargetForSendTargets(iSCSIPreferencesRef preferences,
+                                      CFStringRef targetIQN,
+                                      iSCSIDiscoveryRecRef discoveryRec,
+                                      CFStringRef discoveryPortal)
+{
+    CFArrayRef portalGroups = iSCSIDiscoveryRecCreateArrayOfPortalGroupTags(discoveryRec,targetIQN);
+    CFIndex portalGroupCount = CFArrayGetCount(portalGroups);
+    
+    // Iterate over portal groups for this target
+    for(CFIndex portalGroupIdx = 0; portalGroupIdx < portalGroupCount; portalGroupIdx++)
+    {
+        CFStringRef portalGroupTag = CFArrayGetValueAtIndex(portalGroups,portalGroupIdx);
+        CFArrayRef portals = iSCSIDiscoveryRecGetPortals(discoveryRec,targetIQN,portalGroupTag);
+        CFIndex portalsCount = CFArrayGetCount(portals);
+        
+        iSCSIPortalRef portal = NULL;
+        
+        // Iterate over portals within this group
+        for(CFIndex portalIdx = 0; portalIdx < portalsCount; portalIdx++)
+        {
+            if(!(portal = CFArrayGetValueAtIndex(portals,portalIdx)))
+                continue;
+            
+            // Add portal to target, or add target as necessary
+            if(iSCSIPreferencesContainsTarget(preferences,targetIQN))
+                iSCSIPreferencesSetPortalForTarget(preferences,targetIQN,portal);
+            else
+                iSCSIPreferencesAddDynamicTargetForSendTargets(preferences,targetIQN,portal,discoveryPortal);
+        }
+    }
+    
+    CFRelease(portalGroups);
+    
+    return 0;
+}
+
+/*! Updates an iSCSI preference sobject with information about targets as
+ *  contained in the provided discovery record.
+ *  @param preferences an iSCSI preferences object.
+ *  @param discoveryPortal the portal (address) that was used to perform discovery.
+ *  @param discoveryRec the discovery record resulting from the discovery operation.
+ *  @return an error code indicating the result of the operation. */
+errno_t iSCSIDUpdatePreferencesWithDiscoveredTargets(iSCSISessionManagerRef managerRef,
+                                                     iSCSIPreferencesRef preferences,
+                                                     CFStringRef discoveryPortal,
+                                                     iSCSIDiscoveryRecRef discoveryRec)
+{
+    CFArrayRef targets = iSCSIDiscoveryRecCreateArrayOfTargets(discoveryRec);
+    
+    if(!targets)
+        return EINVAL;
+    
+    CFIndex targetCount = CFArrayGetCount(targets);
+    
+    CFMutableDictionaryRef discTargets = CFDictionaryCreateMutable(
+                                                                   kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,0);
+    
+    for(CFIndex targetIdx = 0; targetIdx < targetCount; targetIdx++)
+    {
+        CFStringRef targetIQN = CFArrayGetValueAtIndex(targets,targetIdx);
+        
+        // Target exists with static (or other configuration).  In
+        // this case we do nothing, log a message and move on.
+        if(iSCSIPreferencesContainsTarget(preferences,targetIQN) &&
+           iSCSIPreferencesGetTargetConfigType(preferences,targetIQN) != kiSCSITargetConfigDynamicSendTargets)
+        {
+            CFStringRef statusString = CFStringCreateWithFormat(
+                                                                kCFAllocatorDefault,0,
+                                                                CFSTR("discovered target %@ already exists with static configuration."),
+                                                                targetIQN);
+            
+            asl_log(NULL,NULL,ASL_LEVEL_INFO,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+            
+            CFRelease(statusString);
+        }
+        // Target doesn't exist, or target exists with SendTargets
+        // configuration (add or update as necessary)
+        else {
+            iSCSIDAddTargetForSendTargets(preferences,targetIQN,discoveryRec,discoveryPortal);
+            CFStringRef statusString = CFStringCreateWithFormat(
+                                                                kCFAllocatorDefault,0,
+                                                                CFSTR("discovered target %@ over discovery portal %@."),
+                                                                targetIQN,discoveryPortal);
+            
+            asl_log(NULL,NULL,ASL_LEVEL_INFO,"%s",CFStringGetCStringPtr(statusString,kCFStringEncodingASCII));
+            
+            CFRelease(statusString);
+        }
+        
+        // As we process each target we'll add it to a temporary dictionary
+        // for cross-checking against targets that exist in our database
+        // which have been removed.
+        CFDictionaryAddValue(discTargets,targetIQN,0);
+    }
+    
+    // Are there any targets that must be removed?  Cross-check existing
+    // list against the list we just built...
+    CFArrayRef existingTargets = iSCSIPreferencesCreateArrayOfDynamicTargetsForSendTargets(preferences,discoveryPortal);
+    targetCount = CFArrayGetCount(existingTargets);
+    
+    for(CFIndex targetIdx = 0; targetIdx < targetCount; targetIdx++)
+    {
+        CFStringRef targetIQN = CFArrayGetValueAtIndex(existingTargets,targetIdx);
+        
+        // If we have a target that was not discovered, then we need to remove
+        // it from our property list...
+        if(!CFDictionaryContainsKey(discTargets,targetIQN)) {
+            
+            // If the target is logged in, logout of the target and remove it
+            SessionIdentifier sessionId = iSCSISessionGetSessionIdForTarget(managerRef,targetIQN);
+            enum iSCSILogoutStatusCode statusCode;
+            if(sessionId != kiSCSIInvalidSessionId)
+                iSCSISessionLogout(managerRef,sessionId,&statusCode);
+            
+            iSCSIPreferencesRemoveTarget(preferences,targetIQN);
+        }
+    }
+    
+    CFRelease(targets);
+    CFRelease(discTargets);
+    CFRelease(existingTargets);
+    
+    return 0;
+}
+
+/*! Scans all iSCSI discovery portals found in iSCSI preferences
+ *  for targets (SendTargets). Returns a dictionary of key-value pairs
+ *  with discovery record objects as values and discovery portal names
+ *  as keys.
+ *  @param preferences an iSCSI preferences object.
+ *  @return a dictionary key-value pairs of dicovery portal names (addresses)
+ *  and the discovery records associated with the result of SendTargets
+ *  discovery of those portals. */
+CFDictionaryRef iSCSIDCreateRecordsWithSendTargets(iSCSISessionManagerRef managerRef,
+                                                   iSCSIPreferencesRef preferences)
+{
+    if(!preferences)
+        return NULL;
+    
+    CFArrayRef portals = iSCSIPreferencesCreateArrayOfPortalsForSendTargetsDiscovery(preferences);
+    
+    // Quit if no discovery portals are defined
+    if(!portals)
+        return NULL;
+    
+    CFIndex portalCount = CFArrayGetCount(portals);
+    
+    CFStringRef discoveryPortal = NULL;
+    iSCSIPortalRef portal = NULL;
+    
+    CFMutableDictionaryRef discoveryRecords = CFDictionaryCreateMutable(kCFAllocatorDefault,0,
+                                                                        &kiSCSITypeDictionaryKeyCallbacks,
+                                                                        &kiSCSITypeDictionaryValueCallbacks);
+    
+    for(CFIndex idx = 0; idx < portalCount; idx++)
+    {
+        discoveryPortal = CFArrayGetValueAtIndex(portals,idx);
+        
+        if(!discoveryPortal)
+            continue;
+        
+        portal = iSCSIPreferencesCopySendTargetsDiscoveryPortal(preferences,discoveryPortal);
+        
+        if(!portal)
+            continue;
+        
+        enum iSCSILoginStatusCode statusCode;
+        iSCSIMutableDiscoveryRecRef discoveryRec;
+        
+        // If there was an error, log it and move on to the next portal
+        errno_t error = 0;
+        iSCSIAuthRef auth = iSCSIAuthCreateNone();
+        if((error = iSCSIQueryPortalForTargets(managerRef,portal,auth,&discoveryRec,&statusCode)))
+        {
+            CFStringRef errorString = CFStringCreateWithFormat(
+                                                               kCFAllocatorDefault,0,
+                                                               CFSTR("system error (code %d) occurred during SendTargets discovery of %@."),
+                                                               error,discoveryPortal);
+            
+            asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            CFRelease(errorString);
+        }
+        else if(statusCode != kiSCSILoginSuccess) {
+            CFStringRef errorString = CFStringCreateWithFormat(
+                                                               kCFAllocatorDefault,0,
+                                                               CFSTR("login failed with (code %d) during SendTargets discovery of %@."),
+                                                               statusCode,discoveryPortal);
+            
+            asl_log(NULL,NULL,ASL_LEVEL_ERR,"%s",CFStringGetCStringPtr(errorString,kCFStringEncodingASCII));
+            CFRelease(errorString);
+        }
+        else {
+            // Queue discovery record so that it can be processes later
+            if(discoveryRec) {
+                CFDictionarySetValue(discoveryRecords,discoveryPortal,discoveryRec);
+                iSCSIDiscoveryRecRelease(discoveryRec);
+            }
+        }
+        
+        iSCSIAuthRelease(auth);
+        iSCSIPortalRelease(portal);
+    }
+    
+    // Release the array of discovery portals
+    CFRelease(portals);
+    
+    return discoveryRecords;
+}
+
 void * iSCSIDRunDiscovery(void * context)
 {
-    CFDictionaryRef discoveryRecords = iSCSIDiscoveryCreateRecordsWithSendTargets(preferences);
+    CFDictionaryRef discoveryRecords = iSCSIDCreateRecordsWithSendTargets(sessionManager,preferences);
     
     // Process discovery results if any
     if(discoveryRecords) {
@@ -1080,7 +1314,7 @@ void * iSCSIDRunDiscovery(void * context)
         CFDictionaryGetKeysAndValues(discoveryRecords,keys,values);
     
         for(CFIndex i = 0; i < count; i++)
-            iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(preferences,keys[i],values[i]);
+            iSCSIDUpdatePreferencesWithDiscoveredTargets(sessionManager,preferences,keys[i],values[i]);
     
         iSCSIPreferencesSynchronzeAppValues(preferences);
         pthread_mutex_unlock(&preferencesMutex);
@@ -1367,6 +1601,86 @@ errno_t iSCSIDRemoveSharedSecret(int fd,iSCSIDMsgRemoveSharedSecretCmd *cmd)
     return 0;
 }
 
+/*! Callback function used to process a queued login once
+ *  the network becomes available. */
+void iSCSIDProcessQueuedLogin(SCNetworkReachabilityRef reachabilityTarget,
+                              SCNetworkReachabilityFlags flags,
+                              void * info)
+{
+    struct iSCSIDQueueLoginForTargetPortal * loginRef = info;
+    
+    iSCSIMutableTargetRef target = iSCSITargetCreateMutableCopy(loginRef->target);
+    iSCSIPortalRef portal = loginRef->portal;
+    
+    enum iSCSILoginStatusCode statusCode;
+    iSCSIDLoginWithPortal(target,portal,&statusCode);
+    
+    iSCSITargetRelease(target);
+    iSCSITargetRelease(loginRef->target);
+    iSCSIPortalRelease(portal);
+    
+    free(loginRef);
+}
+
+/*! Helper function used by auto-login, sleep-mode and persistent
+ *  functions to login to the specified target using the specified
+ *  portal when the network becomes available. */
+void iSCSIDQueueLogin(iSCSITargetRef target,iSCSIPortalRef portal)
+{
+    SCNetworkReachabilityRef reachabilityTarget;
+    SCNetworkReachabilityContext reachabilityContext;
+    
+    struct iSCSIDQueueLoginForTargetPortal * loginRef = malloc(sizeof(struct iSCSIDQueueLoginForTargetPortal));
+    loginRef->target = target;
+    loginRef->portal = portal;
+    
+    reachabilityContext.info = loginRef;
+    reachabilityContext.copyDescription = 0;
+    reachabilityContext.retain = 0;
+    reachabilityContext.release = 0;
+    
+    char portalAddressBuffer[NI_MAXHOST];
+    
+    if(!CFStringGetCString(iSCSIPortalGetAddress(portal),portalAddressBuffer,NI_MAXHOST,kCFStringEncodingASCII))
+        return;
+    
+    // If a specific host interface was specified, create with pair...
+    if(CFStringCompare(iSCSIPortalGetHostInterface(portal),kiSCSIDefaultHostInterface,0) == kCFCompareEqualTo)
+        reachabilityTarget = SCNetworkReachabilityCreateWithName(kCFAllocatorDefault,portalAddressBuffer);
+    else {
+
+        struct sockaddr_storage remoteAddress, localAddress;
+        iSCSIUtilsGetAddressForPortal(portal,&remoteAddress,&localAddress);
+        
+        reachabilityTarget = SCNetworkReachabilityCreateWithAddressPair(kCFAllocatorDefault,
+                                                                        (const struct sockaddr *)&localAddress,
+                                                                        (const struct sockaddr *)&remoteAddress);
+    }
+
+    SCNetworkReachabilitySetCallback(reachabilityTarget,iSCSIDProcessQueuedLogin,&reachabilityContext);
+    SCNetworkReachabilityScheduleWithRunLoop(reachabilityTarget,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
+}
+
+void iSCSIDSessionTimeoutHandler(iSCSITargetRef target,iSCSIPortalRef portal)
+{
+    if(!target || !portal)
+        return;
+    
+    // Post message to system log
+    asl_log(NULL,NULL,ASL_LEVEL_ERR,"TCP timeout for %s over portal %s.",
+            CFStringGetCStringPtr(iSCSITargetGetIQN(target),kCFStringEncodingASCII),
+            CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingASCII));
+    
+    // If this was a persistance target, queue another login when the network is
+    // available
+    if(iSCSIPreferencesGetPersistenceForTarget(preferences,iSCSITargetGetIQN(target)))
+        iSCSIDQueueLogin(target,portal);
+    else {
+        iSCSITargetRelease(target);
+        iSCSIPortalRelease(portal);
+    }
+}
+
 /*! Automatically logs in to targets that were specified for auto-login.
  *  Used during startup of the daemon to log in to either static 
  *  dynamic targets for which the auto-login option is enabled. */
@@ -1385,14 +1699,27 @@ void iSCSIDAutoLogin()
     for(CFIndex idx = 0; idx < targetsCount; idx++)
     {
         CFStringRef targetIQN = CFArrayGetValueAtIndex(targets,idx);
+        iSCSITargetRef target = iSCSIPreferencesCopyTarget(preferences,targetIQN);
         
+        // See if this target requires auto-login and process it
         if(iSCSIPreferencesGetAutoLoginForTarget(preferences,targetIQN)) {
-            iSCSITargetRef targetTemp = iSCSIPreferencesCopyTarget(preferences,targetIQN);
-            iSCSIMutableTargetRef target = iSCSITargetCreateMutableCopy(targetTemp);
-            iSCSITargetRelease(targetTemp);
-            enum iSCSILoginStatusCode statusCode;
-            iSCSIDLoginAllPortals(target,&statusCode);
+            
+            CFArrayRef portals = iSCSIPreferencesCreateArrayOfPortalsForTarget(preferences,targetIQN);
+            if(!portals)
+                continue;
+            
+            CFIndex portalsCount = CFArrayGetCount(portals);
+            
+            // Queue a login operation for a each portal; mind the interface is one is required
+            for(CFIndex portalIdx = 0; portalIdx < portalsCount; portalIdx++)
+            {
+                CFStringRef portalAddress = CFArrayGetValueAtIndex(portals,portalIdx);
+                iSCSIPortalRef portal = iSCSIPreferencesCopyPortalForTarget(preferences,targetIQN,portalAddress);
+                iSCSIDQueueLogin(target,portal);
+            }
+    
             iSCSITargetRelease(target);
+            CFRelease(portals);
         }
     }
     CFRelease(targets);
@@ -1439,16 +1766,16 @@ void iSCSIDPrepareForSystemSleepComplete(iSCSITargetRef target,
                                          enum iSCSIDAOperationResult result,
                                          void * context)
 {
-    SID sessionId = (SID)context;
+    SessionIdentifier sessionId = (SessionIdentifier)context;
     enum iSCSILogoutStatusCode statusCode;
-    iSCSILogoutSession(sessionId,&statusCode);
+    iSCSISessionLogout(sessionManager,sessionId,&statusCode);
 }
 
 /*! Saves a dictionary of active targets and portals that
  *  is used to restore active sessions upon wakeup. */
 void iSCSIDPrepareForSystemSleep()
 {
-    CFArrayRef sessionIds = iSCSICreateArrayOfSessionIds();
+    CFArrayRef sessionIds = iSCSISessionCopyArrayOfSessionIds(sessionManager);
     
     if(!sessionIds)
         return;
@@ -1469,22 +1796,22 @@ void iSCSIDPrepareForSystemSleep()
     
     for(CFIndex idx = 0; idx < sessionCount; idx++)
     {
-        SID sessionId = (SID)CFArrayGetValueAtIndex(sessionIds,idx);
-        iSCSITargetRef target = iSCSICreateTargetForSessionId(sessionId);
+        SessionIdentifier sessionId = (SessionIdentifier)CFArrayGetValueAtIndex(sessionIds,idx);
+        iSCSITargetRef target = iSCSISessionCopyTargetForId(sessionManager,sessionId);
         
         if(!target)
             continue;
     
         CFStringRef targetIQN = iSCSITargetGetIQN(target);
-        CFArrayRef connectionIds = iSCSICreateArrayOfConnectionsIds(sessionId);
+        CFArrayRef connectionIds = iSCSISessionCopyArrayOfConnectionIds(sessionManager,sessionId);
         CFIndex connectionCount = CFArrayGetCount(connectionIds);
         
         CFMutableArrayRef portals = CFArrayCreateMutable(kCFAllocatorDefault,0,&kCFTypeArrayCallBacks);
         
         for(CFIndex connIdx = 0; connIdx < connectionCount; connIdx++)
         {
-            CID connectionId = (CID)CFArrayGetValueAtIndex(connectionIds,connIdx);
-            iSCSIPortalRef portal = iSCSICreatePortalForConnectionId(sessionId,connectionId);
+            ConnectionIdentifier connectionId = (ConnectionIdentifier)CFArrayGetValueAtIndex(connectionIds,connIdx);
+            iSCSIPortalRef portal = iSCSISessionCopyPortalForConnectionId(sessionManager,sessionId,connectionId);
             CFArrayAppendValue(portals,portal);
             CFRelease(portal);
         }
@@ -1610,7 +1937,7 @@ void iSCSIDProcessIncomingRequest(void * info)
     }
 }
 
-/*! Handle an incoming connection from iscsictl. Once a connection is
+/*! Handle an incoming connection from a client. Once a connection is
  *  established, main runloop calls this function. This function processes
  *  all incoming commands until a shutdown request is received, at which point
  *  this function terminates and returns control to the run loop. For this
@@ -1660,15 +1987,26 @@ int main(void)
 {
     // Initialize logging
     aslclient log = asl_open(NULL,NULL,ASL_OPT_STDERR);
+    
+    // Start the iSCSI session manager (which creates a connection to the HBA)
+    iSCSISessionManagerCallBacks callbacks;
+    callbacks.timeoutCallback = iSCSIDSessionTimeoutHandler;
+    sessionManager = iSCSISessionManagerCreate(kCFAllocatorDefault,callbacks);
+    
+    // Let launchd call us again once the HBA kext is loaded
+    if(!sessionManager)
+        return EAGAIN;
+    
+    iSCSISessionManagerScheduleWithRunLoop(sessionManager,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
 
     // Read configuration parameters from the iSCSI property list
     iSCSIDUpdatePreferencesFromAppValues();
     
     // Update initiator name and alias internally
     CFStringRef initiatorIQN = iSCSIPreferencesCopyInitiatorIQN(preferences);
-
+    
     if(initiatorIQN) {
-        iSCSISetInitiatorName(initiatorIQN);
+        iSCSISessionManagerSetInitiatorName(sessionManager,initiatorIQN);
         CFRelease(initiatorIQN);
     }
     else {
@@ -1678,7 +2016,7 @@ int main(void)
     CFStringRef initiatorAlias = iSCSIPreferencesCopyInitiatorAlias(preferences);
 
     if(initiatorAlias) {
-        iSCSISetInitiatorAlias(initiatorAlias);
+        iSCSISessionManagerSetInitiatorName(sessionManager,initiatorAlias);
         CFRelease(initiatorAlias);
     }
     else {
@@ -1761,10 +2099,6 @@ int main(void)
     // Ignore SIGPIPE (generated when the client closes the connection)
     signal(SIGPIPE,sig_pipe_handler);
     
-    // Initialize iSCSI connection to kernel (ability to call iSCSI kernel
-    // functions and receive notifications from the kernel).
-    iSCSIInitialize(CFRunLoopGetMain());
-    
     // Setup authorization rights if none exist
     AuthorizationRef authorization;
     AuthorizationCreate(NULL,NULL,0,&authorization);
@@ -1778,7 +2112,10 @@ int main(void)
     iSCSIDAutoLogin();
     
     CFRunLoopRun();
-    iSCSICleanup();
+    
+    iSCSISessionManagerUnscheduleWithRunloop(sessionManager,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
+    iSCSISessionManagerRelease(sessionManager);
+    sessionManager = NULL;
     
     // Deregister for power
     iSCSIDDeregisterForPowerEvents();

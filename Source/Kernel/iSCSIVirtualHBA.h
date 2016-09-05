@@ -41,7 +41,7 @@
 #include "iSCSIKernelClasses.h"
 #include "iSCSITypesKernel.h"
 #include "iSCSITypesShared.h"
-#include "iSCSIKernelInterfaceShared.h"
+#include "iSCSIHBATypes.h"
 #include "iSCSIPDUKernel.h"
 
 // BSD socket includes
@@ -63,7 +63,7 @@
  *  and then returned to the OS. */
 class iSCSIVirtualHBA : public IOSCSIParallelInterfaceController
 {
-    friend class iSCSIInitiatorClient;
+    friend class iSCSIHBAUserClient;
     
 	OSDeclareDefaultStructors(iSCSIVirtualHBA);
 
@@ -150,7 +150,7 @@ public:
     /*! Handles connection timeouts.
      *  @param sessionId the session associated with the timed-out connection.
      *  @param connectionId the connection that timed out. */
-    void HandleConnectionTimeout(SID sessionId,CID connectionId);
+    void HandleConnectionTimeout(SessionIdentifier sessionId,ConnectionIdentifier connectionId);
 
 	/*! Processes a task passed down by SCSI target devices in driver stack.
      *  @param parallelTask the task to process.
@@ -208,8 +208,8 @@ public:
                           OSString * hostInterface,
                           const struct sockaddr_storage * portalSockaddr,
                           const struct sockaddr_storage * hostSockaddr,
-                          SID * sessionId,
-                          CID * connectionId);
+                          SessionIdentifier * sessionId,
+                          ConnectionIdentifier * connectionId);
     
     /*! Releases all iSCSI sessions. */
     void ReleaseAllSessions();
@@ -218,7 +218,7 @@ public:
      *  session.  Connections may be active or inactive when this function is
      *  called.
      *  @param sessionId the session qualifier part of the ISID. */
-    void ReleaseSession(SID sessionId);
+    void ReleaseSession(SessionIdentifier sessionId);
         
     /*! Allocates a new iSCSI connection associated with the particular session.
      *  @param sessionId the session to create a new connection for.
@@ -229,17 +229,17 @@ public:
      *  @param hostSockaddr the BSD socket structure used to identify the host adapter.
      *  @param connectionId identifier for the new connection.
      *  @return error code indicating result of operation. */
-    errno_t CreateConnection(SID sessionId,
+    errno_t CreateConnection(SessionIdentifier sessionId,
                              OSString * portalAddress,
                              OSString * portalPort,
                              OSString * hostInterface,
                              const struct sockaddr_storage * portalSockaddr,
                              const struct sockaddr_storage * hostSockaddr,
-                             CID * connectionId);
+                             ConnectionIdentifier * connectionId);
     
     /*! Frees a given iSCSI connection associated with a given session.
      *  The session should be logged out using the appropriate PDUs. */
-    void ReleaseConnection(SID sessionId,CID connectionId);
+    void ReleaseConnection(SessionIdentifier sessionId,ConnectionIdentifier connectionId);
     
     /*! Activates an iSCSI connection, indicating to the kernel that the iSCSI
      *  daemon has negotiated security and operational parameters and that the
@@ -247,7 +247,7 @@ public:
      *  @param sessionId the session to deactivate.
      *  @param connectionId the connection to deactivate.
      *  @return error code indicating result of operation. */
-    errno_t ActivateConnection(SID sessionId,CID connectionId);
+    errno_t ActivateConnection(SessionIdentifier sessionId,ConnectionIdentifier connectionId);
 
     /*! Activates all iSCSI connections for the session, indicating to the 
      *  kernel that the iSCSI daemon has negotiated security and operational 
@@ -255,19 +255,19 @@ public:
      *  @param sessionId the session to deactivate.
      *  @param connectionId the connection to deactivate.
      *  @return error code indicating result of operation. */
-    errno_t ActivateAllConnections(SID sessionId);
+    errno_t ActivateAllConnections(SessionIdentifier sessionId);
 
     /*! Deactivates an iSCSI connection so that parameters can be adjusted or
      *  negotiated by the iSCSI daemon.
      *  @param sessionId the session to deactivate.
      *  @return error code indicating result of operation. */
-    errno_t DeactivateConnection(SID sessionId,CID connectionId);
+    errno_t DeactivateConnection(SessionIdentifier sessionId,ConnectionIdentifier connectionId);
 
     /*! Deactivates all iSCSI connections so that parameters can be adjusted or
      *  negotiated by the iSCSI daemon.
      *  @param sessionId the session to deactivate.
      *  @return error code indicating result of operation. */
-    errno_t DeactivateAllConnections(SID sessionId);
+    errno_t DeactivateAllConnections(SessionIdentifier sessionId);
     
     /*! Sends data over a kernel socket associated with iSCSI.  If the specified
      *  data segment length is not a multiple of 4-bytes, padding bytes will be

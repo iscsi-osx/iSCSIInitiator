@@ -28,7 +28,7 @@
 
 #include <IOKit/IOLib.h>
 #include "iSCSIInitiator.h"
-#include "iSCSIKernelInterfaceShared.h"
+#include "iSCSIHBATypes.h"
 
 /*! Required IOKit macro that defines the constructors, destructors, etc. */
 OSDefineMetaClassAndStructors(iSCSIInitiator,IOService);

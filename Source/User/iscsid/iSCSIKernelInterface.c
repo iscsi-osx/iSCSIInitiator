@@ -34,9 +34,7 @@
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IOReturn.h>
 
-static io_service_t service;
 static io_connect_t connection;
-static CFMachPortContext notificationContext;
 static CFMachPortRef     notificationPort = NULL;
 static iSCSIKernelNotificationCallback callback;
 
@@ -101,7 +99,7 @@ errno_t iSCSIKernelInitialize(iSCSIKernelNotificationCallback callback)
 	CFMutableDictionaryRef matchingDict = NULL;
 	matchingDict = IOServiceMatching(kiSCSIVirtualHBA_IOClassName);
     
-    service = IOServiceGetMatchingService(kIOMasterPortDefault,matchingDict);
+    io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault,matchingDict);
     
 	// Check to see if the driver was found in the I/O registry
 	if(service == IO_OBJECT_NULL)
@@ -109,12 +107,14 @@ errno_t iSCSIKernelInitialize(iSCSIKernelNotificationCallback callback)
     
 	// Using the service handle, open a connection
     result = IOServiceOpen(service,mach_task_self(),0,&connection);
+
+    // No longer need a reference to the service
+    IOObjectRelease(service);
 	
-	if(result != kIOReturnSuccess) {
-        IOObjectRelease(service);
+	if(result != kIOReturnSuccess)
         return kIOReturnNotFound;
-    }
     
+    CFMachPortContext notificationContext;
     notificationContext.info = (void *)&notificationContext;
     notificationContext.version = 0;
     notificationContext.release = NULL;
@@ -138,7 +138,6 @@ errno_t iSCSIKernelCleanup()
         IOConnectCallScalarMethod(connection,kiSCSICloseInitiator,0,0,0,0);
     
 	// Clean up (now that we have a connection we no longer need the object)
-    IOObjectRelease(service);
     IOServiceClose(connection);
     
     if(notificationPort)

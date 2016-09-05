@@ -84,6 +84,8 @@ typedef CFMutableDictionaryRef iSCSIMutableConnectionConfigRef;
 #define kiSCSITypeDictionaryKeyCallbacks kCFTypeDictionaryKeyCallBacks
 #define kiSCSITypeDictionaryValueCallbacks kCFTypeDictionaryValueCallBacks
 
+typedef CFTypeRef iSCSITypeRef;
+
 /*! Error recovery levels. */
 enum iSCSIErrorRecoveryLevels {
     
@@ -497,11 +499,11 @@ void iSCSISessionConfigSetErrorRecoveryLevel(iSCSIMutableSessionConfigRef config
                                              enum iSCSIErrorRecoveryLevels errorRecoveryLevel);
 
 /*! Gets the target portal group tag for the session. */
-TPGT iSCSISessionConfigGetTargetPortalGroupTag(iSCSISessionConfigRef config);
+TargetPortalGroupTag iSCSISessionConfigGetTargetPortalGroupTag(iSCSISessionConfigRef config);
 
 /*! Sets the target portal group tag for the session. */
 void iSCSISessionConfigSetTargetPortalGroupTag(iSCSIMutableSessionConfigRef config,
-                                               TPGT targetPortalGroupTag);
+                                               TargetPortalGroupTag targetPortalGroupTag);
 
 /*! Gets the maximum number of connections. */
 UInt32 iSCSISessionConfigGetMaxConnections(iSCSISessionConfigRef config);

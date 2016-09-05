@@ -1,6 +1,6 @@
 .\" (c) 2013-2015 Nareg Sinenian. All rights reserved.
 .\" This file is the UNIX man page for the iscsictl command-line utility."
-.Dd November 1, 2015
+.Dd July 23, 2016
 .Dt ISCSICTL 8
 .Os "Mac OS X"
 .Sh NAME
@@ -111,6 +111,10 @@ The following options can be used to modify target-config:
 .Bl -tag -width Ds
 .It Fl auto-login Ar enable
 Specifies whether the iSCSI daemon should login to the target upon startup. Possible values for
+.Ar enable
+are enable or disable.
+.It Fl persistent Ar enable
+Specifies whether the iSCSI daemon should reconnect to the target in the event of a network interruption or connection timeout. Possible values for
 .Ar enable
 are enable or disable.
 .It Fl MaxConnections Ar max_connections

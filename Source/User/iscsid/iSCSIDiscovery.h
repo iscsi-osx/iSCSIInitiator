@@ -45,7 +45,8 @@
  *  @return a dictionary key-value pairs of dicovery portal names (addresses)
  *  and the discovery records associated with the result of SendTargets
  *  discovery of those portals. */
-CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSIPreferencesRef preferences);
+CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSISessionManagerRef managerRef,
+                                                           iSCSIPreferencesRef preferences);
 
 /*! Updates an iSCSI preference sobject with information about targets as
  *  contained in the provided discovery record.
@@ -53,7 +54,8 @@ CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSIPreferencesRef p
  *  @param discoveryPortal the portal (address) that was used to perform discovery.
  *  @param discoveryRec the discovery record resulting from the discovery operation.
  *  @return an error code indicating the result of the operation. */
-errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSIPreferencesRef preferences,
+errno_t iSCSIDiscoveryUpdatePreferencesWithDiscoveredTargets(iSCSISessionManagerRef managerRef,
+                                                             iSCSIPreferencesRef preferences,
                                                              CFStringRef discoveryPortal,
                                                              iSCSIDiscoveryRecRef discoveryRec);
 

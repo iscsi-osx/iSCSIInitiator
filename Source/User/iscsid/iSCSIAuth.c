@@ -29,7 +29,7 @@
 #include "iSCSIAuth.h"
 #include "iSCSIPDUUser.h"
 #include "iSCSISession.h"
-#include "iSCSIKernelInterface.h"
+#include "iSCSIHBAInterface.h"
 #include "iSCSIQueryTarget.h"
 
 
@@ -42,29 +42,30 @@ extern CFStringRef kiSCSIInitiatorAlias;
 /*! Helper function.  Create a byte array (CFDataRef object) that holds the
  *  value represented by the hexidecimal string. Handles strings with or
  *  without a 0x prefix. */
-CFDataRef CFDataCreateWithHexString(CFStringRef hexStr)
+CFDataRef CFDataCreateWithHexString(CFStringRef hexString)
 {
-    if(!hexStr)
+    if(!hexString)
         return NULL;
 
     // Get length and pointer to hex string
-    CFIndex hexStrLen = CFStringGetLength(hexStr);
-    const char * hexStrPtr = CFStringGetCStringPtr(hexStr,kCFStringEncodingASCII);
+    CFIndex hexStringLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(hexString),kCFStringEncodingASCII) + sizeof('\0');
+    char hexStringBuffer[hexStringLength];
+    CFStringGetCString(hexString,hexStringBuffer,hexStringLength,kCFStringEncodingASCII);
 
     // Byte length stars off as the number of hex characters, and is adjusted
     // to reflect the number of bytes depending on the format of the hex string
-    // (e.g., if the hex string
-    CFIndex byteLength = hexStrLen;
+    // (does not include null terminator)
+    CFIndex byteLength = CFStringGetLength(hexString);
 
     // The index we'll start processing the hex string
     unsigned int startIndex = 0;
     
-    // Check for the "0x" prefix, ignore it if present...
-    if(hexStrLen >= 2 && hexStrPtr[0] == '0' && hexStrPtr[1] == 'x') {
+    // Check for the "0x" or "x" prefix, ignore it if present...
+    if(hexStringLength >= 2 && hexStringBuffer[0] == '0' && hexStringBuffer[1] == 'x') {
         startIndex+=2;
         byteLength-=2;
     }
-    else if(hexStrLen >= 1 && hexStrPtr[0] == 'x') {
+    else if(hexStringLength >= 1 && hexStringBuffer[0] == 'x') {
         startIndex++;
         byteLength--;
     }
@@ -82,21 +83,21 @@ CFDataRef CFDataCreateWithHexString(CFStringRef hexStr)
     int buffer = 0;
 
     // If an odd number of hex characters, process first one differently...
-    if(hexStrLen % 2 != 0) {
+    if(hexStringLength % 2 != 0) {
         // Pick off the first character and convert differently
-        sscanf(&hexStrPtr[startIndex],"%01x",&buffer);
+        sscanf(&hexStringBuffer[startIndex],"%01x",&buffer);
         bytes[byteIdx] = buffer;
         startIndex++;
         byteIdx++;
     }
 
     // Process remaining characters in pairs (2 hex characters = 1 byte)
-    for(unsigned int idx = startIndex; idx < hexStrLen; idx+=2) {
-        sscanf(&hexStrPtr[idx],"%02x",&buffer);
+    for(unsigned int idx = startIndex; idx < hexStringLength; idx+=2) {
+        sscanf(&hexStringBuffer[idx],"%02x",&buffer);
         bytes[byteIdx] = buffer;
         byteIdx++;
     }
-
+    
     return data;
 }
 
@@ -107,9 +108,9 @@ CFDataRef CFDataCreateWithHexString(CFStringRef hexStr)
 CFStringRef CreateHexStringWithBytes(const UInt8 * bytes, size_t length)
 {
     // Pad string by 3 bytes to leave room for "0x" prefix and null terminator
-    const long hexStrLen = length * 2 + 3;
+    const long hexStrLength = length * 2 + 3;
     
-    char hexStr[hexStrLen];
+    char hexStr[hexStrLength];
     hexStr[0] = '0';
     hexStr[1] = 'x';
     
@@ -118,7 +119,7 @@ CFStringRef CreateHexStringWithBytes(const UInt8 * bytes, size_t length)
         sprintf(&hexStr[i*2+2], "%02x", bytes[i]);
     
     // Null terminate
-    hexStr[hexStrLen-1] = 0;
+    hexStr[hexStrLength-1] = 0;
     
     // This copies our buffer into a CFString object
     return CFStringCreateWithCString(kCFAllocatorDefault,hexStr,kCFStringEncodingASCII);
@@ -143,8 +144,11 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateResponse(CFStringRef identifier,
     CC_MD5_Update(&md5,&id,(CC_LONG)sizeof(id));
 
     // Hash in the secret
-    const UInt8 * byteSecret = (const UInt8*)CFStringGetCStringPtr(secret,kCFStringEncodingASCII);
-    CC_MD5_Update(&md5,byteSecret,(CC_LONG)CFStringGetLength(secret));
+    CFIndex secretLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(secret),kCFStringEncodingASCII) + sizeof('\0');
+    char secretBuffer[secretLength];
+    CFStringGetCString(secret,secretBuffer,secretLength,kCFStringEncodingASCII);
+    
+    CC_MD5_Update(&md5,secretBuffer,(CC_LONG)CFStringGetLength(secret));
 
     // Hash in the challenge
     CFDataRef challengeData = CFDataCreateWithHexString(challenge);
@@ -155,7 +159,7 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateResponse(CFStringRef identifier,
     CC_MD5_Final(md5Hash,&md5);
 
     CFRelease(challengeData);
-
+    
     return CreateHexStringWithBytes(md5Hash,CC_MD5_DIGEST_LENGTH);
 }
 
@@ -188,18 +192,15 @@ CFStringRef iSCSIAuthNegotiateCHAPCreateId()
 /*! Helper function for iSCSIConnectionSecurityNegotiate.  Once it has been
  *  determined that a CHAP session is to be used, this function will perform
  *  the CHAP authentication. */
-errno_t iSCSIAuthNegotiateCHAP(iSCSIMutableTargetRef target,
+errno_t iSCSIAuthNegotiateCHAP(iSCSISessionManagerRef managerRef,
+                               iSCSIMutableTargetRef target,
                                iSCSIAuthRef initiatorAuth,
                                iSCSIAuthRef targetAuth,
-                               SID sessionId,
-                               CID connectionId,
-                               TSIH targetSessionId,
+                               SessionIdentifier sessionId,
+                               ConnectionIdentifier connectionId,
+                               TargetSessionIdentifier targetSessionId,
                                enum iSCSILoginStatusCode * statusCode)
 {
-    if(!target || !initiatorAuth || !targetAuth ||
-       sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
-        return EINVAL;
-    
     // Setup dictionary CHAP authentication information
     CFMutableDictionaryRef authCmd = CFDictionaryCreateMutable(
         kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,
@@ -223,6 +224,7 @@ errno_t iSCSIAuthNegotiateCHAP(iSCSIMutableTargetRef target,
     CFDictionaryAddValue(authCmd,kRFC3720_Key_AuthCHAPDigest,kRFC3720_Value_AuthCHAPDigestMD5);
     
     struct iSCSILoginQueryContext context;
+    context.interface       = iSCSISessionManagerGetHBAInterface(managerRef);
     context.sessionId       = sessionId;
     context.connectionId    = connectionId;
     context.targetSessionId = targetSessionId;
@@ -387,17 +389,16 @@ void iSCSIAuthNegotiateBuildDict(iSCSITargetRef target,
  *  begin authentication between the initiator and a selected target.  If the
  *  target name is set to blank (e.g., by a call to iSCSITargetSetIQN()) or 
  *  never set at all, a discovery session is assumed for authentication. */
-errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
+errno_t iSCSIAuthNegotiate(iSCSISessionManagerRef managerRef,
+                           iSCSIMutableTargetRef target,
                            iSCSIAuthRef initiatorAuth,
                            iSCSIAuthRef targetAuth,
-                           SID sessionId,
-                           CID connectionId,
+                           SessionIdentifier sessionId,
+                           ConnectionIdentifier connectionId,
                            enum iSCSILoginStatusCode * statusCode)
 {
-    if(!target || !initiatorAuth || !targetAuth ||
-       sessionId == kiSCSIInvalidConnectionId || connectionId == kiSCSIInvalidConnectionId)
-        return EINVAL;
-
+    iSCSIHBAInterfaceRef hbaInterface = iSCSISessionManagerGetHBAInterface(managerRef);
+    
     // Setup dictionary with target and initiator info for authentication
     CFMutableDictionaryRef authCmd = CFDictionaryCreateMutable(
         kCFAllocatorDefault,kiSCSISessionMaxTextKeyValuePairs,
@@ -411,14 +412,16 @@ errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
     iSCSIAuthNegotiateBuildDict(target,initiatorAuth,targetAuth,authCmd);
     
     struct iSCSILoginQueryContext context;
+    context.interface    = hbaInterface;
     context.sessionId    = sessionId;
     context.connectionId = connectionId;
     context.currentStage = kiSCSIPDUSecurityNegotiation;
     context.nextStage    = kiSCSIPDUSecurityNegotiation;
     
     // Retrieve the TSIH from the kernel
-    TSIH targetSessionId = 0;
-    iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetSessionId,&targetSessionId,sizeof(TSIH));
+    TargetSessionIdentifier targetSessionId = 0;
+    iSCSIHBAInterfaceGetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOTargetSessionId,
+                                         &targetSessionId,sizeof(TargetSessionIdentifier));
     context.targetSessionId = targetSessionId;
     
     enum iSCSIPDURejectCode rejectCode;
@@ -440,11 +443,11 @@ errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
     // This was the first query of the connection; record the status
     // sequence number provided by the target
     UInt32 expStatSN = context.statSN + 1;
-    iSCSIKernelSetConnectionOpt(sessionId,connectionId,kiSCSIKernelCOInitialExpStatSN,
-                                &expStatSN,sizeof(expStatSN));
+    iSCSIHBAInterfaceSetConnectionParameter(hbaInterface,sessionId,connectionId,kiSCSIHBACOInitialExpStatSN,
+                                            &expStatSN,sizeof(expStatSN));
     
-    // If this is not a discovery session, we expect to receive a target
-    // portal group tag (TPGT) and validate it
+    // If this is not a discovery session (the target is not specified for discovery),
+    // we expect to receive a target portal group tag (TPGT) and validate it
     if(CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) != kCFCompareEqualTo)
     {
         // Ensure that the target returned a portal group tag (TPGT)...
@@ -459,16 +462,16 @@ errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
         // If this is leading login (TSIH = 0 for leading login), store TPGT,
         // else compare it to the TPGT that we have stored for this session...
         if(targetSessionId == 0) {
-            TPGT targetPortalGroupTag = CFStringGetIntValue(targetPortalGroupRsp);
+            TargetPortalGroupTag targetPortalGroupTag = CFStringGetIntValue(targetPortalGroupRsp);
             
-            iSCSIKernelSetSessionOpt(sessionId,kiSCSIKernelSOTargetPortalGroupTag,
-                                     &targetPortalGroupTag,sizeof(TPGT));
+            iSCSIHBAInterfaceSetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOTargetPortalGroupTag,
+                                                 &targetPortalGroupTag,sizeof(TargetPortalGroupTag));
         }
         else {
             // Retrieve from kernel
-            TPGT targetPortalGroupTag = 0;
-            iSCSIKernelGetSessionOpt(sessionId,kiSCSIKernelSOTargetPortalGroupTag,
-                                     &targetPortalGroupTag,sizeof(TPGT));
+            TargetPortalGroupTag targetPortalGroupTag = 0;
+            iSCSIHBAInterfaceGetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOTargetPortalGroupTag,
+                                                 &targetPortalGroupTag,sizeof(TargetPortalGroupTag));
 
             // Validate existing group against TPGT for this connection
             if(targetPortalGroupTag != CFStringGetIntValue(targetPortalGroupRsp))
@@ -476,12 +479,14 @@ errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
         }
     }
     
-    // Determine if target supports desired authentication method
+    // Determine if target supports desired authentication method. Desired method could
+    // be a comma-separated list in authCmd, so we check the target's desired method
+    // as specified in the response (authRsp) against our list
     CFRange result = CFStringFind(CFDictionaryGetValue(authCmd,kRFC3720_Key_AuthMethod),
                                   CFDictionaryGetValue(authRsp,kRFC3720_Key_AuthMethod),
                                   kCFCompareCaseInsensitive);
     
-    // If we wanted to use a particular method and the target doesn't support it
+    // Check if target supported our desired authentication method
     if(result.location == kCFNotFound) {
         error = EAUTH;
         goto ERROR_AUTHENTICATION;
@@ -513,7 +518,8 @@ errno_t iSCSIAuthNegotiate(iSCSIMutableTargetRef target,
     }
 
     if(authMethod == kiSCSIAuthMethodCHAP) {
-        error = iSCSIAuthNegotiateCHAP(target,
+        error = iSCSIAuthNegotiateCHAP(managerRef,
+                                       target,
                                        initiatorAuth,
                                        targetAuth,
                                        sessionId,
@@ -552,9 +558,10 @@ ERROR_GENERIC:
 
 /*! Helper function.  Called by session or connection creation functions to
  *  determine available authentication options for a given target. */
-errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
-                             SID sessionId,
-                             CID connectionId,
+errno_t iSCSIAuthInterrogate(iSCSISessionManagerRef managerRef,
+                             iSCSITargetRef target,
+                             SessionIdentifier sessionId,
+                             ConnectionIdentifier connectionId,
                              enum iSCSIAuthMethods * authMethod,
                              enum iSCSILoginStatusCode * statusCode)
 {
@@ -581,6 +588,7 @@ errno_t iSCSIAuthInterrogate(iSCSITargetRef target,
         &kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     
     struct iSCSILoginQueryContext context;
+    context.interface    = iSCSISessionManagerGetHBAInterface(managerRef);
     context.sessionId    = sessionId;
     context.connectionId = connectionId;
     context.currentStage = kiSCSIPDUSecurityNegotiation;

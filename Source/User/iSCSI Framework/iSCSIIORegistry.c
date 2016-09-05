@@ -38,7 +38,7 @@
 #include <IOKit/storage/IOMedia.h>
 #include <IOKit/storage/IOBlockStorageDriver.h>
 
-#include "iSCSIKernelInterfaceShared.h"
+#include "iSCSIHBATypes.h"
 
 
 /*! Gets the iSCSIVirtualHBA object in the IO registry.*/

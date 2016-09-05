@@ -30,8 +30,11 @@
 #define __ISCSI_UTILS_H__
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <regex.h>
 #include <IOKit/scsi/SCSICmds_INQUIRY_Definitions.h>
+
+#include <netdb.h>
+#include <ifaddrs.h>
+#include <regex.h>
 
 #include "iSCSITypes.h"
 
@@ -72,5 +75,15 @@ CFStringRef iSCSIUtilsGetStringForLoginStatus(enum iSCSILoginStatusCode statusCo
  *  @param statusCode the logout status code.
  *  @return a string describing the login status (guaranteed to be a valid string). */
 CFStringRef iSCSIUtilsGetStringForLogoutStatus(enum iSCSILogoutStatusCode statusCode);
+
+/*! Creates address structures for an iSCSI target and the host (initiator)
+ *  given an iSCSI portal reference. This function may be helpful when
+ *  interfacing to low-level C networking APIs or other foundation libraries.
+ *  @param portal an iSCSI portal.
+ *  @param the target address structure (returned by this function).
+ *  @param the host address structure (returned by this function). */
+errno_t iSCSIUtilsGetAddressForPortal(iSCSIPortalRef portal,
+                                      struct sockaddr_storage * remoteAddress,
+                                      struct sockaddr_storage * localAddress);
 
 #endif /* defined(__ISCSI_UTILS_H__) */

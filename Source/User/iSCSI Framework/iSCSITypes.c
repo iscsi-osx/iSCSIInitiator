@@ -625,17 +625,17 @@ void iSCSISessionConfigSetErrorRecoveryLevel(iSCSIMutableSessionConfigRef target
 }
 
 /*! Gets the target portal group tag. */
-TPGT iSCSISessionConfigGetTargetPortalGroupTag(iSCSISessionConfigRef target)
+TargetPortalGroupTag iSCSISessionConfigGetTargetPortalGroupTag(iSCSISessionConfigRef target)
 {
-    TPGT targetPortalGroupTag = 0;
+    TargetPortalGroupTag targetPortalGroupTag = 0;
     CFNumberRef targetPortalGroupTagNum = CFDictionaryGetValue(target,kiSCSISessionConfigPortalGroupTagKey);
     CFNumberGetValue(targetPortalGroupTagNum,kCFNumberIntType,&targetPortalGroupTag);
-    return (TPGT)targetPortalGroupTag;
+    return (TargetPortalGroupTag)targetPortalGroupTag;
 }
 
 /*! Sets the target portal group tag. */
 void iSCSISessionConfigSetTargetPortalGroupTag(iSCSIMutableSessionConfigRef target,
-                                               TPGT targetPortalGroupTag)
+                                               TargetPortalGroupTag targetPortalGroupTag)
 {
     CFNumberRef targetPortalGroupTagNum = CFNumberCreate(kCFAllocatorDefault,kCFNumberIntType,&targetPortalGroupTag);
     CFDictionarySetValue(target,kiSCSISessionConfigPortalGroupTagKey,targetPortalGroupTagNum);

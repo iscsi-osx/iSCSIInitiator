@@ -50,7 +50,11 @@ Boolean iSCSIUtilsValidateIQN(CFStringRef IQN)
     regex_t preg;
     regcomp(&preg,pattern,REG_EXTENDED | REG_NOSUB);
     
-    if(regexec(&preg,CFStringGetCStringPtr(IQN,kCFStringEncodingASCII),0,NULL,0) == 0)
+    CFIndex IQNLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(IQN),kCFStringEncodingASCII) + sizeof('\0');
+    char IQNBuffer[IQNLength];
+    CFStringGetCString(IQN,IQNBuffer,IQNLength,kCFStringEncodingASCII);
+
+    if(regexec(&preg,IQNBuffer,0,NULL,0) == 0)
         validName = true;
     
     regfree(&preg);
@@ -101,9 +105,13 @@ CFArrayRef iSCSIUtilsCreateArrayByParsingPortalParts(CFStringRef portal)
         
         regmatch_t matches[maxMatches[index]];
         memset(matches,0,sizeof(regmatch_t)*maxMatches[index]);
-        
+       
+        CFIndex portalLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(portal),kCFStringEncodingASCII) + sizeof('\0');
+        char portalBuffer[portalLength];
+        CFStringGetCString(portal,portalBuffer,portalLength,kCFStringEncodingASCII);
+
         // Match against pattern[index]
-        if(regexec(&preg,CFStringGetCStringPtr(portal,kCFStringEncodingASCII),maxMatches[index],matches,0))
+        if(regexec(&preg,portalBuffer,maxMatches[index],matches,0))
         {
             regfree(&preg);
             index++;
@@ -263,4 +271,106 @@ CFStringRef iSCSIUtilsGetStringForLogoutStatus(enum iSCSILogoutStatusCode status
             return CFSTR("");
     };
     return CFSTR("");
+}
+
+/*! Creates address structures for an iSCSI target and the host (initiator)
+ *  given an iSCSI portal reference. This function may be helpful when
+ *  interfacing to low-level C networking APIs or other foundation libraries.
+ *  @param portal an iSCSI portal.
+ *  @param the target address structure (returned by this function).
+ *  @param the host address structure (returned by this function). */
+errno_t iSCSIUtilsGetAddressForPortal(iSCSIPortalRef portal,
+                                     struct sockaddr_storage * remoteAddress,
+                                     struct sockaddr_storage * localAddress)
+{
+    if (!portal || !remoteAddress || !localAddress)
+        return EINVAL;
+    
+    errno_t error = 0;
+    
+    // Resolve the target node first and get a sockaddr info for it
+    const char * targetAddr, * targetPort;
+    
+    targetAddr = CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingUTF8);
+    targetPort = CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingUTF8);
+    
+    struct addrinfo hints = {
+        .ai_family = AF_UNSPEC,
+        .ai_socktype = SOCK_STREAM,
+        .ai_protocol = IPPROTO_TCP,
+    };
+    
+    struct addrinfo * aiTarget = NULL;
+    if((error = getaddrinfo(targetAddr,targetPort,&hints,&aiTarget)))
+        return error;
+    
+    // Copy the sock_addr structure into a sockaddr_storage structure (this
+    // may be either an IPv4 or IPv6 sockaddr structure)
+    memcpy(remoteAddress,aiTarget->ai_addr,aiTarget->ai_addrlen);
+    
+    freeaddrinfo(aiTarget);
+    
+    // If the default interface is to be used, prepare a structure for it
+    CFStringRef hostIface = iSCSIPortalGetHostInterface(portal);
+    
+    if(CFStringCompare(hostIface,kiSCSIDefaultHostInterface,0) == kCFCompareEqualTo)
+    {
+        localAddress->ss_family = remoteAddress->ss_family;
+        
+        // For completeness, setup the sockaddr_in structure
+        if(localAddress->ss_family == AF_INET)
+        {
+            struct sockaddr_in * sa = (struct sockaddr_in *)localAddress;
+            sa->sin_port = 0;
+            sa->sin_addr.s_addr = htonl(INADDR_ANY);
+            sa->sin_len = sizeof(struct sockaddr_in);
+        }
+        
+        // TODO: test IPv6 functionality
+        else if(localAddress->ss_family == AF_INET6)
+        {
+            struct sockaddr_in6 * sa = (struct sockaddr_in6 *)localAddress;
+            sa->sin6_addr = in6addr_any;
+        }
+        
+        return error;
+    }
+    
+    // Otherwise we have to search the list of all interfaces for the specified
+    // interface and copy the corresponding address structure
+    struct ifaddrs * interfaceList;
+    
+    if((error = getifaddrs(&interfaceList)))
+        return error;
+    
+    error = EAFNOSUPPORT;
+    struct ifaddrs * interface = interfaceList;
+    
+    while(interface)
+    {
+        // Check if interface supports the targets address family (e.g., IPv4)
+        if(interface->ifa_addr->sa_family == remoteAddress->ss_family)
+        {
+            CFStringRef currIface = CFStringCreateWithCStringNoCopy(
+                                                                    kCFAllocatorDefault,
+                                                                    interface->ifa_name,
+                                                                    kCFStringEncodingUTF8,
+                                                                    kCFAllocatorNull);
+            
+            Boolean ifaceNameMatch =
+            CFStringCompare(currIface,hostIface,kCFCompareCaseInsensitive) == kCFCompareEqualTo;
+            CFRelease(currIface);
+            // Check if interface names match...
+            if(ifaceNameMatch)
+            {
+                memcpy(localAddress,interface->ifa_addr,interface->ifa_addr->sa_len);
+                error = 0;
+                break;
+            }
+        }
+        interface = interface->ifa_next;
+    }
+    
+    freeifaddrs(interfaceList);
+    return error;
 }

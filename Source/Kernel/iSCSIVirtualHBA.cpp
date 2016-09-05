@@ -31,7 +31,7 @@
 #include "iSCSITaskQueue.h"
 #include "iSCSITypesKernel.h"
 #include "iSCSIRFC3720Defaults.h"
-#include "iSCSIInitiatorClient.h"
+#include "iSCSIHBAUserClient.h"
 #include "crc32c.h"
 
 #include <sys/ioctl.h>
@@ -78,7 +78,7 @@ const UInt32 iSCSIVirtualHBA::kMaxTaskCount = 10;
 const UInt32 iSCSIVirtualHBA::kNumBytesPerAvgBW = 1048576;
 
 /*! Default task timeout for new tasks (milliseconds). */
-const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 60000;
+const UInt32 iSCSIVirtualHBA::kiSCSITaskTimeoutMs = 20000;
 
 /*! Default TCP timeout for new connections (seconds). */
 const UInt32 iSCSIVirtualHBA::kiSCSITCPTimeoutSec = 1;
@@ -397,8 +397,8 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
 {
     // Determine the target identifier (session identifier) and connection
     // associated with this task and remove the task from the task queue.
-    SID sessionId = (UInt16)GetTargetIdentifier(task);
-    CID connectionId = *((UInt32*)GetHBADataPointer(task));
+    SessionIdentifier sessionId = (UInt16)GetTargetIdentifier(task);
+    ConnectionIdentifier connectionId = *((UInt32*)GetHBADataPointer(task));
     
     if(connectionId >= kMaxConnectionsPerSession)
         return;
@@ -438,7 +438,7 @@ void iSCSIVirtualHBA::HandleTimeout(SCSIParallelTaskIdentifier task)
 /*! Handles connection timeouts.
  *  @param sessionId the session associated with the timed-out connection.
  *  @param connectionId the connection that timed out. */
-void iSCSIVirtualHBA::HandleConnectionTimeout(SID sessionId,CID connectionId)
+void iSCSIVirtualHBA::HandleConnectionTimeout(SessionIdentifier sessionId,ConnectionIdentifier connectionId)
 {
     // If this is the last connection, release the session...
     iSCSISession * session;
@@ -448,16 +448,29 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SID sessionId,CID connectionId)
 
     DBLog("iscsi: Connection timeout (sid: %d, cid: %d)\n",sessionId,connectionId);
     
-    CID connectionCount = 0;
-    for(CID connectionId = 0; connectionId < kiSCSIMaxConnectionsPerSession; connectionId++)
+    ConnectionIdentifier connectionCount = 0;
+    for(ConnectionIdentifier connectionId = 0; connectionId < kiSCSIMaxConnectionsPerSession; connectionId++)
         if(session->connections[connectionId])
             connectionCount++;
 
+    iSCSIHBAUserClient * client = (iSCSIHBAUserClient*)getClient();
+    
     // In the future add recovery here...
     if(connectionCount > 1)
-        ReleaseConnection(sessionId,connectionId);
+        DeactivateConnection(sessionId,connectionId);
     else
-        ReleaseSession(sessionId);
+        DeactivateAllConnections(sessionId);
+
+    // Send a notification to the daemon; if the daemon does not respond then
+    // release the session or connection as appropriate
+    if(client->sendTimeoutMessageNotification(sessionId,connectionId) != kIOReturnSuccess)
+    {
+        if(connectionCount > 1)
+            ReleaseConnection(sessionId,connectionId);
+        else
+            ReleaseSession(sessionId);
+    }
+    
 }
 
 SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask)
@@ -468,7 +481,7 @@ SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentif
     SCSILogicalUnitNumber LUN       = GetLogicalUnitNumber(parallelTask);
     SCSITaggedTaskIdentifier taskId = GetTaggedTaskIdentifier(parallelTask);
     
-    iSCSISession * session = sessionList[(SID)targetId];
+    iSCSISession * session = sessionList[(SessionIdentifier)targetId];
     
     if(!session)
         return kSCSIServiceResponse_FUNCTION_REJECTED;
@@ -676,6 +689,7 @@ bool iSCSIVirtualHBA::ProcessTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     // Grab incoming bhs (we are guaranteed to have a basic header at this
     // point (iSCSIIOEventSource ensures that this is the case)
     iSCSIPDUTargetBHS bhs;
+    
     if(owner->RecvPDUHeader(session,connection,&bhs,0))
     {
         DBLog("iscsi: Failed to get PDU header (sid: %d, cid: %d)\n",
@@ -1058,7 +1072,7 @@ void iSCSIVirtualHBA::ProcessAsyncMsg(iSCSISession * session,
     DBLog("iscsi: Async Message (code %#x) received (sid: %d, cid: %d)\n",
         asyncEvent,session->sessionId,connection->cid);
     
-    iSCSIInitiatorClient * client = (iSCSIInitiatorClient*)getClient();
+    iSCSIHBAUserClient * client = (iSCSIHBAUserClient*)getClient();
     if(!client) {
         DBLog("iscsi: client is not available; async message may not be processed correctly\n");
     }
@@ -1281,8 +1295,8 @@ errno_t iSCSIVirtualHBA::CreateSession(OSString * targetIQN,
                                        OSString * hostInterface,
                                        const struct sockaddr_storage * portalSockaddr,
                                        const struct sockaddr_storage * hostSockaddr,
-                                       SID * sessionId,
-                                       CID * connectionId)
+                                       SessionIdentifier * sessionId,
+                                       ConnectionIdentifier * connectionId)
 {
     // Validate inputs
     if(!portalSockaddr || !hostSockaddr || !sessionId || !connectionId)
@@ -1296,7 +1310,7 @@ errno_t iSCSIVirtualHBA::CreateSession(OSString * targetIQN,
     errno_t error = EAGAIN;
     
     // Find an open session slot
-    SID sessionIdx;
+    SessionIdentifier sessionIdx;
     for(sessionIdx = 0; sessionIdx < kMaxSessions; sessionIdx++)
         if(!sessionList[sessionIdx])
             break;
@@ -1381,7 +1395,7 @@ void iSCSIVirtualHBA::ReleaseAllSessions()
 {
     // Go through every connection for each session, and close sockets,
     // remove event sources, etc
-    for(SID index = 0; index < kMaxSessions; index++)
+    for(SessionIdentifier index = 0; index < kMaxSessions; index++)
     {
         if(!sessionList[index])
             continue;
@@ -1393,7 +1407,7 @@ void iSCSIVirtualHBA::ReleaseAllSessions()
 /*! Releases an iSCSI session, including all connections associated with that
  *  session.
  *  @param sessionId the session qualifier part of the ISID. */
-void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
+void iSCSIVirtualHBA::ReleaseSession(SessionIdentifier sessionId)
 {
     // Range-check inputs
     if(sessionId >= kMaxSessions)
@@ -1408,7 +1422,7 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
     DBLog("iscsi: Releasing session (sid %d)\n",sessionId);
     
     // Disconnect all connections
-    for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+    for(ConnectionIdentifier connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
     {
         if(theSession->connections[connectionId])
             ReleaseConnection(sessionId,connectionId);
@@ -1445,13 +1459,13 @@ void iSCSIVirtualHBA::ReleaseSession(SID sessionId)
  *  @param hostSockaddr the BSD socket structure used to identify the host adapter.
  *  @param connectionId identifier for the new connection.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
+errno_t iSCSIVirtualHBA::CreateConnection(SessionIdentifier sessionId,
                                           OSString * portalAddress,
                                           OSString * portalPort,
                                           OSString * hostInterface,
                                           const struct sockaddr_storage * portalSockaddr,
                                           const struct sockaddr_storage * hostSockaddr,
-                                          CID * connectionId)
+                                          ConnectionIdentifier * connectionId)
 {
     // Range-check inputs
     if(sessionId >= kMaxSessions || !portalSockaddr || !hostSockaddr || !connectionId)
@@ -1463,7 +1477,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SID sessionId,
         return EINVAL;
     
     // Find an empty connection slot to use for a new connection
-    CID index;
+    ConnectionIdentifier index;
     for(index = 0; index < kMaxConnectionsPerSession; index++)
         if(!session->connections[index])
             break;
@@ -1595,8 +1609,8 @@ TASKQUEUE_ALLOC_FAILURE:
 
 /*! Frees a given iSCSI connection associated with a given session.
  *  The session should be logged out using the appropriate PDUs. */
-void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
-                                        CID connectionId)
+void iSCSIVirtualHBA::ReleaseConnection(SessionIdentifier sessionId,
+                                        ConnectionIdentifier connectionId)
 {
     // Range-check inputs
     if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession)
@@ -1642,7 +1656,7 @@ void iSCSIVirtualHBA::ReleaseConnection(SID sessionId,
  *  @param sessionId the session to deactivate.
  *  @param connectionId the connection to deactivate.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::ActivateConnection(SID sessionId,CID connectionId)
+errno_t iSCSIVirtualHBA::ActivateConnection(SessionIdentifier sessionId,ConnectionIdentifier connectionId)
 {
     if(sessionId == kiSCSIInvalidSessionId || connectionId == kiSCSIInvalidConnectionId)
         return EINVAL;
@@ -1687,7 +1701,7 @@ errno_t iSCSIVirtualHBA::ActivateConnection(SID sessionId,CID connectionId)
  *  @param sessionId the session to deactivate.
  *  @param connectionId the connection to deactivate.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::ActivateAllConnections(SID sessionId)
+errno_t iSCSIVirtualHBA::ActivateAllConnections(SessionIdentifier sessionId)
 {
     if(sessionId == kiSCSIInvalidSessionId)
         return EINVAL;
@@ -1699,7 +1713,7 @@ errno_t iSCSIVirtualHBA::ActivateAllConnections(SID sessionId)
         return EINVAL;
     
     errno_t error = 0;
-    for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+    for(ConnectionIdentifier connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
         if((error = ActivateConnection(sessionId,connectionId)))
             return error;
     
@@ -1711,7 +1725,7 @@ errno_t iSCSIVirtualHBA::ActivateAllConnections(SID sessionId)
  *  @param sessionId the session to deactivate.
  *  @param connectionId the connection to deactivate.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::DeactivateConnection(SID sessionId,CID connectionId)
+errno_t iSCSIVirtualHBA::DeactivateConnection(SessionIdentifier sessionId,ConnectionIdentifier connectionId)
 {
     if(sessionId >= kMaxSessions || connectionId >= kMaxConnectionsPerSession)
         return EINVAL;
@@ -1766,7 +1780,7 @@ errno_t iSCSIVirtualHBA::DeactivateConnection(SID sessionId,CID connectionId)
  *  negotiated by the iSCSI daemon.
  *  @param sessionId the session to deactivate.
  *  @return error code indicating result of operation. */
-errno_t iSCSIVirtualHBA::DeactivateAllConnections(SID sessionId)
+errno_t iSCSIVirtualHBA::DeactivateAllConnections(SessionIdentifier sessionId)
 {
     if(sessionId >= kMaxSessions)
         return EINVAL;
@@ -1778,7 +1792,7 @@ errno_t iSCSIVirtualHBA::DeactivateAllConnections(SID sessionId)
         return EINVAL;
     
     errno_t error = 0;
-    for(CID connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
+    for(ConnectionIdentifier connectionId = 0; connectionId < kMaxConnectionsPerSession; connectionId++)
     {
         if(session->connections[connectionId])
         {
@@ -1897,9 +1911,16 @@ errno_t iSCSIVirtualHBA::SendPDU(iSCSISession * session,
     // Update io vector count, send data
     msg.msg_iovlen = iovecCnt;
     size_t bytesSent = 0;
-    int result = sock_send(connection->socket,&msg,0,&bytesSent);
+    errno_t error;
     
-    return result;
+    if((error = sock_send(connection->socket,&msg,0,&bytesSent)))
+    {
+        DBLog("iscsi: sock_send error returned with code %d (sid: %d, cid: %d)\n",error,session->sessionId,connection->cid);
+        HandleConnectionTimeout(session->sessionId,connection->cid);
+        return error;
+    }
+    
+    return error;
 }
 
 
@@ -1959,13 +1980,22 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
 
     // Bytes received from sock_receive call
     size_t bytesRecv;
-    errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
-    
-    if(result != 0)
-        DBLog("iscsi: sock_receive error returned with code %d (sid: %d, cid: %d)\n",result,session->sessionId,connection->cid);
+    errno_t error;
 
+    // Handle connection problems
+    if((error = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv)))
+    {
+        if(error != EWOULDBLOCK) {
+            DBLog("iscsi: sock_receive error returned with code %d (sid: %d, cid: %d)\n",error,session->sessionId,connection->cid);
+            HandleConnectionTimeout(session->sessionId,connection->cid);
+            return error;
+        }
+        else
+            error = 0;
+    }
+    
     // Verify length; incoming PDUS from a target should have no AHS, verify.
-    if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize || bhs->totalAHSLength != 0)
+    if(bytesRecv < kiSCSIPDUBasicHeaderSegmentSize)// || bhs->totalAHSLength != 0)
     {
         DBLog("iscsi: Received incomplete PDU header: %zu bytes (sid: %d, cid: %d)\n",bytesRecv,session->sessionId,connection->cid);
         
@@ -1990,12 +2020,13 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     
     // Update command sequence numbers only if the PDU was not a data PDU
     // (unless the data PDU contains a SCSI service response)
+
     if(bhs->opCode == kiSCSIPDUOpCodeDataIn) {
         iSCSIPDUDataInBHS * bhsDataIn = (iSCSIPDUDataInBHS *)bhs;
         if((bhsDataIn->flags & kiSCSIPDUDataInStatusFlag) == 0)
-            return result;
+            return error;
     }
-
+ 
     // Read and update the command sequence numbers
     bhs->maxCmdSN = OSSwapBigToHostInt32(bhs->maxCmdSN);
     bhs->expCmdSN = OSSwapBigToHostInt32(bhs->expCmdSN);
@@ -2009,7 +2040,7 @@ errno_t iSCSIVirtualHBA::RecvPDUHeader(iSCSISession * session,
     if(bhs->opCode != kiSCSIPDUOpCodeR2T && bhs->statSN != 0xffffffff && bhs->initiatorTaskTag != 0xffffffff)
         OSIncrementAtomic(&connection->expStatSN);
     
-    return result;
+    return error;
 }
 
 /*! Receives a data segment over a kernel socket.  If the specified length is 
@@ -2066,7 +2097,19 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
     msg.msg_iovlen = iovecCnt;
     
     size_t bytesRecv;
-    errno_t result = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv);
+    errno_t error = 0;
+    
+    // Handle connection problems
+    if((error = sock_receive(connection->socket,&msg,MSG_WAITALL,&bytesRecv)))
+    {
+        if(error != EWOULDBLOCK) {
+            DBLog("iscsi: sock_receive error returned with code %d (sid: %d, cid: %d)\n",error,session->sessionId,connection->cid);
+            HandleConnectionTimeout(session->sessionId,connection->cid);
+            return error;
+        }
+        else
+            error = 0;
+    }
     
     // Verify digest if present
     if(connection->useDataDigest)
@@ -2084,5 +2127,5 @@ errno_t iSCSIVirtualHBA::RecvPDUData(iSCSISession * session,
         }
     }
 
-    return result;
+    return error;
 }

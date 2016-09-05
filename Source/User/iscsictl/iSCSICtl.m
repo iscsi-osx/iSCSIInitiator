@@ -113,11 +113,20 @@ CFStringRef kOptKeyInterface = CFSTR("interface");
 /*! Auto login command-line option. */
 CFStringRef kOptKeyAutoLogin = CFSTR("auto-login");
 
+/*! Persistent command-line option. */
+CFStringRef kOptKeyPersistent = CFSTR("persistent");
+
 /*! Auto-login enable/disable command-line value. */
 CFStringRef kOptValueAutoLoginEnable = CFSTR("enable");
 
 /*! Auto login enable/disable command-line value. */
 CFStringRef kOptValueAutoLoginDisable = CFSTR("disable");
+
+/*! Persistent enable/disable command-line value. */
+CFStringRef kOptValuePersistentEnable = CFSTR("enable");
+
+/*! Persistent enable/disable command-line value. */
+CFStringRef kOptValuePersistentDisable = CFSTR("disable");
 
 /*! Digest command-line options. */
 CFStringRef kOptKeyDigest = CFSTR("digest");
@@ -314,14 +323,8 @@ void iSCSICtlDisplayString(CFStringRef string)
     CFIndex usedBufLen = 0;
     UInt8 buffer[maxBufLen];
     
-    CFStringGetBytes(string,
-                     CFRangeMake(0,CFStringGetLength(string)),
-                     kCFStringEncodingASCII,
-                     0,
-                     false,
-                     buffer,
-                     maxBufLen,
-                     &usedBufLen);
+    CFStringGetBytes(string,CFRangeMake(0,CFStringGetLength(string)),kCFStringEncodingASCII,
+                     0,false,buffer,maxBufLen,&usedBufLen);
     
     CFWriteStreamWrite(stdoutStream,buffer,usedBufLen);
 }
@@ -375,7 +378,7 @@ CFStringRef iSCSICtlCreateSecretFromInput(CFIndex retries)
 {
     CFStringRef secret = NULL;
 
-    const int MAX_SECRET_LENGTH = 128; //256
+    const int MAX_SECRET_LENGTH = 128;
     char buffer[MAX_SECRET_LENGTH];
     char verify[MAX_SECRET_LENGTH];
     
@@ -1001,11 +1004,25 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
     bool lockAndSync = false;
     iSCSIPreferencesRef preferences = NULL;
     errno_t error = 0;
+    bool validOption = false; // Was there at least one valid option?
     
-    // Check for CHAP shared secret
+    // Get CHAP shared secret if present, otherwise get from input
     CFStringRef secret = NULL;
-    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret))
-        secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+    if (CFDictionaryGetValueIfPresent(options, kOptKeyCHAPSecret, (const void **)&secret))
+    {
+        if (CFStringCompare(secret, kOptValueEmpty, 0) == kCFCompareEqualTo)
+        {
+            if (CFDictionaryContainsKey(options,kOptKeyCHAPSecret))
+			{
+                secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+				validOption = true;
+			}
+        }
+		else
+		{
+			validOption = true;
+		}
+    }
     
     error = iSCSICtlConnectToDaemon(&handle);
     
@@ -1024,6 +1041,8 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
         }
         else
             error = EINVAL;
+        
+        validOption = true;
     }
     
     if(!error) {
@@ -1040,6 +1059,12 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
     {
         if(CFStringCompare(value,kOptValueEmpty,0) != kCFCompareEqualTo)
             iSCSIPreferencesSetInitiatorCHAPName(preferences,value);
+        else {
+            iSCSICtlDisplayError(CFSTR("A CHAP name was not specified"));
+            error = EINVAL;
+        }
+        
+        validOption = true;
     }
 
     // Check for authentication method
@@ -1049,31 +1074,55 @@ errno_t iSCSICtlModifyInitiator(AuthorizationRef authorization,CFDictionaryRef o
             iSCSIPreferencesSetInitiatorAuthenticationMethod(preferences,kiSCSIAuthMethodNone);
         else if(CFStringCompare(value,kOptValueAuthMethodCHAP,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPreferencesSetInitiatorAuthenticationMethod(preferences,kiSCSIAuthMethodCHAP);
+        else if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("Authentication method not specified"));
+            error = EINVAL;
+        }
         else {
             iSCSICtlDisplayError(CFSTR("The specified authentication method is invalid"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     // Check for initiator alias
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyNodeAlias,(const void**)&value))
-        iSCSIPreferencesSetInitiatorAlias(preferences,value);
+    {
+        if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("An alias was not specified"));
+            error = EINVAL;
+        }
+        else
+            iSCSIPreferencesSetInitiatorAlias(preferences,value);
+        
+        validOption = true;
+    }
 
     // Check for initiator IQN
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
     {
-        // Validate the chosen initiator IQN
-        if(iSCSIUtilsValidateIQN(value))
+        if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("An iSCSI Qualified Name (IQN) was not specified"));
+            error = EINVAL;
+        }
+        else if(iSCSIUtilsValidateIQN(value))
             iSCSIPreferencesSetInitiatorIQN(preferences,value);
         else {
             iSCSICtlDisplayError(CFSTR("The specified name is not a valid IQN or EUI-64 identifier"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     if(!error) {
         iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
-        iSCSICtlDisplayString(CFSTR("Initiator settings have been updated\n"));
+        
+        if(validOption)
+            iSCSICtlDisplayString(CFSTR("Initiator settings have been updated\n"));
+        else
+            iSCSICtlDisplayError(CFSTR("No valid options have been specified."));
     }
     else if(lockAndSync)
         iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
@@ -1089,7 +1138,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
                                         iSCSIPreferencesRef preferences,
                                         CFDictionaryRef options,
                                         iSCSITargetRef target,
-                                        iSCSIPortalRef portal)
+                                        iSCSIPortalRef portal,
+                                        bool validOption)
 {
     CFStringRef targetIQN = iSCSITargetGetIQN(target);
     CFStringRef value = NULL;
@@ -1100,38 +1150,54 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
     {
         if(CFStringCompare(value,kOptValueEmpty,0) != kCFCompareEqualTo)
             iSCSIPreferencesSetTargetCHAPName(preferences,targetIQN,value);
+        else {
+            iSCSICtlDisplayError(CFSTR("A CHAP name was not specified"));
+            error = EINVAL;
+        }
+        
+        validOption = true;
     }
-
+    
     // Check for authentication method
-    enum iSCSIAuthMethods authMethod = kiSCSIAuthMethodInvalid;
-
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyAutMethod,(const void**)&value))
     {
-        if(CFStringCompare(value,kOptValueAuthMethodNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
-            authMethod = kiSCSIAuthMethodNone;
-            iSCSIPreferencesSetTargetAuthenticationMethod(preferences,targetIQN,authMethod);
-        }
+        if(CFStringCompare(value,kOptValueAuthMethodNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPreferencesSetTargetAuthenticationMethod(preferences,targetIQN,kiSCSIAuthMethodNone);
         else if(CFStringCompare(value,kOptValueAuthMethodCHAP,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
-        {
-            authMethod = kiSCSIAuthMethodCHAP;
-            iSCSIPreferencesSetTargetAuthenticationMethod(preferences,targetIQN,authMethod);
+            iSCSIPreferencesSetTargetAuthenticationMethod(preferences,targetIQN,kiSCSIAuthMethodCHAP);
+        else if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("Authentication method not specified"));
+            error = EINVAL;
         }
         else {
             iSCSICtlDisplayError(CFSTR("The specified authentication method is invalid"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
-    // Check for target IQN
+    // Check for target IQN changes (preferences will not allow a change to the IQN for
+    // static targets, we must therefore catch and display an appropriate error message)
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyNodeName,(const void **)&value))
     {
-        // Validate the chosen target IQN
-        if(iSCSIUtilsValidateIQN(value))
+        if(iSCSIPreferencesGetTargetConfigType(preferences,targetIQN) != kiSCSITargetConfigStatic)
+        {
+            iSCSICtlDisplayError(CFSTR("The specified target is dynamically managed using discovery and cannot be renamed"));
+            error = EINVAL;
+        }
+        else if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("An iSCSI Qualified Name (IQN) was not specified"));
+            error = EINVAL;
+        }
+        else if(iSCSIUtilsValidateIQN(value))
             iSCSIPreferencesSetTargetIQN(preferences,targetIQN,value);
         else {
             iSCSICtlDisplayError(CFSTR("The specified name is not a valid IQN or EUI-64 identifier"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
     
     // Check for auto-login
@@ -1149,6 +1215,27 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             CFRelease(errorString);
             error = EINVAL;
         }
+        
+        validOption = true;
+    }
+
+    // Check for persistent
+    if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyPersistent,(const void **)&value))
+    {
+        
+        if(CFStringCompare(value,kOptValuePersistentEnable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPreferencesSetPersistenceForTarget(preferences,targetIQN,true);
+        else if(CFStringCompare(value,kOptValuePersistentDisable,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPreferencesSetPersistenceForTarget(preferences,targetIQN,false);
+        else {
+            CFStringRef errorString = CFStringCreateWithFormat(
+                kCFAllocatorDefault,0,CFSTR("Invalid argument for %@"),kOptKeyPersistent);
+            iSCSICtlDisplayError(errorString);
+            CFRelease(errorString);
+            error = EINVAL;
+        }
+        
+        validOption = true;
     }
 
     // Check for maximum connections
@@ -1161,10 +1248,12 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
         }
         else if(maxConnections > kRFC3720_MaxConnections_Max) {
             iSCSICtlDisplayError(CFSTR("Specified maximum number of connections is not sufficient"));
-            error = EINVAL;
+            error = EINVAL; 
         }
         else
             iSCSIPreferencesSetMaxConnectionsForTarget(preferences,targetIQN,maxConnections);
+        
+        validOption = true;
     }
 
     // Check for error recovery level
@@ -1179,6 +1268,8 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
         else {
             iSCSIPreferencesSetErrorRecoveryLevelForTarget(preferences,targetIQN,level);
         }
+        
+        validOption = true;
     }
 
     // Check for header digest
@@ -1188,10 +1279,16 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             iSCSIPreferencesSetHeaderDigestForTarget(preferences,targetIQN,kiSCSIDigestNone);
         else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPreferencesSetHeaderDigestForTarget(preferences,targetIQN,kiSCSIDigestCRC32C);
+        if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("A digest type was not specified"));
+            error = EINVAL;
+        }
         else {
             iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
 
     // Check for data digest
@@ -1201,12 +1298,23 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             iSCSIPreferencesSetDataDigestForTarget(preferences,targetIQN,kiSCSIDigestNone);
         else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPreferencesSetDataDigestForTarget(preferences,targetIQN,kiSCSIDigestCRC32C);
+        if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
+            iSCSICtlDisplayError(CFSTR("A digest type was not specified"));
+            error = EINVAL;
+        }
         else {
             iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
             error = EINVAL;
         }
+        
+        validOption = true;
     }
-
+    
+    if(!error && !validOption) {
+        iSCSICtlDisplayError(CFSTR("No valid options have been specified."));
+        error = EINVAL;
+    }
+    
     return error;
 }
 
@@ -1227,6 +1335,7 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
     iSCSIPreferencesRef preferences = NULL;
     CFStringRef targetIQN = NULL;
     errno_t error = 0;
+    bool validOption = false; // Was there at least one valid option?
     
     if(!error && !(target = iSCSICtlCreateTargetFromOptions(options)))
         error = EINVAL;
@@ -1237,10 +1346,23 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
         if(!(portal = iSCSICtlCreatePortalFromOptions(options)))
             error = EINVAL;
     
-    // Check for CHAP shared secret
+    // Get CHAP shared secret if present, otherwise get from input
     CFStringRef secret = NULL;
-    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret))
-        secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+    if (CFDictionaryGetValueIfPresent(options, kOptKeyCHAPSecret, (const void **)&secret))
+    {
+        if (CFStringCompare(secret, kOptValueEmpty, 0) == kCFCompareEqualTo)
+        {
+            if (CFDictionaryContainsKey(options,kOptKeyCHAPSecret))
+			{
+                secret = iSCSICtlCreateSecretFromInput(MAX_SECRET_RETRY_ATTEMPTS);
+				validOption = true;
+			}
+        }
+		else
+		{
+			validOption = true;
+		}
+    }
     
     if(!error)
         error = iSCSICtlConnectToDaemon(&handle);
@@ -1248,16 +1370,18 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
     if(!error)
         preferences = iSCSIPreferencesCreateFromAppValues();
     
-    if(!error && CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
-        if(secret != NULL) {
+    if(CFDictionaryContainsKey(options,kOptKeyCHAPSecret)) {
+        if(!error && secret != NULL) {
             if(iSCSIDaemonSetSharedSecret(handle,authorization,targetIQN,secret)) {
                 iSCSICtlDisplayError(kPermissionsErrorString);
                 error = EAUTH;
             }
-            CFRelease(secret);
         }
         else
             error = EINVAL;
+        
+        if(secret)
+            CFRelease(secret);
     }
     
     if(!error) {
@@ -1299,8 +1423,10 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
                 if(iSCSIDaemonIsTargetActive(handle,target))
                     iSCSICtlDisplayString(CFSTR("The specified target has an active session and cannot be modified\n"));
                 else {
-                    iSCSICtlModifyTargetFromOptions(authorization,preferences,options,target,portal);
-                    iSCSICtlDisplayString(CFSTR("Target settings have been updated\n"));
+                    error = iSCSICtlModifyTargetFromOptions(authorization,preferences,options,target,portal,validOption);
+
+                    if(!error)
+                        iSCSICtlDisplayString(CFSTR("Target settings have been updated\n"));
                 }
             }
         }
@@ -1323,8 +1449,7 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
 }
 
 /*! Helper function. Displays information about a target/session. */
-void displayTargetInfo(iSCSITargetRef target,
-                       CFDictionaryRef properties)
+void displayTargetInfo(iSCSITargetRef target,CFDictionaryRef properties)
 {
     CFStringRef targetState = NULL;
     CFStringRef targetConfig = NULL;
@@ -1360,7 +1485,7 @@ void displayTargetInfo(iSCSITargetRef target,
         CFNumberRef targetSessionId = CFDictionaryGetValue(properties,kRFC3720_Key_TargetSessionId);
         CFNumberRef sessionId = CFDictionaryGetValue(properties,kRFC3720_Key_SessionId);
         
-        TSIH tsih = 0;
+        TargetSessionIdentifier tsih = 0;
         CFNumberGetValue(targetSessionId,kCFNumberSInt16Type,&tsih);
 
         status = CFStringCreateWithFormat(kCFAllocatorDefault,0,
@@ -1521,15 +1646,34 @@ errno_t iSCSICtlListTarget(CFDictionaryRef options)
     
     displayTargetInfo(target,properties);
     
+    // Retrieve last known target alias (if available) and display it
+    CFStringRef targetAlias = iSCSIPreferencesGetTargetAlias(preferences,targetIQN);
+    if(!targetAlias)
+        targetAlias = CFSTR("<unknown>");
+        
+    CFStringRef aliasString = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\tnode-alias: %@\n"),targetAlias);
+    iSCSICtlDisplayString(aliasString);
+    CFRelease(aliasString);
+    
     // Get information about automatic login
     CFStringRef autoLogin = CFSTR("disabled");
     
     if(iSCSIPreferencesGetAutoLoginForTarget(preferences,targetIQN))
         autoLogin = CFSTR("enabled");
     
-    CFStringRef targetConfig = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\t%@: %@\n"),kOptKeyAutoLogin,autoLogin);
-    iSCSICtlDisplayString(targetConfig);
-    CFRelease(targetConfig);
+    CFStringRef autoLoginString = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\t%@: %@\n"),kOptKeyAutoLogin,autoLogin);
+    iSCSICtlDisplayString(autoLoginString);
+    CFRelease(autoLoginString);
+    
+    // Get information about persistence
+    CFStringRef persistent = CFSTR("no");
+    
+    if(iSCSIPreferencesGetPersistenceForTarget(preferences,targetIQN))
+        persistent = CFSTR("yes");
+    
+    CFStringRef persistentString = CFStringCreateWithFormat(kCFAllocatorDefault,0,CFSTR("\t%@: %@\n"),kOptKeyPersistent,persistent);
+    iSCSICtlDisplayString(persistentString);
+    CFRelease(persistentString);
     
     if(iSCSIPreferencesGetTargetConfigType(preferences,targetIQN) == kiSCSITargetConfigDynamicSendTargets)
     {
@@ -1843,6 +1987,7 @@ errno_t iSCSICtlModifyDiscovery(AuthorizationRef authorization,CFDictionaryRef o
     iSCSIPreferencesRef preferences = NULL;
     bool lockAndSync = false;
     errno_t error = 0;
+    bool validOption = false; // Was there at least one valid option?
     
     if(!error)
         error = iSCSICtlConnectToDaemon(&handle);
@@ -1873,6 +2018,8 @@ errno_t iSCSICtlModifyDiscovery(AuthorizationRef authorization,CFDictionaryRef o
             CFRelease(errorString);
             error = EINVAL;
         }
+        
+        validOption = true;
     }
     // Check if user modified the discovery interval
     if(!error && CFDictionaryGetValueIfPresent(optDictionary,kOptKeyDiscoveryInterval,(const void **)&value))
@@ -1888,11 +2035,17 @@ errno_t iSCSICtlModifyDiscovery(AuthorizationRef authorization,CFDictionaryRef o
         }
         else
             iSCSIPreferencesSetSendTargetsDiscoveryInterval(preferences,interval);
+        
+        validOption = true;
     }
     
     if(!error) {
         iSCSIDaemonPreferencesIOUnlockAndSync(handle,preferences);
-        iSCSICtlDisplayString(CFSTR("Discovery settings have been updated\n"));
+        
+        if(validOption)
+            iSCSICtlDisplayString(CFSTR("Discovery settings have been updated\n"));
+        else
+            iSCSICtlDisplayError(CFSTR("No valid options have been specified."));
     }
     else if(lockAndSync)
         iSCSIDaemonPreferencesIOUnlockAndSync(handle,NULL);
