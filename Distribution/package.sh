@@ -1,7 +1,7 @@
 # Package parameters
 NAME="iSCSI Initiator for OS X"
 BUNDLE_ID="com.github.iscsi-osx.iSCSIInitiator"
-VERSION="1.0.0-beta3"
+VERSION="1.0.0-beta4"
 
 # Output of final DMG
 RELEASE="../Release"

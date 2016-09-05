@@ -64,11 +64,6 @@
 		2BDE5E921C8BD1C5004BDB5F /* iscsictl.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2BDE5E261C8B0274004BDB5F /* iscsictl.8 */; };
 		2BDE5E931C8BD1DC004BDB5F /* iscsid.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2BDE5E2D1C8B0281004BDB5F /* iscsid.8 */; };
 		2BDE5E941C8C7AF1004BDB5F /* com.github.iscsi-osx.iscsid.plist in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2BDE5E2A1C8B0281004BDB5F /* com.github.iscsi-osx.iscsid.plist */; };
-		2BED8AD61D0C67740015D451 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2BED8AD51D0C67740015D451 /* AppDelegate.m */; };
-		2BED8AD91D0C67740015D451 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 2BED8AD81D0C67740015D451 /* main.m */; };
-		2BED8ADB1D0C67740015D451 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2BED8ADA1D0C67740015D451 /* Assets.xcassets */; };
-		2BED8ADE1D0C67740015D451 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 2BED8ADC1D0C67740015D451 /* MainMenu.xib */; };
-		2BED8AE31D0C677B0015D451 /* iSCSI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B7A0B741C8AEC47008290E9 /* iSCSI.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -187,13 +182,6 @@
 		2BDEA9401A715C7B00D5B48B /* iSCSIInitiator.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iSCSIInitiator.kext; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BDEA9411A715C7B00D5B48B /* iscsid */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iscsid; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BDEA9421A715C7B00D5B48B /* iscsictl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iscsictl; sourceTree = BUILT_PRODUCTS_DIR; };
-		2BED8AD21D0C67740015D451 /* iSCSI Utility.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "iSCSI Utility.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		2BED8AD41D0C67740015D451 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
-		2BED8AD51D0C67740015D451 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
-		2BED8AD81D0C67740015D451 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-		2BED8ADA1D0C67740015D451 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		2BED8ADD1D0C67740015D451 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
-		2BED8ADF1D0C67740015D451 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -244,14 +232,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2BED8ACF1D0C67740015D451 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				2BED8AE31D0C677B0015D451 /* iSCSI.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -277,7 +257,6 @@
 				2BDEA9411A715C7B00D5B48B /* iscsid */,
 				2BDEA9421A715C7B00D5B48B /* iscsictl */,
 				2B7A0B741C8AEC47008290E9 /* iSCSI.framework */,
-				2BED8AD21D0C67740015D451 /* iSCSI Utility.app */,
 				2B1A490C1D3D40FE00D3ED0D /* iSCSIHBATest */,
 			);
 			sourceTree = "<group>";
@@ -348,7 +327,6 @@
 		2BDE5E1A1C8B020A004BDB5F /* User */ = {
 			isa = PBXGroup;
 			children = (
-				2BED8AD31D0C67740015D451 /* iSCSI Utility */,
 				2BDE5E231C8B0255004BDB5F /* iscsictl */,
 				2BDE5E221C8B024A004BDB5F /* iscsid */,
 				2BDE5E211C8B0241004BDB5F /* iSCSI Framwork */,
@@ -415,27 +393,6 @@
 				2BDE5E271C8B0274004BDB5F /* iSCSICtl.m */,
 			);
 			name = iscsictl;
-			sourceTree = "<group>";
-		};
-		2BED8AD31D0C67740015D451 /* iSCSI Utility */ = {
-			isa = PBXGroup;
-			children = (
-				2BED8AD41D0C67740015D451 /* AppDelegate.h */,
-				2BED8AD51D0C67740015D451 /* AppDelegate.m */,
-				2BED8ADA1D0C67740015D451 /* Assets.xcassets */,
-				2BED8ADC1D0C67740015D451 /* MainMenu.xib */,
-				2BED8ADF1D0C67740015D451 /* Info.plist */,
-				2BED8AD71D0C67740015D451 /* Supporting Files */,
-			);
-			path = "iSCSI Utility";
-			sourceTree = "<group>";
-		};
-		2BED8AD71D0C67740015D451 /* Supporting Files */ = {
-			isa = PBXGroup;
-			children = (
-				2BED8AD81D0C67740015D451 /* main.m */,
-			);
-			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -558,23 +515,6 @@
 			productReference = 2BDEA9411A715C7B00D5B48B /* iscsid */;
 			productType = "com.apple.product-type.tool";
 		};
-		2BED8AD11D0C67740015D451 /* iSCSI Utility */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 2BED8AE01D0C67740015D451 /* Build configuration list for PBXNativeTarget "iSCSI Utility" */;
-			buildPhases = (
-				2BED8ACE1D0C67740015D451 /* Sources */,
-				2BED8ACF1D0C67740015D451 /* Frameworks */,
-				2BED8AD01D0C67740015D451 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = "iSCSI Utility";
-			productName = "iSCSI Utility";
-			productReference = 2BED8AD21D0C67740015D451 /* iSCSI Utility.app */;
-			productType = "com.apple.product-type.application";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -589,9 +529,6 @@
 					};
 					2B7A0B731C8AEC47008290E9 = {
 						CreatedOnToolsVersion = 7.0.1;
-					};
-					2BED8AD11D0C67740015D451 = {
-						CreatedOnToolsVersion = 7.3.1;
 					};
 				};
 			};
@@ -612,7 +549,6 @@
 				2BA96D8818D4F60200F135E3 /* iscsid */,
 				2B16EEC8196085A40061E7FA /* iscsictl */,
 				2B7A0B731C8AEC47008290E9 /* iSCSI */,
-				2BED8AD11D0C67740015D451 /* iSCSI Utility */,
 				2B1A490B1D3D40FE00D3ED0D /* iSCSIHBATest */,
 			);
 		};
@@ -633,15 +569,6 @@
 			files = (
 				2BDE5E281C8B0274004BDB5F /* iscsictl.8 in Resources */,
 				2B56ACED1C4A48C800930E79 /* Distribution in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		2BED8AD01D0C67740015D451 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				2BED8ADB1D0C67740015D451 /* Assets.xcassets in Resources */,
-				2BED8ADE1D0C67740015D451 /* MainMenu.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -720,27 +647,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2BED8ACE1D0C67740015D451 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				2BED8AD91D0C67740015D451 /* main.m in Sources */,
-				2BED8AD61D0C67740015D451 /* AppDelegate.m in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXVariantGroup section */
-		2BED8ADC1D0C67740015D451 /* MainMenu.xib */ = {
-			isa = PBXVariantGroup;
-			children = (
-				2BED8ADD1D0C67740015D451 /* Base */,
-			);
-			name = MainMenu.xib;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		2B16EED0196085A40061E7FA /* Debug */ = {
@@ -761,7 +668,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				DYLIB_CURRENT_VERSION = "1.0.0-beta";
+				DYLIB_CURRENT_VERSION = 1.0.0;
 				GCC_C_LANGUAGE_STANDARD = "compiler-default";
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
@@ -803,7 +710,7 @@
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DYLIB_CURRENT_VERSION = "1.0.0-beta";
+				DYLIB_CURRENT_VERSION = 1.0.0;
 				ENABLE_NS_ASSERTIONS = NO;
 				GCC_C_LANGUAGE_STANDARD = "compiler-default";
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
@@ -904,7 +811,7 @@
 			buildSettings = {
 				CF_PREFERENCES_APP_ID = "$(NAME_PREFIX_D).iSCSIInitiator";
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = "1.0.0-beta3";
+				CURRENT_PROJECT_VERSION = "1.0.0-beta4";
 				ENABLE_TESTABILITY = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"CF_PREFERENCES_APP_ID=\\\"$(NAME_PREFIX_D).iSCSIInitiator\\\"",
@@ -926,7 +833,7 @@
 			buildSettings = {
 				CF_PREFERENCES_APP_ID = "$(NAME_PREFIX_D).iSCSIInitiator";
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = "1.0.0-beta3";
+				CURRENT_PROJECT_VERSION = "1.0.0-beta4";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"CF_PREFERENCES_APP_ID=\\\"$(NAME_PREFIX_D).iSCSIInitiator\\\"",
 					"NAME_PREFIX_U=$(NAME_PREFIX_U)",
@@ -1061,7 +968,7 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
-				DYLIB_CURRENT_VERSION = "1.0.0-beta";
+				DYLIB_CURRENT_VERSION = 1.0.0;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
@@ -1115,7 +1022,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DYLIB_CURRENT_VERSION = "1.0.0-beta";
+				DYLIB_CURRENT_VERSION = 1.0.0;
 				ENABLE_NS_ASSERTIONS = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
@@ -1161,7 +1068,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DYLIB_CURRENT_VERSION = "1.0.0-beta";
+				DYLIB_CURRENT_VERSION = 1.0.0;
 				GCC_C_LANGUAGE_STANDARD = "compiler-default";
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
@@ -1204,7 +1111,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DYLIB_CURRENT_VERSION = "1.0.0-beta";
+				DYLIB_CURRENT_VERSION = 1.0.0;
 				ENABLE_NS_ASSERTIONS = NO;
 				GCC_C_LANGUAGE_STANDARD = "compiler-default";
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
@@ -1220,95 +1127,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "";
 				PRODUCT_NAME = iscsid;
 				SDKROOT = macosx;
-			};
-			name = Release;
-		};
-		2BED8AE11D0C67740015D451 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "-";
-				COMBINE_HIDPI_IMAGES = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = "iSCSI Utility/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
-				MTL_ENABLE_DEBUG_INFO = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.github.iscsi-osx.iSCSI-Utility";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Debug;
-		};
-		2BED8AE21D0C67740015D451 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "-";
-				COMBINE_HIDPI_IMAGES = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = "iSCSI Utility/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.11;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.github.iscsi-osx.iSCSI-Utility";
-				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
 		};
@@ -1331,6 +1149,7 @@
 				2B1A49121D3D40FE00D3ED0D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		2B5935581810CE6800FFC3D3 /* Build configuration list for PBXProject "iSCSIInitiator" */ = {
 			isa = XCConfigurationList;
@@ -1364,15 +1183,6 @@
 			buildConfigurations = (
 				2BA96D9618D4F60200F135E3 /* Debug */,
 				2BA96D9718D4F60200F135E3 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		2BED8AE01D0C67740015D451 /* Build configuration list for PBXNativeTarget "iSCSI Utility" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				2BED8AE11D0C67740015D451 /* Debug */,
-				2BED8AE21D0C67740015D451 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
