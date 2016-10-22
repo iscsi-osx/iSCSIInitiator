@@ -778,7 +778,7 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
     iSCSIDLogoutContext * context;
     context = (iSCSIDLogoutContext*)malloc(sizeof(iSCSIDLogoutContext));
     context->fd = fd;
-    context->portal = portal;
+    context->portal = NULL;
     context->errorCode = errorCode;
     context->diskSession = NULL;
     
@@ -791,8 +791,10 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
         iSCSIDAUnmountForTarget(context->diskSession,kDADiskUnmountOptionWhole,target,&iSCSIDLogoutComplete,context);
     }
     // Portal logout only (or no logout and just a response to client if error)
-    else
+    else {
+        context->portal = portal;
         iSCSIDLogoutComplete(target,kiSCSIDAOperationSuccess,context);
+    }
 
     return 0;
 }
