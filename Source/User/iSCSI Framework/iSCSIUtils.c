@@ -289,10 +289,15 @@ errno_t iSCSIUtilsGetAddressForPortal(iSCSIPortalRef portal,
     errno_t error = 0;
     
     // Resolve the target node first and get a sockaddr info for it
-    const char * targetAddr, * targetPort;
+    CFStringRef targetAddr = iSCSIPortalGetAddress(portal);
+    CFIndex targetAddrLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(targetAddr),kCFStringEncodingASCII) + sizeof('\0');
+    char targetAddrBuffer[targetAddrLength];
+    CFStringGetCString(targetAddr,targetAddrBuffer,targetAddrLength,kCFStringEncodingASCII);
     
-    targetAddr = CFStringGetCStringPtr(iSCSIPortalGetAddress(portal),kCFStringEncodingUTF8);
-    targetPort = CFStringGetCStringPtr(iSCSIPortalGetPort(portal),kCFStringEncodingUTF8);
+    CFStringRef targetPort = iSCSIPortalGetPort(portal);
+    CFIndex targetPortLength = CFStringGetMaximumSizeForEncoding(CFStringGetLength(targetPort),kCFStringEncodingASCII) + sizeof('\0');
+    char targetPortBuffer[targetPortLength];
+    CFStringGetCString(targetPort,targetPortBuffer,targetPortLength,kCFStringEncodingASCII);
     
     struct addrinfo hints = {
         .ai_family = AF_UNSPEC,
@@ -301,7 +306,7 @@ errno_t iSCSIUtilsGetAddressForPortal(iSCSIPortalRef portal,
     };
     
     struct addrinfo * aiTarget = NULL;
-    if((error = getaddrinfo(targetAddr,targetPort,&hints,&aiTarget)))
+    if((error = getaddrinfo(targetAddrBuffer,targetPortBuffer,&hints,&aiTarget)))
         return error;
     
     // Copy the sock_addr structure into a sockaddr_storage structure (this
