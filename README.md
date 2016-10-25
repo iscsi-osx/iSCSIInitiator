@@ -7,14 +7,14 @@ iSCSI initiator is a software initiator for macOS. It allows machines running ma
 
 Manual builds of the kernel extension will not be signed and as a result macOS won't load them. Kext signing must therefore be disabled before attempting to install and load the kernel extension. Additionally, as of El Capitan, new security measures have been implemented that prevent the installation of files in certain protected system folders (unless the files are placed there by an appropriate installer). For this reason, it is important to follow the directions applicable to the relevant version of macOS **prior** to installation of the initiator.
 
-##### OS X 10.10 and earlier (prior to El Capitan)
+##### macOS 10.10 and earlier (prior to El Capitan)
 Run the following command at a terminal prompt:
  
     sudo nvram boot-args=kext-dev-mode=1
 
 The kernel will load unsigned kernel extensions after a reboot.
 
-##### OS X 10.11 and later
+##### macOS 10.11 and later
 
 Run the following command at the Recover OS terminal window:
 
