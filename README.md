@@ -18,7 +18,7 @@ The kernel will load unsigned kernel extensions after a reboot.
 
 Run the following command at the Recover OS terminal window:
 
-    csrutil enable
+    csrutil disable
 
 Follow the instructions in the [System Integrity Protection Guide](https://developer.apple.com/library/mac/documentation/Security/Conceptual/System_Integrity_Protection_Guide/KernelExtensions/KernelExtensions.html#//apple_ref/doc/uid/TP40016462-CH4-SW1) to access the Recover OS terminal window. Two reboots may be required during this process.
 
