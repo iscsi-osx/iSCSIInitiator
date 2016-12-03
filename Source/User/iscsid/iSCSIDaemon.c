@@ -1662,9 +1662,25 @@ void iSCSIDQueueLogin(iSCSITargetRef target,iSCSIPortalRef portal)
                                                                         (const struct sockaddr *)&localAddress,
                                                                         (const struct sockaddr *)&remoteAddress);
     }
-
-    SCNetworkReachabilitySetCallback(reachabilityTarget,iSCSIDProcessQueuedLogin,&reachabilityContext);
-    SCNetworkReachabilityScheduleWithRunLoop(reachabilityTarget,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
+    
+    // If the target is reachable just login; otherwise queue the login ...
+    SCNetworkReachabilityFlags reachabilityFlags;
+    SCNetworkReachabilityGetFlags(reachabilityTarget,&reachabilityFlags);
+    
+    if(reachabilityFlags & kSCNetworkReachabilityFlagsReachable) {
+        enum iSCSILoginStatusCode statusCode;
+        iSCSIDLoginWithPortal(target,portal,&statusCode);
+        
+        iSCSITargetRelease(target);
+        iSCSIPortalRelease(portal);
+        CFRelease(reachabilityTarget);
+        free(loginRef);
+    
+    }
+    else {
+        SCNetworkReachabilitySetCallback(reachabilityTarget,iSCSIDProcessQueuedLogin,&reachabilityContext);
+        SCNetworkReachabilityScheduleWithRunLoop(reachabilityTarget,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
+    }
 }
 
 void iSCSIDSessionTimeoutHandler(iSCSITargetRef target,iSCSIPortalRef portal)
