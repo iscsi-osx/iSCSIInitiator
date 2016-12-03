@@ -1,5 +1,5 @@
 # Package parameters
-NAME="iSCSI Initiator for OS X"
+NAME="iSCSI Initiator for macOS"
 BUNDLE_ID="com.github.iscsi-osx.iSCSIInitiator"
 VERSION="1.0.0-beta4"
 
