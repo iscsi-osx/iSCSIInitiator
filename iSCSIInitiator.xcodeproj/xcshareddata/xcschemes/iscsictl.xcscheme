@@ -62,6 +62,12 @@
             ReferencedContainer = "container:iSCSIInitiator.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <CommandLineArguments>
+         <CommandLineArgument
+            argument = "login iqn.1995-05.com.seagate:nas-vault.test"
+            isEnabled = "YES">
+         </CommandLineArgument>
+      </CommandLineArguments>
       <AdditionalOptions>
       </AdditionalOptions>
    </LaunchAction>

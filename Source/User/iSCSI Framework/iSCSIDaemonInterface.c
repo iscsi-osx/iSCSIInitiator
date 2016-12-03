@@ -121,7 +121,7 @@ iSCSIDaemonHandle iSCSIDaemonConnect()
     // Set timeout for connect()
     struct timeval tv;
     memset(&tv,0,sizeof(tv));
-    tv.tv_usec = kiSCSIDaemonConnectTimeoutMilliSec*2000;
+    tv.tv_usec = kiSCSIDaemonConnectTimeoutMilliSec*1000;
 
     fd_set fdset;
     FD_ZERO(&fdset);
@@ -532,7 +532,6 @@ CFDictionaryRef iSCSIDaemonCreateCFPropertiesForSession(iSCSIDaemonHandle handle
             CFRelease(data);
         }
     }
-
     return properties;
 }
 

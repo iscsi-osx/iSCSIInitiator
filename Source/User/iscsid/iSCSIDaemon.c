@@ -1388,7 +1388,7 @@ errno_t iSCSIDUpdateDiscovery(int fd,
     if(discoveryEnabled)
     {
         discoveryTimer = CFRunLoopTimerCreate(kCFAllocatorDefault,
-                                              CFAbsoluteTimeGetCurrent() + 2.0,
+                                              CFAbsoluteTimeGetCurrent(),
                                               interval,0,0,callout,NULL);
 
         CFRunLoopAddTimer(CFRunLoopGetCurrent(),discoveryTimer,kCFRunLoopDefaultMode);
@@ -1400,6 +1400,10 @@ errno_t iSCSIDUpdateDiscovery(int fd,
 
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
         error = EAGAIN;
+    
+    // If discovery was enabled do it now...
+//    if(discoveryEnabled)
+//        iSCSIDisco
 
     return error;
 }
@@ -1996,9 +2000,10 @@ int main(void)
     sessionManager = iSCSISessionManagerCreate(kCFAllocatorDefault,callbacks);
     
     // Let launchd call us again once the HBA kext is loaded
-    if(!sessionManager)
+    if(!sessionManager) {
+        asl_log(NULL,NULL,ASL_LEVEL_ALERT,"kernel extension has not been loaded, iSCSI services unavailable");
         return EAGAIN;
-    
+    }
     iSCSISessionManagerScheduleWithRunLoop(sessionManager,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
 
     // Read configuration parameters from the iSCSI property list

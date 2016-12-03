@@ -164,7 +164,6 @@ iSCSIHBAInterfaceRef iSCSIHBAInterfaceCreate(CFAllocatorRef allocator,iSCSIHBANo
         // (this may be NULL in which case we are not responsible)
         if(interface->notifyContext.retain)
             interface->notifyContext.retain(interface->notifyContext.info);
-        
     }
     // Cleanup
     else {
@@ -176,6 +175,7 @@ iSCSIHBAInterfaceRef iSCSIHBAInterfaceCreate(CFAllocatorRef allocator,iSCSIHBANo
             IOObjectRelease(service);
         
         CFAllocatorDeallocate(allocator,interface);
+        interface = NULL;
     }
     return interface;
 }
