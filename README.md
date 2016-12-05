@@ -5,7 +5,7 @@ iSCSI initiator is a software initiator for macOS. It allows machines running ma
 
 ### Installation Prerequisites
 
-Manual builds of the kernel extension will not be signed and as a result macOS won't load them. Kext signing must therefore be disabled before attempting to install and load the kernel extension. Additionally, as of El Capitan, new security measures have been implemented that prevent the installation of files in certain protected system folders (unless the files are placed there by an appropriate installer). For this reason, it is important to follow the directions applicable to the relevant version of macOS **prior** to installation of the initiator.
+Builds of the kernel extension will not be signed and as a result macOS won't load them. Kext signing must therefore be disabled before attempting to install and load the kernel extension. Additionally, as of El Capitan, new security measures have been implemented that prevent the installation of files in certain protected system folders (unless the files are placed there by an appropriate installer). For this reason, it is important to follow the directions applicable to the relevant version of macOS **prior** to installation of the initiator.
 
 ##### macOS 10.10 and earlier (prior to El Capitan)
 Run the following command at a terminal prompt:
