@@ -75,6 +75,12 @@ IONotificationPortRef powerNotifyPortRef;
 // Used to fire discovery timer at specified intervals
 CFRunLoopTimerRef discoveryTimer = NULL;
 
+// Used by discovery to notify the main daemon thread that data is ready
+CFRunLoopSourceRef discoverySource = NULL;
+
+// Used to point to discovery records
+CFDictionaryRef discoveryRecords = NULL;
+
 // Mutex lock when discovery is running
 pthread_mutex_t discoveryMutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -366,10 +372,8 @@ errno_t iSCSIDLoginCommon(SessionIdentifier sessionId,
     // Update target alias in preferences (if one was furnished)
     else
     {
-        pthread_mutex_lock(&preferencesMutex);
         iSCSIPreferencesSetTargetAlias(preferences,targetIQN,iSCSITargetGetAlias(target));
         iSCSIPreferencesSynchronzeAppValues(preferences);
-        pthread_mutex_unlock(&preferencesMutex);
     }
     
     if(sessCfg)
@@ -1302,8 +1306,21 @@ CFDictionaryRef iSCSIDCreateRecordsWithSendTargets(iSCSISessionManagerRef manage
 
 void * iSCSIDRunDiscovery(void * context)
 {
-    CFDictionaryRef discoveryRecords = iSCSIDCreateRecordsWithSendTargets(sessionManager,preferences);
+    if(discoveryRecords != NULL)
+        CFRelease(discoveryRecords);
+
+    discoveryRecords = iSCSIDCreateRecordsWithSendTargets(sessionManager,preferences);
+
     
+    // Clear mutex created when discovery was launched
+    pthread_mutex_unlock(&discoveryMutex);
+    
+    CFRunLoopSourceSignal(discoverySource);
+    return NULL;
+}
+
+void iSCSIDProcessDiscoveryData(void * info)
+{
     // Process discovery results if any
     if(discoveryRecords) {
         
@@ -1314,19 +1331,15 @@ void * iSCSIDRunDiscovery(void * context)
         const void * keys[count];
         const void * values[count];
         CFDictionaryGetKeysAndValues(discoveryRecords,keys,values);
-    
+        
         for(CFIndex i = 0; i < count; i++)
             iSCSIDUpdatePreferencesWithDiscoveredTargets(sessionManager,preferences,keys[i],values[i]);
-    
+        
         iSCSIPreferencesSynchronzeAppValues(preferences);
         pthread_mutex_unlock(&preferencesMutex);
         
         CFRelease(discoveryRecords);
     }
-    
-    pthread_mutex_unlock(&discoveryMutex);
-    
-    return NULL;
 }
 
 
@@ -2112,6 +2125,14 @@ int main(void)
     reqInfo->socket = socket;
     reqInfo->socketSourceRead = sockSourceRead;
     reqInfo->fd = 0;
+    
+    // Runloop source signal by deamoen when discovery data is ready to be processed
+    CFRunLoopSourceContext discoveryContext;
+    bzero(&discoveryContext,sizeof(discoveryContext));
+    discoveryContext.info = &discoveryRecords;
+    discoveryContext.perform = iSCSIDProcessDiscoveryData;
+    discoverySource = CFRunLoopSourceCreate(kCFAllocatorDefault,1,&discoveryContext);
+    CFRunLoopAddSource(CFRunLoopGetMain(),sockSourceRead,kCFRunLoopDefaultMode);
 
     asl_log(NULL,NULL,ASL_LEVEL_INFO,"daemon started");
 
