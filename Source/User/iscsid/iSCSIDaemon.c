@@ -1387,8 +1387,9 @@ errno_t iSCSIDUpdateDiscovery(int fd,
     // Add new timer with updated interval, if discovery is enabled
     if(discoveryEnabled)
     {
+        CFTimeInterval delay = 2;
         discoveryTimer = CFRunLoopTimerCreate(kCFAllocatorDefault,
-                                              CFAbsoluteTimeGetCurrent(),
+                                              CFAbsoluteTimeGetCurrent()+delay,
                                               interval,0,0,callout,NULL);
 
         CFRunLoopAddTimer(CFRunLoopGetCurrent(),discoveryTimer,kCFRunLoopDefaultMode);
@@ -1400,10 +1401,6 @@ errno_t iSCSIDUpdateDiscovery(int fd,
 
     if(send(fd,&rsp,sizeof(rsp),0) != sizeof(rsp))
         error = EAGAIN;
-    
-    // If discovery was enabled do it now...
-//    if(discoveryEnabled)
-//        iSCSIDisco
 
     return error;
 }
@@ -1843,7 +1840,6 @@ void iSCSIDPrepareForSystemSleep()
 
         DASessionScheduleWithRunLoop(diskSession,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
         iSCSIDAUnmountForTarget(diskSession,kDADiskUnmountOptionWhole,target,&iSCSIDPrepareForSystemSleepComplete,(void*)sessionId);
-//        iSCSITargetRelease(target);
     }
     
     CFRetain(diskSession);

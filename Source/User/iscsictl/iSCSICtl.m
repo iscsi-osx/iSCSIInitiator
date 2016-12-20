@@ -1966,6 +1966,10 @@ errno_t iSCSICtlAddDiscoveryPortal(AuthorizationRef authorization,CFDictionaryRe
     
     if(portal)
         iSCSIPortalRelease(portal);
+    
+    if(!error)
+        iSCSIDaemonUpdateDiscovery(handle);
+    
     if(preferences)
         iSCSIPreferencesRelease(preferences);
     iSCSICtlDisconnectFromDaemon(handle);
