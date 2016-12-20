@@ -823,6 +823,7 @@ void iSCSIPreferencesSetInitiatorIQN(iSCSIPreferencesRef preferences,CFStringRef
     
     if(!initiatorDict) {
         initiatorDict = iSCSIPreferencesCreateInitiatorDict();
+        CFDictionarySetValue(preferences,kiSCSIPKInitiator,initiatorDict);
     }
 
     // Update keychain if necessary
@@ -866,6 +867,7 @@ void iSCSIPreferencesSetInitiatorAlias(iSCSIPreferencesRef preferences,CFStringR
     
     if(!initiatorDict) {
         initiatorDict = iSCSIPreferencesCreateInitiatorDict();
+        CFDictionarySetValue(preferences,kiSCSIPKInitiator,initiatorDict);
     }
     
     // Update initiator alias

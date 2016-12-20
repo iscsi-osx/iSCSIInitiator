@@ -320,9 +320,6 @@ IOReturn iSCSIHBAUserClient::clientDied()
     // Tell HBA to release any resources that aren't active (e.g.,
     // connections we started to establish but didn't activate)
     
-    // Close the provider (decrease retain count)
-    close();
-    
 	return super::clientDied();
 }
 

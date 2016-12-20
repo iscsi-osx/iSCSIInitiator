@@ -75,6 +75,12 @@ IONotificationPortRef powerNotifyPortRef;
 // Used to fire discovery timer at specified intervals
 CFRunLoopTimerRef discoveryTimer = NULL;
 
+// Used by discovery to notify the main daemon thread that data is ready
+CFRunLoopSourceRef discoverySource = NULL;
+
+// Used to point to discovery records
+CFDictionaryRef discoveryRecords = NULL;
+
 // Mutex lock when discovery is running
 pthread_mutex_t discoveryMutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -366,10 +372,8 @@ errno_t iSCSIDLoginCommon(SessionIdentifier sessionId,
     // Update target alias in preferences (if one was furnished)
     else
     {
-        pthread_mutex_lock(&preferencesMutex);
         iSCSIPreferencesSetTargetAlias(preferences,targetIQN,iSCSITargetGetAlias(target));
         iSCSIPreferencesSynchronzeAppValues(preferences);
-        pthread_mutex_unlock(&preferencesMutex);
     }
     
     if(sessCfg)
@@ -778,7 +782,7 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
     iSCSIDLogoutContext * context;
     context = (iSCSIDLogoutContext*)malloc(sizeof(iSCSIDLogoutContext));
     context->fd = fd;
-    context->portal = portal;
+    context->portal = NULL;
     context->errorCode = errorCode;
     context->diskSession = NULL;
     
@@ -791,8 +795,10 @@ errno_t iSCSIDLogout(int fd,iSCSIDMsgLogoutCmd * cmd)
         iSCSIDAUnmountForTarget(context->diskSession,kDADiskUnmountOptionWhole,target,&iSCSIDLogoutComplete,context);
     }
     // Portal logout only (or no logout and just a response to client if error)
-    else
+    else {
+        context->portal = portal;
         iSCSIDLogoutComplete(target,kiSCSIDAOperationSuccess,context);
+    }
 
     return 0;
 }
@@ -1300,8 +1306,21 @@ CFDictionaryRef iSCSIDCreateRecordsWithSendTargets(iSCSISessionManagerRef manage
 
 void * iSCSIDRunDiscovery(void * context)
 {
-    CFDictionaryRef discoveryRecords = iSCSIDCreateRecordsWithSendTargets(sessionManager,preferences);
+    if(discoveryRecords != NULL)
+        CFRelease(discoveryRecords);
+
+    discoveryRecords = iSCSIDCreateRecordsWithSendTargets(sessionManager,preferences);
+
     
+    // Clear mutex created when discovery was launched
+    pthread_mutex_unlock(&discoveryMutex);
+    
+    CFRunLoopSourceSignal(discoverySource);
+    return NULL;
+}
+
+void iSCSIDProcessDiscoveryData(void * info)
+{
     // Process discovery results if any
     if(discoveryRecords) {
         
@@ -1312,19 +1331,15 @@ void * iSCSIDRunDiscovery(void * context)
         const void * keys[count];
         const void * values[count];
         CFDictionaryGetKeysAndValues(discoveryRecords,keys,values);
-    
+        
         for(CFIndex i = 0; i < count; i++)
             iSCSIDUpdatePreferencesWithDiscoveredTargets(sessionManager,preferences,keys[i],values[i]);
-    
+        
         iSCSIPreferencesSynchronzeAppValues(preferences);
         pthread_mutex_unlock(&preferencesMutex);
         
         CFRelease(discoveryRecords);
     }
-    
-    pthread_mutex_unlock(&discoveryMutex);
-    
-    return NULL;
 }
 
 
@@ -1385,8 +1400,9 @@ errno_t iSCSIDUpdateDiscovery(int fd,
     // Add new timer with updated interval, if discovery is enabled
     if(discoveryEnabled)
     {
+        CFTimeInterval delay = 2;
         discoveryTimer = CFRunLoopTimerCreate(kCFAllocatorDefault,
-                                              CFAbsoluteTimeGetCurrent() + 2.0,
+                                              CFAbsoluteTimeGetCurrent()+delay,
                                               interval,0,0,callout,NULL);
 
         CFRunLoopAddTimer(CFRunLoopGetCurrent(),discoveryTimer,kCFRunLoopDefaultMode);
@@ -1656,9 +1672,25 @@ void iSCSIDQueueLogin(iSCSITargetRef target,iSCSIPortalRef portal)
                                                                         (const struct sockaddr *)&localAddress,
                                                                         (const struct sockaddr *)&remoteAddress);
     }
-
-    SCNetworkReachabilitySetCallback(reachabilityTarget,iSCSIDProcessQueuedLogin,&reachabilityContext);
-    SCNetworkReachabilityScheduleWithRunLoop(reachabilityTarget,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
+    
+    // If the target is reachable just login; otherwise queue the login ...
+    SCNetworkReachabilityFlags reachabilityFlags;
+    SCNetworkReachabilityGetFlags(reachabilityTarget,&reachabilityFlags);
+    
+    if(reachabilityFlags & kSCNetworkReachabilityFlagsReachable) {
+        enum iSCSILoginStatusCode statusCode;
+        iSCSIDLoginWithPortal(target,portal,&statusCode);
+        
+        iSCSITargetRelease(target);
+        iSCSIPortalRelease(portal);
+        CFRelease(reachabilityTarget);
+        free(loginRef);
+    
+    }
+    else {
+        SCNetworkReachabilitySetCallback(reachabilityTarget,iSCSIDProcessQueuedLogin,&reachabilityContext);
+        SCNetworkReachabilityScheduleWithRunLoop(reachabilityTarget,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
+    }
 }
 
 void iSCSIDSessionTimeoutHandler(iSCSITargetRef target,iSCSIPortalRef portal)
@@ -1821,7 +1853,6 @@ void iSCSIDPrepareForSystemSleep()
 
         DASessionScheduleWithRunLoop(diskSession,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
         iSCSIDAUnmountForTarget(diskSession,kDADiskUnmountOptionWhole,target,&iSCSIDPrepareForSystemSleepComplete,(void*)sessionId);
-//        iSCSITargetRelease(target);
     }
     
     CFRetain(diskSession);
@@ -1994,9 +2025,10 @@ int main(void)
     sessionManager = iSCSISessionManagerCreate(kCFAllocatorDefault,callbacks);
     
     // Let launchd call us again once the HBA kext is loaded
-    if(!sessionManager)
+    if(!sessionManager) {
+        asl_log(NULL,NULL,ASL_LEVEL_ALERT,"kernel extension has not been loaded, iSCSI services unavailable");
         return EAGAIN;
-    
+    }
     iSCSISessionManagerScheduleWithRunLoop(sessionManager,CFRunLoopGetMain(),kCFRunLoopDefaultMode);
 
     // Read configuration parameters from the iSCSI property list
@@ -2093,6 +2125,14 @@ int main(void)
     reqInfo->socket = socket;
     reqInfo->socketSourceRead = sockSourceRead;
     reqInfo->fd = 0;
+    
+    // Runloop source signal by deamoen when discovery data is ready to be processed
+    CFRunLoopSourceContext discoveryContext;
+    bzero(&discoveryContext,sizeof(discoveryContext));
+    discoveryContext.info = &discoveryRecords;
+    discoveryContext.perform = iSCSIDProcessDiscoveryData;
+    discoverySource = CFRunLoopSourceCreate(kCFAllocatorDefault,1,&discoveryContext);
+    CFRunLoopAddSource(CFRunLoopGetMain(),sockSourceRead,kCFRunLoopDefaultMode);
 
     asl_log(NULL,NULL,ASL_LEVEL_INFO,"daemon started");
 

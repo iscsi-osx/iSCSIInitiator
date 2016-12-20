@@ -586,7 +586,7 @@ void iSCSIVirtualHBA::BeginTaskOnWorkloopThread(iSCSIVirtualHBA * owner,
     
     if(transferDirection == kSCSIDataTransfer_FromInitiatorToTarget)
         bhs.flags |= kiSCSIPDUSCSICmdFlagWrite;
-    else
+    else if(transferDirection == kSCSIDataTransfer_FromTargetToInitiator)
         bhs.flags |= kiSCSIPDUSCSICmdFlagRead;
     
     // For CDB sizes less than 16 bytes, plug directly into SCSI command PDU

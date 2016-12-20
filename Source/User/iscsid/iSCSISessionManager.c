@@ -135,11 +135,17 @@ iSCSISessionManagerRef iSCSISessionManagerCreate(CFAllocatorRef allocator,
     
     iSCSIHBAInterfaceRef interface = iSCSIHBAInterfaceCreate(allocator,iSCSIHBANotificationHandler,&notifyContext);
     
-    managerRef->allocator = allocator;
-    managerRef->hbaInterface = interface;
-    managerRef->callbacks = callbacks;
-    managerRef->initiatorName = kiSCSIInitiatorIQN;
-    managerRef->initiatorAlias = kiSCSIInitiatorAlias;
+    if(interface) {
+        managerRef->allocator = allocator;
+        managerRef->hbaInterface = interface;
+        managerRef->callbacks = callbacks;
+        managerRef->initiatorName = kiSCSIInitiatorIQN;
+        managerRef->initiatorAlias = kiSCSIInitiatorAlias;
+    }
+    else {
+        CFAllocatorDeallocate(allocator,managerRef);
+        managerRef = NULL;
+    }
     
     return managerRef;
 }
