@@ -2132,7 +2132,7 @@ int main(void)
     discoveryContext.info = &discoveryRecords;
     discoveryContext.perform = iSCSIDProcessDiscoveryData;
     discoverySource = CFRunLoopSourceCreate(kCFAllocatorDefault,1,&discoveryContext);
-    CFRunLoopAddSource(CFRunLoopGetMain(),sockSourceRead,kCFRunLoopDefaultMode);
+    CFRunLoopAddSource(CFRunLoopGetMain(),discoverySource,kCFRunLoopDefaultMode);
 
     asl_log(NULL,NULL,ASL_LEVEL_INFO,"daemon started");
 
