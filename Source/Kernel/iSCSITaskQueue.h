@@ -83,10 +83,6 @@ public:
     /*! Removes all tasks from the queue. */
     void clearTasksFromQueue();
     
-    /*! Gets the iSCSI task tag of the task that is current being processed.
-     *  @return iSCSI task tag of the current task. */
-    UInt32 getCurrentTask();
-    
 protected:
     
     /*! Called by the attached work loop to check if there is any processing
