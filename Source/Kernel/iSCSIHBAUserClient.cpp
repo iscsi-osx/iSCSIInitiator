@@ -1393,7 +1393,7 @@ IOReturn iSCSIHBAUserClient::GetTargetIQNForSessionId(iSCSIHBAUserClient * targe
     
     IOLockUnlock(target->accessLock);
 
-    OSSafeRelease(iterator);
+    OSSafeReleaseNULL(iterator);
     return retVal;
 }
 
