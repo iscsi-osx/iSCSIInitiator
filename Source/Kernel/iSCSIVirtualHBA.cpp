@@ -156,8 +156,10 @@ bool iSCSIVirtualHBA::InitializeTargetForID(SCSITargetIdentifier targetId)
         
         if(targetIQN) {
             protocolDict->setObject("iSCSI Qualified Name",targetIQN);
-            device->setProperty(kIOPropertyProtocolCharacteristicsKey,protocolDict);
         }
+        
+        protocolDict->setObject(kIOPropertyPhysicalInterconnectTypeKey,OSString::withCString("iSCSI"));
+        device->setProperty(kIOPropertyProtocolCharacteristicsKey,protocolDict);
         
         protocolDict->release();
     }
