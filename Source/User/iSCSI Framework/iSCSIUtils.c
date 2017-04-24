@@ -27,6 +27,7 @@
  */
 
 #include "iSCSIUtils.h"
+#include <ifaddrs.h>
 
 /*! Minimum TCP port. */
 static int PORT_MIN = 0;
