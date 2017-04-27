@@ -273,6 +273,9 @@ errno_t iSCSINegotiateParseSWDictNormal(iSCSISessionManagerRef managerRef,
     // Holds target value & comparison result for keys that we'll process
     CFStringRef targetRsp;
     
+    // Holds parameters that are used to process other parameters
+    Boolean initiatR2T = false, immediatedata = false;
+    
     // Get data digest key and compare to requested value
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_MaxConnections,(void*)&targetRsp))
     {
@@ -292,7 +295,7 @@ errno_t iSCSINegotiateParseSWDictNormal(iSCSISessionManagerRef managerRef,
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_InitialR2T,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_InitialR2T);
-        Boolean initialR2T = iSCSILVGetOr(initCmd,targetRsp);
+        initialR2T = iSCSILVGetOr(initCmd,targetRsp);
         iSCSIHBAInterfaceSetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOInitialR2T,
                                              &initialR2T,sizeof(initialR2T));
     }
@@ -301,7 +304,7 @@ errno_t iSCSINegotiateParseSWDictNormal(iSCSISessionManagerRef managerRef,
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_ImmediateData,(void*)&targetRsp))
     {
         CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_ImmediateData);
-        Boolean immediateData = iSCSILVGetAnd(initCmd,targetRsp);
+        immediateData = iSCSILVGetAnd(initCmd,targetRsp);
         iSCSIHBAInterfaceSetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOImmediateData,
                                              &immediateData,sizeof(immediateData));
     }
@@ -336,16 +339,20 @@ errno_t iSCSINegotiateParseSWDictNormal(iSCSISessionManagerRef managerRef,
     // Grab minimum of first burst length
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_FirstBurstLength,(void*)&targetRsp))
     {
-        CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_FirstBurstLength);
-        UInt32 firstBurstLength = CFStringGetIntValue(targetRsp);
+        // This parameter is irrelevant when initialR2T = yes and immediateData = no.
+        if(!initialR2T || immediatedata) {
         
-        // Range-check value...
-        if(iSCSILVRangeInvalid(firstBurstLength,kRFC3720_FirstBurstLength_Min,kRFC3720_FirstBurstLength_Max))
-            return ENOTSUP;
+            CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_FirstBurstLength);
+            UInt32 firstBurstLength = CFStringGetIntValue(targetRsp);
         
-        firstBurstLength = iSCSILVGetMin(initCmd,targetRsp);
-        iSCSIHBAInterfaceSetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOFirstBurstLength,
-                                 &firstBurstLength,sizeof(firstBurstLength));
+            // Range-check value...
+            if(iSCSILVRangeInvalid(firstBurstLength,kRFC3720_FirstBurstLength_Min,kRFC3720_FirstBurstLength_Max))
+                return ENOTSUP;
+        
+            firstBurstLength = iSCSILVGetMin(initCmd,targetRsp);
+            iSCSIHBAInterfaceSetSessionParameter(hbaInterface,sessionId,kiSCSIHBASOFirstBurstLength,
+                                                 &firstBurstLength,sizeof(firstBurstLength));
+        }
     }
 
     // Grab minimum of max outstanding R2T
