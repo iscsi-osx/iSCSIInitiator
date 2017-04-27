@@ -499,7 +499,8 @@ errno_t iSCSINegotiateSession(iSCSISessionManagerRef managerRef,
     iSCSINegotiateBuildSWDictCommon(sessCfg,sessCmd);
     
     // If target name is specified, this is a normal session; add parameters
-    if(iSCSITargetGetIQN(target) != NULL)
+    Boolean discoverySession = CFStringCompare(iSCSITargetGetIQN(target),kiSCSIUnspecifiedTargetIQN,0) == kCFCompareEqualTo;
+    if(!discoverySession)
         iSCSINegotiateBuildSWDictNormal(sessCfg,sessCmd);
     
     // Add connection parameters
