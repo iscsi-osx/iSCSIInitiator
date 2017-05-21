@@ -356,12 +356,13 @@ bool iSCSIVirtualHBA::InitializeController()
     SetHBAProperty(kIOPropertyProductNameKey,OSString::withCString(ISCSI_PRODUCT_NAME));
     SetHBAProperty(kIOPropertyProductRevisionLevelKey,OSString::withCString(ISCSI_PRODUCT_REVISION_LEVEL));
 
+    // Generate an initiator id using a random number (per RFC3720)
+    kInitiatorId = random();
+    
     // Make ourselves discoverable to user clients (we do this last after
     // everything is initialized).
     registerService();
-    
-    // Generate an initiator id using a random number (per RFC3720)
-    kInitiatorId = random();
+
     
 	// Successfully initialized controller
 	return true;
