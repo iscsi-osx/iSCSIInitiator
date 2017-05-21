@@ -274,7 +274,7 @@ errno_t iSCSINegotiateParseSWDictNormal(iSCSISessionManagerRef managerRef,
     CFStringRef targetRsp;
     
     // Holds parameters that are used to process other parameters
-    Boolean initiatR2T = false, immediatedata = false;
+    Boolean initialR2T = false, immediateData = false;
     
     // Get data digest key and compare to requested value
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_MaxConnections,(void*)&targetRsp))
@@ -340,7 +340,7 @@ errno_t iSCSINegotiateParseSWDictNormal(iSCSISessionManagerRef managerRef,
     if(CFDictionaryGetValueIfPresent(sessRsp,kRFC3720_Key_FirstBurstLength,(void*)&targetRsp))
     {
         // This parameter is irrelevant when initialR2T = yes and immediateData = no.
-        if(!initialR2T || immediatedata) {
+        if(!initialR2T || immediateData) {
         
             CFStringRef initCmd = CFDictionaryGetValue(sessCmd,kRFC3720_Key_FirstBurstLength);
             UInt32 firstBurstLength = CFStringGetIntValue(targetRsp);
