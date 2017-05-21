@@ -465,7 +465,7 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SessionIdentifier sessionId,Connec
 
     // Send a notification to the daemon; if the daemon does not respond then
     // release the session or connection as appropriate
-    if(client->sendTimeoutMessageNotification(sessionId,connectionId) != kIOReturnSuccess)
+    if(!client || client->sendTimeoutMessageNotification(sessionId,connectionId) != kIOReturnSuccess)
     {
         if(connectionCount > 1)
             ReleaseConnection(sessionId,connectionId);
@@ -1547,7 +1547,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SessionIdentifier sessionId,
         goto EVENTSOURCE_ADD_FAILURE;
     
     newConn->dataRecvEventSource->disable();
-        
+    
     // Create a new socket (per RFC3720, only TCP sockets are used.
     // Domain can be either IPv4 or IPv6.
     error = sock_socket(portalSockaddr->ss_family,
