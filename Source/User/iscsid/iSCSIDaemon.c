@@ -1713,10 +1713,6 @@ void iSCSIDSessionTimeoutHandler(iSCSITargetRef target,iSCSIPortalRef portal)
     // available
     if(iSCSIPreferencesGetPersistenceForTarget(preferences,iSCSITargetGetIQN(target)))
         iSCSIDQueueLogin(target,portal);
-    else {
-        iSCSITargetRelease(target);
-        iSCSIPortalRelease(portal);
-    }
 }
 
 /*! Automatically logs in to targets that were specified for auto-login.
