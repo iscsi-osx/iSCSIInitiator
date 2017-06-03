@@ -455,8 +455,6 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SessionIdentifier sessionId,Connec
     for(ConnectionIdentifier connectionId = 0; connectionId < kiSCSIMaxConnectionsPerSession; connectionId++)
         if(session->connections[connectionId])
             connectionCount++;
-
-    iSCSIHBAUserClient * client = (iSCSIHBAUserClient*)getClient();
     
     // In the future add recovery here...
     if(connectionCount > 1)
@@ -466,14 +464,17 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SessionIdentifier sessionId,Connec
 
     // Send a notification to the daemon; if the daemon does not respond then
     // release the session or connection as appropriate
-    if(!client || client->sendTimeoutMessageNotification(sessionId,connectionId) != kIOReturnSuccess)
+    iSCSIHBAUserClient * client = (iSCSIHBAUserClient*)getClient();
+    
+    if(client)
+        client->sendTimeoutMessageNotification(sessionId,connectionId)
+    else
     {
         if(connectionCount > 1)
             ReleaseConnection(sessionId,connectionId);
         else
             ReleaseSession(sessionId);
     }
-    
 }
 
 SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask)
