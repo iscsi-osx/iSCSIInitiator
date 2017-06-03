@@ -118,12 +118,6 @@ UInt32 iSCSITaskQueue::completeCurrentTask()
     return taskTag;
 }
 
-/*! Gets the iSCSI task tag of the task that is current being processed.
- *  @return iSCSI task tag of the current task. */
-UInt32 getCurrentTask()
-{
-    return 0;
-}
 
 bool iSCSITaskQueue::checkForWork()
 {

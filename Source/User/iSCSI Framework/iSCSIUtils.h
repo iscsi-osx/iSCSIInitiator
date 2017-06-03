@@ -33,10 +33,11 @@
 #include <IOKit/scsi/SCSICmds_INQUIRY_Definitions.h>
 
 #include <netdb.h>
-#include <ifaddrs.h>
 #include <regex.h>
 
 #include "iSCSITypes.h"
+
+struct sockaddr_storage;
 
 /*! Verifies whether specified iSCSI qualified name (IQN) is valid per RFC3720.
  *  This function also validates 64-bit EUI names expressed as strings that

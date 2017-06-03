@@ -66,6 +66,9 @@ struct __iSCSISessionManager
      // Call user-defined callback function if one exists
      if(managerRef->callbacks.timeoutCallback)
          managerRef->callbacks.timeoutCallback(target,portal);
+     
+     iSCSITargetRelease(target);
+     iSCSIPortalRelease(portal);
  }
  
 /*! Called to handle asynchronous events that involve dropped sessions, connections, 

@@ -51,11 +51,7 @@ bool iSCSIIOEventSource::init(iSCSIVirtualHBA * owner,
 	
     iSCSIIOEventSource::session = session;
     iSCSIIOEventSource::connection = connection;
-    
-    // Initialize task queue to store parallel SCSI tasks for processing
-    queue_init(&taskQueue);
-    taskQueueLock = IOSimpleLockAlloc();
-    
+        
 	return true;
 }
 

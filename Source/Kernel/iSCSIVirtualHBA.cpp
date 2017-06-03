@@ -156,8 +156,10 @@ bool iSCSIVirtualHBA::InitializeTargetForID(SCSITargetIdentifier targetId)
         
         if(targetIQN) {
             protocolDict->setObject("iSCSI Qualified Name",targetIQN);
-            device->setProperty(kIOPropertyProtocolCharacteristicsKey,protocolDict);
         }
+        
+        protocolDict->setObject(kIOPropertyPhysicalInterconnectTypeKey,OSString::withCString("iSCSI"));
+        device->setProperty(kIOPropertyProtocolCharacteristicsKey,protocolDict);
         
         protocolDict->release();
     }
@@ -354,12 +356,13 @@ bool iSCSIVirtualHBA::InitializeController()
     SetHBAProperty(kIOPropertyProductNameKey,OSString::withCString(ISCSI_PRODUCT_NAME));
     SetHBAProperty(kIOPropertyProductRevisionLevelKey,OSString::withCString(ISCSI_PRODUCT_REVISION_LEVEL));
 
+    // Generate an initiator id using a random number (per RFC3720)
+    kInitiatorId = random();
+    
     // Make ourselves discoverable to user clients (we do this last after
     // everything is initialized).
     registerService();
-    
-    // Generate an initiator id using a random number (per RFC3720)
-    kInitiatorId = random();
+
     
 	// Successfully initialized controller
 	return true;
@@ -452,8 +455,6 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SessionIdentifier sessionId,Connec
     for(ConnectionIdentifier connectionId = 0; connectionId < kiSCSIMaxConnectionsPerSession; connectionId++)
         if(session->connections[connectionId])
             connectionCount++;
-
-    iSCSIHBAUserClient * client = (iSCSIHBAUserClient*)getClient();
     
     // In the future add recovery here...
     if(connectionCount > 1)
@@ -463,14 +464,17 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SessionIdentifier sessionId,Connec
 
     // Send a notification to the daemon; if the daemon does not respond then
     // release the session or connection as appropriate
-    if(client->sendTimeoutMessageNotification(sessionId,connectionId) != kIOReturnSuccess)
+    iSCSIHBAUserClient * client = (iSCSIHBAUserClient*)getClient();
+    
+    if(client)
+        client->sendTimeoutMessageNotification(sessionId,connectionId);
+    else
     {
         if(connectionCount > 1)
             ReleaseConnection(sessionId,connectionId);
         else
             ReleaseSession(sessionId);
     }
-    
 }
 
 SCSIServiceResponse iSCSIVirtualHBA::ProcessParallelTask(SCSIParallelTaskIdentifier parallelTask)
@@ -937,6 +941,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     SetRealizedDataTransferCount(parallelTask,(UInt32)GetRequestedDataTransferCount(parallelTask));
 
     // Process sense data if the PDU came with any...
+    bool senseDataPresent = false;
     if(length >= senseDataHeaderSize)
     {
         // First two bytes of the data segment are the size of the sense data
@@ -955,6 +960,8 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
             // Incorporate sense data into the task
             SetAutoSenseData(parallelTask,newSenseData,senseDataLength);
             
+            senseDataPresent = true;
+            
             DBLog("iscsi: Processed sense data (sid: %d, cid: %d)\n",
                   session->sessionId,connection->cid);
         }
@@ -964,6 +971,13 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     // know that we're done with this task...
     
     SCSITaskStatus completionStatus = (SCSITaskStatus)bhs->status;
+    
+    // If sense data has been included along with a check condition response,
+    // the macOS SCSI stack expects that the task status is "GOOD". Otherwise,
+    // it queries for auto sense data.
+    if(completionStatus == kSCSITaskStatus_CHECK_CONDITION && senseDataPresent)
+        completionStatus = kSCSITaskStatus_GOOD;
+    
     SCSIServiceResponse serviceResponse;
 
     if(bhs->response == kiSCSIPDUSCSICmdCompleted)
@@ -978,6 +992,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     
     DBLog("iscsi: Processed SCSI response (sid: %d, cid: %d)\n",
           session->sessionId,connection->cid);
+
 }
 
 void iSCSIVirtualHBA::ProcessDataIn(iSCSISession * session,
@@ -1534,7 +1549,7 @@ errno_t iSCSIVirtualHBA::CreateConnection(SessionIdentifier sessionId,
         goto EVENTSOURCE_ADD_FAILURE;
     
     newConn->dataRecvEventSource->disable();
-        
+    
     // Create a new socket (per RFC3720, only TCP sockets are used.
     // Domain can be either IPv4 or IPv6.
     error = sock_socket(portalSockaddr->ss_family,

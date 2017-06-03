@@ -1643,6 +1643,12 @@ void iSCSIDProcessQueuedLogin(SCNetworkReachabilityRef reachabilityTarget,
  *  portal when the network becomes available. */
 void iSCSIDQueueLogin(iSCSITargetRef target,iSCSIPortalRef portal)
 {
+    if(!target || !portal)
+        return;
+    
+    iSCSITargetRetain(target);
+    iSCSIPortalRetain(portal);
+        
     SCNetworkReachabilityRef reachabilityTarget;
     SCNetworkReachabilityContext reachabilityContext;
     
@@ -1707,10 +1713,6 @@ void iSCSIDSessionTimeoutHandler(iSCSITargetRef target,iSCSIPortalRef portal)
     // available
     if(iSCSIPreferencesGetPersistenceForTarget(preferences,iSCSITargetGetIQN(target)))
         iSCSIDQueueLogin(target,portal);
-    else {
-        iSCSITargetRelease(target);
-        iSCSIPortalRelease(portal);
-    }
 }
 
 /*! Automatically logs in to targets that were specified for auto-login.
@@ -1731,13 +1733,17 @@ void iSCSIDAutoLogin()
     for(CFIndex idx = 0; idx < targetsCount; idx++)
     {
         CFStringRef targetIQN = CFArrayGetValueAtIndex(targets,idx);
-        iSCSITargetRef target = iSCSIPreferencesCopyTarget(preferences,targetIQN);
+        iSCSITargetRef target = NULL;
+        
+        if(!(target = iSCSIPreferencesCopyTarget(preferences,targetIQN)))
+            continue;
         
         // See if this target requires auto-login and process it
         if(iSCSIPreferencesGetAutoLoginForTarget(preferences,targetIQN)) {
             
-            CFArrayRef portals = iSCSIPreferencesCreateArrayOfPortalsForTarget(preferences,targetIQN);
-            if(!portals)
+            CFArrayRef portals = NULL;
+            
+            if(!(portals = iSCSIPreferencesCreateArrayOfPortalsForTarget(preferences,targetIQN)))
                 continue;
             
             CFIndex portalsCount = CFArrayGetCount(portals);
@@ -1747,12 +1753,17 @@ void iSCSIDAutoLogin()
             {
                 CFStringRef portalAddress = CFArrayGetValueAtIndex(portals,portalIdx);
                 iSCSIPortalRef portal = iSCSIPreferencesCopyPortalForTarget(preferences,targetIQN,portalAddress);
-                iSCSIDQueueLogin(target,portal);
+                
+                if(portal) {
+                    iSCSIDQueueLogin(target,portal);
+                    iSCSIPortalRelease(portal);
+                }
             }
     
-            iSCSITargetRelease(target);
             CFRelease(portals);
         }
+        
+        iSCSITargetRelease(target);
     }
     CFRelease(targets);
 }
@@ -2132,7 +2143,7 @@ int main(void)
     discoveryContext.info = &discoveryRecords;
     discoveryContext.perform = iSCSIDProcessDiscoveryData;
     discoverySource = CFRunLoopSourceCreate(kCFAllocatorDefault,1,&discoveryContext);
-    CFRunLoopAddSource(CFRunLoopGetMain(),sockSourceRead,kCFRunLoopDefaultMode);
+    CFRunLoopAddSource(CFRunLoopGetMain(),discoverySource,kCFRunLoopDefaultMode);
 
     asl_log(NULL,NULL,ASL_LEVEL_INFO,"daemon started");
 
