@@ -467,7 +467,7 @@ void iSCSIVirtualHBA::HandleConnectionTimeout(SessionIdentifier sessionId,Connec
     iSCSIHBAUserClient * client = (iSCSIHBAUserClient*)getClient();
     
     if(client)
-        client->sendTimeoutMessageNotification(sessionId,connectionId)
+        client->sendTimeoutMessageNotification(sessionId,connectionId);
     else
     {
         if(connectionCount > 1)
