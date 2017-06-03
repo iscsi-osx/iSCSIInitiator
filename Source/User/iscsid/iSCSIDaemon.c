@@ -1643,6 +1643,12 @@ void iSCSIDProcessQueuedLogin(SCNetworkReachabilityRef reachabilityTarget,
  *  portal when the network becomes available. */
 void iSCSIDQueueLogin(iSCSITargetRef target,iSCSIPortalRef portal)
 {
+    if(!target || !portal)
+        return;
+    
+    iSCSITargetRetain(target);
+    iSCSIPortalRetain(portal);
+        
     SCNetworkReachabilityRef reachabilityTarget;
     SCNetworkReachabilityContext reachabilityContext;
     
