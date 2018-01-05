@@ -1279,12 +1279,11 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             iSCSIPreferencesSetHeaderDigestForTarget(preferences,targetIQN,kiSCSIDigestNone);
         else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPreferencesSetHeaderDigestForTarget(preferences,targetIQN,kiSCSIDigestCRC32C);
-        if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
-            iSCSICtlDisplayError(CFSTR("A digest type was not specified"));
-            error = EINVAL;
-        }
         else {
-            iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
+            if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo)
+                iSCSICtlDisplayError(CFSTR("A digest type was not specified"));
+            else
+                iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
             error = EINVAL;
         }
         
@@ -1298,12 +1297,11 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
             iSCSIPreferencesSetDataDigestForTarget(preferences,targetIQN,kiSCSIDigestNone);
         else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
             iSCSIPreferencesSetDataDigestForTarget(preferences,targetIQN,kiSCSIDigestCRC32C);
-        if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
-            iSCSICtlDisplayError(CFSTR("A digest type was not specified"));
-            error = EINVAL;
-        }
         else {
-            iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
+            if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo)
+                iSCSICtlDisplayError(CFSTR("A digest type was not specified"));
+            else
+                iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
             error = EINVAL;
         }
         
