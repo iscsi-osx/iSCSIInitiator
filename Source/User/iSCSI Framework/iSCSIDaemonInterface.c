@@ -29,6 +29,8 @@
 #include "iSCSIDaemonInterface.h"
 #include "iSCSIDaemonInterfaceShared.h"
 
+#include <sys/select.h>
+
 /*! Timeout used when connecting to daemon. */
 static const int kiSCSIDaemonConnectTimeoutMilliSec = 100;
 

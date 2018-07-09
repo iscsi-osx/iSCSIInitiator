@@ -208,7 +208,7 @@ void iSCSIDUpdatePreferencesFromAppValues()
     if(preferences != NULL)
         iSCSIPreferencesRelease(preferences);
     
-    preferences = iSCSIPreferencesCreateFromAppValues(CFSTR(CF_PREFERENCES_APP_ID));
+    preferences = iSCSIPreferencesCreateFromAppValues();
 }
 
 iSCSISessionConfigRef iSCSIDCreateSessionConfig(CFStringRef targetIQN)
@@ -1685,9 +1685,11 @@ void iSCSIDQueueLogin(iSCSITargetRef target,iSCSIPortalRef portal)
     
     if(reachabilityFlags & kSCNetworkReachabilityFlagsReachable) {
         enum iSCSILoginStatusCode statusCode;
-        iSCSIDLoginWithPortal(target,portal,&statusCode);
-        
+        iSCSIMutableTargetRef mutableTarget = iSCSITargetCreateMutableCopy(target);
         iSCSITargetRelease(target);
+        iSCSIDLoginWithPortal(mutableTarget,portal,&statusCode);
+        
+        iSCSITargetRelease(mutableTarget);
         iSCSIPortalRelease(portal);
         CFRelease(reachabilityTarget);
         free(loginRef);
