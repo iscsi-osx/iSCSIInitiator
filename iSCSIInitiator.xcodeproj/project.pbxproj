@@ -32,7 +32,6 @@
 		2B9E3CBE1C49ED0000440116 /* crc32c.c in Sources */ = {isa = PBXBuildFile; fileRef = 2B9E3CBA1C49ECF900440116 /* crc32c.c */; };
 		2BC4CBB21AA55046003611F7 /* DiskArbitration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BC4CBB11AA55046003611F7 /* DiskArbitration.framework */; };
 		2BDE5E281C8B0274004BDB5F /* iscsictl.8 in Resources */ = {isa = PBXBuildFile; fileRef = 2BDE5E261C8B0274004BDB5F /* iscsictl.8 */; };
-		2BDE5E6E1C8B0292004BDB5F /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2BDE5E481C8B028B004BDB5F /* Info.plist */; };
 		2BDE5E6F1C8B0292004BDB5F /* iSCSI.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BDE5E491C8B028B004BDB5F /* iSCSI.h */; };
 		2BDE5E701C8B0292004BDB5F /* iSCSIDA.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BDE5E4A1C8B028B004BDB5F /* iSCSIDA.c */; };
 		2BDE5E711C8B0292004BDB5F /* iSCSIDA.h in Headers */ = {isa = PBXBuildFile; fileRef = 2BDE5E4B1C8B028B004BDB5F /* iSCSIDA.h */; };
@@ -559,7 +558,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2BDE5E6E1C8B0292004BDB5F /* Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
