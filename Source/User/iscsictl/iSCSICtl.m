@@ -656,7 +656,7 @@ errno_t iSCSICtlLogin(AuthorizationRef authorization,CFDictionaryRef options)
     if(!authorization || !options)
         return EINVAL;
 
-    iSCSIDaemonHandle handle;
+    iSCSIDaemonHandle handle = -1;
     iSCSITargetRef target = NULL;
     CFStringRef targetIQN = NULL;
     iSCSIPreferencesRef preferences = NULL;
@@ -765,7 +765,7 @@ errno_t iSCSICtlLogout(AuthorizationRef authorization,CFDictionaryRef options)
     if(!authorization || !options)
         return EINVAL;
     
-    iSCSIDaemonHandle handle;
+    iSCSIDaemonHandle handle = -1;
     iSCSITargetRef target = NULL;
     iSCSIPortalRef portal = NULL;
     errno_t error = 0;
@@ -831,7 +831,7 @@ errno_t iSCSICtlAddTarget(AuthorizationRef authorization,CFDictionaryRef options
     if(!authorization || !options)
         return EINVAL;
     
-    iSCSIDaemonHandle handle;
+    iSCSIDaemonHandle handle = -1;
     iSCSITargetRef target = NULL;
     iSCSIPortalRef portal = NULL;
     iSCSIPreferencesRef preferences = NULL;
@@ -904,7 +904,7 @@ errno_t iSCSICtlRemoveTarget(AuthorizationRef authorization,CFDictionaryRef opti
     if(!authorization || !options)
         return EINVAL;
     
-    iSCSIDaemonHandle handle;
+    iSCSIDaemonHandle handle = -1;
     iSCSITargetRef target = NULL;
     iSCSIPortalRef portal = NULL;
     iSCSIPreferencesRef preferences = NULL;
@@ -1275,33 +1275,32 @@ errno_t iSCSICtlModifyTargetFromOptions(AuthorizationRef authorization,
     // Check for header digest
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyHeaderDigest,(const void **)&value))
     {
-        if(CFStringCompare(value,kOptValueDigestNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
-            iSCSIPreferencesSetHeaderDigestForTarget(preferences,targetIQN,kiSCSIDigestNone);
-        else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
-            iSCSIPreferencesSetHeaderDigestForTarget(preferences,targetIQN,kiSCSIDigestCRC32C);
         if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
             iSCSICtlDisplayError(CFSTR("A digest type was not specified"));
             error = EINVAL;
         }
+        else if(CFStringCompare(value,kOptValueDigestNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPreferencesSetHeaderDigestForTarget(preferences,targetIQN,kiSCSIDigestNone);
+        else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPreferencesSetHeaderDigestForTarget(preferences,targetIQN,kiSCSIDigestCRC32C);
         else {
             iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
             error = EINVAL;
         }
-        
         validOption = true;
     }
 
     // Check for data digest
     if(!error && CFDictionaryGetValueIfPresent(options,kOptKeyDataDigest,(const void **)&value))
     {
-        if(CFStringCompare(value,kOptValueDigestNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
-            iSCSIPreferencesSetDataDigestForTarget(preferences,targetIQN,kiSCSIDigestNone);
-        else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
-            iSCSIPreferencesSetDataDigestForTarget(preferences,targetIQN,kiSCSIDigestCRC32C);
         if(CFStringCompare(value,kOptValueEmpty,0) == kCFCompareEqualTo) {
             iSCSICtlDisplayError(CFSTR("A digest type was not specified"));
             error = EINVAL;
         }
+        else if(CFStringCompare(value,kOptValueDigestNone,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPreferencesSetDataDigestForTarget(preferences,targetIQN,kiSCSIDigestNone);
+        else if(CFStringCompare(value,kOptValueDigestCRC32C,kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+            iSCSIPreferencesSetDataDigestForTarget(preferences,targetIQN,kiSCSIDigestCRC32C);
         else {
             iSCSICtlDisplayError(CFSTR("The specified digest type is invalid"));
             error = EINVAL;
@@ -1328,7 +1327,7 @@ errno_t iSCSICtlModifyTarget(AuthorizationRef authorization,CFDictionaryRef opti
     if(!authorization || !options)
         return EINVAL;
 
-    iSCSIDaemonHandle handle;
+    iSCSIDaemonHandle handle = -1;
     bool lockAndSync = false;
     iSCSITargetRef target = NULL;
     iSCSIMutablePortalRef portal = NULL;
@@ -1916,7 +1915,7 @@ errno_t iSCSICtlAddDiscoveryPortal(AuthorizationRef authorization,CFDictionaryRe
     if(!authorization || !options)
         return EINVAL;
     
-    iSCSIDaemonHandle handle;
+    iSCSIDaemonHandle handle = -1;
     iSCSIPortalRef portal = NULL;
     iSCSIPreferencesRef preferences = NULL;
     bool lockAndSync = false;
@@ -1986,7 +1985,7 @@ errno_t iSCSICtlModifyDiscovery(AuthorizationRef authorization,CFDictionaryRef o
     if(!authorization || !optDictionary)
         return EINVAL;
 
-    iSCSIDaemonHandle handle;
+    iSCSIDaemonHandle handle = -1;
     CFStringRef value = NULL;
     iSCSIPreferencesRef preferences = NULL;
     bool lockAndSync = false;

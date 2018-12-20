@@ -229,7 +229,7 @@ iSCSIPortalRef iSCSIPortalCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIPortal object with empty portal parameters.
  *  @return a new portal object. */
-iSCSIMutablePortalRef iSCSIPortalCreateMutable();
+iSCSIMutablePortalRef iSCSIPortalCreateMutable(void);
 
 /*! Gets the address associated with the iSCSI portal.
  *  @param an iSCSI portal object.
@@ -297,7 +297,7 @@ iSCSITargetRef iSCSITargetCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSITarget object with empty target parameters.
  *  @return an iSCSI target object. */
-iSCSIMutableTargetRef iSCSITargetCreateMutable();
+iSCSIMutableTargetRef iSCSITargetCreateMutable(void);
 
 /*! Createa a new mutable iSCSITarget object.
  *  @param target an exsiting target object.
@@ -354,7 +354,7 @@ CFDataRef iSCSITargetCreateData(iSCSITargetRef target);
 /*! Creates a new iSCSIAuth object with empty authentication parameters
  *  (defaults to no authentication).
  *  @return a new iSCSI authentication object. */
-iSCSIAuthRef iSCSIAuthCreateNone();
+iSCSIAuthRef iSCSIAuthCreateNone(void);
 
 /*! Creates a new authentication object from an external data representation.
  * @param data data used to construct an iSCSI authentication object.
@@ -402,7 +402,7 @@ CFDataRef iSCSIAuthCreateData(iSCSIAuthRef auth);
 
 
 /*! Creates a discovery record object. */
-iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutable();
+iSCSIMutableDiscoveryRecRef iSCSIDiscoveryRecCreateMutable(void);
 
 /*! Creates a discovery record from an external data representation.
  * @param data data used to construct an iSCSI discovery object.
@@ -486,7 +486,7 @@ CFDataRef iSCSIDiscoveryRecCreateData(iSCSIMutableDiscoveryRecRef discoveryRec);
 iSCSISessionConfigRef iSCSISessionConfigCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSISessionConfigRef with default values. */
-iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutable();
+iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutable(void);
 
 /*! Creates a mutable session configuration object from an existing one. */
 iSCSIMutableSessionConfigRef iSCSISessionConfigCreateMutableCopy(iSCSISessionConfigRef config);
@@ -546,7 +546,7 @@ CFDataRef iSCSISessionConfigCreateData(iSCSISessionConfigRef config);
 iSCSIConnectionConfigRef iSCSIConnectionConfigCreateWithData(CFDataRef data);
 
 /*! Creates a new iSCSIConnectionConfigRef with default values. */
-iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutable();
+iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutable(void);
 
 /*! Creates a mutable connection configuration object from an existing one. */
 iSCSIMutableConnectionConfigRef iSCSIConnectionConfigCreateMutableCopy(iSCSIConnectionConfigRef config);

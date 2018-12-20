@@ -40,7 +40,7 @@
 typedef void (*iSCSIIOMediaCallback)(io_object_t entry,void * context);
 
 /*! Gets the iSCSIVirtualHBA object in the IO registry.*/
-io_object_t iSCSIIORegistryGetiSCSIHBAEntry();
+io_object_t iSCSIIORegistryGetiSCSIHBAEntry(void);
 
 /*! Gets the target object (IOSCSITargetDevice) in the IO registry that
  *  corresponds to the specified target.

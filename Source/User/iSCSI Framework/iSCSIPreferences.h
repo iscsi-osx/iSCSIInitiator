@@ -412,12 +412,12 @@ CFDataRef iSCSIPreferencesCreateData(iSCSIPreferencesRef preferences);
 
 /*! Creates a new iSCSI preferences object.
  *  @return a new (empty) preferences object. */
-iSCSIPreferencesRef iSCSIPreferencesCreate();
+iSCSIPreferencesRef iSCSIPreferencesCreate(void);
 
 /*! Creates a new iSCSI preferences object from using values stored in system preferences.
  *  @param kAppId the application identification string.
  *  @return a new preferences object containing stored iSCSI preferences. */
-iSCSIPreferencesRef iSCSIPreferencesCreateFromAppValues();
+iSCSIPreferencesRef iSCSIPreferencesCreateFromAppValues(void);
 
 /*! Creates a new iSCSI preferences object from a dictionary object from a dictionary representation.
  *  @param dict a dictionary used to construct an iSCSI preferences object.

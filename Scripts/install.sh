@@ -15,6 +15,8 @@ DAEMON_PLIST_DST=/Library/LaunchDaemons
 FRAMEWORK_DST=/Library/Frameworks
 TOOL_DST=/usr/local/bin
 MAN_DST=/usr/share/man/man8
+PREF_DST=/Library/Preferences
+PREF_FILE=com.github.iscsi-osx.iSCSIInitiator.plist
 
 # Get minor version of the OS
 OSX_MINOR_VER=$(sw_vers -productVersion | awk -F '.' '{print $2}')
@@ -83,3 +85,9 @@ sudo kextload $KEXT_DST/$KEXT
 # Start daemon
 sudo launchctl load $DAEMON_PLIST_DST/$DAEMON_PLIST
 sudo launchctl start $DAEMON_PLIST
+
+# Remove (old) configuration file
+sudo rm -f $PREF_DST/$PREF_FILE
+
+# Flush preferences cache
+sudo killall cfprefsd

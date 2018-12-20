@@ -238,7 +238,7 @@ CFDictionaryRef iSCSIDiscoveryCreateRecordsWithSendTargets(iSCSISessionManagerRe
             CFRelease(errorString);
         }
         else {
-            // Queue discovery record so that it can be processes later
+            // Queue discovery record so that it can be processed later
             if(discoveryRec) {
                 CFDictionarySetValue(discoveryRecords,discoveryPortal,discoveryRec);
                 iSCSIDiscoveryRecRelease(discoveryRec);

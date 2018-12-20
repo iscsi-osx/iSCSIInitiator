@@ -45,4 +45,4 @@ FOUNDATION_EXPORT const unsigned char iSCSIVersionString[];
 #import "iSCSITypes.h"
 #import "iSCSITypesShared.h"
 #import "iSCSIUtils.h"
-#import "iSCSIAuthRIghts.h"
+#import "iSCSIAuthRights.h"

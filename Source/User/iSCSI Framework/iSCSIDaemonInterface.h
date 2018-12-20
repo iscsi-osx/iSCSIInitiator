@@ -47,7 +47,7 @@ typedef int iSCSIDaemonHandle;
 
 /*! Connects to the iSCSI daemon.
  *  @return a handle to the daemon, or -1 if the daemon is not available. */
-iSCSIDaemonHandle iSCSIDaemonConnect();
+iSCSIDaemonHandle iSCSIDaemonConnect(void);
 
 /*! Disconnects from the iSCSI daemon.  The handle is freed.
  *  @param handle the handle of the connection to free. */
