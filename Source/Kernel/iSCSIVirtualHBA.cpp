@@ -912,7 +912,7 @@ void iSCSIVirtualHBA::ProcessSCSIResponse(iSCSISession * session,
     
     const UInt32 length = GetDataSegmentLength((iSCSIPDUTargetBHS*)bhs);
     UInt8 data[length];
-    memset(data, length, 0);
+    memset(data, length, (0));
     if(length > 0) {
         if(RecvPDUData(session,connection,data,length,MSG_WAITALL))
             DBLog("iscsi: Error retrieving data segment (sid: %d, cid: %d)\n",
