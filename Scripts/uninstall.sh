@@ -14,7 +14,7 @@ DAEMON_DST=/usr/local/libexec
 DAEMON_PLIST_DST=/Library/LaunchDaemons
 FRAMEWORK_DST=/Library/Frameworks
 TOOL_DST=/usr/local/bin
-MAN_DST=/usr/share/man/man8
+MAN_DST=/usr/local/share/man/man8
 PREF_DST=/Library/Preferences
 PREF_FILE=com.github.iscsi-osx.iSCSIInitiator.plist
 
