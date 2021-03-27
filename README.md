@@ -1,3 +1,5 @@
+**Update 27 March 2021** : Further development is on hold until DriverKit 20.4 (Beta) is released, with support for `IOUserSCSIParallelInterfaceController`. This software will ultimately transition away from kernel extensions.
+
 
 ### Overview
 
